@@ -1,18 +1,18 @@
-//! MCP server for hkask-regulation — CNS span history query tools.
+//! MCP server for hkask-regulation — regulation span history query tools.
 //!
-//! Exposes two tools for reading CNS ν-event history from the persistent
+//! Exposes two tools for reading regulation ν-event history from the persistent
 //! `RegulationArchive`:
-//! - `cns_query_spans` — query events by span_category prefix within a time window
+//! - `reg_query_spans` — query events by span_category prefix within a time window
 //! - `reg_span_stats`  — aggregate counts by span_category
 //!
 //! These tools are the runtime telemetry surface that the
-//! `runtime-posture-monitor` skill consumes to observe `cns.guard.*`,
-//! `cns.regulation`, and `hkask.*` performative spans.
+//! `runtime-posture-monitor` skill consumes to observe `reg.guard.*`,
+//! `reg.regulation`, and `hkask.*` performative spans.
 //!
 //! The stored `span_category` column holds the short name (e.g. "guard.input",
 //! "regulation", "gas") — i.e. the `SpanNamespace::short_name()` with the
-//! `cns.` prefix stripped. Callers pass the full `cns.*` namespace (e.g.
-//! "reg.guard"); the server strips the `cns.` prefix before querying so the
+//! `reg.` prefix stripped. Callers pass the full `reg.*` namespace (e.g.
+//! "reg.guard"); the server strips the `reg.` prefix before querying so the
 //! `LIKE 'prefix%'` predicate hits the index on `(span_category, phase)`.
 
 #![allow(unused_crate_dependencies)]
@@ -32,17 +32,17 @@ const SERVER_NAME: &str = "hkask-mcp-regulation";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 hkask_mcp::mcp_server!(
-    pub struct CnsServer {
+    pub struct RegulationServer {
         regulation_store: Option<Arc<RegulationArchive>>,
     }
 );
 
 // ── Request types ─────────────────────────────────────────────────
 
-/// Request for `cns_query_spans`.
+/// Request for `reg_query_spans`.
 ///
-/// `namespace` is the full canonical CNS namespace prefix (e.g. "reg.guard",
-/// "reg.outcome", "hkask"). The server strips the `cns.` prefix before
+/// `namespace` is the full canonical regulation namespace prefix (e.g. "reg.guard",
+/// "reg.outcome", "hkask"). The server strips the `reg.` prefix before
 /// querying the `span_category` column, which stores short names.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct QuerySpansRequest {
@@ -79,12 +79,12 @@ pub struct SpanStatsRequest {
 // ── Tools ──────────────────────────────────────────────────────────
 
 #[tool_router(server_handler)]
-impl CnsServer {
+impl RegulationServer {
     #[tool(
         description = "Query regulation record history by namespace prefix within a time window. Returns events ordered by timestamp ASC. Use 'reg.guard' for guard violations, 'reg.outcome' for regulation events, 'hkask' for performative telemetry."
     )]
-    pub async fn cns_query_spans(&self, Parameters(req): Parameters<QuerySpansRequest>) -> String {
-        execute_tool(self, "cns_query_spans", async {
+    pub async fn reg_query_spans(&self, Parameters(req): Parameters<QuerySpansRequest>) -> String {
+        execute_tool(self, "reg_query_spans", async {
             let namespace = req.namespace.trim();
             if namespace.is_empty() {
                 return Err(McpToolError::invalid_argument(
@@ -101,10 +101,10 @@ impl CnsServer {
             // The stored span_category column holds the short name (e.g. "guard.input",
             // "regulation", "gas"). Strip the "reg." prefix so LIKE 'prefix%' hits the
             // (span_category, phase) index.
-            let short_prefix = strip_cns_prefix(namespace);
+            let short_prefix = strip_reg_prefix(namespace);
             let events = store
                 .query_by_namespace(short_prefix, since, req.limit)
-                .map_err(|e| McpToolError::internal(format!("CNS query failed: {e}")))?;
+                .map_err(|e| McpToolError::internal(format!("Regulation query failed: {e}")))?;
             let count = events.len();
             let serialized: Vec<serde_json::Value> = events
                 .iter()
@@ -137,7 +137,7 @@ impl CnsServer {
     }
 
     #[tool(
-        description = "Aggregate CNS ν-event counts by exact span_category within a namespace prefix and time window. Returns a JSON object mapping each span_category to its count, ordered by count DESC."
+        description = "Aggregate regulation ν-event counts by exact span_category within a namespace prefix and time window. Returns a JSON object mapping each span_category to its count, ordered by count DESC."
     )]
     pub async fn reg_span_stats(&self, Parameters(req): Parameters<SpanStatsRequest>) -> String {
         execute_tool(self, "reg_span_stats", async {
@@ -154,10 +154,10 @@ impl CnsServer {
             };
             let since = chrono::Utc::now()
                 - chrono::Duration::seconds((req.since_hours * 3600.0) as i64);
-            let short_prefix = strip_cns_prefix(namespace);
+            let short_prefix = strip_reg_prefix(namespace);
             let stats = store
                 .query_span_stats(short_prefix, since)
-                .map_err(|e| McpToolError::internal(format!("CNS stats query failed: {e}")))?;
+                .map_err(|e| McpToolError::internal(format!("Regulation stats query failed: {e}")))?;
             let total: u64 = stats.iter().map(|(_, c)| *c).sum();
             let mut categories: HashMap<String, u64> = HashMap::new();
             for (cat, cnt) in stats {
@@ -174,10 +174,10 @@ impl CnsServer {
     }
 }
 
-/// Strip the `cns.` prefix from a namespace so it matches the short-name
-/// `span_category` column. Non-`cns.` namespaces (e.g. `hkask`) are returned
+/// Strip the `reg.` prefix from a namespace so it matches the short-name
+/// `span_category` column. Non-`reg.` namespaces (e.g. `hkask`) are returned
 /// as-is so callers can query performative telemetry too.
-fn strip_cns_prefix(namespace: &str) -> &str {
+fn strip_reg_prefix(namespace: &str) -> &str {
     namespace.strip_prefix("reg.").unwrap_or(namespace)
 }
 
@@ -186,7 +186,7 @@ fn strip_cns_prefix(namespace: &str) -> &str {
 /// Open the RegulationArchive from the configured database.
 ///
 /// Follows the curator pattern: read `HKASK_DB_PATH` (or fall back to the
-/// CNS pod database path) and `HKASK_DB_PASSPHRASE` from credentials/env.
+/// regulation pod database path) and `HKASK_DB_PASSPHRASE` from credentials/env.
 /// Returns `None` (graceful degradation) when the database cannot be opened —
 /// the tools then return `permission_denied` so callers see a clear message.
 fn open_regulation_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<RegulationArchive>> {
@@ -213,7 +213,7 @@ fn open_regulation_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<R
         Some(pw) => pw,
         None => {
             tracing::warn!(
-                target: "hkask.mcp.cns",
+                target: "hkask.mcp.regulation",
                 "HKASK_DB_PASSPHRASE not set — RegulationArchive unavailable"
             );
             return None;
@@ -224,10 +224,10 @@ fn open_regulation_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<R
         Ok(db) => db,
         Err(e) => {
             tracing::warn!(
-                target: "hkask.mcp.cns",
+                target: "hkask.mcp.regulation",
                 error = %e,
                 path = %db_path,
-                "Failed to open CNS database"
+                "Failed to open regulation database"
             );
             return None;
         }
@@ -236,7 +236,7 @@ fn open_regulation_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<R
         Ok(p) => p,
         Err(e) => {
             tracing::warn!(
-                target: "hkask.mcp.cns",
+                target: "hkask.mcp.regulation",
                 error = %e,
                 "Failed to get SQLite pool"
             );
@@ -256,7 +256,7 @@ pub async fn run(
         SERVER_VERSION,
         |ctx: hkask_mcp::server::ServerContext| {
             let regulation_store = open_regulation_store(&ctx);
-            Ok(CnsServer::new(
+            Ok(RegulationServer::new(
                 ctx.webid,
                 userpod.clone(),
                 daemon_client.clone(),

@@ -2,7 +2,7 @@
 //!
 //! The TUI crate cannot depend on `hkask-cli` (dependency direction violation).
 //! Two traits define the interfaces:
-//! - `SystemBridge`: monitoring data (gas, CNS, context, pods) — used by Workspace tick
+//! - `SystemBridge`: monitoring data (gas, Regulation, context, pods) — used by Workspace tick
 //! - `ReplBridge`: full bridge (monitoring + inference) — used by windows
 //!
 //! Both traits are implemented by the same concrete type in `hkask-repl`.
@@ -69,7 +69,7 @@ pub trait SystemBridge: Send + Sync {
     fn gas_remaining(&self) -> u64;
     /// Get gas cap.
     fn gas_cap(&self) -> u64;
-    /// Get CNS alert count (warning + critical).
+    /// Get Regulation alert count (warning + critical).
     fn cns_alert_count(&self) -> u32;
     /// Get context window pressure (0.0–1.0).
     fn context_pressure(&self) -> f64;
@@ -77,7 +77,7 @@ pub trait SystemBridge: Send + Sync {
     fn mcp_status(&self) -> (usize, usize);
     /// Get pod counts (curator, userpod), or `None` when scanning fails.
     fn pod_counts(&self) -> Option<(usize, usize)>;
-    /// Get CNS domain health summary.
+    /// Get Regulation domain health summary.
     fn reg_domains(&self) -> Vec<(String, bool)>;
 }
 

@@ -22,7 +22,7 @@ pub struct CuratorContext {
     curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
     escalation_port: Arc<dyn EscalationPort>,
     /// RegulationRecord store for algedonic review queries.
-    /// Curation reads from the persistent log, not live CNS state.
+    /// Curation reads from the persistent log, not live Regulation state.
     regulation_store: Option<Arc<dyn LedgerStoragePort>>,
     /// A2A port for A2A messaging (e.g. directing bots).
     a2a_port: Option<Arc<A2ARuntime>>,
@@ -148,7 +148,7 @@ impl CuratorContext {
         &self.handle
     }
 
-    /// Access the CNS runtime for health checks and variety queries.
+    /// Access the Regulation runtime for health checks and variety queries.
     pub(crate) fn ledger(&self) -> &Arc<RegulationLedger> {
         &self.ledger
     }
@@ -161,7 +161,7 @@ impl CuratorContext {
 
     /// Access the RegulationRecord store for algedonic review queries.
     ///
-    /// Curation reads from the persistent event log, not live CNS state.
+    /// Curation reads from the persistent event log, not live Regulation state.
     /// Returns None if no RegulationRecord store is configured (graceful degradation).
     pub(crate) fn regulation_store(&self) -> Option<&Arc<dyn LedgerStoragePort>> {
         self.regulation_store.as_ref()

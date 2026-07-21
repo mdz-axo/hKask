@@ -7,7 +7,7 @@
 //! 2. Implements ACP JSON-RPC 2.0 over stdio
 //! 3. Routes prompts through hKask's inference router
 //! 4. Encodes interactions as episodic memory h_mems
-//! 5. Registers CNS spans for observability
+//! 5. Registers Regulation spans for observability
 //!
 //! The ACP wire protocol is JSON-RPC 2.0 over stdin/stdout. Message types
 //! follow the Agent Client Protocol specification v1. When the

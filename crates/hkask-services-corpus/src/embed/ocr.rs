@@ -22,7 +22,7 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 /// Falls back to sending raw PDF bytes as base64 if pdftoppm is not installed.
 #[must_use = "result must be used"]
 pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.embed", operation = "ocr_pdf_bytes", url = %url, byte_len = bytes.len(), "REG");
 
     let ocr_model = std::env::var("HKASK_OCR_MODEL")

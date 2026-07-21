@@ -34,7 +34,7 @@ use hkask_types::transcript::TranscriptSegment;
 use hkask_types::visibility::Visibility;
 use serde_json::Value;
 
-// ── CNS type strategies ─────────────────────────────────────────────────────────
+// ── Regulation type strategies ─────────────────────────────────────────────────────────
 
 fn non_empty_string() -> BoxedStrategy<String> {
     proptest::arbitrary::any::<String>()
@@ -75,11 +75,11 @@ fn json_value_strategy() -> BoxedStrategy<Value> {
 
 /// Strategy generating valid `RegulationRecord` instances.
 ///
-/// Produces events with random observer WebIDs, canonical CNS spans,
+/// Produces events with random observer WebIDs, canonical Regulation spans,
 /// valid phases, string observations, and recursion depth 0–7.
 ///
 /// post: returns `BoxedStrategy<RegulationRecord>` with valid observer, span, phase, observation, depth 0–7
-/// expect: "I can generate valid ν-events with correct observer, canonical CNS spans, and valid phases for property-based testing"
+/// expect: "I can generate valid ν-events with correct observer, canonical Regulation spans, and valid phases for property-based testing"
 ///Constraining: one strategy per type, no duplicate generators
 pub fn any_regulation_record() -> BoxedStrategy<RegulationRecord> {
     (
@@ -206,7 +206,7 @@ pub fn any_transcript_segment() -> BoxedStrategy<TranscriptSegment> {
         .boxed()
 }
 
-// ── CNS proptest strategies ───────────────────────────────────────────────────
+// ── Regulation proptest strategies ───────────────────────────────────────────────────
 
 /// Strategy generating valid `GasCost` values (1..10000).
 ///

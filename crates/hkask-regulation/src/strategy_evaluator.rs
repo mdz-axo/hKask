@@ -10,7 +10,7 @@
 //! - **Strategy**: a named action ladder (e.g., "default", "aggressive").
 //! - **Evaluator**: tracks per-metric strategy effectiveness from pipeline records.
 //! - **Promotion**: when the active strategy's effectiveness drops below threshold,
-//!   the evaluator promotes the next-best strategy and emits a CNS span.
+//!   the evaluator promotes the next-best strategy and emits a Regulation span.
 //!
 //! ## Current strategies (per metric)
 //!

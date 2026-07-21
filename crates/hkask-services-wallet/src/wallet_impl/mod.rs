@@ -1,4 +1,4 @@
-//! WalletService — Composes WalletManager, ApiKeyIssuer, and CNS integration.
+//! WalletService — Composes WalletManager, ApiKeyIssuer, and Regulation integration.
 //!
 //! Provides a clean interface for CLI and API surfaces. Hides the internal
 //! `Arc<>` sharing pattern so callers don't repeat boilerplate at every call site.
@@ -31,7 +31,7 @@ mod tests;
 pub struct WalletService {
     pub(crate) manager: Arc<WalletManager>,
     pub(crate) issuer: Arc<ApiKeyIssuer>,
-    /// Optional CNS loop for registering wallet-backed budgets.
+    /// Optional Regulation loop for registering wallet-backed budgets.
     pub(crate) cybernetics: Option<Arc<RwLock<CyberneticsLoop>>>,
     /// Optional consent manager for P2 affirmative consent (MUST-4).
     pub(crate) consent_manager: Option<Arc<ConsentManager>>,
@@ -53,7 +53,7 @@ impl WalletService {
         }
     }
 
-    /// Attach a CyberneticsLoop for CNS wallet budget registration.
+    /// Attach a CyberneticsLoop for Regulation wallet budget registration.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  loop_ must be a valid ``Arc<RwLock<CyberneticsLoop>>``
@@ -96,7 +96,7 @@ impl WalletService {
         &self.issuer
     }
 
-    /// Build a fully-wired WalletService from config, store, and CNS infrastructure.
+    /// Build a fully-wired WalletService from config, store, and Regulation infrastructure.
     ///
     /// Encapsulates chain port assembly (Hedera, Hinkal), price feed
     /// resolution, WalletManager construction, and ApiKeyIssuer creation.

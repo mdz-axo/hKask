@@ -21,7 +21,7 @@ use crate::routes::{
 };
 
 // Handler-local types needed in schemas
-// TODO: CNS subscribe params — regulation.rs was not committed; needs sovereignty.rs migration
+// TODO: Regulation subscribe params — regulation.rs was not committed; needs sovereignty.rs migration
 
 /// API documentation
 ///
@@ -35,7 +35,7 @@ use crate::routes::{
 ///
 /// - **Pattern A — Skills Model:** Templates in WordAct / FlowDef / KnowAct taxonomy.
 ///   Endpoints: `/api/templates`, `/api/v1/bundles`, `/api/v1/git/archive`.
-/// - **Pattern B — CNS Feedback Loop:** Cybernetic self-regulation via variety
+/// - **Pattern B — Regulation Feedback Loop:** Cybernetic self-regulation via variety
 ///   counters, algedonic alerts, and homeostatic backpressure (P9).
 ///   Endpoints: `/api/regulation/health`, `/api/regulation/variety`, `/api/regulation/subscribe`.
 /// - **Pattern C — Agentic AI Mediation:** Curator agent + escalation queue +
@@ -102,8 +102,8 @@ use crate::routes::{
         SetGoalStateRequest,
         GoalResponse,
         GoalListResponse,
-        // CNS subscribe params
-        // CnsSubscribeParams  // TODO: CNS route migration,
+        // Regulation subscribe params
+        // CnsSubscribeParams  // TODO: Regulation route migration,
         // Auth schemas
         LoginQuery,
         CallbackQuery,

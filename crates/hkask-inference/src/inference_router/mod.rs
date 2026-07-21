@@ -169,7 +169,7 @@ impl InferenceRouter {
         }
     }
 
-    /// Enable gas accounting and CNS events for inference calls.
+    /// Enable gas accounting and Regulation events for inference calls.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_governance(
         mut self,

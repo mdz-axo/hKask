@@ -1,5 +1,5 @@
 //! Contract test runner — shells out to `cargo test`, parses REQ-tagged
-//! failures, returns structured results for CNS span emission.
+//! failures, returns structured results for Regulation span emission.
 //!
 //! Also provides `discover_uncontracted_functions` for source-level contract
 //! audit without running tests — useful for agent discovery workflows.
@@ -645,8 +645,8 @@ mod tests {
 
     #[test]
     fn extract_req_tag_from_doc_comment() {
-        let tag = extract_req_tag("    /// REQ: CNS-001");
-        assert_eq!(tag, Some("CNS-001".to_string()));
+        let tag = extract_req_tag("    /// REQ: Regulation-001");
+        assert_eq!(tag, Some("Regulation-001".to_string()));
     }
 
     #[test]

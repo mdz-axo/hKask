@@ -131,7 +131,7 @@ pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, 
     argon2
         .hash_password_into(passphrase.as_bytes(), salt, &mut *key)
         .map_err(|e| EncryptionError::KeyDerivation(e.to_string()))?;
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "reg.keystore", operation = "derive_key", latency_ms = start.elapsed().as_millis(), "REG");
     Ok(key)
 }

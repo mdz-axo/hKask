@@ -134,7 +134,7 @@ pub enum Commands {
         action: SettingsAction,
     },
 
-    /// Start the hKask daemon (Unix socket for MCP server auth + CNS monitoring)
+    /// Start the hKask daemon (Unix socket for MCP server auth + Regulation monitoring)
     Daemon {
         /// Daemon action
         #[command(subcommand)]

@@ -1,4 +1,4 @@
-//! Federation-specific CNS span identifiers.
+//! Federation-specific Regulation span identifiers.
 
 use hkask_types::observable_span::ObservableSpan;
 

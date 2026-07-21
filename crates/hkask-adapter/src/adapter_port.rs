@@ -125,7 +125,7 @@ impl InferenceEndpointHandle {
     /// Current phase of the endpoint lifecycle.
     ///
     /// Returns `Terminated` if the lifecycle lock is poisoned (panic in lifecycle thread).
-    /// A tracing error is emitted so CNS can observe the poisoning.
+    /// A tracing error is emitted so Regulation can observe the poisoning.
     pub fn phase(&self) -> EndpointPhase {
         match self.lifecycle.lock() {
             Ok(lc) => lc.phase,

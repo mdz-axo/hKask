@@ -41,7 +41,7 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 | 1 | **Agent Enablement** | Bots + UserPods in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
 | 2 | **Essential Tools** | 16 MCP servers + Inference Router (DeepInfra, fal.ai, Together AI, Runpod, OpenRouter, KiloCode, Ollama, Cline, Tinker) |
 | 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
-| 4 | **CNS** | `cns.*` spans, variety counters, algedonic alerts |
+| 4 | **Regulation** | `reg.*` spans, variety counters, algedonic alerts |
 | 5 | **Composition** | Templates + manifests compose into iterative PDCA Skill loops (51 skills, 2 templates, 1 bundle) |
 
 ---
@@ -70,12 +70,12 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 ### Foundation (14 crates)
 | Crate | Purpose |
 |-------|--------|
-| `hkask-types` | ID types, nu-event, vocabulary, visibility, CNS spans |
+| `hkask-types` | ID types, regulation-record, vocabulary, visibility, Regulation spans |
 | `hkask-storage` | SQLite + SQLCipher, triples, embeddings, blobs, Git CAS |
 | `hkask-storage-core` | Storage foundation — Database, Store trait, lock helpers, path sanitization |
 | `hkask-database` | Provider-agnostic database driver abstraction (SQLite, PostgreSQL) |
 | `hkask-memory` | Semantic/episodic pipelines (consolidation: episodic → semantic) |
-| `hkask-cns` | Cybernetic Nervous System |
+| `hkask-regulation` | Cybernetic Nervous System |
 | `hkask-templates` | Registry, vocabulary, cascade, resolver |
 | `hkask-agents` | Pods, ACP, bot/userpod, Curator |
 | `hkask-keystore` | OS keychain, AES-256-GCM |
@@ -109,7 +109,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | Crate | Purpose |
 |-------|--------|
 | `hkask-services-core` | Service-layer foundation — ServiceError, ServiceConfig, HkaskSettings |
-| `hkask-services-context` | AgentService context, CNS runtime, cybernetic loops |
+| `hkask-services-context` | AgentService context, Regulation runtime, cybernetic loops |
 | `hkask-services-runtime` | Runtime services — text classification, provider intelligence, daemon handler |
 | `hkask-services-chat` | Chat session management and history |
 | `hkask-services-compose` | Style composition — exemplar retrieval, prose generation, centroid-distance validation against an author's voice |
@@ -121,7 +121,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 | `hkask-services-self-heal` | Autonomous self-healing loop services |
 | `hkask-services-skill` | Skill discovery, publishing, hashing, auditing, and bundle composition |
 | `hkask-services-verification` | Magna Carta verification — manifest-driven structural audits of codebase sovereignty/consent provisions |
-| `hkask-services-wallet` | Gas budgeting, price feeds, CNS integration |
+| `hkask-services-wallet` | Gas budgeting, price feeds, Regulation integration |
 
 ### Wallet, Identity & Ledger (3 crates)
 | Crate | Purpose |
@@ -161,7 +161,7 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 - `hkask-mcp-filesystem` — OCAP-governed filesystem + shell access (7 tools: fs.read/write/…, shell.exec)
 - `hkask-mcp-codegraph` — Code understanding tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code)
 - `hkask-mcp-scenarios` — Scenario planning (MAIA event-tree forecasting, Fermi decomposition, Bayesian calibration)
-- `hkask-mcp-cns` — CNS monitoring and observability (spans, variety counters, algedonic alerts)
+- `hkask-mcp-regulation` — Regulation monitoring and observability (spans, variety counters, algedonic alerts)
 
 ---
 
@@ -213,8 +213,8 @@ hKask follows the [Diataxis](https://diataxis.fr/) documentation methodology. Th
 - [`docs/README.md`](docs/README.md) — Documentation portal (Diataxis index of all active docs)
 - [`docs/how-to/getting-started.md`](docs/how-to/getting-started.md) — End-to-end walkthrough: clone → build → chat → skill invoke
 - [`docs/how-to/`](docs/how-to/) — Task-oriented guides: install, configure, bootstrap MCP, invoke skills, audit sovereignty
-- [`docs/reference/`](docs/reference/) — API reference, skill registry, CNS span registry, Magna Carta
-- [`docs/explanation/`](docs/explanation/) — Architecture decisions: hexagonal ports, CNS loop, OCAP dispatch, ν-events
+- [`docs/reference/`](docs/reference/) — API reference, skill registry, Regulation span registry, Magna Carta
+- [`docs/explanation/`](docs/explanation/) — Architecture decisions: hexagonal ports, Regulation loop, OCAP dispatch, ν-events
 - [`docs/architecture/`](docs/architecture/) — ADRs, master architecture, provider/federation/database architecture
 - [`docs/specifications/DOCUMENTATION_STANDARDS.md`](docs/specifications/DOCUMENTATION_STANDARDS.md) — Documentation standards (metadata, citations, diagrams, lifecycle)
 - [`docs/OPEN_QUESTIONS.md`](docs/OPEN_QUESTIONS.md) — Underspecified aspects and open design decisions

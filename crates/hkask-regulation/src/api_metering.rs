@@ -1,4 +1,4 @@
-//! API metering — per-key rate limiting, gas tracking, and CNS spans.
+//! API metering — per-key rate limiting, gas tracking, and Regulation spans.
 //!
 //! # Design (essentialist G2)
 //! - Rate limit state is in-memory (HashMap). Acceptable per handoff:
@@ -217,8 +217,8 @@ pub enum RateLimitStatus {
 impl RateLimitStatus {
     /// Get string representation of alert type.
     ///
-    /// expect: "I can query the rate limit status as a stable string for CNS feedback"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — rate limit status feedback for CNS
+    /// expect: "I can query the rate limit status as a stable string for Regulation feedback"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — rate limit status feedback for Regulation
     /// \[P8\] Constraining: Semantic Grounding — string representation must be stable across versions
     /// post: returns lowercase alert type string
     pub fn as_str(&self) -> &'static str {
@@ -440,7 +440,7 @@ impl Default for ApiMeter {
     }
 }
 
-// ── CNS span: reg.api.request ────────────────────────────────────────────────
+// ── Regulation span: reg.api.request ────────────────────────────────────────────────
 
 /// Observation data for a `reg.api.request` span.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -457,8 +457,8 @@ impl ApiRequestSpan {
     /// Build a span observation from metering data.
     /// Create a new API request span.
     ///
-    /// expect: "The system creates CNS observation spans for every metered API request"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — span creation is the CNS observation layer
+    /// expect: "The system creates Regulation observation spans for every metered API request"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — span creation is the Regulation observation layer
     /// \[P8\] Constraining: Semantic Grounding — span fields must be traceable to source
     /// pre:  path and method are non-empty
     /// post: returns ApiRequestSpan
@@ -531,11 +531,11 @@ pub enum ApiMeteringAlert {
 }
 
 impl ApiMeteringAlert {
-    /// CNS alert type string for span emission.
+    /// Regulation alert type string for span emission.
     /// Get alert type string.
     ///
-    /// expect: "I can query the CNS alert type classification for a metering event"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — alert type is the CNS classification
+    /// expect: "I can query the Regulation alert type classification for a metering event"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — alert type is the Regulation classification
     /// \[P8\] Constraining: Semantic Grounding — alert type labels must be stable across versions
     /// post: returns alert type label
     pub fn alert_type(&self) -> &'static str {
@@ -548,7 +548,7 @@ impl ApiMeteringAlert {
         }
     }
 
-    /// Severity level for CNS algedonic signaling.
+    /// Severity level for Regulation algedonic signaling.
     /// Get severity string.
     ///
     /// expect: "I can query the algedonic severity level for a metering alert"

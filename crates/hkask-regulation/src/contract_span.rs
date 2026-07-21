@@ -1,4 +1,4 @@
-//! Contract lifecycle CNS spans.
+//! Contract lifecycle Regulation spans.
 use hkask_types::ObservableSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

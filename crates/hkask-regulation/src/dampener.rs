@@ -5,7 +5,7 @@
 //! feedback cycle can produce repeated identical directives. DAMPEN prevents
 //! the same directive from being issued within a configurable time window.
 //!
-//! # Why this lives in the CNS crate
+//! # Why this lives in the Regulation crate
 //!
 //! Dampening is a Cybernetics regulation function — it prevents oscillation
 //! in the Curation↔Cybernetics feedback cycle. As such, it is owned by the

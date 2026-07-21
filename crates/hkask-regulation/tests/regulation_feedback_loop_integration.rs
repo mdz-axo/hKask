@@ -1,16 +1,16 @@
-//! CNS feedback loop integration test — Wave 3 Task 3.4
+//! Regulation feedback loop integration test — Wave 3 Task 3.4
 //!
-//! Verifies closed-loop CNS behavior: event injection → algedonic response →
+//! Verifies closed-loop Regulation behavior: event injection → algedonic response →
 //! homeostatic restoration. Uses MockRegulationLedger from hkask-test-harness.
 //!
 //! # Principle grounding
-//! - P9 (Homeostatic Self-Regulation): the CNS must detect perturbations and restore homeostasis
+//! - P9 (Homeostatic Self-Regulation): the Regulation must detect perturbations and restore homeostasis
 //! - P8 (Semantic Grounding): every test asserts a stated behavioral property
 
 use hkask_test_harness::{MockRegulationLedger, MockCnsState, MockToolState, test_event};
 use hkask_types::event::{CyclePhase, Span, SpanNamespace};
 
-// The CNS detects perturbations and restores homeostasis.
+// The Regulation detects perturbations and restores homeostasis.
 
 #[test]
 fn cns_detects_perturbation() {

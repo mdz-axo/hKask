@@ -37,7 +37,7 @@ impl EmbedService {
         cache_dir: Option<&Path>,
         progress: Option<ProgressFn>,
     ) -> Result<EmbedResult, ServiceError> {
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "hkask.embed", operation = "embed_corpus", config = %config_path.display(), "REG");
 
         let started = Instant::now();
@@ -906,7 +906,7 @@ impl EmbedService {
     /// Parse a corpus config YAML file.
     #[must_use = "result must be used"]
     pub fn parse_config(path: &Path) -> Result<CorpusConfig, ServiceError> {
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "hkask.embed", operation = "parse_config", config = %path.display(), "REG");
 
         let config_str = std::fs::read_to_string(path).map_err(|e| {

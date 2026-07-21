@@ -80,7 +80,7 @@ pub trait OcrExecutor: Send + Sync {
 /// index and sorted before verification. This path is intended for batch/corpus
 /// workloads — interactive MCP tool calls should use `None` (sequential).
 ///
-/// CNS observability is handled externally by the GovernedTool membrane
+/// Regulation observability is handled externally by the GovernedTool membrane
 /// (gas accounting, variety tracking, RegulationRecord persistence). Internal
 /// operational telemetry uses `tracing::info!` under `cns.pipeline` target.
 ///
@@ -588,7 +588,7 @@ async fn execute_with_fallback(
     (Some(primary), secondary, backend_used, None)
 }
 
-/// Finalize a sequential pipeline outcome with CNS tracing.
+/// Finalize a sequential pipeline outcome with Regulation tracing.
 async fn finalize_outcome(
     results: Vec<OcrResult>,
     cross_validations: Vec<CrossValidation>,
@@ -612,7 +612,7 @@ async fn finalize_outcome(
     )
 }
 
-/// Shared outcome finalization: verification + CNS tracing.
+/// Shared outcome finalization: verification + Regulation tracing.
 fn finalize_outcome_inner(
     results: Vec<OcrResult>,
     cross_validations: Vec<CrossValidation>,

@@ -126,7 +126,7 @@ impl DaemonClient {
         .await
     }
 
-    /// Query live CNS status from the daemon.
+    /// Query live Regulation status from the daemon.
     #[must_use = "result must be used"]
     pub async fn cns_status_query(
         &self,

@@ -1,4 +1,4 @@
-//! SLO evaluation CNS spans.
+//! SLO evaluation Regulation spans.
 use hkask_types::ObservableSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

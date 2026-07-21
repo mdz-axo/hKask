@@ -1,7 +1,7 @@
 //! hkask-mcp-curator — Curator MCP server library.
 //!
 //! Exposes the Curator's regulatory surface as MCP tools:
-//! system health, escalation management, CNS observability,
+//! system health, escalation management, Regulation observability,
 //! cross-pod semantic search, memory recall, spec drift detection,
 //! and algedonic event history.
 
@@ -151,7 +151,7 @@ impl CuratorServer {
 
     // ── System Health ──────────────────────────────────────────────────
 
-    #[tool(description = "Run metacognition cycle — requires live daemon for CNS data")]
+    #[tool(description = "Run metacognition cycle — requires live daemon for Regulation data")]
     pub async fn curator_health(&self, Parameters(_req): Parameters<PingRequest>) -> String {
         execute_tool(self, "curator_health", async {
             let Some(ref daemon) = self.daemon else {
@@ -169,7 +169,7 @@ impl CuratorServer {
         .await
     }
 
-    #[tool(description = "Live CNS status — variety per domain")]
+    #[tool(description = "Live Regulation status — variety per domain")]
     pub async fn curator_cns_status(
         &self,
         Parameters(req): Parameters<CnsStatusRequest>,
@@ -324,10 +324,10 @@ impl CuratorServer {
         .await
     }
 
-    // ── CNS Query (for platform governance transparency) ────────────────
+    // ── Regulation Query (for platform governance transparency) ────────────────
 
     #[tool(
-        description = "Query CNS ν-events by namespace prefix within a time window. Returns structured event data for governance transparency reporting and consent auditing."
+        description = "Query Regulation ν-events by namespace prefix within a time window. Returns structured event data for governance transparency reporting and consent auditing."
     )]
     pub async fn cns_query(&self, Parameters(req): Parameters<CnsQueryRequest>) -> String {
         execute_tool(self, "cns_query", async {
@@ -343,7 +343,7 @@ impl CuratorServer {
 
             let weighted = store
                 .replay_weighted(since, limit, &config)
-                .map_err(|e| McpToolError::internal(format!("CNS query failed: {e}")))?;
+                .map_err(|e| McpToolError::internal(format!("Regulation query failed: {e}")))?;
             let total_count = weighted.len();
             let filtered: Vec<serde_json::Value> = weighted
                 .into_iter()

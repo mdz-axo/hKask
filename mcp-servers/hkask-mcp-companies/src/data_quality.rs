@@ -446,9 +446,9 @@ impl TemporalSnapshot {
     }
 }
 
-// ── CNS span emission helpers ────────────────────────────────────────────────
+// ── Regulation span emission helpers ────────────────────────────────────────────────
 
-/// Emit a CNS data_quality span so hKask's homeostatic loop can monitor
+/// Emit a Regulation data_quality span so hKask's homeostatic loop can monitor
 /// financial data reliability (closes the variety deficit identified in
 /// cybernetic analysis: 6 disturbance modes, previously only 2 monitored).
 pub fn emit_data_quality_span(symbol: &str, tool: &str, quality: &ModelInputQuality) {
@@ -463,11 +463,11 @@ pub fn emit_data_quality_span(symbol: &str, tool: &str, quality: &ModelInputQual
         is_cyclical = %quality.revenue_growth.is_cyclical,
         data_points = %quality.revenue_growth.data_points,
         quality_warning = %quality.quality_warning.as_deref().unwrap_or("none"),
-        "Financial data quality assessment for CNS variety monitoring"
+        "Financial data quality assessment for Regulation variety monitoring"
     );
 }
 
-/// Emit a CNS span for provider quality (normalization fidelity).
+/// Emit a Regulation span for provider quality (normalization fidelity).
 pub fn emit_provider_quality_span(symbol: &str, tool: &str, pq: &ProviderQuality) {
     tracing::debug!(
         target: "hkask.mcp.companies.data_quality",

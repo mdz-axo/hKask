@@ -160,7 +160,7 @@ pub enum RepoId {
     Registry,
     /// Semantic memory (h_mems, knowledge graph)
     Memory,
-    /// CNS audit trail (ν-events, variety counters, algedonic alerts)
+    /// Regulation audit trail (ν-events, variety counters, algedonic alerts)
     RegAudit,
     /// User sovereignty (consent records, OCAP tokens)
     Sovereignty,

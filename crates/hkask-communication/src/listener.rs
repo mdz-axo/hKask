@@ -1,14 +1,14 @@
-//! 7R7 Communication Listener — polls Matrix rooms and emits CNS observation spans.
+//! 7R7 Communication Listener — polls Matrix rooms and emits Regulation observation spans.
 //!
 //! The 7R7 bot is a passive listener. It polls Matrix rooms on a configurable
-//! interval, receives messages, and emits CNS spans for observability. It does
+//! interval, receives messages, and emits Regulation spans for observability. It does
 //! NOT classify, escalate, moderate, or judge content. Those decisions belong
 //! to the agent layer (Curator + skills + templates + LLM calls).
 //!
 //! Architecture:
-//!   Matrix rooms → 7R7 poll → CNS span emission → agent layer (Curator)
+//!   Matrix rooms → 7R7 poll → Regulation span emission → agent layer (Curator)
 //!
-//! The communication server is a dumb pipe. CNS observes. Agents decide.
+//! The communication server is a dumb pipe. Regulation observes. Agents decide.
 
 use crate::matrix::{MatrixMessage, MatrixTransport, UserId};
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span};
@@ -22,7 +22,7 @@ fn is_self_authored(message: &MatrixMessage, authenticated_user: Option<&UserId>
 
 // ── 7R7 Listener ───────────────────────────────────────────────────────────
 
-/// 7R7 communication listener — polls Matrix for messages, emits CNS spans.
+/// 7R7 communication listener — polls Matrix for messages, emits Regulation spans.
 ///
 /// This is a passive observer. It does not classify, escalate, or moderate.
 /// Content decisions are made by the agent layer (Curator + skills + templates).
@@ -31,8 +31,8 @@ pub struct SevenR7Listener {
     matrix: Arc<Mutex<MatrixTransport>>,
     /// Polling interval in seconds.
     poll_interval_secs: u64,
-    /// CNS event sink for persisting observed messages as RegulationRecords.
-    /// When set, the listener joins the CNS observability fabric;
+    /// Regulation event sink for persisting observed messages as RegulationRecords.
+    /// When set, the listener joins the Regulation observability fabric;
     /// the curation loop can then sense Matrix activity.
     event_sink: Option<Arc<dyn RegulationSink>>,
     /// Whether the listener is active.
@@ -58,7 +58,7 @@ impl SevenR7Listener {
         }
     }
 
-    /// Attach a CNS event sink for persisting observed messages.
+    /// Attach a Regulation event sink for persisting observed messages.
     ///
     /// Without this, the listener only emits tracing events.
     /// With it, observed messages flow into the RegulationRecord store
@@ -71,7 +71,7 @@ impl SevenR7Listener {
     /// Start the polling loop.
     ///
     /// Spawns a background task that polls Matrix rooms on the configured
-    /// interval and emits CNS observation spans for each message received.
+    /// interval and emits Regulation observation spans for each message received.
     /// The agent layer (Curator) subscribes to these spans and decides what
     /// action to take.
     ///

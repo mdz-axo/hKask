@@ -68,7 +68,7 @@ pub fn templates_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 pub(crate) async fn list_templates(State(state): State<ApiState>) -> Json<Vec<TemplateResponse>> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "templates_list", "REG");
     let registry = state.agent_service.storage().registry.lock().await;
     let entries = registry.list(None);

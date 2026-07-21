@@ -23,7 +23,7 @@ pub const CHRONIC_STALENESS_DAYS: u32 = 90;
 
 /// Learning state — tracks user feedback per (tool, symbol, provider) to adapt
 /// provider routing. Uses Beta(α+1, β+1) conjugate prior (same statistical
-/// foundation as CNS ToolStats Layer 2) for Bayesian reliability tracking.
+/// foundation as Regulation ToolStats Layer 2) for Bayesian reliability tracking.
 ///
 /// Temporal coherence (FinGPT RLSP-inspired): also tracks price snapshots
 /// at fetch time so we can detect when a provider returned stale data.
@@ -156,7 +156,7 @@ impl LearningState {
     }
 
     /// Get the preferred provider for a symbol based on learning.
-    /// Emits a CNS routing span when learning overrides the default provider.
+    /// Emits a Regulation routing span when learning overrides the default provider.
     pub fn preferred_provider(&self, symbol: &str, default_provider: Provider) -> Option<Provider> {
         let fmp_flaky = self.is_flaky(symbol, Provider::Fmp)
             || self.is_chronically_stale(symbol, Provider::Fmp);
@@ -171,7 +171,7 @@ impl LearningState {
             None
         };
 
-        // CNS routing span: when learning overrides the default, emit observability
+        // Regulation routing span: when learning overrides the default, emit observability
         if let Some(ref chosen) = result {
             let fmp_prob = self
                 .success_probability(symbol, Provider::Fmp)
@@ -195,7 +195,7 @@ impl LearningState {
         result
     }
 
-    /// Export learning state as JSON for CNS consumption / persistence.
+    /// Export learning state as JSON for Regulation consumption / persistence.
     pub fn export_state(&self) -> serde_json::Value {
         let mut map = serde_json::Map::new();
         for ((symbol, provider), (alpha, beta, n)) in &self.provider_scores {

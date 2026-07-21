@@ -171,7 +171,7 @@ impl From<rusqlite::Error> for InfrastructureError {
 /// Every MCP error variant maps to one `McpErrorKind`, enabling:
 /// - Retry logic (retry on `Timeout`/`Unavailable`, don't on `InvalidArgument`)
 /// - User-facing error categorization
-/// - CNS observability bucketing by error class
+/// - Regulation observability bucketing by error class
 /// - OCAP policy decisions (distinguish `PermissionDenied` from `NotFound`)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]

@@ -1,4 +1,4 @@
-//! Infrastructure CNS spans — used across multiple subsystems.
+//! Infrastructure Regulation spans — used across multiple subsystems.
 use hkask_types::ObservableSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

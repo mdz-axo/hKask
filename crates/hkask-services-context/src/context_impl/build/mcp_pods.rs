@@ -25,7 +25,7 @@ pub(super) async fn build_mcp_and_pods(
     l: &LoopWiring,
     f: &Foundation,
 ) -> Result<McpPods, ServiceError> {
-    // Governed McpRuntime — OCAP + gas + CNS wired in via with_governance.
+    // Governed McpRuntime — OCAP + gas + Regulation wired in via with_governance.
     let energy_estimator: Arc<CalibratedEnergyEstimator> = Arc::new(
         CalibratedEnergyEstimator::new(Arc::clone(&f.gas_event_store))
             .with_event_sink(Arc::clone(&f.cns_event_sink)),

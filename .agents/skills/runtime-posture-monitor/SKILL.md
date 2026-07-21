@@ -86,9 +86,9 @@ posture convergence metric.
 ## Instructions
 
 > **Tool dependency:** this skill reads runtime telemetry via the
-> `hkask-mcp-cns` MCP server. Use the `cns_query_spans` tool to query Regulation
-> span history by namespace prefix (e.g. `namespace="cns.guard"`,
-> `namespace="cns.regulation"`, `namespace="hkask"`) within a time window,
+> `hkask-mcp-regulation` MCP server. Use the `regulation_query_spans` tool to query Regulation
+> span history by namespace prefix (e.g. `namespace="reg.guard"`,
+> `namespace="reg.regulation"`, `namespace="hkask"`) within a time window,
 > and `cns_span_stats` to aggregate counts by span_category. Both tools
 > accept `since_hours` (default 1.0) and return JSON. When the store is
 > unavailable (no `HKASK_DB_PASSPHRASE`), the tools return
@@ -162,7 +162,7 @@ posture convergence metric.
    CWE reference URL, OWASP LLM reference, ATLAS reference, hkask-guard
    docs, hkask-regulation docs).
 10. Emit `reg.runtime.classify` Regulation span per classified threat
-    (`target: "cns.runtime.classify"`, message: `"Regulation"`, operation:
+    (`target: "reg.runtime.classify"`, message: `"Regulation"`, operation:
     `"classify_threat"`, threat_type, signal_target, severity,
     userpod_host, latency_ms).
 

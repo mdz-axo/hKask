@@ -1,4 +1,4 @@
-//! Classification CNS spans.
+//! Classification Regulation spans.
 use hkask_types::ObservableSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

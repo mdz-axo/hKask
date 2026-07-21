@@ -1,7 +1,7 @@
-//! REPL dependency injection — wires CNS, loops, energy budgets, and builds
+//! REPL dependency injection — wires Regulation, loops, energy budgets, and builds
 //! the initial ReplState.
 //!
-//! Uses `AgentService::build()` for all shared infrastructure (CNS, loop system,
+//! Uses `AgentService::build()` for all shared infrastructure (Regulation, loop system,
 //! curation, tool dispatch, pod manager). Surface-specific concerns (InferenceLoop
 //! wiring, per-agent memory access, onboarding) are layered on top through
 //! `AgentService` accessors — no independent infrastructure construction.
@@ -66,7 +66,7 @@ fn propagate_onboarding_secrets_to_env(secrets: &hkask_services_onboarding::Reso
 /// Propagate the userpod identity to the environment for child MCP processes.
 ///
 /// Sets `HKASK_PROJECT_ROOT` (current working directory fallback),
-/// `HKASK_MCP_HOST` (userpod name for CNS spans), and
+/// `HKASK_MCP_HOST` (userpod name for Regulation spans), and
 /// `HKASK_USERPOD_PERSONA` (WebID resolution for server-side identity).
 ///
 /// # Safety
@@ -169,7 +169,7 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
     let stderr = child.stderr.take();
 
     // Poll the socket for up to 5 seconds. The daemon needs time to build
-    // AgentService, start CNS loops, and bind the socket.
+    // AgentService, start Regulation loops, and bind the socket.
     // Note: this is a blocking poll pattern (block_on + thread::sleep), not an
     // async loop. This is intentional — we're on a blocking thread and need to
     // wait for the daemon to become ready before proceeding.
@@ -307,7 +307,7 @@ pub(super) fn discover_tools(
 /// Returns `None` if a critical dependency fails to initialize
 /// (inference port, onboarding). Error messages are printed to stderr.
 ///
-/// Uses `AgentService::build()` for shared infrastructure (CNS, loop system,
+/// Uses `AgentService::build()` for shared infrastructure (Regulation, loop system,
 /// curation loop, pod manager, registry, MCP runtime) and adds CLI-specific
 /// concerns on top (inference, per-agent memory, governed McpRuntime for tool
 /// discovery, onboarding state).
@@ -382,7 +382,7 @@ pub(super) fn init_repl_state(
     }
 
     // Build InferenceLoop — uses AgentService's governed port
-    // (better: CNS-observable, energy-tracked)
+    // (better: Regulation-observable, energy-tracked)
     let inference_loop = Arc::new(
         InferenceLoop::new()
             .with_energy_budget(repl_settings.gas_cap, repl_settings.gas_cap)
@@ -462,7 +462,7 @@ pub(super) fn init_repl_state(
     // ── Phase 9: GovernedTool (lazy via AgentService::governed_tool) ─────────
     // NOTE: `governed_tool` was removed; the governed `McpRuntime` is now built
     // once at `AgentService::build()` time (see `build_mcp_and_pods`) and lives in
-    // `ctx.infra().mcp`. OCAP + gas + CNS spans are wired via `with_governance`.
+    // `ctx.infra().mcp`. OCAP + gas + Regulation spans are wired via `with_governance`.
 
     // ── Phase 10: Energy Budget + Well + Wallet ────────────────────────────
     rt.block_on(async {

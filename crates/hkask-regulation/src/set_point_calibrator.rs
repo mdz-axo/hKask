@@ -66,7 +66,7 @@ pub struct SetPointAdjustment {
     pub new_value: String,
 }
 
-/// Auto-tuning calibrator for CNS regulation set-points.
+/// Auto-tuning calibrator for Regulation regulation set-points.
 ///
 /// Queries the RegulationArchive for regulation events, counts outcomes per metric,
 /// and applies adjustments through the provided callback. The callback receives

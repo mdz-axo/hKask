@@ -1,4 +1,4 @@
-//! ObservableSpan trait — decouples CNS observability from the monolithic RegulationSpan enum.
+//! ObservableSpan trait — decouples Regulation observability from the monolithic RegulationSpan enum.
 //!
 //! `SpanNamespace::from_observable()` bridges domain span enums to the
 //! validated namespace construction path. The trait is dyn-compatible —
@@ -16,7 +16,7 @@
 //!
 //! ```text
 //! ObservableSpan (trait)
-//!   ├── RegulationSpan (canonical CNS spans — hkask-types)
+//!   ├── RegulationSpan (canonical Regulation spans — hkask-types)
 //!   ├── FederationSpan (future: federation-specific spans — hkask-federation)
 //!   ├── WalletSpan (future: wallet-specific spans — hkask-wallet)
 //!   └── ... (per-domain span enums)
@@ -40,7 +40,7 @@
 //! }
 //! ```
 
-/// Trait for typed observability spans that can be emitted through the CNS
+/// Trait for typed observability spans that can be emitted through the Regulation
 /// infrastructure — both as structured RegulationRecords (persisted + queried) and
 /// as tracing log events (for external consumers like OpenTelemetry exporters).
 ///
@@ -49,7 +49,7 @@
 ///
 /// - `emit()` — log-only, no persistence. For call sites without a sink.
 /// - `emit_to(sink, ...)` — produce a RegulationRecord, persist through the sink, AND log.
-///   The primary path. CNS consumers (CurationLoop, AlgedonicManager) react to
+///   The primary path. Regulation consumers (CurationLoop, AlgedonicManager) react to
 ///   persisted events.
 /// - `to_event(...)` — produce a RegulationRecord without persisting. For call sites that
 ///   batch events or need custom routing.
@@ -58,13 +58,13 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
     /// Must match the canonical namespace set byte-for-byte (P8 — Semantic Grounding).
     fn as_str(&self) -> &'static str;
 
-    /// Emit a structured tracing event through the CNS infrastructure.
+    /// Emit a structured tracing event through the Regulation infrastructure.
     ///
     /// Default implementation emits an info-level event with `target = "cns"`,
     /// `reg_domain` set to `self.as_str()`, and `operation` as provided.
     ///
     /// This is the log-only convenience path. Prefer `emit_to()` when a
-    /// `RegulationSink` is available — it persists the event for CNS consumers.
+    /// `RegulationSink` is available — it persists the event for Regulation consumers.
     fn emit(&self, operation: &str) {
         tracing::info!(
             target: "reg",
@@ -118,7 +118,7 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
                 domain = %self.as_str(),
                 operation = %operation,
                 error = %e,
-                "CNS event persistence failed — continuing with log-only",
+                "Regulation event persistence failed — continuing with log-only",
             );
         }
         self.emit(operation);

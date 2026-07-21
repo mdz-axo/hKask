@@ -1,7 +1,7 @@
 //! Core loop types — identifiers, the Loop trait, and quality telemetry.
 //!
 //! Moved from hkask-regulation to hkask-types to break the circular dependency
-//! that prevented extracting CNS subcrates. The Loop trait uses async-trait
+//! that prevented extracting Regulation subcrates. The Loop trait uses async-trait
 //! for object safety.
 
 use super::actions::{ActionType, RegulatoryAction};
@@ -54,7 +54,7 @@ impl std::fmt::Display for LoopId {
 /// What triggered this regulation cycle.
 ///
 /// Adapted from Fermi's `TriggerReason` pattern — recording provenance
-/// enables CNS to correlate trigger type with regulatory effectiveness.
+/// enables Regulation to correlate trigger type with regulatory effectiveness.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TriggerOrigin {
@@ -149,7 +149,7 @@ pub enum ActionDecision {
 /// Loop-quality telemetry — measures the loop's own performance.
 ///
 /// These metrics are about the loop itself, not the signals it processes.
-/// They enable CNS observability of loop health: is the loop responding
+/// They enable Regulation observability of loop health: is the loop responding
 /// quickly enough? Is it producing appropriate actions for detected deviations?
 /// Are those actions actually effective?
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -195,7 +195,7 @@ impl LoopMetrics {
     /// Compute loop quality from the cycle's inputs and outputs.
     ///
     /// expect: "The system measures its own regulatory effectiveness"
-    /// \[P9\] Homeostatic Self-Regulation — loop quality enables CNS self-observation
+    /// \[P9\] Homeostatic Self-Regulation — loop quality enables Regulation self-observation
     /// pre:  elapsed_ms is measured wall-clock time; deviations and actions are from
     ///       the same regulation cycle
     /// post: returns LoopMetrics with gain, fidelity_score, effectiveness_score, and

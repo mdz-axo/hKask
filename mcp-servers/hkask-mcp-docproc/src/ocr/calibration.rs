@@ -1,14 +1,14 @@
-//! OCR Threshold Calibration — Self-tuning analysis for CNS → Curator → human flow.
+//! OCR Threshold Calibration — Self-tuning analysis for Regulation → Curator → human flow.
 //!
 //! Analyzes accumulated cross-validation data to detect when routing thresholds
-//! may be too conservative. Emits CNS alerts (via `tracing::warn!`) suggesting
+//! may be too conservative. Emits Regulation alerts (via `tracing::warn!`) suggesting
 //! threshold adjustments. **Never auto-adjusts** — P4 affirmative consent requires
 //! human approval via `kask settings set`.
 //!
-//! # CNS Flow
+//! # Regulation Flow
 //!
 //! Threshold drift alerts are emitted via `tracing::warn!` for operational
-//! observability. Pipeline-level CNS observation (start/settle spans, gas
+//! observability. Pipeline-level Regulation observation (start/settle spans, gas
 //! accounting, variety tracking) is handled externally by the GovernedTool
 //! membrane — the docproc server is a pure instrument with no self-instrumentation.
 
@@ -23,7 +23,7 @@ pub(crate) struct DriftEvidence {
     pub mean_similarity: f32,
 }
 
-/// A CNS alert suggesting a threshold adjustment.
+/// A Regulation alert suggesting a threshold adjustment.
 ///
 /// Observation only — does not autonomously change routing (P4).
 #[derive(Debug, Clone)]
@@ -97,10 +97,10 @@ pub(crate) fn analyze_threshold_drift(
     })
 }
 
-/// Emit a CNS alert for a threshold drift suggestion.
+/// Emit a Regulation alert for a threshold drift suggestion.
 ///
 /// Uses `tracing::warn!` under `cns.pipeline.calibration` target.
-/// The GovernedTool membrane handles RegulationRecord persistence for CNS learning.
+/// The GovernedTool membrane handles RegulationRecord persistence for Regulation learning.
 pub(crate) fn emit_drift_alert(alert: &ThresholdDriftAlert) {
     tracing::warn!(
         target: "reg.pipeline.calibration",

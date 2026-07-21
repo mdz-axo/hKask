@@ -49,7 +49,7 @@ pub fn write_key_version(version: u32) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "reg.keystore", operation = "write_key_version", version = version, "REG");
     std::fs::write(&path, format!("{version}\n"))
 }

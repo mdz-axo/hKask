@@ -91,7 +91,7 @@ impl EpisodicMemory {
         self
     }
 
-    /// Access the CNS event sink for loop-level RegulationRecord emission.
+    /// Access the Regulation event sink for loop-level RegulationRecord emission.
     pub(crate) fn event_sink(&self) -> Option<&Arc<dyn RegulationSink>> {
         self.event_sink.as_ref()
     }
@@ -123,7 +123,7 @@ impl EpisodicMemory {
             return Err(EpisodicMemoryError::MissingPerspective);
         }
         self.h_mem_store.insert(&h_mem)?;
-        // CNS: emit RegulationRecord for memory write observability
+        // Regulation: emit RegulationRecord for memory write observability
         if let Some(sink) = &self.event_sink {
             let span = Span::new(
                 SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),

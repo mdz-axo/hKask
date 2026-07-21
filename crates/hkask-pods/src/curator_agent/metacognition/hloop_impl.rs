@@ -21,7 +21,7 @@ impl RegulationLoop for MetacognitionLoop {
         LoopId::Curation
     }
 
-    /// Sense: read CNS health, variety counters, alerts, and bot status.
+    /// Sense: read Regulation health, variety counters, alerts, and bot status.
     /// Builds and stores a HealthSnapshot.
     async fn sense(&self) -> Vec<Signal> {
         info!(target: MC_TARGET, "Starting metacognition sense phase");

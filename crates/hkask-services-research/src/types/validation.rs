@@ -13,7 +13,7 @@ pub const COMPOUND_PROVIDER_TIMEOUT_SECS: u64 = 10;
 /// Replaces detailed error messages with generic categories and strips
 /// any substrings that look like API keys (matching common prefix patterns).
 /// Used in both `health_check_all()` and `search_compound()` to ensure
-/// no credentials leak through CNS tracing or compound result metadata.
+/// no credentials leak through Regulation tracing or compound result metadata.
 pub fn sanitize_health_error(error: &str) -> String {
     /// Lazily compiled API key regex pattern for sanitization.
     /// Avoids re-compiling the regex on every call to `sanitize_health_error`.

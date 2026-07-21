@@ -23,7 +23,7 @@ impl WalletService {
         chain: ChainId,
         privacy: PrivacyMode,
     ) -> Result<TxHash, ServiceError> {
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "hkask.wallet_svc", operation = "withdraw", webid = %webid, wallet_id = %wallet_id, amount_rj = %amount_rj, chain = ?chain, "REG");
         if let Some(ref cm) = self.consent_manager {
             let category = DataCategory::Custom("wallet_withdrawal".into());

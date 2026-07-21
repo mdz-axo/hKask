@@ -70,7 +70,7 @@ fn cns_query_request_parses_with_all_fields() {
         "limit": 50
     });
     let req: hkask_mcp_curator::types::CnsQueryRequest =
-        serde_json::from_value(json).expect("should parse CNS query");
+        serde_json::from_value(json).expect("should parse Regulation query");
     assert_eq!(req.namespace, Some("reg.sovereignty".to_string()));
     assert_eq!(req.window_seconds, Some(3600));
     assert_eq!(req.limit, Some(50));
@@ -80,7 +80,7 @@ fn cns_query_request_parses_with_all_fields() {
 fn cns_query_request_parses_with_minimal_fields() {
     let json = serde_json::json!({});
     let req: hkask_mcp_curator::types::CnsQueryRequest =
-        serde_json::from_value(json).expect("should parse empty CNS query");
+        serde_json::from_value(json).expect("should parse empty Regulation query");
     assert_eq!(req.namespace, None);
     assert_eq!(req.window_seconds, None);
     assert_eq!(req.limit, None);

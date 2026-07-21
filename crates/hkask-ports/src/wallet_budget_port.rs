@@ -1,7 +1,7 @@
 //! WalletBudgetPort — hexagonal port for wallet energy budget operations.
 //!
-//! CNS depends on this port trait instead of concrete `WalletManager`.
-//! This inverts the dependency per hexagonal architecture: CNS defines
+//! Regulation depends on this port trait instead of concrete `WalletManager`.
+//! This inverts the dependency per hexagonal architecture: Regulation defines
 //! the interface it needs, and `hkask-wallet` implements it.
 //!
 //! Per Conant-Ashby (Good Regulator theorem): the regulator must model
@@ -26,7 +26,7 @@ pub enum WalletBudgetError {
 
 /// Port trait for wallet energy budget operations.
 ///
-/// CNS uses this to:
+/// Regulation uses this to:
 /// - Convert gas costs to rJoule amounts
 /// - Check encumbrance status for API keys
 /// - Verify affordability before spending
@@ -34,7 +34,7 @@ pub enum WalletBudgetError {
 /// - Read and adjust the gas→rJoule conversion rate
 ///
 /// Implementations: `hkask_wallet::WalletManager` implements this trait.
-/// CNS holds `Arc<dyn WalletBudgetPort>` instead of `Arc<WalletManager>`.
+/// Regulation holds `Arc<dyn WalletBudgetPort>` instead of `Arc<WalletManager>`.
 pub trait WalletBudgetPort: Send + Sync {
     /// Convert gas units to rJoule using the current conversion rate.
     fn gas_to_rjoules(&self, gas: u64) -> RJoule;
@@ -60,7 +60,7 @@ pub trait WalletBudgetPort: Send + Sync {
     /// Get the current gas→rJoule conversion rate.
     fn gas_per_rjoule(&self) -> u64;
 
-    /// Set the gas→rJoule conversion rate (CNS calibration).
+    /// Set the gas→rJoule conversion rate (Regulation calibration).
     fn set_gas_per_rjoule(&self, rate: u64);
 
     /// Consume rJoules from an API key's encumbrance (atomic debit).

@@ -86,7 +86,7 @@ These YAML fields are parsed by the runner but not used — they persist
 in manifests for future integration but have no runtime effect:
 - `retries` on any step
 - `description` on `run_command`, `loop`, `mcp_tool` steps
-- `cns` section (emit_spans, alert) — Regulation emission is built into the runner
+- `ledger` section (emit_spans, alert) — Regulation emission is built into the runner
 - `error_handling` section
 - `gas.alert_threshold` — only `cap` and `hard_limit` are enforced
 - `rjoule` section — reserved for future gas/rJoule integration

@@ -1,11 +1,11 @@
 //! `kask daemon` — Start the hKask daemon process
 //!
 //! Binds a Unix domain socket at `~/.config/hkask/daemon.sock`, starts the
-//! CNS runtime with all 6 loops, enables contract test monitoring, and serves
+//! Regulation runtime with all 6 loops, enables contract test monitoring, and serves
 //! authentication/capability queries from MCP server binaries.
 //!
 //! The daemon is the persistent runtime that ACP clients, MCP servers, and
-//! the `kask test` CLI surface all depend on. Without it, CNS background
+//! the `kask test` CLI surface all depend on. Without it, Regulation background
 //! monitoring dies when the CLI command exits.
 
 use crate::cli::DaemonAction;
@@ -114,7 +114,7 @@ async fn run_daemon() -> Result<(), CliError> {
         daemon_socket_path().display(),
         loop_ids.len()
     );
-    println!("CNS contract monitoring active (interval: {}s)", interval);
+    println!("Regulation contract monitoring active (interval: {}s)", interval);
     println!("Press Ctrl+C to stop.");
 
     tokio::select! {

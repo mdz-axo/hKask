@@ -7,7 +7,7 @@
 //!
 //! Returns 503 with a JSON body listing failures if DB or Conduit checks fail.
 //! Disk space warnings do NOT fail the probe — they're informational signals
-//! for the CNS autonomous storage guard loop.
+//! for the Regulation autonomous storage guard loop.
 
 use crate::ApiState;
 use axum::extract::State;
@@ -43,7 +43,7 @@ pub async fn health_check(State(state): State<ApiState>) -> impl IntoResponse {
     let (disk_usage_pct, disk_status) = check_disk();
 
     // Only DB and Conduit failures make the pod "not ready."
-    // Disk space is informational — the CNS storage guard loop handles it.
+    // Disk space is informational — the Regulation storage guard loop handles it.
     let healthy = db_ok && conduit_ok;
 
     let error = if !healthy {
@@ -96,7 +96,7 @@ async fn check_conduit() -> bool {
 ///
 /// Returns (usage_percentage_or_none, status_string).
 /// Does NOT fail the health probe — disk pressure is handled by the
-/// CNS autonomous storage guard loop.
+/// Regulation autonomous storage guard loop.
 fn check_disk() -> (Option<u8>, String) {
     let dir = std::env::var("HKASK_DATA_DIR").unwrap_or_else(|_| "/data".to_string());
     let path = std::path::Path::new(&dir);

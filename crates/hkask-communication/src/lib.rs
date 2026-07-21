@@ -3,7 +3,7 @@
 //! This is a core infrastructure crate, not an MCP server. It provides:
 //! - `MatrixTransport` — matrix-sdk wrapper for Matrix protocol operations
 //! - `AgentRegistry` — WebID→UserId mapping and thread watchlists
-//! - `SevenR7Listener` — passive Matrix room observer, emits CNS spans
+//! - `SevenR7Listener` — passive Matrix room observer, emits Regulation spans
 //!
 //! The daemon owns the Matrix connection. The REPL, pod activation hooks,
 //! and MCP tool surface all use this crate through the daemon.

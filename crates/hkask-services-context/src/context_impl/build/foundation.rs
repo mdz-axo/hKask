@@ -1,10 +1,10 @@
-//! Foundation: database connections, stores, CNS runtime, seam watcher.
+//! Foundation: database connections, stores, Regulation runtime, seam watcher.
 
 use super::super::*;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use tokio::sync::RwLock;
 
-/// Foundation: database connections, stores, CNS runtime, seam watcher.
+/// Foundation: database connections, stores, Regulation runtime, seam watcher.
 pub(super) struct Foundation {
     pub db: Database,
     pub curation_inbox_tx: tokio::sync::mpsc::UnboundedSender<CurationInput>,
@@ -19,7 +19,7 @@ pub(super) struct Foundation {
     pub cns_event_sink: Arc<dyn RegulationSink>,
     /// Abstracted event store for gas report queries and calibration.
     pub gas_event_store: Arc<dyn LedgerStoragePort>,
-    /// Concrete ν-event store for SLO evaluation and CNS queries.
+    /// Concrete ν-event store for SLO evaluation and Regulation queries.
     pub regulation_store: Arc<RegulationArchive>,
 }
 
@@ -100,7 +100,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         })?;
     }
 
-    // CNS runtime
+    // Regulation runtime
     let ledger_runtime = Arc::new(RwLock::new(RegulationLedger::with_threshold(
         config.cns_threshold,
     )));

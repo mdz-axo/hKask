@@ -35,7 +35,7 @@ pub enum DaemonRequest {
     /// Query curator system health — metacognition snapshot.
     #[serde(rename = "curator_health_query")]
     CuratorHealthQuery { userpod: String },
-    /// Query live CNS status — variety per domain.
+    /// Query live Regulation status — variety per domain.
     #[serde(rename = "cns_status_query")]
     CnsStatusQuery {
         userpod: String,
@@ -75,7 +75,7 @@ pub enum DaemonResponse {
     /// Curator health snapshot response.
     #[serde(rename = "curator_health_response")]
     CuratorHealthResponse { health: serde_json::Value },
-    /// CNS status response.
+    /// Regulation status response.
     #[serde(rename = "cns_status_response")]
     CnsStatusResponse { status: serde_json::Value },
 }

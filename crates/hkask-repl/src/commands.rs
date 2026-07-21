@@ -42,7 +42,7 @@ pub(super) const SLASH_COMMANDS: &[SlashCommand] = &[
         primary: "status",
         aliases: &["st"],
         args: "",
-        about: "System status (CNS, agent, pod count)",
+        about: "System status (Regulation, agent, pod count)",
     },
     SlashCommand {
         primary: "agent",

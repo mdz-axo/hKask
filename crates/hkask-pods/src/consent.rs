@@ -133,7 +133,7 @@ impl ConsentRecord {
 pub struct ConsentManager {
     store: Arc<dyn ConsentPort>,
     cache: Arc<RwLock<Vec<ConsentRecord>>>,
-    /// Optional CNS event sink for observability of consent denials.
+    /// Optional Regulation event sink for observability of consent denials.
     /// When set, a `cns.consent.denied` ν-event is emitted every time
     /// `has_consent` returns false, closing the observability loop
     /// on the Prohibition gate (Magna Carta P2).
@@ -161,15 +161,15 @@ impl ConsentManager {
         manager
     }
 
-    /// Set a CNS event sink for consent denial observability.
+    /// Set a Regulation event sink for consent denial observability.
     ///
     /// When set, every `has_consent` denial produces a `cns.consent.denied`
     /// ν-event. This provides observability without opening a feedback path
     /// (the denial remains terminal — this is a Prohibition, not a Guardrail).
-    /// # REQ: OPEN_QUESTIONS §2.2 — consent denial CNS instrumentation.
+    /// # REQ: OPEN_QUESTIONS §2.2 — consent denial Regulation instrumentation.
     ///
     /// expect: "Agent consent is explicitly granted, scoped, and revocable"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — CNS instrumentation for denials (observability only, no feedback)
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — Regulation instrumentation for denials (observability only, no feedback)
     /// pre:  `sink` is a valid `Arc<dyn RegulationSink>`.
     /// post: Returns `self` with `event_sink` set to `Some(sink)`.
     pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {

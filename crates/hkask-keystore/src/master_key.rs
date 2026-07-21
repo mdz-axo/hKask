@@ -107,7 +107,7 @@ pub fn derive_all_internal_secrets_with_version(
 ) -> InternalSecrets {
     let start = std::time::Instant::now();
 
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "reg.keystore", operation = "derive_internal_secrets", key_version = key_version, "REG");
 
     // Step 1: Argon2id stretch (slow, ~100ms)
@@ -128,7 +128,7 @@ pub fn derive_all_internal_secrets_with_version(
         key_version,
     );
 
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "reg.keystore", operation = "internal_secrets_derived", latency_ms = start.elapsed().as_millis(), "REG");
 
     InternalSecrets {

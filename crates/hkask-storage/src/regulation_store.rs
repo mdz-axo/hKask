@@ -1,4 +1,4 @@
-//! RegulationArchive — Persistent storage for CNS ν-events
+//! RegulationArchive — Persistent storage for Regulation ν-events
 
 use crate::now_rfc3339;
 use hkask_database::driver::{query_map, query_row};
@@ -48,7 +48,7 @@ pub struct WeightedEvent {
 
 /// Algedonic-significant span categories for Curation review.
 ///
-/// These are the CNS span namespaces that produce events requiring
+/// These are the Regulation span namespaces that produce events requiring
 /// Curation (Loop 5) attention: energy deficits, variety imbalances,
 /// agent pod failures, wallet key lifecycle events, and communication
 /// activity (Matrix messages, thread lifecycle).
@@ -276,7 +276,7 @@ impl RegulationArchive {
     /// "regulation", "gas") — NOT the full `cns.*` namespace.
     ///
     /// expect: "The system provides durable storage for event data"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — query CNS span history
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — query Regulation span history
     /// pre:  `namespace_prefix` is a non-empty short-name prefix (e.g., "guard", "regulation", "gas")
     /// post: returns Vec of RegulationRecords with span_category starting with the prefix, since the given
     ///       timestamp, ordered by timestamp ASC, limited to `limit` results
@@ -311,7 +311,7 @@ impl RegulationArchive {
     /// "regulation", "gas"). Callers pass the short-name prefix.
     ///
     /// expect: "The system provides durable storage for event data"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregate CNS span stats
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregate Regulation span stats
     /// pre:  `namespace_prefix` is a non-empty short-name prefix
     /// post: returns Vec of (span_category, count) tuples, ordered by count DESC
     pub fn query_span_stats(

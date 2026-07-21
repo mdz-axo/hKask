@@ -4,7 +4,7 @@
 //! - `TestDb` — isolated temp SQLite database with full schema
 //! - `TestKeystore` — temp directory with test master key
 //! - `TestWebId` — factory for valid test WebIDs
-//! - `MockRegulationLedger` — CNS runtime with controllable state
+//! - `MockRegulationLedger` — Regulation runtime with controllable state
 //! - `temp_dir()` — guarded temp directory, auto-cleans on drop
 //! - `test_event()` / `test_h_mem()` — factories for well-formed test entities
 //! - `strategies` — proptest strategy functions for core types
@@ -206,7 +206,7 @@ impl TestWebId {
 
 // ── MockRegulationLedger ────────────────────────────────────────────────────────────
 
-/// CNS state for mock runtime — controllable in tests.
+/// Regulation state for mock runtime — controllable in tests.
 #[derive(Debug, Clone)]
 pub struct MockCnsState {
     pub homeostatic: bool,
@@ -216,7 +216,7 @@ pub struct MockCnsState {
 }
 
 impl MockCnsState {
-    /// Create a homeostatic (healthy) CNS state.
+    /// Create a homeostatic (healthy) Regulation state.
     ///
     /// post: returns MockCnsState with homeostatic=true, no throttled tools, empty signals
     pub fn homeostatic() -> Self {
@@ -228,7 +228,7 @@ impl MockCnsState {
         }
     }
 
-    /// Create a perturbed CNS state with a specific tool throttled.
+    /// Create a perturbed Regulation state with a specific tool throttled.
     ///
     /// pre:  throttled_tool is non-empty
     /// post: returns MockCnsState with homeostatic=false, tool throttled
@@ -240,7 +240,7 @@ impl MockCnsState {
     }
 }
 
-/// Simplified algedonic signal for mock CNS.
+/// Simplified algedonic signal for mock Regulation.
 #[derive(Debug, Clone)]
 pub struct MockAlgedonicSignal {
     pub valence: SignalValence,
@@ -271,18 +271,18 @@ impl MockAlgedonicSignal {
     }
 }
 
-/// Simplified CNS runtime mock for integration tests.
+/// Simplified Regulation runtime mock for integration tests.
 ///
 /// Provides controllable state, event injection, time advancement,
-/// and signal observation — sufficient for testing CNS-dependent code
-/// without a full running CNS daemon.
+/// and signal observation — sufficient for testing Regulation-dependent code
+/// without a full running Regulation daemon.
 #[derive(Clone)]
 pub struct MockRegulationLedger {
     state: Arc<RwLock<MockCnsState>>,
 }
 
 impl MockRegulationLedger {
-    /// Create a new mock CNS runtime with homeostatic state.
+    /// Create a new mock Regulation runtime with homeostatic state.
     ///
     /// post: returns MockRegulationLedger with homeostatic state
     pub fn new() -> Self {
@@ -291,7 +291,7 @@ impl MockRegulationLedger {
         }
     }
 
-    /// Create a mock CNS with a specific initial state.
+    /// Create a mock Regulation with a specific initial state.
     ///
     /// pre:  state is a valid MockCnsState
     /// post: returns MockRegulationLedger with the given state
@@ -301,7 +301,7 @@ impl MockRegulationLedger {
         }
     }
 
-    /// Inject an event into the CNS (simulates a perturbation).
+    /// Inject an event into the Regulation (simulates a perturbation).
     ///
     /// pre:  event is a valid RegulationRecord
     /// post: homeostatic set to false, negative signal appended
@@ -317,7 +317,7 @@ impl MockRegulationLedger {
     }
 
     /// Advance mock time by a duration (simulates feedback processing).
-    /// After sufficient time, the CNS may return toward homeostasis.
+    /// After sufficient time, the Regulation may return toward homeostasis.
     ///
     /// post: if duration >= 5s, homeostatic restored, throttled tools cleared, positive signal appended
     pub fn advance_time(&self, duration: std::time::Duration) {
@@ -355,7 +355,7 @@ impl MockRegulationLedger {
         }
     }
 
-    /// Check if the CNS is in homeostatic state.
+    /// Check if the Regulation is in homeostatic state.
     ///
     /// post: returns true iff homeostatic flag is true
     pub fn is_homeostatic(&self) -> bool {
@@ -395,7 +395,7 @@ impl Default for MockRegulationLedger {
     }
 }
 
-/// Tool state as reported by mock CNS.
+/// Tool state as reported by mock Regulation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MockToolState {
     Active,

@@ -8,7 +8,7 @@
 //!
 //! ## Why this lives in hkask-regulation
 //!
-//! Sensor providers are CNS regulation infrastructure. They live alongside
+//! Sensor providers are Regulation regulation infrastructure. They live alongside
 //! `CyberneticsLoop`, `StagnationDetector`, and `SetPoints` in `hkask-regulation`,
 //! the crate responsible for homeostatic self-regulation.
 //!
@@ -296,7 +296,7 @@ impl Sensor for EnergyBudgetSensor {
     }
 }
 
-/// Senses variety deficit from the CNS runtime.
+/// Senses variety deficit from the Regulation runtime.
 ///
 /// Data source: `RegulationLedger`. Produces a single aggregate signal.
 pub struct VarietySensor {

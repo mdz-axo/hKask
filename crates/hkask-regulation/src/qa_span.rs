@@ -1,4 +1,4 @@
-//! QA repair CNS spans.
+//! QA repair Regulation spans.
 use hkask_types::ObservableSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

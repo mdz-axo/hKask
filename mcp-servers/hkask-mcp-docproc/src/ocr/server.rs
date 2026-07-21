@@ -99,7 +99,7 @@ impl DocProcServer {
         (text, word_count, outcome)
     }
 
-    /// Persist pipeline outcome to daemon for CNS observability.
+    /// Persist pipeline outcome to daemon for Regulation observability.
     pub async fn persist_pipeline_outcome(&self, outcome: &crate::ocr::PipelineOutcome) {
         if let Some(ref daemon) = self.daemon {
             let daemon_clone = daemon.clone();

@@ -1,6 +1,6 @@
-//! CNS Runtime — minimal observability
+//! Regulation Runtime — minimal observability
 //!
-//! RegulationLedger is the single entry point for all CNS operations:
+//! RegulationLedger is the single entry point for all Regulation operations:
 //! - Variety counting (Ashby's Law)
 //! - Algedonic alerts (deficit > threshold → escalate)
 //!
@@ -201,7 +201,7 @@ impl Default for OutcomeTracker {
     }
 }
 
-/// Variety monitor for multiple domains — Ashby's Law tracking at the CNS level.
+/// Variety monitor for multiple domains — Ashby's Law tracking at the Regulation level.
 ///
 /// # Epistemic grounding
 /// - **crt:certainty** = Subjunctive
@@ -301,7 +301,7 @@ pub struct RegulationCycleEntry {
     pub cumulative_effectiveness: f64,
 }
 
-/// CNS state shared between threads
+/// Regulation state shared between threads
 struct CnsState {
     algedonic: Arc<ParkingRwLock<AlgedonicManager>>,
     tracker: VarietyMonitor,
@@ -339,7 +339,7 @@ impl CnsState {
     }
 }
 
-/// CNS runtime — single entry point for observability and regulation
+/// Regulation runtime — single entry point for observability and regulation
 ///
 /// Cheaply clonable: both fields are `Arc`-wrapped, so cloning only bumps
 /// reference counts. All clones share the same inner state (variety tracker,
@@ -353,9 +353,9 @@ pub struct RegulationLedger {
 }
 
 impl RegulationLedger {
-    /// Create a CNS runtime with a custom threshold.
+    /// Create a Regulation runtime with a custom threshold.
     ///
-    /// expect: "I can create a CNS runtime with a configurable variety threshold"
+    /// expect: "I can create a Regulation runtime with a configurable variety threshold"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — runtime creation enables regulation
     /// \[P7\] Constraining: Evolutionary Architecture — threshold config emerged from real usage
     /// pre:  threshold > 0
@@ -372,7 +372,7 @@ impl RegulationLedger {
     ///
     /// expect: "The system provides configurable error recovery for homeostatic self-regulation"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — heal callback closes the recovery loop
-    /// \[P4\] Constraining: Clear Boundaries — callback is user-owned, CNS does not self-modify
+    /// \[P4\] Constraining: Clear Boundaries — callback is user-owned, Regulation does not self-modify
     /// pre:  cb is valid
     /// post: RegulationLedger with heal callback configured
     pub fn with_heal_cb(mut self, cb: HealCallback) -> Self {
@@ -397,9 +397,9 @@ impl RegulationLedger {
 
     // ── Health & Alerts ──
 
-    /// Get CNS health status.
+    /// Get Regulation health status.
     ///
-    /// expect: "I can query the cybernetic health status of the entire CNS"
+    /// expect: "I can query the cybernetic health status of the entire Regulation"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns LedgerHealth with current state
@@ -446,7 +446,7 @@ impl RegulationLedger {
     /// Returns the accumulated Accept/Stage/Block counts and effectiveness ratio
     /// across all recorded regulation cycles.
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — health query drives loop decisions
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns RegulationHealth with current Accept/Stage/Block counts
@@ -459,7 +459,7 @@ impl RegulationLedger {
     ///
     /// Returns up to `n` most recent cycles, newest first.
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — history enables trend analysis for loop tuning
     /// \[P8\] Constraining: Semantic Grounding — pure measurement, no transformation
     /// post: returns up to n entries, newest first; never exceeds MAX_REGULATION_HISTORY
@@ -476,7 +476,7 @@ impl RegulationLedger {
 
     /// Access the tool stats learner for recording and querying tool distributions.
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — tool stats inform energy and reliability decisions
     /// \[P8\] Constraining: Semantic Grounding — LogNormal distributions are computed from measured data
     /// post: returns `Arc<ToolStats>` shared reference
@@ -548,7 +548,7 @@ impl RegulationLedger {
         let mut results = HashMap::new();
         for domain in &domains {
             // Filter against CANONICAL_NAMESPACES — the single registry for all
-            // CNS namespace strings (core + domain). Replaces the old RegulationSpan::from_str
+            // Regulation namespace strings (core + domain). Replaces the old RegulationSpan::from_str
             // gate which previously only accepted core variants.
             if let Some(ns) = SpanNamespace::parse(domain) {
                 let state = self.state.read().await;
@@ -589,10 +589,10 @@ impl RegulationLedger {
 
     /// Synchronous version of variety_for_domain — uses blocking_read() on the
     /// internal tokio RwLock. This enables sync contexts (e.g., metric collectors,
-    /// CLI closures) to query CNS variety counters without requiring async.
+    /// CLI closures) to query Regulation variety counters without requiring async.
     /// Get variety for a domain (blocking).
     ///
-    /// expect: "I can access CNS observability synchronously — preserving generative capability"
+    /// expect: "I can access Regulation observability synchronously — preserving generative capability"
     /// \[P3\] Motivating: Generative Space — sync access preserves generative capability
     /// \[P7\] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
     /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
@@ -786,7 +786,7 @@ impl RegulationLedger {
     /// this is called during bootstrap before the async runtime is fully active.
     /// Calibrate threshold (blocking).
     ///
-    /// expect: "I can access CNS observability synchronously — preserving generative capability"
+    /// expect: "I can access Regulation observability synchronously — preserving generative capability"
     /// \[P3\] Motivating: Generative Space — sync access preserves generative capability
     /// \[P7\] Constraining: Evolutionary Architecture — blocking variant emerged from real usage
     /// \[P4\] Constraining: Clear Boundaries — must not be called from async context
@@ -800,7 +800,7 @@ impl RegulationLedger {
             .set_expected_variety(domain, new_threshold);
     }
 
-    // ── Bot Observation (CNS Observer) ──
+    // ── Bot Observation (Regulation Observer) ──
 
     /// Register a LedgerObserver to receive events matching its interest mask.
     ///
@@ -810,9 +810,9 @@ impl RegulationLedger {
     /// - A backpressure signal fires (on_backpressure)
     ///
     /// Use `subscribe_async` when calling from an async context.
-    /// Subscribe an observer to CNS events.
+    /// Subscribe an observer to Regulation events.
     ///
-    /// expect: "I can explicitly subscribe an observer to receive CNS events"
+    /// expect: "I can explicitly subscribe an observer to receive Regulation events"
     /// \[P12\] Motivating: Affirmative Consent — observer registration requires explicit subscription
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
@@ -828,7 +828,7 @@ impl RegulationLedger {
     /// an async context (e.g., during bootstrap or from the API).
     /// Subscribe an observer (async).
     ///
-    /// expect: "I can explicitly subscribe an async observer to receive CNS events"
+    /// expect: "I can explicitly subscribe an async observer to receive Regulation events"
     /// \[P12\] Motivating: Affirmative Consent — observer registration requires explicit subscription
     /// \[P2\] Constraining: User Sovereignty — subscriber identity is user-owned (WebID-tagged)
     /// pre:  observer is valid
@@ -858,7 +858,7 @@ impl RegulationLedger {
 
     /// Register a energy budget for an agent.
     ///
-    /// Called during agent pod creation so the CNS can track and replenish budgets.
+    /// Called during agent pod creation so the Regulation can track and replenish budgets.
     /// Register an energy budget for an agent.
     ///
     /// expect: "I can register an energy budget for an agent to enable tracking"
@@ -894,7 +894,7 @@ impl RegulationLedger {
                 agent = %agent,
                 amount = amount.0,
                 remaining = remaining.0,
-                "Replenished agent energy budget via CNS runtime"
+                "Replenished agent energy budget via Regulation runtime"
             );
             remaining
         } else {
@@ -905,7 +905,7 @@ impl RegulationLedger {
     /// Get a read-only snapshot of an agent's energy budget status.
     ///
     /// Returns `None` if the agent has no registered budget.
-    /// Used by the CNS service.
+    /// Used by the Regulation service.
     /// Get agent energy status.
     ///
     /// expect: "I can query an agent's gas status for energy loop feedback"
@@ -923,11 +923,11 @@ impl RegulationLedger {
 
     /// Evaluate all registered SLOs against the given data provider.
     ///
-    /// expect: "The system evaluates SLOs against measured data and emits CNS spans"
+    /// expect: "The system evaluates SLOs against measured data and emits Regulation spans"
     /// `[P9]` Motivating: Homeostatic Self-Regulation — SLO evaluation is the platform contract layer
     /// `[P8]` Constraining: Semantic Grounding — evaluations are computed from ν-event data
     /// pre:  provider is operational
-    /// post: returns SloEvaluation list with CNS spans emitted
+    /// post: returns SloEvaluation list with Regulation spans emitted
     pub async fn evaluate_slos(
         &self,
         provider: &dyn SloDataProvider,
@@ -1007,7 +1007,7 @@ impl RegulationLedger {
 
     /// Get all registered SLOs.
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — SLO listing enables platform contract auditing
     /// \[P8\] Constraining: Semantic Grounding — pure observation, no transformation
     /// post: returns all registered SloDefinitions
@@ -1023,7 +1023,7 @@ impl Default for RegulationLedger {
     }
 }
 
-/// No-op event sink for tests and contexts where CNS event persistence
+/// No-op event sink for tests and contexts where Regulation event persistence
 /// is not needed (e.g., seam watcher unit tests).
 pub struct NoopEventSink;
 
@@ -1049,7 +1049,7 @@ async fn emit_critical_depletion(runtime: &RegulationLedger, alert: &crate::alge
     // Attempt self-healing before broadcasting to observers
     if let Some(ref cb) = runtime.heal_error_cb {
         let msg = format!(
-            "CNS variety depletion: deficit={} threshold={} usage_ratio={:.2}",
+            "Regulation variety depletion: deficit={} threshold={} usage_ratio={:.2}",
             alert.deficit, alert.threshold, signal.usage_ratio
         );
         cb(&msg, "reg.depletion");

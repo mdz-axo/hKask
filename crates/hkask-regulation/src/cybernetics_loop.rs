@@ -378,9 +378,9 @@ impl CyberneticsLoop {
         proposed
     }
 
-    /// Emit a regulation span to the RegulationArchive for CNS observability.
+    /// Emit a regulation span to the RegulationArchive for Regulation observability.
     ///
-    /// This is the Conant-Ashby closure: the CNS (observer-of-observers)
+    /// This is the Conant-Ashby closure: the Regulation (observer-of-observers)
     /// must have a model of the regulation system itself. These spans
     /// give the Curator visibility into regulatory effectiveness — which
     /// actions are working, which are being substituted, and which are
@@ -506,7 +506,7 @@ impl CyberneticsLoop {
     /// Called automatically during `build()` if a persistence path is set.
     /// Returns count loaded (0 if first run or no path configured).
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     pub async fn load_budgets(&self) -> Result<usize, GasError> {
         if let Some(ref path) = self.budget_persistence_path {
             let contents = match tokio::fs::read_to_string(path).await {
@@ -562,7 +562,7 @@ impl CyberneticsLoop {
     /// Access the WalletManager for wallet creation and balance queries.
     /// Returns None if no wallet manager was attached via with_wallet_manager().
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     pub fn wallet_manager(&self) -> Option<&Arc<WalletManager>> {
         self.wallet_manager.as_ref()
     }
@@ -580,17 +580,17 @@ impl CyberneticsLoop {
 
     /// Access the WellManager for Well creation and configuration.
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     pub fn well_manager(&self) -> &Arc<RwLock<WellManager>> {
         &self.well_manager
     }
 
-    /// Record a tool outcome in the CNS runtime for outcome quality tracking.
+    /// Record a tool outcome in the Regulation runtime for outcome quality tracking.
     ///
     /// Delegates to `RegulationLedger::record_outcome`. Called by `McpRuntime`
     /// after every governed tool invocation completes.
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
         self.ledger
             .read()
@@ -1300,7 +1300,7 @@ impl RegulationLoop for CyberneticsLoop {
                 );
             }
 
-            // Blocked actions: escalate as Critical to Curation + emit CNS span.
+            // Blocked actions: escalate as Critical to Curation + emit Regulation span.
             if decision == ActionDecision::Block {
                 self.emit_regulation_span(
                     SpanKind::ActionBlocked,
@@ -1334,7 +1334,7 @@ impl RegulationLoop for CyberneticsLoop {
                 }
             }
 
-            // Emit CNS span for Curator observability of regulatory effectiveness.
+            // Emit Regulation span for Curator observability of regulatory effectiveness.
             self.emit_regulation_span(
                 SpanKind::ImpactVerified,
                 serde_json::json!({
@@ -1416,7 +1416,7 @@ impl RegulationLoop for CyberneticsLoop {
                         .filter(|r| r.decision == ActionDecision::Block)
                         .count() as u64;
                     evaluator.record_cycle(report.metric, accepted, staged, blocked);
-                    // Check for strategy promotion; emit CNS span if promoted.
+                    // Check for strategy promotion; emit Regulation span if promoted.
                     if evaluator.active_policy(report.metric) {
                         promoted.push(report.metric);
                     }
@@ -1435,7 +1435,7 @@ impl RegulationLoop for CyberneticsLoop {
             .await;
         }
 
-        // Feed regulation health into CNS for metacognition observability.
+        // Feed regulation health into Regulation for metacognition observability.
         {
             let accepted = impact_reports
                 .iter()
@@ -1506,7 +1506,7 @@ impl RegulationLoop for CyberneticsLoop {
 
         // ── Seam drift check (throttled to every 10 minutes) ──
         // Closes the boundary-monitoring loop: detects architectural seam
-        // coverage regression and emits CNS spans + algedonic alerts.
+        // coverage regression and emits Regulation spans + algedonic alerts.
         if let Some(ref watcher) = self.seam_watcher {
             let should_check = {
                 let mut last = self.last_seam_check.lock().await;
@@ -1885,14 +1885,14 @@ impl CyberneticsLoop {
 impl CyberneticsLoop {
     /// Return a snapshot of the most recent loop-quality telemetry.
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     pub async fn loop_quality(&self) -> LoopMetrics {
         *self.loop_quality.read().await
     }
 
     /// Return a reference to the current set-points (read-only).
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     pub fn set_points(&self) -> &SetPoints {
         &self.set_points
     }
@@ -1900,7 +1900,7 @@ impl CyberneticsLoop {
     /// Return a mutable reference to the set-points for calibration.
     /// Callers must hold `&mut CyberneticsLoop` (e.g., via `loop.write().await`).
     ///
-    /// expect: "The system provides observability into CNS regulation state"
+    /// expect: "The system provides observability into Regulation regulation state"
     pub fn set_points_mut(&mut self) -> &mut SetPoints {
         &mut self.set_points
     }

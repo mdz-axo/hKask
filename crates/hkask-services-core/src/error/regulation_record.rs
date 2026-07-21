@@ -1,24 +1,24 @@
-//! CNS ν-event emission for `ServiceError`.
+//! Regulation ν-event emission for `ServiceError`.
 //!
-//! Only system-level errors (infrastructure, inference, CNS, storage)
+//! Only system-level errors (infrastructure, inference, Regulation, storage)
 //! emit ν-events. User-input errors (NotFound, InvalidInput, LoginFailed)
-//! are not system conditions — they don't need CNS observability.
+//! are not system conditions — they don't need Regulation observability.
 
 use super::{DomainKind, ServiceError};
 
 impl ServiceError {
-    /// Emit a ν-event for CNS-observable errors.
+    /// Emit a ν-event for Regulation-observable errors.
     ///
     /// Returns `None` for user-input errors that don't represent system
     /// conditions. Returns `Some(RegulationRecord)` for infrastructure, inference,
-    /// CNS, storage, and security errors the CNS can act on.
+    /// Regulation, storage, and security errors the Regulation can act on.
     ///
     /// The observer WebID is freshly generated per event — these are
     /// system-level observations, not agent-specific.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  self must be a valid ServiceError variant
-    /// post: returns Some(RegulationRecord) for system-level errors (inference, CNS, storage, infra); None for user-input errors (not-found, validation)
+    /// post: returns Some(RegulationRecord) for system-level errors (inference, Regulation, storage, infra); None for user-input errors (not-found, validation)
     #[must_use]
     pub fn regulation_record(&self) -> Option<hkask_types::event::RegulationRecord> {
         use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};

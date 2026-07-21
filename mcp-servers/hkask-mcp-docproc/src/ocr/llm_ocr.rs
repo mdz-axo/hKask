@@ -189,7 +189,7 @@ impl OcrExecutor for LlmOcrExecutor {
             .await
             .map_err(|e| {
                 let err_str = e.to_string();
-                // GAP-4: CNS variety — detect rate-limit backpressure
+                // GAP-4: Regulation variety — detect rate-limit backpressure
                 if err_str.contains("429")
                     || err_str.contains("rate limit")
                     || err_str.contains("Rate limit")
@@ -226,7 +226,7 @@ impl OcrExecutor for LlmOcrExecutor {
         // Compute real confidence via quality heuristic (GAP-1).
         let confidence = ocr_quality_heuristic(&result.text, image.width(), image.height());
 
-        // GAP-4: CNS variety — flag suspiciously low confidence for Curator review
+        // GAP-4: Regulation variety — flag suspiciously low confidence for Curator review
         if confidence < 0.3 && !result.text.trim().is_empty() {
             tracing::warn!(
                 target: "reg.pipeline.ocr.low_confidence",

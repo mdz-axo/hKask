@@ -73,7 +73,7 @@ impl Keychain {
             .set_password(secret)
             .map_err(|e| KeychainError::Platform(e.to_string()))?;
 
-        // P9: CNS span
+        // P9: Regulation span
         info!(target: "reg.keystore", operation = "store", "REG");
         Ok(())
     }
@@ -289,7 +289,7 @@ pub fn get_or_create_ocap_secret() -> Result<Zeroizing<Vec<u8>>, KeychainError> 
 /// post: Generated → random bytes (debug only, not reproducible)
 /// post: all returned secrets wrapped in Zeroizing
 pub fn resolve(secret_ref: &SecretRef) -> Result<Zeroizing<Vec<u8>>, KeychainError> {
-    // P9: CNS span
+    // P9: Regulation span
     let start = std::time::Instant::now();
     let variant = match secret_ref {
         SecretRef::Env(_) => "env",

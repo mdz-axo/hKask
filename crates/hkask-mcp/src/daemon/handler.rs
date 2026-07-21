@@ -39,6 +39,6 @@ pub trait DaemonHandler: Send + Sync {
     /// Query curator system health — returns a HealthSnapshot as JSON.
     async fn curator_health(&self, userpod: &str) -> serde_json::Value;
 
-    /// Query live CNS status — variety per domain, backpressure.
+    /// Query live Regulation status — variety per domain, backpressure.
     async fn cns_status(&self, userpod: &str, domain: Option<&str>) -> serde_json::Value;
 }

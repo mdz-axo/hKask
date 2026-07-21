@@ -568,7 +568,7 @@ impl From<NotFound> for TokenRegistryError {
 /// OCAP gates enforce consent at runtime; the registry proves it after the fact.
 /// Without this, P2 is operationally enforced but forensically invisible.
 ///
-/// CNS spans record token *usage* (was the token presented?).
+/// Regulation spans record token *usage* (was the token presented?).
 /// The registry records token *issuance* (was the token ever granted?).
 /// Together they enable the full consent picture.
 pub trait TokenRegistry: Send + Sync {

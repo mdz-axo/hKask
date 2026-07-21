@@ -35,7 +35,7 @@ pub const DEFAULT_WALLET_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hour
 /// - `WalletGasCalibrator` (struct)
 /// - `new()` — construct from event store and wallet manager
 /// - `with_initial_lookback()` — configure first-calibration window
-/// - `with_event_sink()` — attach a CNS event sink for calibration spans
+/// - `with_event_sink()` — attach a Regulation event sink for calibration spans
 /// - `calibrate()` — run one calibration pass
 /// - `spawn_calibration()` — spawn a background calibration task
 pub struct WalletGasCalibrator {
@@ -85,9 +85,9 @@ impl WalletGasCalibrator {
         self
     }
 
-    /// Attach a CNS event sink for calibration span emission.
+    /// Attach a Regulation event sink for calibration span emission.
     ///
-    /// expect: "I can attach an event sink so wallet conversion rate adjustments emit CNS observability spans"
+    /// expect: "I can attach an event sink so wallet conversion rate adjustments emit Regulation observability spans"
     /// pre:  sink is a valid RegulationSink
     /// post: subsequent successful calibrations that adjust the rate emit a span
     #[must_use = "builder methods must be chained or assigned"]
@@ -184,7 +184,7 @@ impl WalletGasCalibrator {
                 warn!(
                     target: "reg.wallet.calibration",
                     error = %e,
-                    "Failed to persist wallet calibration CNS span"
+                    "Failed to persist wallet calibration Regulation span"
                 );
             }
         }

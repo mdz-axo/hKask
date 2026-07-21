@@ -176,7 +176,7 @@ impl TuiSession {
                 }
             }
 
-            // Tick workspace for background updates (CNS polling, etc.)
+            // Tick workspace for background updates (Regulation polling, etc.)
             self.workspace.tick();
         }
 

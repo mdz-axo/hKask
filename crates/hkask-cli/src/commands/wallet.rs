@@ -18,7 +18,7 @@ use crate::error::CliError;
 /// pre:  action is a valid WalletAction variant
 /// post: dispatches to balance, deposit, history, key, fee, withdraw, encumber, release, or report operations
 pub fn run(rt: &tokio::runtime::Runtime, action: WalletAction) {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.cli", operation = "wallet", action = ?action, "REG");
     let svc = build_wallet_service();
     match action {

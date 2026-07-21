@@ -242,7 +242,7 @@ fn otsu_binarize(image: &mut DynamicImage) {
         imageproc::contrast::ThresholdType::Binary,
     );
 
-    // GAP-4: CNS variety — detect potential over-thresholding (uniform output)
+    // GAP-4: Regulation variety — detect potential over-thresholding (uniform output)
     let unique: std::collections::BTreeSet<u8> = binarized.as_raw().iter().copied().collect();
     if unique.len() <= 1 {
         tracing::warn!(

@@ -2,7 +2,7 @@
 //!
 //! Phase 1 trim: runtime/side-door commands removed. CLI is now admin, config,
 //! startup, shutdown, and the single `tui` runtime launch. Runtime operations
-//! (skills, bundles, templates, kata, kanban, goals, adapters, CNS queries,
+//! (skills, bundles, templates, kata, kanban, goals, adapters, Regulation queries,
 //! curator escalations, consolidation, style, web search) live in the TUI's
 //! REPL slash commands or are invoked via MCP tools from within the runtime.
 
@@ -592,7 +592,7 @@ pub enum MatrixAction {
 
 #[derive(Debug, Subcommand)]
 pub enum DaemonAction {
-    /// Start the daemon (binds Unix socket, runs CNS loops, serves until shutdown)
+    /// Start the daemon (binds Unix socket, runs Regulation loops, serves until shutdown)
     Start,
 
     /// Check daemon status (socket existence + health)

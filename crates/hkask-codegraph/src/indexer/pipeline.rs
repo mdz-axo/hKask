@@ -47,7 +47,7 @@ impl IndexPipeline {
         }
     }
 
-    /// Seconds since last full index (X6: staleness for CNS monitoring).
+    /// Seconds since last full index (X6: staleness for Regulation monitoring).
     pub fn staleness_seconds(&self) -> u64 {
         self.last_full_index_at.elapsed().as_secs()
     }
@@ -100,7 +100,7 @@ impl IndexPipeline {
 
         let duration_ms = start.elapsed().as_millis() as u64;
 
-        // Emit CNS event for indexed file (G7)
+        // Emit Regulation event for indexed file (G7)
         tracing::info!(
             target: "hkask.codegraph.file_indexed",
             file = %relative_path,

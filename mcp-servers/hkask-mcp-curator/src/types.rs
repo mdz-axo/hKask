@@ -31,7 +31,7 @@ pub struct CnsStatusRequest {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CnsQueryRequest {
-    /// CNS namespace prefix to filter by (e.g., "reg.sovereignty", "reg.contract")
+    /// Regulation namespace prefix to filter by (e.g., "reg.sovereignty", "reg.contract")
     pub namespace: Option<String>,
     /// Lookback window in seconds (default: 3600 = 1 hour)
     pub window_seconds: Option<u64>,

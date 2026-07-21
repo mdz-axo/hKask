@@ -12,7 +12,7 @@
 //! `LlmAssisted`. Renders a Jinja2 template from `registry/templates/heal/`,
 //! calls the classifier model, parses JSON instructions, executes sub-actions.
 //!
-//! ## CNS spans emitted
+//! ## Regulation spans emitted
 //!
 //! | Target | When |
 //! |--------|------|

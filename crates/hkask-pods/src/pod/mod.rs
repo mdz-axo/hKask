@@ -6,7 +6,7 @@
 //! - **Isolation**: Independent capability tokens, no shared state
 //! - **Identity**: WebID-based A2A registration
 //! - **Access**: Capability-gated MCP tool invocation
-//! - **Observability**: CNS span emission for all lifecycle events
+//! - **Observability**: Regulation span emission for all lifecycle events
 //! - **Persistence**: Memory artifact generation (episodic/semantic h_mems)
 //!
 //! # Lifecycle States
@@ -265,7 +265,7 @@ impl AgentPod {
             webid = %self.webid,
             mcp_access = true,
             confidence = 1.0,
-            "CNS event"
+            "Regulation event"
         );
 
         info!("Agent pod {} activated for A2A communication", self.id);
@@ -302,7 +302,7 @@ impl AgentPod {
             webid = %self.webid,
             capabilities_revoked = true,
             confidence = 1.0,
-            "CNS event"
+            "Regulation event"
         );
 
         info!("Agent pod {} deactivated", self.id);

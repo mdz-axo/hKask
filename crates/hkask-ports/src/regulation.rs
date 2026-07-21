@@ -58,7 +58,7 @@ pub struct BackpressureSignal {
     pub severity: f64,
 }
 
-/// Subscribes to CNS events by span namespace.
+/// Subscribes to Regulation events by span namespace.
 
 #[async_trait]
 pub trait LedgerObserver: Send + Sync {
@@ -71,7 +71,7 @@ pub trait LedgerObserver: Send + Sync {
     async fn on_backpressure(&self, signal: &BackpressureSignal);
 }
 
-/// Storage port for CNS event queries.
+/// Storage port for Regulation event queries.
 ///
 /// Abstracts the RegulationArchive behind a trait so the cybernetic regulation
 /// layer (GasReport, CalibratedEnergyEstimator, WalletGasCalibrator) can be
@@ -106,7 +106,7 @@ pub trait LedgerStoragePort: Send + Sync {
     /// column (e.g., "guard" matches "guard.input", "guard.output", etc.).
     /// Pass the short name — NOT the full `cns.*` namespace.
     ///
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — query CNS span history
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — query Regulation span history
     /// pre:  `namespace_prefix` is a non-empty short-name prefix
     /// post: returns Vec of RegulationRecords with span_category starting with the prefix,
     ///       since the given timestamp, ordered by timestamp ASC, limited to `limit`
@@ -122,7 +122,7 @@ pub trait LedgerStoragePort: Send + Sync {
     /// The `namespace_prefix` is the short-name prefix stored in the `span_category`
     /// column.
     ///
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregate CNS span stats
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — aggregate Regulation span stats
     /// pre:  `namespace_prefix` is a non-empty short-name prefix
     /// post: returns Vec of (span_category, count) tuples, ordered by count DESC
     fn query_span_stats(

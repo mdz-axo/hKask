@@ -1,4 +1,4 @@
-//! Core CNS (Cybernetic Nervous System) types for hKask
+//! Core Regulation (Cybernetic Nervous System) types for hKask
 //!
 //! Core spans: cns.tool.*, cns.inference.*, cns.fusion.*, cns.agent_pod.*,
 //! cns.gas.*, cns.curation.*, cns.heal.*, cns.memory.encode.*
@@ -6,7 +6,7 @@
 //! Domain-specific spans have moved to their respective domain crates.
 //!
 //! `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
-//! **canonical** CNS spans — the essential, ν-event-eligible spans that are
+//! **canonical** Regulation spans — the essential, ν-event-eligible spans that are
 //! `SpanNamespace`-validated, `SpanCategory`-categorized, and loop-connected.
 //! The `cns.*` prefix is reserved for canonical spans: every `cns.*` tracing
 //! target MUST be registered in `CANONICAL_NAMESPACES`. **Performative**
@@ -58,9 +58,9 @@ pub enum CircuitState {
     HalfOpen,
 }
 
-// CNS Health — Observability data struct
+// Regulation Health — Observability data struct
 
-/// CNS health status
+/// Regulation health status
 ///
 /// Pure data struct — construction logic (`cns_health_check`) lives in
 /// hkask-regulation where it has access to `AlgedonicManager`.
@@ -103,9 +103,9 @@ impl RegulationHealth {
     }
 }
 
-// ── RegulationSpan — Core CNS Span Identifiers ────────────────────────────────────
+// ── RegulationSpan — Core Regulation Span Identifiers ────────────────────────────────────
 
-/// Core CNS span identifiers — spans that are constructed in 2+ crates from
+/// Core Regulation span identifiers — spans that are constructed in 2+ crates from
 /// different dependency domains (the "cross-cutting concern" test).
 ///
 /// Domain-specific spans (wallet, federation, contracts, QA, metrics, deploy,
@@ -113,7 +113,7 @@ impl RegulationHealth {
 /// as enums implementing [`ObservableSpan`](crate::ObservableSpan).
 ///
 /// `CANONICAL_NAMESPACES` (in `event.rs`) is the single source of truth for
-/// **canonical** CNS spans — essential spans that are `SpanNamespace`-validated,
+/// **canonical** Regulation spans — essential spans that are `SpanNamespace`-validated,
 /// `SpanCategory`-categorized, and connected to a cybernetic loop. The `cns.*`
 /// prefix is reserved for these canonical spans: every `cns.*` tracing target
 /// MUST be registered. Per PRINCIPLES §9.1, performative telemetry uses
@@ -216,9 +216,9 @@ impl ToolSubsystem {
 }
 
 impl RegulationSpan {
-    /// Emit a typed CNS span event through the `tracing` infrastructure.
+    /// Emit a typed Regulation span event through the `tracing` infrastructure.
     ///
-    /// Enforces the canonical CNS emission convention (PRINCIPLES.md §9.2):
+    /// Enforces the canonical Regulation emission convention (PRINCIPLES.md §9.2):
     /// - `target` = `"cns"` root namespace (full domain in `reg_domain` field)
     /// - `reg_domain` = `self.as_str()` (e.g. `"reg.tool.media"`)
     /// - `operation` = the verb describing what occurred (e.g. `"invoked"`)
@@ -533,7 +533,7 @@ mod reg_span_tests {
         // If this fails, a new RegulationSpan variant was added without updating this test.
         assert!(
             all_variants.len() == 23,
-            "CNS span exhaustive test should cover all RegulationSpan variants, found {} (expected 23)",
+            "Regulation span exhaustive test should cover all RegulationSpan variants, found {} (expected 23)",
             all_variants.len()
         );
     }

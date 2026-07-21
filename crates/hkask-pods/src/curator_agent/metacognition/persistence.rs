@@ -7,7 +7,7 @@ use crate::ports::EscalationPort;
 use hkask_types::{BotID, EscalationID, InfrastructureError, TemplateID};
 
 /// Maximum retries for persisting an escalation to the queue before
-/// the CNS feedback loop is declared broken (P9 — Homeostatic Self-Regulation).
+/// the Regulation feedback loop is declared broken (P9 — Homeostatic Self-Regulation).
 const MAX_ESCALATION_PERSIST_RETRIES: u32 = 3;
 
 /// Base delay between escalation persist retries (exponential backoff).
@@ -16,7 +16,7 @@ const ESCALATION_PERSIST_BASE_DELAY_MS: u64 = 100;
 /// Persist a single escalation entry with exponential-backoff retry.
 ///
 /// Retries up to `MAX_ESCALATION_PERSIST_RETRIES` times before
-/// declaring the CNS feedback loop broken. On final failure, emits a
+/// declaring the Regulation feedback loop broken. On final failure, emits a
 /// critical-level tracing event so the operator is alerted.
 ///
 /// pre:  port is a valid EscalationPort handle
@@ -63,7 +63,7 @@ pub(super) async fn persist_escalation_with_retry(
         template_id = %template_id,
         error = %last_error,
         max_retries = MAX_ESCALATION_PERSIST_RETRIES,
-        "Escalation persistence exhausted all retries — CNS feedback loop broken. Manual intervention required."
+        "Escalation persistence exhausted all retries — Regulation feedback loop broken. Manual intervention required."
     );
     Err(InfrastructureError::database(last_error))
 }

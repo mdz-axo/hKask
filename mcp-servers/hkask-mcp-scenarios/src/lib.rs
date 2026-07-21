@@ -300,11 +300,11 @@ impl ScenariosServer {
         }
     }
 
-    /// Validate tool call sequence and emit CNS warnings on violations.
+    /// Validate tool call sequence and emit Regulation warnings on violations.
     ///
     /// Tracks which tools have been called on this server instance. When a
     /// pipeline-stage tool is invoked without its expected predecessor having
-    /// been called, emits a CNS warning. Does not block execution — tool
+    /// been called, emits a Regulation warning. Does not block execution — tool
     /// flexibility is preserved for exploratory and bypass workflows.
     fn check_sequence(&self, tool: &str) {
         let mut called = self.called_tools.lock().unwrap_or_else(|e| e.into_inner());
@@ -362,7 +362,7 @@ impl ScenariosServer {
                     }
                     Err(e) => {
                         tracing::warn!(target: "hkask.mcp.scenarios.memory", tool = %tool_name, error = %e, "Failed to store experience");
-                        tracing::warn!(target: "hkask.mcp.scenarios.experience_drop", tool = %tool_name, "CNS experience-drop signal: tool outcome not persisted to daemon");
+                        tracing::warn!(target: "hkask.mcp.scenarios.experience_drop", tool = %tool_name, "Regulation experience-drop signal: tool outcome not persisted to daemon");
                     }
                 }
             });

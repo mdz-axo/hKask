@@ -16,7 +16,7 @@
 //! verified against the root before any read or write. Path traversal (`../`)
 //! is rejected at the sandbox boundary.
 //!
-//! # CNS Spans
+//! # Regulation Spans
 //!
 //! All spans use `RegulationSpan::Tool { subsystem: ToolSubsystem::Filesystem }`.
 //! Operations: `file.read`, `file.written`, `file.deleted`,
@@ -48,7 +48,7 @@ hkask_mcp::mcp_server!(
 );
 
 impl FileSystemServer {
-    /// Emit a CNS span for a filesystem operation.
+    /// Emit a Regulation span for a filesystem operation.
     fn emit_cns(&self, operation: &str) {
         RegulationSpan::Tool {
             subsystem: ToolSubsystem::Filesystem,
@@ -61,7 +61,7 @@ impl FileSystemServer {
     /// `HKASK_FILESYSTEM_DESTRUCTIVE_CONSENT` environment variable. Read tools
     /// (fs_read, fs_list, fs_search) are ungated — reading your own workspace is
     /// sovereign by default (P1 — User Sovereignty). The opt-in is revocable by
-    /// relaunching without the flag; denials are auditable via CNS spans.
+    /// relaunching without the flag; denials are auditable via Regulation spans.
     fn require_destructive_consent(&self) -> Result<(), McpToolError> {
         if !self.destructive_consent {
             return Err(McpToolError::permission_denied(

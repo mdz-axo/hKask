@@ -1,4 +1,4 @@
-//! hKask Wallet Service — gas budgeting, price feeds, and CNS integration.
+//! hKask Wallet Service — gas budgeting, price feeds, and Regulation integration.
 //!
 //! Extracted from `hkask-services`.
 

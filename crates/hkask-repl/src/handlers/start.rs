@@ -34,7 +34,7 @@ pub fn handle_start(state: &ReplState) {
         ),
         (
             "Status",
-            "  \x1b[36m/status\x1b[0m — see system health:\n  • CNS (Cybernetic Nervous System) status\n  • Energy budget (gas remaining)\n  • Active pods and loops\n  • Circuit breaker state",
+            "  \x1b[36m/status\x1b[0m — see system health:\n  • Regulation (Cybernetic Nervous System) status\n  • Energy budget (gas remaining)\n  • Active pods and loops\n  • Circuit breaker state",
         ),
         (
             "Tools",

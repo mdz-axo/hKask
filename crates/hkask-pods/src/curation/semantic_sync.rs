@@ -6,7 +6,7 @@
 //!
 //! ## Protocol
 //!
-//! Push-then-pull: pod writes local → fires CNS event →
+//! Push-then-pull: pod writes local → fires Regulation event →
 //! Curator polls pod's table (this module is the poll side).
 //!
 //! ## Consistency
@@ -83,7 +83,7 @@ pub struct CuratorSync {
     registry: Arc<PodRegistry>,
     /// Polling interval
     interval: Duration,
-    /// Consecutive tick failures — escalates to CNS alert after threshold
+    /// Consecutive tick failures — escalates to Regulation alert after threshold
     consecutive_failures: std::sync::atomic::AtomicU64,
     /// Cross-agent artifact index — agent_name → published artifacts
     artifact_index: Arc<std::sync::RwLock<ArtifactIndex>>,
@@ -223,7 +223,7 @@ impl CuratorSync {
         // Reset failure counter on successful tick
         self.consecutive_failures
             .store(0, std::sync::atomic::Ordering::Relaxed);
-        // CNS: curator sync completed — variety signal per agent count
+        // Regulation: curator sync completed — variety signal per agent count
         tracing::info!(target: "hkask.curator.sync", pod_count = pods.len(), "REG");
 
         // Phase 2: Sync artifact manifests from agent directories.

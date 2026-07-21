@@ -306,7 +306,7 @@ impl AdapterStore {
                 DbValue::Text(adapter.created_at.clone()),
             ],
         )?;
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "reg.adapter", operation = "store", adapter_id = %adapter.id, expertise = %adapter.expertise.name, "REG");
         Ok(())
     }
@@ -375,7 +375,7 @@ impl AdapterStore {
             },
         )?;
         let result = rows.into_iter().next();
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "reg.adapter", operation = "get_by_id", adapter_id = %id, found = result.is_some(), "REG");
         Ok(result)
     }
@@ -401,7 +401,7 @@ impl AdapterStore {
             },
         )?;
 
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "reg.adapter", operation = "get_by_expertise", expertise_name = %expertise_name, count = rows.len(), "REG");
         Ok(rows)
     }
@@ -447,7 +447,7 @@ impl AdapterStore {
                 id: id.to_string(),
             }));
         }
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "reg.adapter", operation = "delete", adapter_id = %id, "REG");
         Ok(())
     }

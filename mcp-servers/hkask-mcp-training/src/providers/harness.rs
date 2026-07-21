@@ -35,7 +35,7 @@ pub trait HarnessAdapter: Send + Sync {
     /// File whose existence signals training completion.
     fn completion_marker(&self, job_id: &str) -> PathBuf;
 
-    /// The harness identifier for CNS spans.
+    /// The harness identifier for Regulation spans.
     fn harness_id(&self) -> TrainingHarnessId;
 }
 

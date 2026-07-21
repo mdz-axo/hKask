@@ -121,7 +121,7 @@ impl ChatService {
     /// pre:  ctx must be fully built; req.input must be non-empty; agent must be registered
     /// post: returns PreparedChat with prompt, model, agent_webid, capability_token, inference_port, episodic_port, and userpod_name; Err(AgentNotFound) if agent not registered
     ///
-    /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and CNS observability"
+    /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and Regulation observability"
     #[must_use = "result must be used"]
     pub async fn prepare_chat(
         ctx: &AgentService,
@@ -261,9 +261,9 @@ impl ChatService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty
-    /// post: returns ChatTurnResponse with text, usage, finish_reason, and tool_calls; CNS spans emitted; episodic trace stored; Err on agent lookup or inference failure
+    /// post: returns ChatTurnResponse with text, usage, finish_reason, and tool_calls; Regulation spans emitted; episodic trace stored; Err on agent lookup or inference failure
     ///
-    /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and CNS observability"
+    /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and Regulation observability"
     #[must_use = "result must be used"]
     pub async fn chat(
         ctx: &AgentService,
@@ -414,7 +414,7 @@ impl ChatService {
     ///
     /// Calls `prepare_chat()` for agent lookup + memory recall + prompt composition,
     /// then streams tokens from `generate_stream_with_model()`, then stores the
-    /// exchange in episodic memory (with sovereignty gate) and emits CNS spans.
+    /// exchange in episodic memory (with sovereignty gate) and emits Regulation spans.
     ///
     /// Returns a Stream of `ChatStreamEvent` — the caller decides how to deliver
     /// (WebSocket frames, SSE events, etc.).
@@ -428,7 +428,7 @@ impl ChatService {
     /// post: returns `Stream<ChatStreamEvent>`; episodic stored (if P2 consent)
     /// post: Err on agent lookup or inference port resolution failure
     ///
-    /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and CNS observability"
+    /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and Regulation observability"
     #[must_use = "stream must be consumed"]
     pub fn chat_stream(
         ctx: &AgentService,
@@ -631,7 +631,7 @@ impl ChatService {
     ///
     /// Returns the final response text, token usage, and iteration count.
     /// The caller is responsible for gas governance (reserving/settling energy),
-    /// streaming display, tool-call execution, and CNS update display.
+    /// streaming display, tool-call execution, and Regulation update display.
     ///
     /// Tool-call handling: when the model returns structured tool calls,
     /// the response includes them in `structured_tool_calls`. The caller
@@ -643,7 +643,7 @@ impl ChatService {
     /// pre:  ctx must be fully built; req.input must be non-empty; req.userpod_name must be registered
     /// post: returns TurnResult with response text, token usage, tool calls, and iteration count; manifest cascade and history suffix applied; persona filter applied; Err on inference failure
     ///
-    /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and CNS observability"
+    /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and Regulation observability"
     pub async fn execute_turn(
         ctx: &AgentService,
         req: &TurnRequest,

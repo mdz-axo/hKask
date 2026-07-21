@@ -186,7 +186,7 @@ pub fn load_classifier_config(
     name: &str,
     registry_dir: &Path,
 ) -> Result<ClassifierDef, ServiceError> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.classify", operation = "load_config", classifier = %name, "REG");
 
     let config_path = registry_dir.join("classify").join(format!("{name}.yaml"));
@@ -464,7 +464,7 @@ pub async fn classify_batch(
     config: ClassifierConfig,
     provider: Option<&dyn crate::provider_intel::ProviderIntelligence>,
 ) -> Result<Vec<ClassifyResult>, ServiceError> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.classify", operation = "classify_batch", item_count = texts.len(), "REG");
 
     if config.api_key.is_empty() {
@@ -607,7 +607,7 @@ pub async fn extract_triples_batch(
     texts: &[String],
     config: &ClassifierConfig,
 ) -> Result<Vec<TripleExtraction>, ServiceError> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.classify", operation = "extract_triples_batch", item_count = texts.len(), "REG");
 
     if config.api_key.is_empty() {

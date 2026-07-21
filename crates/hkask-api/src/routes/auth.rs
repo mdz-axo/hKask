@@ -368,7 +368,7 @@ pub async fn callback(
         "OAuth sign-in complete"
     );
 
-    // CNS: SessionOpen span
+    // Regulation: SessionOpen span
     tracing::info!(
         target = "reg.deploy.session",
         operation = "session_open",
@@ -376,7 +376,7 @@ pub async fn callback(
         webid = %userpod.webid,
         "REG"
     );
-    // CNS: member activity — emitted on every sign-in so Curator can track server population
+    // Regulation: member activity — emitted on every sign-in so Curator can track server population
     tracing::info!(
         target = "reg.multi_user.member_active",
         operation = "member_sign_in",
@@ -590,7 +590,7 @@ pub async fn logout(
                 format!("Lock error: {e}"),
             )
         })?;
-        // CNS: SessionClose span (before destroying session, so we can log webid)
+        // Regulation: SessionClose span (before destroying session, so we can log webid)
         if let Ok(Some(session)) = store.get_session(&session_id) {
             tracing::info!(
                 target = "reg.deploy.session",

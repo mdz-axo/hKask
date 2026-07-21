@@ -148,7 +148,7 @@ NOT numeric IDs.
    `defense_layer_mapped`, `provenance`, `epistemic_mode`,
    `userpod_host`.
 7. Emit `reg.taxonomy.map` Regulation span per mapping (`target:
-   "cns.taxonomy.map"`, message: `"Regulation"`, operation: `"map_taxonomy"`,
+   "reg.taxonomy.map"`, message: `"Regulation"`, operation: `"map_taxonomy"`,
    finding_reference, osc_r_tactic, osc_r_technique,
    mapping_confidence, userpod_host, latency_ms).
 

@@ -2,7 +2,7 @@
 //!
 //! Verifies the full stack from service layer down through all stores
 //! using a shared in-memory database. Tests cross-store visibility:
-//! writes through one store are visible to CNS events and other stores.
+//! writes through one store are visible to Regulation events and other stores.
 //!
 //! # Architecture under test
 //!
@@ -62,7 +62,7 @@ async fn service_builds_with_in_memory_config() {
 
     // Memory ports are accessible via build_per_agent_memory(db, cns_sink)
 
-    // CNS runtime should be accessible
+    // Regulation runtime should be accessible
     let ledger = svc.ledger().runtime.read().await;
     // Domains may be empty at startup — that's valid
     drop(ledger);
@@ -133,7 +133,7 @@ async fn goal_write_read_round_trip() {
 
 /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
 ///
-/// After granting consent, a CNS event can be persisted in the
+/// After granting consent, a Regulation event can be persisted in the
 /// shared event store (visible because all stores share one DB).
 #[tokio::test]
 async fn cross_store_consent_visible_to_cns_events() {
@@ -147,7 +147,7 @@ async fn cross_store_consent_visible_to_cns_events() {
         .grant_consent(&webid_str, &DataCategory::EpisodicMemory)
         .expect("grant_consent should succeed");
 
-    // The CNS event sink shares the same database as the consent store.
+    // The Regulation event sink shares the same database as the consent store.
     // Verify the event sink is functional on the shared connection.
     let event_sink = svc.ledger().events.clone();
     let test_event = hkask_types::event::RegulationRecord::new(
@@ -168,7 +168,7 @@ async fn cross_store_consent_visible_to_cns_events() {
 /// \[P7\] Motivating: Evolutionary Architecture — parameter emerged from real usage and is calibrated at runtime.
 ///
 /// The shared CalibratedEnergyEstimator observes cns.gas.settled events persisted
-/// through the CNS event sink and updates per-server cost estimates.
+/// through the Regulation event sink and updates per-server cost estimates.
 #[tokio::test]
 async fn service_energy_estimator_calibrates_from_events() {
     let svc = build_test_service().await;
@@ -180,7 +180,7 @@ async fn service_energy_estimator_calibrates_from_events() {
     let before = estimator.estimate_cost(server, "search", &serde_json::json!({}));
     assert_eq!(before, 100);
 
-    // Persist a settled gas event via the shared CNS event sink.
+    // Persist a settled gas event via the shared Regulation event sink.
     let event = RegulationRecord::new(
         agent,
         Span::from_kind(SpanKind::GasSettled),

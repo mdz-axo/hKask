@@ -60,9 +60,9 @@ impl CredentialRequirement {
 ///
 /// Two operating modes emerge from capability detection:
 /// - **Embedded** (hKask runtime): WebID is non-anonymous, keystore reachable,
-///   persistence available, CNS consumes spans.
+///   persistence available, Regulation consumes spans.
 /// - **Standalone** (IDE): WebID is anonymous, keystore may be unavailable,
-///   persistence unavailable, CNS spans go to stderr.
+///   persistence unavailable, Regulation spans go to stderr.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CapabilityTier {
     /// Running as part of an hKask installation (vs standalone in an IDE).
@@ -108,12 +108,12 @@ impl CapabilityTier {
         }
     }
 
-    /// CNS spans are meaningful only in embedded mode (consumed by hKask CNS).
+    /// Regulation spans are meaningful only in embedded mode (consumed by hKask Regulation).
     /// In standalone mode, spans go to stderr via the tracing subscriber.
-    /// Check if CNS is available (all required credentials present).
+    /// Check if Regulation is available (all required credentials present).
     ///
     /// expect: "The system provides authenticated tool execution context for MCP servers"
-    /// post: returns true iff embedded (CNS spans consumed by runtime, not stderr)
+    /// post: returns true iff embedded (Regulation spans consumed by runtime, not stderr)
     #[must_use]
     pub fn reg_available(&self) -> bool {
         self.embedded

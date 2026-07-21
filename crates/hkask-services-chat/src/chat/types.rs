@@ -194,7 +194,7 @@ pub struct TurnResult {
 pub enum ChatStreamEvent {
     /// A token delta from the streaming inference backend.
     Token { text_delta: String, model: String },
-    /// Turn complete — all tokens emitted, episodic stored, CNS spans written.
+    /// Turn complete — all tokens emitted, episodic stored, Regulation spans written.
     /// `memory_stored` is false if the sovereignty gate blocked episodic storage.
     Done {
         finish_reason: String,

@@ -1,6 +1,6 @@
 //! PodDeployment — Per-pod deployment unit (Solid Pod isomorphism)
 //!
-//! Each pod IS the deployment unit with its own SQLCipher file, CNS runtime,
+//! Each pod IS the deployment unit with its own SQLCipher file, Regulation runtime,
 //! and MCP server bindings. No shared state. No service collision surface.
 //!
 //! This replaces the centralized PodManager. PodRegistry provides filesystem-based
@@ -39,7 +39,7 @@ use hkask_templates::TemplateCrateLoader;
 
 /// A pod IS the deployment unit. Constructing a PodDeployment
 /// means: a SQLCipher database file exists at {data_dir}/pods/{pod_id}.db,
-/// a CNS runtime is initialized with namespace cns.agent_pod.{pod_id}.*,
+/// a Regulation runtime is initialized with namespace cns.agent_pod.{pod_id}.*,
 /// and MCP servers are bound. No shared state. No service collision surface.
 ///
 ///Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
@@ -50,7 +50,7 @@ pub struct PodDeployment {
     pub pod: AgentPod,
     /// Dedicated database. The file IS the pod. No shared store.
     pub storage: PerPodStorage,
-    /// Dedicated CNS runtime. Variety counters scoped to this pod.
+    /// Dedicated Regulation runtime. Variety counters scoped to this pod.
     pub ledger: PerPodLedger,
     /// Capability checker for OCAP verification
     pub capability_checker: Arc<CapabilityChecker>,
@@ -89,16 +89,16 @@ pub struct PerPodStorage {
     pub db_path: PathBuf,
 }
 
-/// PerPodLedger is a CNS runtime scoped to a single pod.
+/// PerPodLedger is a Regulation runtime scoped to a single pod.
 ///
-///Constraining: Digital Public/Private Sphere — CNS isolation
+///Constraining: Digital Public/Private Sphere — Regulation isolation
 #[derive(Clone)]
 pub struct PerPodLedger {
-    /// The pod this CNS runtime is scoped to
+    /// The pod this Regulation runtime is scoped to
     pod_id: PodID,
     /// Span namespace prefix: cns.agent_pod.{pod_id}
     span_namespace: String,
-    /// The actual CNS runtime — per-pod isolate
+    /// The actual Regulation runtime — per-pod isolate
     inner: RegulationLedger,
 }
 
@@ -109,7 +109,7 @@ pub enum PodDeployError {
     #[error("Failed to create pod storage at {path}: {reason}")]
     StorageInitFailed { path: PathBuf, reason: String },
 
-    #[error("Failed to initialize CNS runtime: {reason}")]
+    #[error("Failed to initialize Regulation runtime: {reason}")]
     CnsInitFailed { reason: String },
 
     #[error("Pod lifecycle error: {0}")]
@@ -135,7 +135,7 @@ impl PerPodLedger {
             target: "reg.pod",
             pod_id = %pod_id,
             namespace = %span_namespace,
-            "Per-pod CNS runtime initialized"
+            "Per-pod Regulation runtime initialized"
         );
         Self {
             pod_id,
@@ -224,7 +224,7 @@ impl PodFactory {
     }
 
     /// Deploy a new pod with its own SQLCipher database file,
-    /// per-pod CNS runtime, and MCP bindings.
+    /// per-pod Regulation runtime, and MCP bindings.
     ///
     /// The pod's SQLCipher database uses the installation's canonical
     /// `HKASK_DB_PASSPHRASE`, resolved through `hkask-keystore`.
@@ -258,7 +258,7 @@ impl PodFactory {
         // 2. Create per-pod SQLCipher database + storage adapters
         let (storage, memory_adapter) = self.create_pod_storage(pod_id, name, webid, pod_kind)?;
 
-        // 3. Initialize per-pod CNS runtime
+        // 3. Initialize per-pod Regulation runtime
         let ledger = PerPodLedger::scoped(pod_id);
 
         let sovereignty_checker = pod.sovereignty_checker.clone();

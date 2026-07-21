@@ -103,13 +103,13 @@ mod test_suite {
     #[tokio::test]
     async fn verify_reports_correct_integrity() {
         let (adapter, _dir) = test_adapter();
-        let repo = RepoId::CnsAudit;
+        let repo = RepoId::RegAudit;
 
         adapter.put_blob(&repo, b"integrity check 1").await.unwrap();
         adapter.put_blob(&repo, b"integrity check 2").await.unwrap();
 
         let report = adapter.verify(&repo).await.unwrap();
-        assert_eq!(report.repo, RepoId::CnsAudit);
+        assert_eq!(report.repo, RepoId::RegAudit);
         assert_eq!(report.total_blobs, 2);
         assert_eq!(report.verified_blobs, 2);
         assert!(report.corrupt_hashes.is_empty());

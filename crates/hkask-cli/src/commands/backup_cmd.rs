@@ -109,7 +109,7 @@ fn unix_days_to_date(days: i64) -> String {
 /// pre:  rt is valid, action is valid
 /// post: backup operation executed
 pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.cli", operation = "backup", action = ?action, "REG");
 
     match action {

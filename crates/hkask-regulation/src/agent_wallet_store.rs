@@ -1,7 +1,7 @@
 //! Agent wallet persistence — per-agent gas/rJoule balance tracking.
 //!
 //! Maps agent identity (WebID) to wallet identity (WalletId) and caches
-//! gas/rJoule balances for CNS energy regulation. The canonical financial
+//! gas/rJoule balances for Regulation energy regulation. The canonical financial
 //! data lives in `hkask-storage::WalletStore`; this store is a regulatory
 //! cache layered on top — it holds references, not funds.
 

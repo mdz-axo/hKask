@@ -53,7 +53,7 @@ pub fn mcp_router() -> OpenApiRouter<ApiState> {
     ),
 )]
 pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<String>> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "mcp_servers", "REG");
     let servers = state.agent_service.infra().mcp.clone().list_servers().await;
     Json(servers.iter().map(|s| s.id.clone()).collect())
@@ -73,7 +73,7 @@ pub(crate) async fn list_servers(State(state): State<ApiState>) -> Json<Vec<Stri
     ),
 )]
 pub(crate) async fn list_tools(State(state): State<ApiState>) -> Json<Vec<String>> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "mcp_tools", "REG");
     let tools = state
         .agent_service
@@ -136,7 +136,7 @@ pub(crate) async fn mcp_invoke(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<McpInvokeRequest>,
 ) -> Result<Json<McpInvokeResponse>, ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "mcp_invoke", tool = %req.tool, "REG");
 
     // Input length validation

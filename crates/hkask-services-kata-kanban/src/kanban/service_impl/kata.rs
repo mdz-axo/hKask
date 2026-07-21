@@ -72,7 +72,7 @@ Comment thread (agent/userpod communication):",
 
         let actual = evidence;
 
-        // P9: CNS span — kata prompt generated for human display
+        // P9: Regulation span — kata prompt generated for human display
         tracing::info!(
             target: "reg.kata",
             operation = "coaching_prompt_generated",
@@ -147,7 +147,7 @@ Recent comments:",
             }
         }
 
-        // P9: CNS span — kata prompt generated for human display
+        // P9: Regulation span — kata prompt generated for human display
         tracing::info!(
             target: "reg.kata",
             operation = "improvement_prompt_generated",
@@ -188,7 +188,7 @@ Recent comments:",
             })
         })?;
 
-        // P9: CNS span — kata prompt generated for human display
+        // P9: Regulation span — kata prompt generated for human display
         tracing::info!(
             target: "reg.kata",
             operation = "practice_prompt_generated",

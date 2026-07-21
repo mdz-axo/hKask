@@ -35,7 +35,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-/// Emit a CNS span for thread operations.
+/// Emit a Regulation span for thread operations.
 fn emit_thread_cns(operation: &str, detail: &str) {
     tracing::info!(
         target: "reg",

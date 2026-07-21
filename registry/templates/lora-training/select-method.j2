@@ -1,4 +1,4 @@
-{# goal: Recommend a composable PEFT configuration via deterministic 6-gate refinement (inference constraint, memory evidence, task distance, quality/cost trade-off, knowledge preservation, harness capability) within user workspace boundaries (P4 OCAP). Preserve operator authority: the skill recommends; the operator accepts, overrides, or rejects; the runtime enforces established hard contracts. Distinguish recommendation from readiness. Emit only values derivable from declared inputs and mark the rest undetermined. Emit reg.lora.select span (P9). No actual training execution; userpod_host mandatory (P12). AutoPEFT (arXiv:2301.12132) is the rejected alternative — multi-objective BO over hundreds of training runs is infeasible per training job. #}
+{# goal: Recommend a composable PEFT configuration via deterministic 7-gate refinement (adapter purpose, inference constraint, memory evidence, task distance, quality/cost trade-off, knowledge preservation, harness capability) within user workspace boundaries (P4 OCAP). Training approach selection (G0-G5) precedes harness selection (G6) — the harness is selected based on its capability to efficiently process the declared dataset and produce the adapter type implied by G0. Preserve operator authority: the skill recommends; the operator accepts, overrides, or rejects; the runtime enforces established hard contracts. Distinguish recommendation from readiness. Emit only values derivable from declared inputs and mark the rest undetermined. Emit reg.lora.select span (P9). No actual training execution; userpod_host mandatory (P12). AutoPEFT (arXiv:2301.12132) is the rejected alternative — multi-objective BO over hundreds of training runs is infeasible per training job. PDCA iteration loop: select-method → audit-config → convergence-check → revise inputs → re-invoke. #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -255,7 +255,12 @@ G5. knowledge_preservation_required?
     - false → preservation=`standard`; do not reset adapter_form, base_mode,
       scaling, or initializer.
 
-G6. harness_capability? (after G1-G5; depends on method/task distance)
+G6. harness_capability? (after G0-G5; selects harness based on training approach)
+    The harness is selected based on its capability to efficiently process the
+    declared dataset and produce the adapter type implied by G0 (adapter_purpose).
+    G0-G5 have already determined the training approach (purpose, method, rank,
+    modules, initializer, preservation). G6 selects the harness that can best
+    execute that approach.
     - If harness_preference is declared (not undetermined): preserve it as
       `operator_requested`. Do not overwrite. Validate compatibility with
       earlier gates; record conflicts if any (e.g., harness=axolotl but
@@ -265,52 +270,58 @@ G6. harness_capability? (after G1-G5; depends on method/task distance)
       this at audit time. If harness_preference is undetermined but
       trainer_preference implies a harness (e.g., trainer=grpo → harness=ludwig),
       recommend the implied harness with a citation.
-    - If both are undetermined or absent: apply the existing task-distance /
-      data-shape reasoning to recommend a harness and trainer.
-    - If task_distance is light/moderate AND the task is SFT (no preference data
-      declared): harness=`undetermined`; list all three harnesses as
-      alternatives with trade-offs:
-        - axolotl: YAML config, mature, single-file, SFT-only.
+    - If both are undetermined or absent: select the harness based on
+      adapter_purpose (from G0) and dataset_format_hint:
+      - adapter_purpose=instruction + dataset=chatml:
+        harness=undetermined; list all three harnesses as alternatives:
+        - axolotl: YAML config, mature, single-file, SFT-only. Best for
+          simple instruction tuning with standard ChatML.
         - trl/sft: Python script, HF-native, supports assistant_only_loss,
           packing strategies (bfd/bfd_split/wrapped), VLMs, chunked cross-entropy.
-        [Citation: TRL SFTTrainer — https://huggingface.co/docs/trl/main/en/sft_trainer]
+          Best when assistant_only_loss or packing is needed.
+        [Citation: TRL SFTTrainer — huggingface.co/docs/trl/main/en/sft_trainer]
         - ludwig: YAML config (declarative, like axolotl), Linux Foundation AI &
           Data, Apache-2.0. Covers SFT plus the full alignment spectrum
           (DPO/KTO/ORPO/GRPO) and advanced PEFT initializers (PiSSA, EVA, CorDA,
-          LoftQ) that axolotl cannot render. Best choice when the operator needs
-          GRPO (reward-model-free RLHF) or when the accepted initializer is one
-          axolotl does not support in config (e.g., corda, loftq).
-        [Citation: Ludwig — https://ludwig.ai/latest/ · https://github.com/ludwig-ai/ludwig]
-    - If the task requires preference optimization (operator declared preference
-      data or DPO/KTO/ORPO intent): harness=`trl`; trainer based on data shape:
-        - paired preference data (chosen/rejected) → trainer=`dpo`
-          [Citation: DPO arXiv:2305.18290]
-        - unpaired binary preference data → trainer=`kto`
-          [Citation: KTO arXiv:2402.01306]
-        - single-stage SFT + preference → trainer=`orpo`
-          [Citation: ORPO arXiv:2403.07691]
-      Ludwig also covers DPO/KTO/ORPO, but TRL is the HF-native path and remains
-      the default for preference optimization. Recommend ludwig only when the
-      operator explicitly needs a YAML-based preference workflow or when GRPO
-      is required (see below).
-    - If the task requires reward modeling: harness=`trl`; trainer=`reward`.
-      [Citation: TRL RewardTrainer — https://huggingface.co/docs/trl/main/en/reward_trainer]
-    - If the task requires GRPO (reward-model-free RLHF — operator declared GRPO
-      intent or reward-model-free alignment): harness=`ludwig`; trainer=`grpo`.
-      Ludwig is the only harness in the candidate set covering GRPO. TRL's online
-      RL trainers (GRPO, RLOO, PPO) are deferred and require vLLM co-location;
-      Ludwig implements GRPO natively in config via `trainer.type: grpo`.
-      [Citation: Ludwig GRPO — https://ludwig.ai/latest/configuration/ · GRPO arXiv:2402.03300]
-    - If harness=`trl` and trainer is undetermined, list applicable trainers as
+          LoftQ) that axolotl cannot render. Best when the accepted initializer
+          is one axolotl does not support.
+        [Citation: Ludwig — ludwig.ai/latest/]
+      - adapter_purpose=reasoning + dataset=chatml:
+        harness=trl (preferred) or ludwig. TRL supports assistant_only_loss
+        and packing for efficient reasoning training. Ludwig supports GRPO
+        for reward-model-free RLHF reasoning.
+        [Citation: Raschka 2025 — LoRA rank 16 sweet spot for reasoning + RL;
+         TRL SFTTrainer packing — huggingface.co/docs/trl/main/en/sft_trainer]
+      - adapter_purpose=vision:
+        harness=trl (preferred). TRL SFTTrainer supports VLM training with
+        image columns. Ludwig also supports VLMs. Axolotl does not support VLMs.
+        [Citation: TRL SFTTrainer VLM — huggingface.co/docs/trl/main/en/sft_trainer;
+         DoRA arXiv:2402.09353 — DoRA outperforms LoRA on VLMs]
+      - adapter_purpose=preference:
+        harness=trl (preferred for DPO/KTO/ORPO) or ludwig (for GRPO).
+        Trainer based on dataset_format_hint:
+        - preference_dpo → trainer=dpo [Citation: DPO arXiv:2305.18290]
+        - preference_kto → trainer=kto [Citation: KTO arXiv:2402.01306]
+        - preference_orpo → trainer=orpo [Citation: ORPO arXiv:2403.07691]
+        Ludwig also covers DPO/KTO/ORPO, but TRL is the HF-native path.
+      - adapter_purpose=reward_model:
+        harness=trl; trainer=reward.
+        [Citation: TRL RewardTrainer — huggingface.co/docs/trl/main/en/reward_trainer]
+      - adapter_purpose=reasoning + trainer_preference=grpo:
+        harness=ludwig; trainer=grpo. Ludwig is the only harness covering GRPO.
+        [Citation: GRPO arXiv:2402.03300; Ludwig — ludwig.ai/latest/configuration/]
+    - If harness=trl and trainer is undetermined, list applicable trainers as
       alternatives with their data format requirements.
-    - If harness=`ludwig` and trainer is undetermined, list applicable Ludwig
+    - If harness=ludwig and trainer is undetermined, list applicable Ludwig
       trainer types (finetune, dpo, kto, orpo, grpo) as alternatives with their
       data format requirements.
-    - Axolotl remains the runtime default when harness=`undetermined` (preserves
-      existing behavior — no silent migration).
-    - G6 cannot override G1-G5 constraints. If a harness selection conflicts with
-      an earlier gate (e.g., axolotl selected but preference data declared),
-      record as a conflict for operator resolution.
+    - Axolotl remains the runtime default when harness=undetermined and
+      adapter_purpose=instruction (preserves existing behavior — no silent
+      migration). For non-instruction purposes, axolotl is not a valid default.
+    - G6 cannot override G0-G5 constraints. If a harness selection conflicts
+      with an earlier gate (e.g., axolotl selected but preference data declared,
+      or axolotl selected but adapter_purpose=vision), record as a conflict
+      for operator resolution.
 
 SCALING REFINEMENT (after G1-G6):
 - If an exact accepted r > 64 is present and scaling is not operator-specified,
@@ -348,12 +359,14 @@ READINESS AND HARD CONTRACTS:
 OUTPUT (JSON; emit only derivable values and explicit undetermined states):
 {
   "recommendation": {
+    "adapter_purpose": "instruction" | "reasoning" | "vision" | "preference" | "reward_model" | "undetermined",
     "base_mode": "full_precision" | "quantized_4bit" | "undetermined",
     "adapter_form": "lora" | "dora" | "alora" | "full_finetune" | "operator_requested" | "undetermined",
     "scaling": "original" | "rank_stabilized" | "undetermined",
     "initializer": "default_no_op" | "eva" | "pissa" | "lora_ga" | "corda_kp" | "operator_requested" | "undetermined",
     "preservation": "standard" | "corda_kp" | "post_training_intruder_mitigation" | "undetermined",
     "rank_range": {"min": <int>, "max": <int>} | "undetermined",
+    "target_module_strategy": "minimal" | "attention" | "all_linear" | "operator_requested" | "undetermined",
     "harness": "axolotl" | "trl" | "ludwig" | "undetermined",
     "trainer": "sft" | "dpo" | "kto" | "orpo" | "reward" | "grpo" | "undetermined",
     "alternatives": [
@@ -369,6 +382,7 @@ OUTPUT (JSON; emit only derivable values and explicit undetermined states):
     "required_evidence": ["..."]
   },
   "justification": {
+    "G0_adapter_purpose": {"refinement": "...", "citation": "..."},
     "G1_inference_constraint": {"refinement": "...", "citation": "..."},
     "G2_memory_budget": {"refinement": "...", "certainty": "heuristic", "citation": "..."},
     "G3_task_distance": {"refinement": "...", "citation": "..."},
@@ -423,9 +437,9 @@ CONSTRAINTS (P1-P12, P5 minimalism, P8 evidence integrity, P12 host):
 - Where: Training script / config file / model card.
 - When: Pre-training recommendation, before acceptance and readiness audit.
 - Why: P1 operator sovereignty / P3.1 safe container / P4 explicit boundary.
-- How: Read declared inputs → compose six gate refinements → derive only
-  supported fields → expose uncertainty → operator disposition → runtime
-  enforcement → emit CNS span.
+- How: Read declared inputs → compose seven gate refinements (G0 purpose →
+  G1-G5 method → G6 harness) → derive only supported fields → expose
+  uncertainty → operator disposition → runtime enforcement → emit CNS span.
 All 6 present — passes gate.
 
 SOURCE REFERENCES (concrete — P8):

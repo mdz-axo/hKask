@@ -114,7 +114,7 @@ pub trait FederationDispatch: Send + Sync {
     ///
     /// Default implementation delegates to `leave()` with an appropriate reason.
     /// Implementors SHOULD emit `FederationDissolved` rather than `FederationMemberLeft`
-    /// CNS spans when federation-level semantics differ from individual departure.
+    /// Regulation spans when federation-level semantics differ from individual departure.
     async fn dissolve(&self, reason: String) -> Result<(), FederationDispatchError> {
         self.leave(format!("federation dissolved: {reason}")).await
     }

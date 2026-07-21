@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// Pod tier — determines isolation model and filename convention.
 ///
-/// - Curator: singleton system daemon, owns SemanticIndex, CNS aggregation
+/// - Curator: singleton system daemon, owns SemanticIndex, Regulation aggregation
 /// - UserPod: per-user sovereign pod (1:1)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PodKind {

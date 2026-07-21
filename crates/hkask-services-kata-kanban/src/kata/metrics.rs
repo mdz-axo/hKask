@@ -1,4 +1,4 @@
-//! Metrics capture and CNS variety — before/after measurement and improvement signal computation.
+//! Metrics capture and Regulation variety — before/after measurement and improvement signal computation.
 
 use super::*;
 

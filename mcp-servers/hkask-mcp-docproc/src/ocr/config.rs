@@ -42,7 +42,7 @@ pub enum OcrBackend {
 }
 
 impl OcrBackend {
-    /// Human-readable label for logging and CNS spans.
+    /// Human-readable label for logging and Regulation spans.
     pub fn label(&self) -> &str {
         match self {
             OcrBackend::Tesseract => "tesseract",
@@ -70,7 +70,7 @@ pub const DEFAULT_LLM_OCR_MODEL: &str = "RP/kask-ocr";
 
 /// Configurable OCR complexity thresholds.
 ///
-/// When `tuneable` is `true`, the CNS calibration system may suggest
+/// When `tuneable` is `true`, the Regulation calibration system may suggest
 /// adjustments based on accumulated cross-validation data (P4: human
 /// approval required before any change takes effect).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -82,7 +82,7 @@ pub struct ThresholdConfig {
     pub moderate_max: f32,
     /// Dual-routing sampling rate for Moderate-tier pages [0.0, 1.0].
     pub moderate_sample_rate: f32,
-    /// Whether CNS may suggest threshold adjustments based on observed accuracy.
+    /// Whether Regulation may suggest threshold adjustments based on observed accuracy.
     /// When `false`, thresholds are locked at configured values.
     #[serde(default = "default_tuneable")]
     pub tuneable: bool,

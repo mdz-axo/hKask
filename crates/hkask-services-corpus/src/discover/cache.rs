@@ -11,7 +11,7 @@ use std::path::Path;
 /// post: content is downloaded, PDFs are text-extracted (with OCR fallback), HTML is stripped, and result is written to cache_path; Err on HTTP failure, empty content, or I/O error
 #[must_use = "result must be used"]
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.discover", operation = "download_and_cache", url = %url, cache = %cache_path.display(), "REG");
 
     let resp = reqwest::Client::builder()

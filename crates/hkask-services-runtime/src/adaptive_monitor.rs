@@ -6,7 +6,7 @@
 //!   70-90%       → hourly
 //!   usage ≥ 90%  → every 10 minutes
 //!
-//! Emits CNS spans when a provider crosses from pre-paid/subscription
+//! Emits Regulation spans when a provider crosses from pre-paid/subscription
 //! into marginal/overage pricing (`cns.provider.marginal_activated`).
 
 use crate::provider_intel::ProviderIntelligence;

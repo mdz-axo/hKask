@@ -1,4 +1,4 @@
-//! Tool execution — CNS span emission, experience recording, and framework-level execution.
+//! Tool execution — Regulation span emission, experience recording, and framework-level execution.
 
 use hkask_types::McpErrorKind;
 use hkask_types::time::now_rfc3339;
@@ -14,7 +14,7 @@ type HealCallback = Box<dyn Fn(&str, &str) + Send + Sync>;
 /// Experience recording callback: fires when a span finishes with "success" or "error".
 pub type ExperienceCallback = Box<dyn Fn(&str) + Send + Sync>;
 
-/// RAII guard — emits CNS tool span on drop. Use `span.ok(output)` or `span.error(kind, output)`.
+/// RAII guard — emits Regulation tool span on drop. Use `span.ok(output)` or `span.error(kind, output)`.
 pub struct ToolSpanGuard {
     tool_name: String,
     start: Instant,
@@ -47,7 +47,7 @@ impl ToolSpanGuard {
     }
 
     /// Tag this span with a domain ontology concept (e.g. "pko:ChangeOfStatus").
-    /// The concept flows into the CNS span for type-aware feedback routing.
+    /// The concept flows into the Regulation span for type-aware feedback routing.
     ///
     /// All hKask bridge crate constants (`hkask-bridge-pko`, `hkask-bridge-dublincore`,
     /// and domain-specific bridges like `hkask-mcp-companies/src/fibo.rs`) are valid
@@ -85,7 +85,7 @@ impl ToolSpanGuard {
 
     /// Mark span as successful and return output.
     ///
-    /// post: CNS tool span emitted with "ok" status
+    /// post: Regulation tool span emitted with "ok" status
     /// post: returns output unchanged
     #[must_use]
     pub fn ok(mut self, output: String) -> String {
@@ -107,7 +107,7 @@ impl ToolSpanGuard {
 
     /// Mark span as error and return output.
     ///
-    /// post: CNS tool span emitted with "error" status and error kind
+    /// post: Regulation tool span emitted with "error" status and error kind
     /// post: returns output unchanged
     #[must_use]
     pub fn error(mut self, kind: McpErrorKind, output: String) -> String {
@@ -133,7 +133,7 @@ impl ToolSpanGuard {
     /// Equivalent to `self.ok(McpToolOutput::new(value).to_json_string())`.
     /// Finish span with Ok JSON value.
     ///
-    /// post: CNS tool span emitted with "ok" status
+    /// post: Regulation tool span emitted with "ok" status
     /// post: returns JSON string of value
     #[must_use]
     pub fn ok_json(self, value: Value) -> String {
@@ -143,7 +143,7 @@ impl ToolSpanGuard {
     /// Consume a `Result<Value, McpToolError>` — ok→`ok_json`, err→`error(…)`.
     /// Finish span with a Result.
     ///
-    /// post: CNS tool span emitted with appropriate status
+    /// post: Regulation tool span emitted with appropriate status
     /// post: returns JSON string of Ok value or error
     #[must_use]
     pub fn finish(self, result: Result<Value, McpToolError>) -> String {
@@ -156,7 +156,7 @@ impl ToolSpanGuard {
     /// Produces McpToolError wire format so clients can distinguish errors from successes.
     /// Finish span with an internal error.
     ///
-    /// post: CNS tool span emitted with "error" status
+    /// post: Regulation tool span emitted with "error" status
     /// post: returns JSON error string
     #[must_use]
     pub fn internal_error(self, value: Value) -> String {
@@ -188,9 +188,9 @@ impl Drop for ToolSpanGuard {
     }
 }
 
-// ── CNS span emission ─────────────────────────────────────────────────────
+// ── Regulation span emission ─────────────────────────────────────────────────────
 
-/// Emit a CNS tool span with caller identity (WebID) for observability.
+/// Emit a Regulation tool span with caller identity (WebID) for observability.
 fn emit_tool_span(
     tool_name: &str,
     outcome: &str,
@@ -207,26 +207,26 @@ fn emit_tool_span(
 /// Trait for MCP server types that want framework-level tool execution.
 ///
 /// Implement this on your server struct to enable `execute_tool()`, which
-/// handles CNS span emission, error serialization, and semantic memory
+/// handles Regulation span emission, error serialization, and semantic memory
 /// recording automatically.
 ///
 /// Override `record_tool_outcome` to wire daemon-based experience recording.
-/// The default implementation emits a CNS warning so the Curator knows memory
+/// The default implementation emits a Regulation warning so the Curator knows memory
 /// recording is not configured.
 pub trait ToolContext {
-    /// The WebID of the caller serving this tool (for CNS span attribution).
+    /// The WebID of the caller serving this tool (for Regulation span attribution).
     fn webid(&self) -> &hkask_types::WebID;
 
     /// Record a tool outcome to semantic memory via the daemon.
     /// Override this to wire daemon-based experience recording per Pattern D.
-    /// Default: emits a CNS warning — memory not configured for this server.
+    /// Default: emits a Regulation warning — memory not configured for this server.
     fn record_tool_outcome(&self, tool: &str, outcome: &str) {
         tracing::warn!(target: "reg.memory", tool = %tool, outcome = %outcome,
             "Tool outcome not persisted — ToolContext::record_tool_outcome not overridden");
     }
 }
 
-/// Execute a tool with automatic CNS span emission, error serialization,
+/// Execute a tool with automatic Regulation span emission, error serialization,
 /// and optional semantic memory recording via [`ToolContext`].
 ///
 /// The tool's business logic goes in the `fut` async block, which returns
@@ -258,7 +258,7 @@ pub async fn execute_tool<C: ToolContext>(
     span.finish(result)
 }
 
-/// Like `execute_tool` but tags the CNS span with a domain ontology concept
+/// Like `execute_tool` but tags the Regulation span with a domain ontology concept
 /// (e.g. "pko:ChangeOfStatus") for type-aware feedback routing.
 #[must_use]
 pub async fn execute_tool_semantic<C: ToolContext>(
@@ -313,7 +313,7 @@ pub fn record_via_daemon(
                 }
                 Err(e) => {
                     tracing::warn!(target: "reg.memory", tool = %tool_name, error = %e, "Failed to store experience");
-                    tracing::warn!(target: "hkask.experience_drop", tool = %tool_name, "CNS experience-drop signal: tool outcome not persisted to daemon");
+                    tracing::warn!(target: "hkask.experience_drop", tool = %tool_name, "Regulation experience-drop signal: tool outcome not persisted to daemon");
                 }
             }
         });

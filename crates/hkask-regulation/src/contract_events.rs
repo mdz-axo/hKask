@@ -1,6 +1,6 @@
-//! Contract lifecycle CNS event emitters.
+//! Contract lifecycle Regulation event emitters.
 //!
-//! Emits CNS spans for spec contract proposals, acceptances, rejections,
+//! Emits Regulation spans for spec contract proposals, acceptances, rejections,
 //! and violations. These events flow to the RegulationSink → CurationLoop.
 
 use crate::contract_span::ContractSpan;
@@ -8,7 +8,7 @@ use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use tracing;
 
-/// Emit a CNS event when a contract is proposed by a userpod (Phase B2–B4).
+/// Emit a Regulation event when a contract is proposed by a userpod (Phase B2–B4).
 pub fn emit_contract_proposed(
     sink: &dyn RegulationSink,
     userpod: &str,
@@ -31,7 +31,7 @@ pub fn emit_contract_proposed(
     }
 }
 
-/// Emit a CNS event when a contract proposal is accepted by a human (Phase B3).
+/// Emit a Regulation event when a contract proposal is accepted by a human (Phase B3).
 pub fn emit_contract_accepted(
     sink: &dyn RegulationSink,
     reviewer: &str,
@@ -53,7 +53,7 @@ pub fn emit_contract_accepted(
     }
 }
 
-/// Emit a CNS event when a contract proposal is rejected by a human (Phase B3).
+/// Emit a Regulation event when a contract proposal is rejected by a human (Phase B3).
 pub fn emit_contract_rejected(
     sink: &dyn RegulationSink,
     reviewer: &str,
@@ -77,7 +77,7 @@ pub fn emit_contract_rejected(
     }
 }
 
-/// Emit a CNS event when a contract violation is detected during testing.
+/// Emit a Regulation event when a contract violation is detected during testing.
 pub fn emit_contract_violated(
     sink: &dyn RegulationSink,
     test_name: &str,

@@ -1,7 +1,7 @@
-//! CNS Store SLO Provider — Bridges ν-event store to SLO evaluation.
+//! Regulation Store SLO Provider — Bridges ν-event store to SLO evaluation.
 //!
 //! Implements `SloDataProvider` by querying the real ν-event store.
-//! Lives in `hkask-services-context` because it bridges CNS (domain) and
+//! Lives in `hkask-services-context` because it bridges Regulation (domain) and
 //! Storage (infrastructure) — the service layer's role in hexagonal architecture.
 
 use hkask_regulation::slo_manager::{SloDataPoint, SloDataProvider, SloManagerError};

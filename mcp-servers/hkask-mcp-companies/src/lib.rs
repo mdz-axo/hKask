@@ -53,7 +53,7 @@
 //! - `portfolio_returns` — TWR and IRR for any date range
 //!
 //! ## Data quality framework (FinGPT §3.2)
-//! - CNS `data_quality` spans on every valuation tool — staleness, CV, confidence
+//! - Regulation `data_quality` spans on every valuation tool — staleness, CV, confidence
 //! - `SignalQuality` on DCF/scenario outputs — outlier flags, cyclicality detection
 //! - `LearningState` temporal coherence — RLSP-style market signal feedback
 //! - `ResearchClaimClassifier` — category tagging, numeric extraction, ticker detection

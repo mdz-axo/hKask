@@ -439,7 +439,7 @@ impl CompaniesServer {
             // Run the projection engine
             let model = financial_model::project_model(&hist, &assumptions, current_price);
 
-            // Compute signal quality and emit CNS span (G2: FinGPT low-SNR handling)
+            // Compute signal quality and emit Regulation span (G2: FinGPT low-SNR handling)
             let signal_quality = hist.signal_quality();
             crate::data_quality::emit_data_quality_span(
                 &req.symbol, "dcf_valuation", &signal_quality,
@@ -782,7 +782,7 @@ impl CompaniesServer {
 
             let summary = scenarios::scenario_summary(&results);
 
-            // Compute signal quality and emit CNS span
+            // Compute signal quality and emit Regulation span
             let signal_quality = hist.signal_quality();
             crate::data_quality::emit_data_quality_span(
                 &req.symbol, "scenario_analysis", &signal_quality,

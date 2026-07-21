@@ -80,7 +80,7 @@ impl WalletManager {
         // General self-healing pattern:
         // 1) Keep repairs deterministic and idempotent.
         // 2) Never guess across multiple owners.
-        // 3) Emit explicit CNS self-heal spans for attempt/success/failure.
+        // 3) Emit explicit Regulation self-heal spans for attempt/success/failure.
         // 4) If repair can't be proven safe, return None and let Curator escalate.
         // 5) Centralize repeated patterns in a service-layer SelfHealer when
         //    cross-domain coordination or backoff is needed.

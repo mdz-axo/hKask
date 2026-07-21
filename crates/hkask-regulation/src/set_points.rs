@@ -51,7 +51,7 @@ pub const DEFAULT_MAX_ITERATIONS: u32 = 100;
 /// Inference throttle consent mode.
 ///
 /// Controls how the Cybernetics Loop handles low energy budget:
-/// - `Off`: No throttle. CNS logs the event; user manages budget manually.
+/// - `Off`: No throttle. Regulation logs the event; user manages budget manually.
 /// - `Autonomous`: Direct throttle to Inference loop (current behavior).
 /// - `CuratorMediated`: Escalate to Curator with budget options.
 ///   If user doesn't respond within the timeout, apply gentle throttle as fallback.
@@ -165,7 +165,7 @@ pub struct SetPoints {
     pub fed_link_downtime_warning_secs: u64,
     /// Federation link downtime critical (seconds). Default: 86400.
     pub fed_link_downtime_critical_secs: u64,
-    /// Maximum pause duration before CNS escalation (hours). Default: 24.
+    /// Maximum pause duration before Regulation escalation (hours). Default: 24.
     pub fed_max_pause_duration_hours: u64,
     /// Invitation rate warning threshold (invites/hour). Default: 5.
     pub fed_invitation_rate_warning_per_hour: u64,
@@ -479,14 +479,14 @@ pub fn load_set_points() -> SetPoints {
                         target: "reg.config()",
                         path = %path,
                         error = %e,
-                        "Loaded CNS set-points failed validation — falling back to defaults"
+                        "Loaded Regulation set-points failed validation — falling back to defaults"
                     );
                     return SetPoints::default();
                 }
                 tracing::info!(
                     target: "reg.config()",
                     path = %path,
-                    "Loaded CNS set-points from config file"
+                    "Loaded Regulation set-points from config file"
                 );
                 points
             }
@@ -495,7 +495,7 @@ pub fn load_set_points() -> SetPoints {
                     target: "reg.config()",
                     path = %path,
                     error = %e,
-                    "Failed to load CNS config file, using defaults"
+                    "Failed to load Regulation config file, using defaults"
                 );
                 SetPoints::default()
             }

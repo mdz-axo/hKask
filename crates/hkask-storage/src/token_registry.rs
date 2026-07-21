@@ -4,7 +4,7 @@
 //! audit consent (P2 — Affirmative Consent). OCAP gates enforce consent
 //! at runtime; this store proves it after the fact.
 //!
-//! CNS spans record token *usage*; this store records token *issuance*.
+//! Regulation spans record token *usage*; this store records token *issuance*.
 //! Together they enable the full consent audit picture.
 
 use hkask_capability::{

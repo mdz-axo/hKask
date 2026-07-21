@@ -1,7 +1,7 @@
 //! SemanticIndex — Curator's merged view of all pods' shared semantic data.
 //!
 //! Backed by the CuratorPod's own SQLCipher file. Tracks per-source-pod
-//! cursors for incremental sync on CNS events.
+//! cursors for incremental sync on Regulation events.
 
 use hkask_storage::{HMem, HMemStore};
 use hkask_types::id::PodID;

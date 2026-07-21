@@ -219,7 +219,7 @@ impl SemanticMemory {
             return Err(SemanticMemoryError::HasPerspective);
         }
         self.h_mem_store.insert(&h_mem)?;
-        // CNS: emit RegulationRecord for semantic write
+        // Regulation: emit RegulationRecord for semantic write
         if let Some(sink) = &self.event_sink {
             let span = Span::new(
                 SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
@@ -239,7 +239,7 @@ impl SemanticMemory {
 
     pub(crate) fn store_consolidated(&self, h_mem: HMem) -> Result<(), SemanticMemoryError> {
         self.h_mem_store.insert(&h_mem)?;
-        // CNS: emit RegulationRecord for consolidation write
+        // Regulation: emit RegulationRecord for consolidation write
         if let Some(sink) = &self.event_sink {
             let span = Span::new(
                 SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),

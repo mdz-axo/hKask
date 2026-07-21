@@ -5,7 +5,7 @@
 //!   Elicit (Backlog) → Structure (Ready) → Test (InProgress) → Summarize (Review)
 //!
 //! Each stage uses a kata prompt type. The Curator presents the prompt, the
-//! user responds via comments, and the Curator advances the task. CNS spans
+//! user responds via comments, and the Curator advances the task. Regulation spans
 //! carry PKO ontology anchors (pko:ChangeOfStatus, pko:UserFeedbackOccurrence).
 //!
 //! Zero new types. Zero new tools. Pure orchestration of existing infrastructure.

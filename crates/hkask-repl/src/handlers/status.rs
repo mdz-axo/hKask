@@ -1,4 +1,4 @@
-//! REPL /status handler — system status display (CNS, agent, gas, loops)
+//! REPL /status handler — system status display (Regulation, agent, gas, loops)
 
 pub fn handle_status(
     state: &mut super::super::ReplState,
@@ -28,7 +28,7 @@ pub fn handle_status(
         "  Gas:        {} {}/{} ({:.0}%)",
         gas_bar, gas_remaining, gas_cap, gas_pct
     );
-    // Check CNS health
+    // Check Regulation health
     let ledger_runtime = state.service_context.ledger().runtime.clone();
     let cns_health = rt.block_on(ledger_runtime.read());
     let cns_status = match rt.block_on(async { cns_health.health().await }) {
@@ -46,7 +46,7 @@ pub fn handle_status(
         }
         _ => "\x1b[32mHEALTHY\x1b[0m (no alerts)".to_string(),
     };
-    println!("  CNS:        {}", cns_status);
+    println!("  Regulation:        {}", cns_status);
 
     // ── Seam Watcher status ──
     let seam_summary = rt.block_on(state.service_context.seam_summary());

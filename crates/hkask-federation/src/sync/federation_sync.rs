@@ -2,7 +2,7 @@
 //!
 //! Uses RwLock-wrapped ORSet for interior mutability in async context.
 //! Queries FederationLinkManager for linked peers each tick.
-//! Emits CNS spans for merge events.
+//! Emits Regulation spans for merge events.
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};

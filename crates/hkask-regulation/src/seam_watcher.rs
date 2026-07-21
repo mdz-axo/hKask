@@ -2,7 +2,7 @@
 //!
 //! Loads the machine-readable public seam inventory at startup (embedded JSON
 //! at compile time, file path as development override), registers per-crate
-//! coverage as CNS variety dimensions, detects drift from previous snapshots,
+//! coverage as Regulation variety dimensions, detects drift from previous snapshots,
 //! and closes the afferent signal path by incrementing variety on each check.
 //!
 //! Architecture:
@@ -91,10 +91,10 @@ pub struct SeamSummary {
 
 // ── Seam Watcher ────────────────────────────────────────────────────────────
 
-/// Watches the public seam — loads inventory, tracks coverage, emits CNS spans.
+/// Watches the public seam — loads inventory, tracks coverage, emits Regulation spans.
 ///
 /// The watcher is initialized during
-/// bootstrap Phase 7 (CNS Active) and runs for the lifetime of the daemon.
+/// bootstrap Phase 7 (Regulation Active) and runs for the lifetime of the daemon.
 ///
 /// # Public API (≤7 items — deep module discipline)
 ///
@@ -102,7 +102,7 @@ pub struct SeamSummary {
 /// 2. `SeamSummary` — workspace-wide coverage summary
 /// 3. `SeamWatcher` — core watcher struct
 /// 4. `load()` — initialize from embedded JSON or file
-/// 5. `register_domains()` — register per-crate variety domains in CNS
+/// 5. `register_domains()` — register per-crate variety domains in Regulation
 /// 6. `check_drift()` — compare against previous snapshot, increment variety, emit spans
 /// 7. `refresh()` — reload inventory from disk
 pub struct SeamWatcher {
@@ -195,7 +195,7 @@ impl SeamWatcher {
         }
     }
 
-    /// Register all per-crate seam domains in the CNS runtime's VarietyMonitor.
+    /// Register all per-crate seam domains in the Regulation runtime's VarietyMonitor.
     ///
     /// Each crate gets a domain `seam:{crate_name}` with expected variety
     /// set to `SEAM_EXPECTED_VARIETY` — a small constant reflecting the limited
@@ -230,7 +230,7 @@ impl SeamWatcher {
         );
     }
 
-    /// Check for drift, increment variety, and emit CNS spans.
+    /// Check for drift, increment variety, and emit Regulation spans.
     ///
     /// This is the core "watching" operation — it:
     /// 1. Compares current inventory against previous snapshot
@@ -238,7 +238,7 @@ impl SeamWatcher {
     ///    (closes the afferent signal path — G1 fix)
     /// 3. Immediately calls `check_variety()` to force an algedonic check
     ///    (bypasses the 60s VarietyTracker window — G4 fix)
-    /// 4. Emits CNS spans for coverage state and drift (merged from former
+    /// 4. Emits Regulation spans for coverage state and drift (merged from former
     ///    `emit_spans()` — G3 surface consolidation)
     ///
     /// On first call (no previous snapshot), stores current as baseline

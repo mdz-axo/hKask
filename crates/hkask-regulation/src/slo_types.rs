@@ -1,6 +1,6 @@
 //! SLO (Service Level Objective) types.
 //!
-//! Extracted from hkask-types/src/cns.rs during CNS refactoring.
+//! Extracted from hkask-types/src/cns.rs during Regulation refactoring.
 
 use serde::{Deserialize, Serialize};
 
@@ -15,10 +15,10 @@ pub enum SloSeverity {
     Medium,
 }
 
-/// A Service Level Objective — a reliability contract attached to a CNS span.
+/// A Service Level Objective — a reliability contract attached to a Regulation span.
 ///
 /// Each SLO defines a target success rate over a time window for a specific
-/// CNS span namespace. The CNS evaluates SLOs on a configurable cadence and
+/// Regulation span namespace. The Regulation evaluates SLOs on a configurable cadence and
 /// escalates breaches through the algedonic pathway.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SloDefinition {
@@ -26,7 +26,7 @@ pub struct SloDefinition {
     pub slo_id: String,
     /// Human-readable name
     pub name: String,
-    /// CNS span namespace this SLO monitors
+    /// Regulation span namespace this SLO monitors
     pub span_namespace: String,
     /// Target success rate (0.0–1.0)
     pub target: f64,

@@ -42,13 +42,13 @@ pub const DEFAULT_CALIBRATION_INTERVAL: Duration = Duration::from_secs(5 * 60);
 pub const DEFAULT_INITIAL_LOOKBACK: ChronoDuration = ChronoDuration::hours(1);
 
 /// Self-regulating energy estimator that refreshes its per-server table from
-/// settled CNS gas events.
+/// settled Regulation gas events.
 ///
 /// # Public Surface (≤7 items — deep-module discipline)
 /// - `CalibratedEnergyEstimator` (struct)
 /// - `new()` — construct from an event store
 /// - `with_initial_lookback()` — configure first-calibration window
-/// - `with_event_sink()` — attach a CNS event sink for calibration spans
+/// - `with_event_sink()` — attach a Regulation event sink for calibration spans
 /// - `calibrate()` — run one calibration pass
 /// - `spawn_calibration()` — spawn a background calibration task
 /// - `current_table()` — diagnostic snapshot of the calibrated table
@@ -96,9 +96,9 @@ impl CalibratedEnergyEstimator {
         self
     }
 
-    /// Attach a CNS event sink for calibration span emission.
+    /// Attach a Regulation event sink for calibration span emission.
     ///
-    /// expect: "I can attach an event sink so calibration adjustments emit CNS observability spans"
+    /// expect: "I can attach an event sink so calibration adjustments emit Regulation observability spans"
     /// pre:  sink is a valid RegulationSink
     /// post: subsequent successful calibrations that adjust costs emit a span
     #[must_use = "builder methods must be chained or assigned"]
@@ -184,7 +184,7 @@ impl CalibratedEnergyEstimator {
                 warn!(
                     target: "reg.gas.calibration",
                     error = %e,
-                    "Failed to persist calibration CNS span"
+                    "Failed to persist calibration Regulation span"
                 );
             }
         }

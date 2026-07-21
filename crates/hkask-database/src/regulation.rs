@@ -1,6 +1,6 @@
-//! CNS span helpers for storage observability.
+//! Regulation span helpers for storage observability.
 //!
-//! Emits tracing events on `target: "reg.storage"` so the CNS regulator
+//! Emits tracing events on `target: "reg.storage"` so the Regulation regulator
 //! can observe query latency, error rates, and throughput per table.
 
 /// Extract a table name from a SQL statement.
@@ -18,7 +18,7 @@ pub(crate) fn extract_table(sql: &str) -> &str {
     "unknown"
 }
 
-/// Emit a CNS span for a completed storage operation.
+/// Emit a Regulation span for a completed storage operation.
 ///
 /// The regulator consumes these events on `target: "reg.storage"` to
 /// track latency distributions, error rates, and throughput per table.

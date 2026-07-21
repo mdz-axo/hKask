@@ -48,7 +48,7 @@ pub struct QuarantinedGoal {
 
 pub struct SqliteGoalRepository {
     driver: std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>,
-    /// Optional CNS telemetry sink for observability.
+    /// Optional Regulation telemetry sink for observability.
     telemetry: Option<Arc<dyn RegulationSink>>,
 }
 
@@ -60,11 +60,11 @@ impl SqliteGoalRepository {
             telemetry: None,
         }
     }
-    /// Attach a CNS telemetry sink for observability.
-    /// Enable CNS telemetry for goal operations.
+    /// Attach a Regulation telemetry sink for observability.
+    /// Enable Regulation telemetry for goal operations.
     ///
     /// expect: "The system provides durable storage for goal data"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — attach CNS telemetry
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — attach Regulation telemetry
     /// post: returns Self with telemetry sink configured
     pub fn with_telemetry(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.telemetry = Some(sink);

@@ -15,7 +15,7 @@ use tracing::{info, warn};
 ///
 /// Implemented by `CalibratedEnergyEstimator` and `WalletGasCalibrator`.
 /// Each provides its specific calibration logic via `run_calibration` and
-/// its CNS span target via `calibration_target`.
+/// its Regulation span target via `calibration_target`.
 #[async_trait::async_trait]
 pub trait Calibrator: Send + Sync + 'static {
     /// Run one calibration pass. Returns the number of adjustments made (0 = none).
@@ -24,7 +24,7 @@ pub trait Calibrator: Send + Sync + 'static {
     /// Whether the background calibration loop is running.
     fn calibration_alive(&self) -> &AtomicBool;
 
-    /// CNS tracing target for calibration spans and logs.
+    /// Regulation tracing target for calibration spans and logs.
     fn calibration_target(&self) -> &'static str;
 }
 

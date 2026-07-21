@@ -88,7 +88,7 @@ pub trait ThreadMemory: Send {
 // ── TurnDeps: bundled dependencies ───────────────────────────────────
 
 /// All dependencies `run_turn_loop` needs.
-/// 3 traits (behavioral) + 1 tool port + 1 closure (CNS tick).
+/// 3 traits (behavioral) + 1 tool port + 1 closure (Regulation tick).
 pub struct TurnDeps<'a> {
     pub executor: &'a dyn TurnExecutor,
     pub gas: &'a dyn GasGovernor,

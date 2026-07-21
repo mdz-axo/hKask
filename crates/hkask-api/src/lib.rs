@@ -8,9 +8,9 @@
 //! - `GET /api/mcp/tools` — List tools
 //! - `GET /api/mcp/tools/:name` — Get tool definition
 //! - `POST /api/mcp/invoke` — Invoke an MCP tool
-//! - `GET /api/regulation/health` — CNS health status
+//! - `GET /api/regulation/health` — Regulation health status
 //! - `GET /api/regulation/alerts` — Algedonic alerts
-//! - `GET /api/regulation/variety` — CNS variety counters
+//! - `GET /api/regulation/variety` — Regulation variety counters
 //! - `GET /api/pods` — List pods
 //! - `POST /api/pods` — Create pod
 //! - `POST /api/pods/:id/activate` — Activate pod
@@ -114,7 +114,7 @@ impl ApiState {
     /// Create ApiState from a pre-built `AgentService`.
     ///
     /// This is the canonical construction path for API surfaces that compose
-    /// `AgentService::build()`. All shared infrastructure (CNS, loop system,
+    /// `AgentService::build()`. All shared infrastructure (Regulation, loop system,
     /// governed tool, pod manager, stores) comes from `AgentService`.
     /// Surface-specific fields (git CAS) are constructed from AgentService
     /// fields or initialized to defaults.
@@ -134,7 +134,7 @@ impl ApiState {
 
         // Extract wallet service before moving ctx into Arc
         let wallet_service = ctx.infra().wallet.clone();
-        // CNS event sink for API metering spans (reg.api.request).
+        // Regulation event sink for API metering spans (reg.api.request).
         let event_sink = ctx.ledger().events.clone();
         // Build API key auth service if wallet store and wallet service are available
         let api_key_auth_service = match (ctx.storage().wallet.clone(), wallet_service.clone()) {
@@ -243,7 +243,7 @@ pub fn create_router(state: ApiState) -> utoipa_axum::router::OpenApiRouter {
         .merge(routes::wallet_router())
         .merge(routes::admin::admin_router())
         // Middleware (outermost = last .layer() = runs first):
-        // 1. CNS span — captures all requests
+        // 1. Regulation span — captures all requests
         // 2. Session cookie — injects AuthContext if valid session (DEP-020)
         // 3. Capability token — requires Bearer token if no AuthContext
         .layer(axum::middleware::from_fn_with_state(

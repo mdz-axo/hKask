@@ -163,7 +163,7 @@ impl DocProcServer {
     /// Index passages into the in-memory vector store for later query.
     /// Embeds each passage text and stores it with metadata.
     /// Returns the number of passages indexed (0 if embedding router unavailable).
-    /// Emits a CNS warning when indexing was requested but embedding is unavailable (GAP-6).
+    /// Emits a Regulation warning when indexing was requested but embedding is unavailable (GAP-6).
     pub async fn index_passages(&self, passages: &[(String, String)], source_label: &str) -> usize {
         let Some(ref emb_router) = self.embedding_router else {
             tracing::warn!(

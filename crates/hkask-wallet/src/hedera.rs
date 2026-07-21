@@ -113,7 +113,7 @@ pub struct HederaPort {
     usdc_token: String,
     /// Consensus node gRPC endpoint URL.
     consensus_node_url: String,
-    /// Optional CNS event sink for chain error span emission.
+    /// Optional Regulation event sink for chain error span emission.
     event_sink: Option<Arc<dyn RegulationSink>>,
 }
 
@@ -148,14 +148,14 @@ impl HederaPort {
         })
     }
 
-    /// Attach a CNS event sink for chain error span emission.
+    /// Attach a Regulation event sink for chain error span emission.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
 
-    /// Emit a CNS chain_error span if an event sink is configured.
+    /// Emit a Regulation chain_error span if an event sink is configured.
     fn emit_chain_error_for_actor(&self, actor: &WebID, operation: &str, error_msg: &str) {
         if let Some(ref sink) = self.event_sink {
             let span_obj = Span::new(
@@ -175,7 +175,7 @@ impl HederaPort {
                 0,
             );
             if let Err(e) = sink.persist(&event) {
-                tracing::warn!(target: "hkask.wallet.hedera", error = %e, "Failed to persist CNS chain_error span");
+                tracing::warn!(target: "hkask.wallet.hedera", error = %e, "Failed to persist Regulation chain_error span");
             }
         }
     }

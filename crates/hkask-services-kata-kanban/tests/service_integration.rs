@@ -32,7 +32,7 @@ mod tests {
         serde_yaml_neo::from_str(yaml).expect("manifest YAML must parse")
     }
 
-    /// A 1-question coaching manifest with CNS spans disabled for test isolation.
+    /// A 1-question coaching manifest with Regulation spans disabled for test isolation.
     const COACHING_MANIFEST_1Q: &str = r#"
 manifest:
   id: test-coaching-1q
@@ -123,9 +123,9 @@ ledger:
         let svc = KanbanService::new(make_test_store());
         let owner = hkask_types::WebID::new();
         let board = svc
-            .board_create(owner, "CNS Board", &default_columns())
+            .board_create(owner, "Regulation Board", &default_columns())
             .unwrap();
-        let spec = TaskSpec::new("CNS Task".into());
+        let spec = TaskSpec::new("Regulation Task".into());
         let task = svc.task_create(board.id, spec, owner).unwrap();
 
         let coaching = svc.task_coaching_prompt(task.id);

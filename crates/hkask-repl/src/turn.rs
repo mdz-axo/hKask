@@ -1,7 +1,7 @@
 //! Per-turn processing for the REPL.
 //!
 //! Handles single-agent inference turns, including gas governance,
-//! tool-augmented followup, CNS updates, and persona filtering.
+//! tool-augmented followup, Regulation updates, and persona filtering.
 //!
 //! Both CLI (stdout) and TUI (capture buffer) surfaces share a single
 //! `run_turn_loop` via the `TurnSink` trait. Behavioral dependencies

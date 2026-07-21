@@ -28,7 +28,7 @@
 //! An `Expertise` (a named, provenance-tracked capability descriptor) links a
 //! `TrainedLoRAAdapter` (content-addressed, owner-scoped artifact) to an
 //! `InferenceEndpointHandle` (a provider-provisioned, lifecycle-governed, cost-tracked resource).
-//! Every operation is OCAP-gated. Every state transition emits a CNS span.
+//! Every operation is OCAP-gated. Every state transition emits a Regulation span.
 //! Every endpoint drains on session completion or budget exhaustion.
 
 pub mod adapter_config;

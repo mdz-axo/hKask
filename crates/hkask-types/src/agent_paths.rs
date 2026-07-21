@@ -39,7 +39,7 @@ pub fn userpod_dir(name: &str) -> PathBuf {
 
 // ── Database paths ───────────────────────────────────────────────────────────
 
-/// Pod database — HMemStore, EmbeddingStore, CNS events.
+/// Pod database — HMemStore, EmbeddingStore, Regulation events.
 pub fn userpod_pod_db(name: &str) -> PathBuf {
     userpod_dir(name).join("pod.db")
 }

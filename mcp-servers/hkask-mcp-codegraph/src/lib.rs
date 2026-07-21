@@ -61,7 +61,7 @@ impl CodeGraphServer {
         let total: usize = results.iter().map(|r| r.symbols).sum();
         tracing::info!(target: "hkask.mcp.codegraph", symbols = total, "Auto-indexed");
 
-        // Compute PageRank and emit health CNS events (G7, G8)
+        // Compute PageRank and emit health Regulation events (G7, G8)
         if let Err(e) = pipeline.finalize() {
             tracing::warn!(target: "hkask.mcp.codegraph", error = %e, "Finalize failed");
         }
@@ -459,7 +459,7 @@ impl CodeGraphServer {
         description = "Log which symbols from a context_id were actually used. \
          Emits a tracing event only — feedback is NOT persisted to the store, \
          so it does not influence future context assembly. The log event is \
-         consumed by the CNS tracing substrate for observability."
+         consumed by the Regulation tracing substrate for observability."
     )]
     pub async fn codegraph_feedback(&self, Parameters(req): Parameters<FeedbackRequest>) -> String {
         execute_tool(self, "codegraph_feedback", async {

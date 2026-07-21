@@ -1,6 +1,6 @@
 //! QA Script Runner — parses and executes QA manifest YAML files.
 //!
-//! The runner is an S3* audit probe: it bypasses cached CNS state to directly
+//! The runner is an S3* audit probe: it bypasses cached Regulation state to directly
 //! verify system health through contract tests, classifier triage, and MCP
 //! server dispatch.
 //!

@@ -238,7 +238,7 @@ impl ContentGuard {
     /// expect: "The system refuses prompt injection, role override, and deobfuscated attacks"
     /// pre:  text is the raw user/system input to be scanned
     /// post: returns GuardResult.passed=true if clean, false with violations if blocked;
-    ///       emits cns.guard.input CNS span on violation
+    ///       emits cns.guard.input Regulation span on violation
     ///
     /// Refuses immediately on first prompt injection, role override,
     /// or deobfuscated injection pattern. Emits `cns.guard.input` on violation.
@@ -290,7 +290,7 @@ impl ContentGuard {
     /// expect: "The system strips detected secrets from model output before storage"
     /// pre:  text is the raw model response to be scanned
     /// post: returns GuardResult.passed=true if clean; false with violations and
-    ///       redacted content if secrets found; emits cns.guard.output CNS span on violation
+    ///       redacted content if secrets found; emits cns.guard.output Regulation span on violation
     ///
     /// Collects all secret leakage violations and strips detected secrets.
     /// Emits `cns.guard.output` on violation.

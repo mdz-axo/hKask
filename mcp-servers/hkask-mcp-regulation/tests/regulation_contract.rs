@@ -1,26 +1,26 @@
-//! Contract tests for hkask-mcp-cns — CNS span history query invariants.
+//! Contract tests for hkask-mcp-regulation — regulation span history query invariants.
 //!
 //! Every test carries the full traceability chain:
 //! `UserFunctionalExpectation (expect:) → GoalPrinciple [P{N}] → ConstrainingPrinciple [P{N}] → REQ: → Test`
 //!
-//! Tested seam: `cns_query_spans` and `reg_span_stats` MCP tool methods
+//! Tested seam: `reg_query_spans` and `reg_span_stats` MCP tool methods
 //! invoked through the public `Parameters<T>` seam — the same surface an
 //! agent uses.
 
 use hkask_database::sqlite::SqliteDriver;
-use hkask_mcp_regulation::CnsServer;
+use hkask_mcp_regulation::RegulationServer;
 use hkask_storage::RegulationArchive;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use rmcp::handler::server::wrapper::Parameters;
 use std::sync::Arc;
 
-/// Build a CnsServer backed by an in-memory RegulationArchive (no on-disk DB).
-fn test_server() -> CnsServer {
+/// Build a RegulationServer backed by an in-memory RegulationArchive (no on-disk DB).
+fn test_server() -> RegulationServer {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
-    CnsServer::new(
+    RegulationServer::new(
         WebID::new(),
         "test-userpod".into(),
         None,
@@ -28,10 +28,10 @@ fn test_server() -> CnsServer {
     )
 }
 
-/// Build a CnsServer with NO store attached — simulates the
+/// Build a RegulationServer with NO store attached — simulates the
 /// `HKASK_DB_PASSPHRASE`-missing degradation path.
-fn test_server_no_store() -> CnsServer {
-    CnsServer::new(WebID::new(), "test-userpod".into(), None, None)
+fn test_server_no_store() -> RegulationServer {
+    RegulationServer::new(WebID::new(), "test-userpod".into(), None, None)
 }
 
 /// Insert a single ν-event into the in-memory store for the given namespace.
@@ -62,10 +62,10 @@ fn error_kind(out: &str) -> Option<String> {
     v.get("kind").and_then(|e| e.as_str()).map(String::from)
 }
 
-// REQ: cns_query_spans returns an empty events array when no events match (P5).
+// REQ: reg_query_spans returns an empty events array when no events match (P5).
 // expect: a fresh server with no events returns count=0 and an empty events array.
 #[tokio::test]
-async fn cns_query_spans_returns_empty_array_when_no_events() {
+async fn reg_query_spans_returns_empty_array_when_no_events() {
     let server = test_server();
     let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard",
@@ -73,7 +73,7 @@ async fn cns_query_spans_returns_empty_array_when_no_events() {
         "limit": 100
     }))
     .expect("deserialize QuerySpansRequest");
-    let out = server.cns_query_spans(Parameters(req)).await;
+    let out = server.reg_query_spans(Parameters(req)).await;
     let content = parse_content(&out);
     assert_eq!(
         content["count"], 0,
@@ -90,17 +90,17 @@ async fn cns_query_spans_returns_empty_array_when_no_events() {
     );
 }
 
-// REQ: cns_query_spans returns matching events for a populated namespace (P5).
-// expect: after inserting a cns.guard.input event, cns_query_spans with
+// REQ: reg_query_spans returns matching events for a populated namespace (P5).
+// expect: after inserting a reg.guard.input event, reg_query_spans with
 // namespace="reg.guard" returns count=1 and the event in the array.
 #[tokio::test]
-async fn cns_query_spans_returns_matching_events() {
+async fn reg_query_spans_returns_matching_events() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
     insert_event(&store, "reg.guard.input", "guard.input.violation");
 
-    let server = CnsServer::new(
+    let server = RegulationServer::new(
         WebID::new(),
         "test-userpod".into(),
         None,
@@ -113,7 +113,7 @@ async fn cns_query_spans_returns_matching_events() {
         "limit": 100
     }))
     .expect("deserialize QuerySpansRequest");
-    let out = server.cns_query_spans(Parameters(req)).await;
+    let out = server.reg_query_spans(Parameters(req)).await;
     let content = parse_content(&out);
     assert_eq!(content["count"], 1, "expected count=1: {out}");
     let events = content["events"].as_array().expect("events is array");
@@ -124,10 +124,10 @@ async fn cns_query_spans_returns_matching_events() {
     );
 }
 
-// REQ: cns_query_spans rejects an empty namespace with invalid_argument (P5).
+// REQ: reg_query_spans rejects an empty namespace with invalid_argument (P5).
 // expect: an empty namespace string returns kind=invalid_argument.
 #[tokio::test]
-async fn cns_query_spans_rejects_empty_namespace() {
+async fn reg_query_spans_rejects_empty_namespace() {
     let server = test_server();
     let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "",
@@ -135,15 +135,15 @@ async fn cns_query_spans_rejects_empty_namespace() {
         "limit": 100
     }))
     .expect("deserialize QuerySpansRequest");
-    let out = server.cns_query_spans(Parameters(req)).await;
+    let out = server.reg_query_spans(Parameters(req)).await;
     let kind = error_kind(&out).expect("expected error kind for empty namespace");
     assert_eq!(kind, "invalid_argument", "got: {out}");
 }
 
-// REQ: cns_query_spans rejects a whitespace-only namespace with invalid_argument (P5).
+// REQ: reg_query_spans rejects a whitespace-only namespace with invalid_argument (P5).
 // expect: a whitespace-only namespace string returns kind=invalid_argument.
 #[tokio::test]
-async fn cns_query_spans_rejects_whitespace_namespace() {
+async fn reg_query_spans_rejects_whitespace_namespace() {
     let server = test_server();
     let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "   ",
@@ -151,16 +151,16 @@ async fn cns_query_spans_rejects_whitespace_namespace() {
         "limit": 100
     }))
     .expect("deserialize QuerySpansRequest");
-    let out = server.cns_query_spans(Parameters(req)).await;
+    let out = server.reg_query_spans(Parameters(req)).await;
     let kind = error_kind(&out).expect("expected error kind for whitespace namespace");
     assert_eq!(kind, "invalid_argument", "got: {out}");
 }
 
-// REQ: cns_query_spans returns permission_denied when no store is attached (P5).
+// REQ: reg_query_spans returns permission_denied when no store is attached (P5).
 // expect: when the RegulationArchive is None (no DB passphrase), the tool returns
 // kind=permission_denied with a clear message.
 #[tokio::test]
-async fn cns_query_spans_returns_permission_denied_without_store() {
+async fn reg_query_spans_returns_permission_denied_without_store() {
     let server = test_server_no_store();
     let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard",
@@ -168,22 +168,22 @@ async fn cns_query_spans_returns_permission_denied_without_store() {
         "limit": 100
     }))
     .expect("deserialize QuerySpansRequest");
-    let out = server.cns_query_spans(Parameters(req)).await;
+    let out = server.reg_query_spans(Parameters(req)).await;
     let kind = error_kind(&out).expect("expected error kind for missing store");
     assert_eq!(kind, "permission_denied", "got: {out}");
 }
 
-// REQ: cns_query_spans applies default values when optional fields are omitted (P5).
+// REQ: reg_query_spans applies default values when optional fields are omitted (P5).
 // expect: omitting since_hours and limit still returns a valid response with
 // the documented defaults (1.0 hour, 100 events).
 #[tokio::test]
-async fn cns_query_spans_applies_defaults() {
+async fn reg_query_spans_applies_defaults() {
     let server = test_server();
     let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard"
     }))
     .expect("deserialize QuerySpansRequest with defaults");
-    let out = server.cns_query_spans(Parameters(req)).await;
+    let out = server.reg_query_spans(Parameters(req)).await;
     let content = parse_content(&out);
     assert_eq!(content["count"], 0, "expected count=0: {out}");
     assert_eq!(content["limit"], 100, "default limit should be 100: {out}");
@@ -219,7 +219,7 @@ async fn reg_span_stats_returns_empty_object_when_no_events() {
 }
 
 // REQ: reg_span_stats returns aggregated counts by span_category (P5).
-// expect: after inserting two cns.regulation events with different local paths
+// expect: after inserting two reg.regulation events with different local paths
 // (both stored under span_category="regulation"), reg_span_stats with
 // namespace="reg.outcome" returns total_events=2 and a categories object
 // mapping "regulation" to 2.
@@ -231,7 +231,7 @@ async fn reg_span_stats_returns_aggregated_counts() {
     insert_event(&store, "reg.outcome", "regulation.action_blocked");
     insert_event(&store, "reg.outcome", "regulation.plateau_detected");
 
-    let server = CnsServer::new(
+    let server = RegulationServer::new(
         WebID::new(),
         "test-userpod".into(),
         None,
@@ -290,18 +290,18 @@ async fn reg_span_stats_returns_permission_denied_without_store() {
     assert_eq!(kind, "permission_denied", "got: {out}");
 }
 
-// REQ: cns_query_spans strips the cns. prefix before querying (P5).
+// REQ: reg_query_spans strips the reg. prefix before querying (P5).
 // expect: querying "reg.guard" finds events stored under span_category="guard.input".
 // This verifies the short-name normalization — the column stores short names,
-// not full cns.* namespaces.
+// not full reg.* namespaces.
 #[tokio::test]
-async fn cns_query_spans_strips_cns_prefix() {
+async fn reg_query_spans_strips_reg_prefix() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
     insert_event(&store, "reg.guard.input", "guard.input.violation");
 
-    let server = CnsServer::new(
+    let server = RegulationServer::new(
         WebID::new(),
         "test-userpod".into(),
         None,
@@ -316,16 +316,16 @@ async fn cns_query_spans_strips_cns_prefix() {
         "limit": 100
     }))
     .expect("deserialize QuerySpansRequest");
-    let out = server.cns_query_spans(Parameters(req)).await;
+    let out = server.reg_query_spans(Parameters(req)).await;
     let content = parse_content(&out);
     assert_eq!(content["count"], 1, "expected count=1: {out}");
 }
 
-// REQ: cns_query_spans handles non-cns namespaces (e.g. hkask performative) (P5).
-// expect: querying "hkask" (no cns. prefix) does not panic and returns an
+// REQ: reg_query_spans handles non-reg namespaces (e.g. hkask performative) (P5).
+// expect: querying "hkask" (no reg. prefix) does not panic and returns an
 // empty result (no hkask.* events in the test store).
 #[tokio::test]
-async fn cns_query_spans_handles_non_cns_namespace() {
+async fn reg_query_spans_handles_non_reg_namespace() {
     let server = test_server();
     let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "hkask",
@@ -333,7 +333,7 @@ async fn cns_query_spans_handles_non_cns_namespace() {
         "limit": 100
     }))
     .expect("deserialize QuerySpansRequest");
-    let out = server.cns_query_spans(Parameters(req)).await;
+    let out = server.reg_query_spans(Parameters(req)).await;
     let content = parse_content(&out);
     assert_eq!(content["count"], 0, "expected count=0: {out}");
 }

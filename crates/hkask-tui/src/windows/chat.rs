@@ -1,6 +1,6 @@
 //! Chat window — the primary AI interaction surface.
 //!
-//! Renders the conversation history (messages, tool calls, CNS alerts)
+//! Renders the conversation history (messages, tool calls, Regulation alerts)
 //! and a mode-aware prompt input line. This is the TUI equivalent of
 //! the rustyline REPL, with additional visual structure.
 //!
@@ -119,7 +119,7 @@ pub enum MessageSender {
     Agent(String),
     /// The Curator daemon (dual-presence)
     Curator,
-    /// A CNS alert (interleaved into the stream)
+    /// A Regulation alert (interleaved into the stream)
     CnsAlert,
     /// Tool execution result
     Tool(String),
@@ -365,7 +365,7 @@ impl ChatWindow {
                 self.add_message(
                     MessageSender::CnsAlert,
                     format!(
-                        "Agent: {} | Model: {} | Gas: {}/{} ({:.0}%) | CNS alerts: {} | Context: {:.0}% | MCP: {}/{}",
+                        "Agent: {} | Model: {} | Gas: {}/{} ({:.0}%) | Regulation alerts: {} | Context: {:.0}% | MCP: {}/{}",
                         self.userpod_name, self.bridge.model_name(),
                         gas, cap, if cap > 0 { (gas as f64 / cap as f64) * 100.0 } else { 100.0 },
                         alerts, ctx * 100.0, mcp_loaded, mcp_total,
@@ -827,7 +827,7 @@ impl ChatWindow {
                         .add_modifier(Modifier::BOLD),
                 ),
                 MessageSender::CnsAlert => Span::styled(
-                    "── CNS: ",
+                    "── Regulation: ",
                     Style::default()
                         .fg(Color::Rgb(183, 145, 99)) // Richmond Gold
                         .add_modifier(Modifier::BOLD),

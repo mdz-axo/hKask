@@ -11,7 +11,7 @@ impl AgentService {
     ///
     /// This is the canonical construction path that replaces the four
     /// independent assemblies currently in the codebase. It resolves
-    /// secrets, opens databases, constructs CNS/loop system, governed
+    /// secrets, opens databases, constructs Regulation/loop system, governed
     /// tool membrane, and session manager in the correct dependency order.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -21,7 +21,7 @@ impl AgentService {
     ///
     /// 1. Database connections (primary + per-purpose)
     /// 2. Stores (consent, escalation, goals, standing sessions)
-    /// 3. CNS runtime + event sink
+    /// 3. Regulation runtime + event sink
     /// 4. Loop system + cybernetics loop
     /// 5. GovernedTool membrane + MCP dispatcher
     /// 6. A2A runtime + pod manager
@@ -30,7 +30,7 @@ impl AgentService {
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError> {
         let system_webid = WebID::from_persona(config.user_name.as_bytes());
 
-        // ── Foundation: database, stores, CNS, seam watcher ──────────────
+        // ── Foundation: database, stores, Regulation, seam watcher ──────────────
         let mut foundation = foundation::build_foundation(&config).await?;
 
         // ── Loops: cybernetics, inference, episodic, semantic, curation ──

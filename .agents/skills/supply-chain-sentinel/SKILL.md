@@ -142,7 +142,7 @@ unpinned versions, missing lockfile tracking).
    crates.io advisory format, OWASP Supply Chain reference, OSC&R
    framework URL).
 9. Emit `reg.supply_chain.probe` Regulation span per dependency entry probed
-   (`target: "cns.supply_chain.probe"`, message: `"Regulation"`, operation:
+   (`target: "reg.supply_chain.probe"`, message: `"Regulation"`, operation:
    `"probe_dependency"`, dependency, manifest_path, registry, version_pinned,
    registry_trusted, userpod_host, latency_ms).
 10. Apply pragmatic-cybernetics feedback loop analysis: dependency update

@@ -10,7 +10,7 @@
 //! - Static routes (/, /terminal) return correct content
 //! - /health endpoint reports DB + Conduit status
 //! - Auth-gated routes reject unauthenticated requests
-//! - CNS health endpoint
+//! - Regulation health endpoint
 
 use hkask_api::ApiState;
 use hkask_services_context::AgentService;
@@ -235,7 +235,7 @@ async fn oauth_github_login_redirects() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CNS health
+// Regulation health
 // ═══════════════════════════════════════════════════════════════════
 
 #[tokio::test]

@@ -122,9 +122,9 @@ fn resolve_mcp_binary(server_id: &str, command: &str) -> String {
 
 /// MCP runtime manager
 ///
-/// Also serves as the OCAP/gas/CNS governance boundary for tool invocations.
+/// Also serves as the OCAP/gas/Regulation governance boundary for tool invocations.
 /// The `invoke` method verifies the delegation token, reserves gas via the
-/// CyberneticsLoop, emits a CNS span, calls the tool, settles gas, and emits
+/// CyberneticsLoop, emits a Regulation span, calls the tool, settles gas, and emits
 /// the outcome span. This collapses the former `GovernedTool` wrapper —
 /// one tool, one path.
 #[derive(Clone)]
@@ -149,7 +149,7 @@ pub struct McpRuntime {
 
 impl McpRuntime {
     /// Create a new MCP runtime with no governance configured.
-    /// Tool invocations will bypass OCAP/gas/CNS — use `with_governance`
+    /// Tool invocations will bypass OCAP/gas/Regulation — use `with_governance`
     /// to wire the cybernetic membrane.
     #[must_use]
     pub fn new() -> Self {
@@ -162,7 +162,7 @@ impl McpRuntime {
         }
     }
 
-    /// Wire the cybernetic governance membrane (OCAP + gas + CNS spans).
+    /// Wire the cybernetic governance membrane (OCAP + gas + Regulation spans).
     /// All subsequent `invoke` calls will verify the token, reserve/settle
     /// gas, and emit spans. Must be called before the first invocation.
     #[must_use]
@@ -434,7 +434,7 @@ impl Default for McpRuntime {
 //
 // McpRuntime implements ToolPort directly. When governance is configured
 // (via `with_governance`), `invoke` verifies the OCAP token, reserves gas,
-// emits a CNS span, calls the tool, settles gas, and emits the outcome span.
+// emits a Regulation span, calls the tool, settles gas, and emits the outcome span.
 // When governance is not configured, it calls the tool directly (for tests
 // and lightweight embedders). One tool, one path — no wrapper layers.
 
@@ -500,7 +500,7 @@ impl hkask_ports::ToolPort for McpRuntime {
                     .await
                     .ok();
 
-                // CNS: emit invoked + completed spans (best-effort, non-blocking).
+                // Regulation: emit invoked + completed spans (best-effort, non-blocking).
                 let status = if result.is_ok() { "success" } else { "failure" };
                 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanKind};
                 let _ = sink.persist(&RegulationRecord::new(

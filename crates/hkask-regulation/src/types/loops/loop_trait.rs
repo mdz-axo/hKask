@@ -57,7 +57,7 @@ pub trait Loop: Send + Sync {
     /// Full regulation cycle: sense → compare → compute → act → verify.
     ///
     /// Domain loops that override `tick()` must call `verify_impact` and
-    /// propagate results (e.g., via CNS spans or LoopMetrics computation)
+    /// propagate results (e.g., via Regulation spans or LoopMetrics computation)
     /// to close the cybernetic feedback loop.
     async fn tick(&self) {
         let signals = self.sense().await;
@@ -66,7 +66,7 @@ pub trait Loop: Send + Sync {
         self.act(&actions).await;
         let _impact = self.verify_impact(&actions).await;
         // Default impl logs but does not propagate — domain loops MUST override
-        // tick() to wire impact reports into their LoopMetrics and CNS spans.
+        // tick() to wire impact reports into their LoopMetrics and Regulation spans.
         if !_impact.is_empty() {
             tracing::debug!(
                 target: "hkask.loop",

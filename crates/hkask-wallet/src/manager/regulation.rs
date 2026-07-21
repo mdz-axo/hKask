@@ -1,4 +1,4 @@
-//! CNS event emission — spans, algedonic alerts, chain error signals.
+//! Regulation event emission — spans, algedonic alerts, chain error signals.
 
 use super::*;
 
@@ -22,12 +22,12 @@ impl WalletManager {
             );
             let event = RegulationRecord::new(*actor, span_obj, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
-                tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist CNS span");
+                tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist Regulation span");
             }
         }
     }
 
-    /// Emit a core CNS span through the wallet's event sink.
+    /// Emit a core Regulation span through the wallet's event sink.
     /// Use this for core RegulationSpan variants (Gas, SelfHeal) that are
     /// constructed within the wallet but are not wallet-specific.
     pub(super) fn emit_core_span(
@@ -41,7 +41,7 @@ impl WalletManager {
             let span_obj = Span::new(SpanNamespace::try_from(span).expect("canonical span"), verb);
             let event = RegulationRecord::new(Self::default_actor(), span_obj, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
-                tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist CNS core span");
+                tracing::warn!(target: "hkask.wallet", namespace = %span, verb = verb, error = %e, "Failed to persist Regulation core span");
             }
         }
     }

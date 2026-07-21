@@ -1,7 +1,7 @@
 //! Loop action types — efferent actions and their type classification.
 //!
 //! Moved from hkask-regulation to hkask-types to break the circular dependency
-//! that prevented extracting CNS subcrates.
+//! that prevented extracting Regulation subcrates.
 
 use super::core::LoopId;
 
@@ -229,7 +229,7 @@ pub enum ActionType {
 impl ActionType {
     /// Stable string representation (not Debug — semantic identity).
     ///
-    /// Used for stagnation keys, substitution ladders, and CNS span metadata.
+    /// Used for stagnation keys, substitution ladders, and Regulation span metadata.
     /// Must stay in sync with `from_str`.
     pub fn as_str(&self) -> &'static str {
         match self {

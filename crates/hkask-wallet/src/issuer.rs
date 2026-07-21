@@ -61,14 +61,14 @@ impl ApiKeyIssuer {
         })
     }
 
-    /// Attach a CNS event sink for span emission.
+    /// Attach a Regulation event sink for span emission.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }
 
-    /// Emit a CNS span if an event sink is configured.
+    /// Emit a Regulation span if an event sink is configured.
     fn emit_span(&self, span: WalletSpan, verb: &str, phase: CyclePhase, obs: serde_json::Value) {
         if let Some(ref sink) = self.event_sink {
             let event_span = Span::new(
@@ -79,7 +79,7 @@ impl ApiKeyIssuer {
                 hkask_types::WebID::from_persona_with_namespace(b"wallet-issuer", "wallet-surface");
             let event = RegulationRecord::new(actor, event_span, phase, obs, 0);
             if let Err(e) = sink.persist(&event) {
-                tracing::warn!(target: "hkask.wallet", span = ?span, verb = verb, error = %e, "Failed to persist CNS span");
+                tracing::warn!(target: "hkask.wallet", span = ?span, verb = verb, error = %e, "Failed to persist Regulation span");
             }
         }
     }
@@ -145,7 +145,7 @@ impl ApiKeyIssuer {
         // Store the public key + capability metadata
         self.store.store_api_key(&capability)?;
 
-        // CNS span: key issued
+        // Regulation span: key issued
         self.emit_span(
             WalletSpan::KeyIssued,
             "issued",
@@ -182,7 +182,7 @@ impl ApiKeyIssuer {
     pub fn revoke_key(&self, key_id: ApiKeyId) -> Result<(), WalletError> {
         self.store.revoke_api_key(key_id)?;
 
-        // CNS span: key revoked
+        // Regulation span: key revoked
         self.emit_span(
             WalletSpan::KeyRevoked,
             "revoked",

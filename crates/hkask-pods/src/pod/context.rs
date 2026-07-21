@@ -1,6 +1,6 @@
 //! PodContext — Runtime context for an active pod
 //!
-//! Provides access to all ports (inference, memory, MCP, CNS) for a specific pod.
+//! Provides access to all ports (inference, memory, MCP, Regulation) for a specific pod.
 //! This is the unit of access that enforces the pod invariant: all interactions
 //! with memory, inference, and tools must go through a pod context.
 //!
@@ -41,7 +41,7 @@ pub struct MemoryContext {
 
 /// PodContext — Runtime context for an active pod
 ///
-/// Provides access to all ports (inference, memory, MCP, CNS) for a specific pod.
+/// Provides access to all ports (inference, memory, MCP, Regulation) for a specific pod.
 /// This is the unit of access that enforces the pod invariant: all interactions
 /// \[NORMATIVE\] with memory, inference, and tools must go through a pod context. (P4 — Clear Boundaries).
 pub struct PodContext {
@@ -59,7 +59,7 @@ pub struct PodContext {
     capability_checker: Arc<CapabilityChecker>,
     /// Sovereignty checker wired to the pod's live consent port.
     sovereignty_checker: SovereigntyChecker,
-    /// Per-pod CNS runtime — used to emit `cns.semantic.published` events
+    /// Per-pod Regulation runtime — used to emit `cns.semantic.published` events
     /// on semantic writes. Cloned from PodDeployment (RegulationLedger is Arc-wrapped).
     ledger: PerPodLedger,
     /// CuratorPod's SemanticIndex — available on non-Curator pods for
@@ -91,10 +91,10 @@ impl PodContext {
         })
     }
 
-    /// Access the per-pod CNS runtime for observability queries.
+    /// Access the per-pod Regulation runtime for observability queries.
     ///
     /// expect: "The system provides bounded agent pod context with capability-gated resource access"
-    /// post: returns a shared reference to the pod's CNS runtime
+    /// post: returns a shared reference to the pod's Regulation runtime
     pub fn ledger(&self) -> &PerPodLedger {
         &self.ledger
     }
@@ -330,7 +330,7 @@ impl PodContext {
     /// sense loop — this is the push-then-pull lazy sync protocol.
     ///
     /// expect: "The system provides bounded agent pod context with capability-gated resource access"
-    /// post: returns the stored semantic h_mem ID; fires CNS event on success
+    /// post: returns the stored semantic h_mem ID; fires Regulation event on success
     pub fn store_semantic(
         &self,
         entity: &str,
@@ -351,7 +351,7 @@ impl PodContext {
             .store_semantic(request, &self.capability_token)
             .map_err(AgentPodError::from)?;
 
-        // Step 3: Emit CNS event to trigger Curator sense loop.
+        // Step 3: Emit Regulation event to trigger Curator sense loop.
         let ledger = self.ledger.inner().clone();
         let entity = entity.to_string();
         match tokio::runtime::Handle::try_current() {
@@ -365,7 +365,7 @@ impl PodContext {
                 tracing::warn!(
                     target: "hkask.pod.context",
                     pod_id = %self.pod_id,
-                    "No tokio runtime — CNS semantic.published event not emitted"
+                    "No tokio runtime — Regulation semantic.published event not emitted"
                 );
             }
         }
@@ -452,11 +452,11 @@ impl PodContext {
             .map_err(AgentPodError::from)
     }
 
-    // Tool invocation and CNS span emission
+    // Tool invocation and Regulation span emission
 
     /// Invoke an MCP tool by name.
     ///
-    /// Tool routing, OCAP, gas accounting, and CNS events are owned by `McpRuntime`.
+    /// Tool routing, OCAP, gas accounting, and Regulation events are owned by `McpRuntime`.
     pub async fn invoke_tool(
         &self,
         tool_name: &str,

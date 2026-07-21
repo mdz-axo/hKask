@@ -28,7 +28,7 @@ pub fn generate_corpus_yaml(
     entities: Option<EntityConfig>,
     methods: &[DeclaredMethod],
 ) -> Result<PathBuf, ServiceError> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.discover", operation = "generate_corpus_yaml", author = %author_slug, work_count = works.len(), method_count = methods.len(), "REG");
 
     let corpus_works: Vec<Work> = works

@@ -65,26 +65,26 @@ pub mod streaming {
     // inference output as it arrives from the inference port.
 }
 
-/// CNS alert indicator — reusable across windows.
+/// Regulation alert indicator — reusable across windows.
 pub mod alert_indicator {
     use ratatui::style::Color;
     use ratatui::text::Span;
 
-    /// Render a CNS status indicator span.
+    /// Render a Regulation status indicator span.
     pub fn render_cns_status(healthy: bool, alert_count: u32) -> Span<'static> {
         if healthy && alert_count == 0 {
             Span::styled(
-                " CNS: ✓ ",
+                " Regulation: ✓ ",
                 ratatui::style::Style::default().fg(Color::Green),
             )
         } else if alert_count < 5 {
             Span::styled(
-                format!(" CNS: ⚠ {} ", alert_count),
+                format!(" Regulation: ⚠ {} ", alert_count),
                 ratatui::style::Style::default().fg(Color::Yellow),
             )
         } else {
             Span::styled(
-                format!(" CNS: ✗ {} ", alert_count),
+                format!(" Regulation: ✗ {} ", alert_count),
                 ratatui::style::Style::default().fg(Color::Red),
             )
         }

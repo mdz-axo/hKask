@@ -93,7 +93,7 @@ pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> 
     }
 
     skills.sort_by(|a, b| a.name.cmp(&b.name));
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(
         target: "reg.skill.lifecycle",
         operation = "skills_discovered",
@@ -260,7 +260,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
     update_visibility_in_skill_md(&public_skill_md, "public")?;
     update_namespace_in_skill_md(&public_skill_md, &userpod_name)?;
 
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(
         target: "reg.skill.lifecycle",
         operation = "skill_published",

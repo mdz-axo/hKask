@@ -1,7 +1,7 @@
 //! Status bar — global system state display.
 //!
 //! Renders a single-line status bar showing model, energy budget,
-//! CNS health, and context window pressure. This is a cybernetic
+//! Regulation health, and context window pressure. This is a cybernetic
 //! display surface (P9): it closes the "is the system healthy?"
 //! feedback loop.
 
@@ -67,19 +67,19 @@ impl StatusBar {
         match self.cns_status {
             CnsStatus::Healthy => {
                 spans.push(Span::styled(
-                    " CNS: ✓ ",
+                    " Regulation: ✓ ",
                     ratatui::style::Style::default().fg(Color::Green),
                 ));
             }
             CnsStatus::Warning(n) => {
                 spans.push(Span::styled(
-                    format!(" CNS: ⚠ {} ", n),
+                    format!(" Regulation: ⚠ {} ", n),
                     ratatui::style::Style::default().fg(Color::Yellow),
                 ));
             }
             CnsStatus::Critical(n) => {
                 spans.push(Span::styled(
-                    format!(" CNS: ✗ {} ", n),
+                    format!(" Regulation: ✗ {} ", n),
                     ratatui::style::Style::default().fg(Color::Red),
                 ));
             }

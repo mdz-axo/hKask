@@ -25,7 +25,7 @@ pub struct OnboardingService;
 impl OnboardingService {
     pub fn derive_secrets(passphrase: &str) -> Result<ResolvedSecrets, ServiceError> {
         let secrets = derive_all_internal_secrets(passphrase);
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(
             target: "hkask.onboarding",
             operation = "secrets_derived",

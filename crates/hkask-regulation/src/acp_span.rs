@@ -1,4 +1,4 @@
-//! ACP (Agent Communication Protocol) CNS spans.
+//! ACP (Agent Communication Protocol) Regulation spans.
 use hkask_types::ObservableSpan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

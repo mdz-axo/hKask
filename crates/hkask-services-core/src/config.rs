@@ -87,7 +87,7 @@ pub struct ServiceConfig {
     /// Inference configuration for the multi-provider router.
     pub inference_config: InferenceConfig,
 
-    /// CNS variety threshold for algedonic alerts.
+    /// Regulation variety threshold for algedonic alerts.
     pub cns_threshold: u64,
 
     /// Gas budget cap per session (units).

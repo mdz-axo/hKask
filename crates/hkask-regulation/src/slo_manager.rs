@@ -1,4 +1,4 @@
-//! SLO Manager — Service Level Objective evaluation for the CNS
+//! SLO Manager — Service Level Objective evaluation for the Regulation
 //!
 //! SloManager loads SLO definitions, evaluates them against ν-event data,
 //! computes compliance rates and error budgets, emits `cns.slo.evaluated`
@@ -35,7 +35,7 @@ pub struct SloDataPoint {
 /// Trait for providing ν-event data to the SloManager.
 ///
 /// Implementations query the ν-event store for operation counts
-/// within a time window for a given CNS span namespace.
+/// within a time window for a given Regulation span namespace.
 pub trait SloDataProvider: Send + Sync {
     /// Query operation counts for the given span namespace within
     /// the specified time window (in seconds before now).

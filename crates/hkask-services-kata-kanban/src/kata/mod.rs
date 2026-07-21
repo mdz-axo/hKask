@@ -62,7 +62,7 @@ pub use state::{KataResult, KataState};
 
 /// Consent-checking callback.
 pub type ConsentCheckFn = Arc<dyn Fn(&str, &str) -> Result<(), KataError> + Send + Sync>;
-/// CNS observer callback.
+/// Regulation observer callback.
 pub type LedgerObserverFn = Arc<dyn Fn(&str, u32, &str) + Send + Sync>;
 /// Metric collection callback.
 pub type MetricCollectorFn =
@@ -82,17 +82,17 @@ pub struct KataEngine {
     /// Optional consent checker — called before kata execution.
     /// Receives (kata_type, learner_bot) and returns Ok(()) if consented.
     consent_check: Option<ConsentCheckFn>,
-    /// Optional CNS observer — called after each step with (namespace, step_ordinal, action).
+    /// Optional Regulation observer — called after each step with (namespace, step_ordinal, action).
     ledger_observer: Option<LedgerObserverFn>,
     /// Kata practice history for habit tracking and automaticity scoring.
     history: Option<KataHistory>,
     /// Optional SQLite-backed kata history store for concurrent, queryable persistence.
     history_store: Option<Arc<KataHistoryStore>>,
-    /// Optional metric collector — called to capture CNS metrics before/after cycles.
+    /// Optional metric collector — called to capture Regulation metrics before/after cycles.
     /// Receives (userpod_name, metric_name) and returns the current metric value.
     metric_collector: Option<MetricCollectorFn>,
-    /// Optional CNS runtime for variety counter increments and algedonic alert checks.
-    /// When present, replaces tracing-only spans with actual CNS state mutations.
+    /// Optional Regulation runtime for variety counter increments and algedonic alert checks.
+    /// When present, replaces tracing-only spans with actual Regulation state mutations.
     ledger_runtime: Option<Arc<RwLock<RegulationLedger>>>,
     /// Optional task-scoped gas accountant. When present, each inference
     /// call deducts its token cost from the bound kanban task's budget.
@@ -102,7 +102,7 @@ pub struct KataEngine {
 impl KataEngine {
     /// `[P5]` Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  inference must be a valid InferencePort; registry must be initialized
-    /// post: returns KataEngine with inference and registry wired; all optional components (consent, CNS, history, metrics) default to None
+    /// post: returns KataEngine with inference and registry wired; all optional components (consent, Regulation, history, metrics) default to None
     #[must_use]
     pub fn new(inference: Arc<dyn InferencePort>, registry: SqliteRegistry) -> Self {
         Self {
@@ -148,7 +148,7 @@ impl KataEngine {
         self
     }
 
-    /// Set a CNS observer called after each step completes.
+    /// Set a Regulation observer called after each step completes.
     ///
     /// `[P5]` Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  observer must be a valid Fn(&str, u32, &str)
@@ -176,7 +176,7 @@ impl KataEngine {
     /// Set a SQLite-backed kata history store for concurrent, queryable persistence.
     ///
     /// When present, practice entries are persisted to SQLite in addition to
-    /// (or instead of) the JSON file. This enables CNS queries against practice
+    /// (or instead of) the JSON file. This enables Regulation queries against practice
     /// data and cross-session persistence through the daemon's memory pipeline.
     ///
     /// `[P5]` Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -202,9 +202,9 @@ impl KataEngine {
         self
     }
 
-    /// Set a CNS runtime for variety counter increments and algedonic alert checks.
+    /// Set a Regulation runtime for variety counter increments and algedonic alert checks.
     ///
-    /// When present, kata execution increments CNS variety counters for each
+    /// When present, kata execution increments Regulation variety counters for each
     /// practice and checks algedonic thresholds after cycle completion.
     ///
     /// `[P5]` Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
@@ -313,7 +313,7 @@ impl KataEngine {
             };
 
             if manifest.ledger.emit_spans {
-                // P9: CNS span
+                // P9: Regulation span
                 tracing::info!(
                     target: "reg.kata",
                     namespace = %manifest.ledger.span_namespace,
@@ -340,7 +340,7 @@ impl KataEngine {
             _ => "kata-starter.yaml",
         };
 
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(
             target: "reg.kata",
             namespace = %manifest.ledger.span_namespace,
@@ -389,7 +389,7 @@ impl KataEngine {
                 // Capture before metrics
                 self.capture_before_metrics(manifest, learner_bot, &mut state);
 
-                // P9: CNS span
+                // P9: Regulation span
                 if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
@@ -407,10 +407,10 @@ impl KataEngine {
                 result.improvement_signal = signal;
                 result.step_experiences = state.step_experiences.clone();
 
-                // CNS algedonic check: is variety deficit exceeding threshold?
+                // Regulation algedonic check: is variety deficit exceeding threshold?
                 self.check_cns_alerts(manifest, "improvement").await;
 
-                // P9: CNS span
+                // P9: Regulation span
                 if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
@@ -428,7 +428,7 @@ impl KataEngine {
                 if let Some(ref check) = self.consent_check {
                     check("coaching", learner_bot)?;
                 }
-                // P9: CNS span
+                // P9: Regulation span
                 if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
@@ -441,10 +441,10 @@ impl KataEngine {
                 let mut result = self.run_coaching(manifest, &mut state).await?;
                 result.step_experiences = state.step_experiences.clone();
 
-                // CNS algedonic check: is coaching variety deficit exceeding threshold?
+                // Regulation algedonic check: is coaching variety deficit exceeding threshold?
                 self.check_cns_alerts(manifest, "coaching").await;
 
-                // P9: CNS span
+                // P9: Regulation span
                 if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
@@ -465,7 +465,7 @@ impl KataEngine {
                     .map(|h| h.compute_automaticity(learner_bot, &today))
                     .unwrap_or(0.0);
 
-                // P9: CNS span
+                // P9: Regulation span
                 if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
@@ -487,7 +487,7 @@ impl KataEngine {
                     .unwrap_or(0.0);
                 result.automaticity_delta = Some(auto_after - auto_before);
 
-                // CNS automaticity measurement: track habit formation progress
+                // Regulation automaticity measurement: track habit formation progress
                 if auto_after > 0.0 {
                     self.increment_ledger_variety(
                         &manifest.ledger.span_namespace,
@@ -503,10 +503,10 @@ impl KataEngine {
                     }
                 }
 
-                // CNS algedonic check: is starter practice variety deficit exceeding threshold?
+                // Regulation algedonic check: is starter practice variety deficit exceeding threshold?
                 self.check_cns_alerts(manifest, "starter").await;
 
-                // P9: CNS span
+                // P9: Regulation span
                 if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
@@ -546,7 +546,7 @@ fn default_llm_params() -> LLMParameters {
     }
 }
 
-// ── Metrics + CNS ──────────────────────────────────────────────────────────
+// ── Metrics + Regulation ──────────────────────────────────────────────────────────
 // Moved to metrics.rs — impl blocks loaded via `mod metrics;`.
 //
 // ── Improvement Kata runner ─────────────────────────────────────────────────

@@ -140,7 +140,7 @@ impl KanbanService {
             .insert(&h_mem)
             .map_err(|e| KanbanError::Internal(format!("h_mem insert failed: {e}")))?;
 
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(
             target: "hkask.kanban",
             operation = "board_created",
@@ -432,7 +432,7 @@ impl KanbanService {
             .insert(&index_triple)
             .map_err(|e| KanbanError::Internal(format!("index h_mem insert failed: {e}")))?;
 
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(
             target: "hkask.kanban",
             operation = "task_created",
@@ -620,7 +620,7 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("h_mem update failed: {e}")))?;
         }
 
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(
             target: "hkask.kanban",
             operation = "task_moved",
@@ -683,7 +683,7 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("h_mem update failed: {e}")))?;
         }
 
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(
             target: "hkask.kanban",
             operation = "task_assigned",
@@ -770,7 +770,7 @@ impl KanbanService {
                 .map_err(|e| KanbanError::Internal(format!("h_mem update failed: {e}")))?;
         }
 
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(
             target: "hkask.kanban",
             operation = "task_verified",

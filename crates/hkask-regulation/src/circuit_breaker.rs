@@ -1,9 +1,9 @@
 //! Circuit Breaker — Cybernetics Regulation Function
 //
-//! Circuit breaking is a CNS regulation mechanism: it enforces homeostatic
+//! Circuit breaking is a Regulation regulation mechanism: it enforces homeostatic
 //! control over external service calls (e.g. inference) by preventing
 //! cascading failures when downstream systems degrade. This is a Cybernetics
-//! concern, not a templates concern — the CNS governs when the system must
+//! concern, not a templates concern — the Regulation governs when the system must
 //! shed load to preserve stability (Ashby's Law of Requisite Variety).
 
 use hkask_ports::CircuitBreakerPort;
@@ -73,7 +73,7 @@ impl CircuitBreaker {
     /// Create a default circuit breaker for inference.
     ///
     /// expect: "The system creates circuit breakers with safe default thresholds for inference calls"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — CNS regulation loop enforces boundary
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — Regulation regulation loop enforces boundary
     /// \[P4\] Constraining: Clear Boundaries — default thresholds establish failure boundary
     /// pre:  name is non-empty
     /// post: returns CircuitBreaker with default thresholds

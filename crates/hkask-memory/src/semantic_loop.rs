@@ -180,7 +180,7 @@ impl SemanticLoop {
         self.condensation_window_days
     }
 
-    /// Emit a CNS RegulationRecord through the memory's event sink.
+    /// Emit a Regulation RegulationRecord through the memory's event sink.
     fn emit_cns(&self, verb: &str, observation: serde_json::Value) {
         if let Some(sink) = self.memory.event_sink() {
             let span = Span::new(

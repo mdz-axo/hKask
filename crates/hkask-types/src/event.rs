@@ -2,7 +2,7 @@
 //!
 //! ν-events are the cybernetic audit trail emitted by all loops.
 //! They are not owned by any single loop — they are the shared
-//! observability substrate that the CNS (Loop 6) senses and the
+//! observability substrate that the Regulation (Loop 6) senses and the
 //! Curator (Loop 5) audits.
 
 use crate::id::{EventID, WebID};
@@ -92,7 +92,7 @@ impl RegulationRecord {
     }
 }
 
-/// Validated CNS span namespace.
+/// Validated Regulation span namespace.
 ///
 /// Constructed via `SpanNamespace::new()` which validates against
 /// the canonical set. The module path IS the loop assignment.
@@ -100,11 +100,11 @@ impl RegulationRecord {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SpanNamespace(String);
 
-/// Canonical CNS span namespaces — mirrors `RegulationSpan::as_str()` output plus namespaces
+/// Canonical Regulation span namespaces — mirrors `RegulationSpan::as_str()` output plus namespaces
 /// used by `SpanKind` (e.g. `cns.variety`).
-/// Canonical CNS span namespaces — all valid namespace strings for span construction.
+/// Canonical Regulation span namespaces — all valid namespace strings for span construction.
 ///
-/// This is the single source of truth for what CNS spans exist. All domain span
+/// This is the single source of truth for what Regulation spans exist. All domain span
 /// strings must be registered here. `SpanNamespace::new()` and `::parse()` validate
 /// against this set. Domain span enums construct `SpanNamespace` through `from_observable()`
 /// which also validates against this set.
@@ -607,7 +607,7 @@ impl SpanNamespace {
     }
 }
 
-/// Unified CNS span — namespace + fully-qualified path
+/// Unified Regulation span — namespace + fully-qualified path
 ///
 /// Constructed via `Span::new()` with a validated namespace.
 /// The namespace is validated at construction time by `SpanNamespace`.
@@ -778,7 +778,7 @@ impl CyclePhase {
     }
 }
 
-/// RegulationSink — Trait for persisting CNS events
+/// RegulationSink — Trait for persisting Regulation events
 ///
 /// Implemented by storage backends (e.g., RegulationArchive in hkask-storage).
 pub trait RegulationSink: Send + Sync {

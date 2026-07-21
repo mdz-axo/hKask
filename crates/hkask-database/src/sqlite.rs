@@ -85,7 +85,7 @@ impl SqliteDriver {
         &self.pool
     }
 
-    /// Raw query execution without CNS span emission.
+    /// Raw query execution without Regulation span emission.
     /// Called by `query` and `query_optional` which each emit their own spans.
     fn query_raw(&self, sql: &str, params: &[DbValue]) -> Result<Vec<DbRow>, DbError> {
         let conn = self

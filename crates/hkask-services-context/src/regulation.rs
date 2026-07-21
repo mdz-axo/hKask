@@ -1,4 +1,4 @@
-//! CNS context — variety sensing, cybernetic regulation, loop orchestration,
+//! Regulation context — variety sensing, cybernetic regulation, loop orchestration,
 //! event audit trail, and energy estimation.
 //!
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Consolidated CNS context — variety sensing, cybernetic regulation,
+/// Consolidated Regulation context — variety sensing, cybernetic regulation,
 /// loop orchestration, event audit trail, and energy estimation.
 pub struct RegulationContext {
     pub runtime: Arc<RwLock<RegulationLedger>>,
@@ -43,7 +43,7 @@ impl RegulationContext {
         }
     }
 
-    /// Read the current CNS health snapshot.
+    /// Read the current Regulation health snapshot.
     ///
     /// Acquires a read lock on the runtime and returns the health status.
     /// This is the canonical access path — replaces the pattern

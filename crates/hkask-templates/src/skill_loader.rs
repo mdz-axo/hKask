@@ -133,7 +133,7 @@ impl SkillLoader {
             for skill_dir in discovered {
                 match self.load_skill(&skill_dir, zone) {
                     Ok(skill) => {
-                        // P9: CNS span — skill activation
+                        // P9: Regulation span — skill activation
                         tracing::info!(
                             target: "reg.skill.lifecycle",
                             operation = "skill_activated",
@@ -165,7 +165,7 @@ impl SkillLoader {
             }
         }
 
-        // P9: CNS span — skills loaded summary
+        // P9: Regulation span — skills loaded summary
         tracing::info!(
             target: "reg.skill.lifecycle",
             operation = "skills_loaded",
@@ -250,7 +250,7 @@ impl SkillLoader {
         let domain = self.infer_domain_from_registry(&id);
 
         // P5.1: Verify registry manifest and template path integrity.
-        // Non-blocking — drift is recorded as a CNS span for skill-maintenance to audit.
+        // Non-blocking — drift is recorded as a Regulation span for skill-maintenance to audit.
         let registry_manifest = self
             .project_root
             .join("registry")
@@ -312,7 +312,7 @@ impl SkillLoader {
                 return TemplateType::KnowAct;
             }
             Err(_) => {
-                // File exists but unreadable — emit a CNS span and default.
+                // File exists but unreadable — emit a Regulation span and default.
                 // (Non-blocking: the skill still loads, but the drift is visible.)
                 tracing::warn!(
                     target: "reg.skill.lifecycle",
@@ -365,7 +365,7 @@ impl SkillLoader {
     /// Validate registry manifest and template path integrity per P5.1.
     ///
     /// Returns (registry_present, template_count, broken_paths).
-    /// Non-blocking — records drift for skill-maintenance to audit via CNS.
+    /// Non-blocking — records drift for skill-maintenance to audit via Regulation.
     fn validate_registry_integrity(&self, manifest_path: &Path) -> (bool, usize, Vec<String>) {
         let content = match self.reader.read_to_string(manifest_path) {
             Ok(c) => c,

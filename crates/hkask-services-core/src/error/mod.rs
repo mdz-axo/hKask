@@ -32,7 +32,7 @@
 //! - `mod.rs` (this file) — enum definition, `From` impls, `Display`
 //! - `retryable.rs` — `is_retryable()` logic
 //! - `message_key.rs` — i18n `message_key()` logic
-//! - `nu_event.rs` — CNS ν-event emission logic
+//! - `nu_event.rs` — Regulation ν-event emission logic
 
 use thiserror::Error;
 
@@ -77,7 +77,7 @@ pub enum ServiceError {
     /// Typed domain error with semantic ErrorKind + origin DomainKind.
     ///
     /// Surface layers map `(domain, kind)` to HTTP status codes, CLI
-    /// formatting, and CNS ν-event emission.
+    /// formatting, and Regulation ν-event emission.
     #[error("{kind:?} ({domain:?}): {message}")]
     Domain {
         kind: ErrorKind,
@@ -87,7 +87,7 @@ pub enum ServiceError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
-    /// Inference / embedding — carries retryability for CNS gas budget.
+    /// Inference / embedding — carries retryability for Regulation gas budget.
     ///
     /// When `retryable` is true, `kind()` returns `ServiceUnavailable`
     /// regardless of the explicit `kind` field.
@@ -101,7 +101,7 @@ pub enum ServiceError {
     },
 
     /// MCP tool call failed. Carries the semantic error kind for retryability
-    /// and CNS observability. The `server` and `tool` fields identify the
+    /// and Regulation observability. The `server` and `tool` fields identify the
     /// failing MCP server and tool for debugging.
     #[error("{kind}: {message} (server={server}, tool={tool})")]
     McpTool {

@@ -91,7 +91,7 @@ impl MetacognitionLoop {
 
     /// Create a new metacognition loop with a BotHealthEvaluator.
     ///
-    /// The evaluator reads gas data from the CNS runtime and populates
+    /// The evaluator reads gas data from the Regulation runtime and populates
     /// bot health reports at each cycle.
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
@@ -145,7 +145,7 @@ impl MetacognitionLoop {
     /// \[P9\] Motivating: Homeostatic Self-Regulation — summary posts system state to standing session
     /// pre:  `snapshot` is a valid `&HealthSnapshot`.
     /// post: Returns a `String` containing a markdown-formatted summary
-    ///       with timestamp, CNS health, critical/total alerts, variety
+    ///       with timestamp, Regulation health, critical/total alerts, variety
     ///       counters, and bot status reports.
     pub fn generate_summary(&self, snapshot: &HealthSnapshot) -> String {
         use std::fmt::Write;
@@ -180,7 +180,7 @@ impl MetacognitionLoop {
             "**Timestamp:** {}",
             snapshot.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
         );
-        let _ = writeln!(s, "**CNS Health:** {}", snapshot.cns_health);
+        let _ = writeln!(s, "**Regulation Health:** {}", snapshot.cns_health);
         let _ = writeln!(s, "**Variety Deficit:** {}", snapshot.variety_deficit);
         let _ = writeln!(s, "**Critical Alerts:** {}", snapshot.critical_alerts);
         let _ = writeln!(s, "**Total Alerts:** {}\n", snapshot.total_alerts);

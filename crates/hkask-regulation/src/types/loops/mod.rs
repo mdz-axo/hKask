@@ -2,10 +2,10 @@
 //!
 //! The loop type system (LoopId, Signal, Deviation, RegulatoryAction, Loop trait, etc.)
 //! has been moved to `hkask_types::loops` to break the circular dependency
-//! that prevented extracting CNS subcrates.
+//! that prevented extracting Regulation subcrates.
 //!
 //! Channel types (`CurationInput`, `ToolConsumptionEvent`, etc.) remain here
-//! because they depend on `RuntimeAlert` (CNS-internal).
+//! because they depend on `RuntimeAlert` (Regulation-internal).
 //!
 //! **Loop Numbering (VSM correspondence):**
 //!

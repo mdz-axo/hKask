@@ -1,7 +1,7 @@
 //! Agent operational context — the full environment an agent needs to function.
 //!
 //! `AgentService` is the canonical composition root for hKask. It assembles
-//! every piece of shared infrastructure an agent requires: CNS for variety
+//! every piece of shared infrastructure an agent requires: Regulation for variety
 //! sensing, cybernetics for energy budgeting, MCP for tool discovery, wallet
 //! for rJoule payments, memory for episodic/semantic recall, and all stores
 //! (consent, goals, registry, sovereignty).
@@ -79,14 +79,14 @@ use crate::storage;
 
 /// Agent operational context — canonical composition root for hKask.
 ///
-/// Holds every piece of shared infrastructure an agent needs: CNS,
+/// Holds every piece of shared infrastructure an agent needs: Regulation,
 /// cybernetics, MCP, wallet, memory, stores, pod manager, Matrix transport.
 /// Surfaces (`ReplState`, `ApiState`) compose this struct and add only
 /// presentation-specific fields.
 ///
 /// Construct via `AgentService::build(config)`. The config provides all
 /// deployment-varying parameters (DB paths, secrets, thresholds, model names).
-/// The builder resolves the dependency graph canonically: stores → CNS →
+/// The builder resolves the dependency graph canonically: stores → Regulation →
 /// loop system → governed tool → pod manager.
 ///
 /// # Field discipline
@@ -107,7 +107,7 @@ pub struct AgentService {
     /// Governance context — OCAP, consent, dispatch, A2A, escalations.
     governance: governance::GovernanceContext,
 
-    /// CNS context — variety sensing, cybernetic regulation,
+    /// Regulation context — variety sensing, cybernetic regulation,
     /// loop orchestration, event audit trail, energy estimation.
     ledger: regulation::RegulationContext,
 
@@ -171,7 +171,7 @@ impl AgentService {
 
     // --- Sub-contexts ---
 
-    /// CNS context — variety sensing, cybernetic regulation,
+    /// Regulation context — variety sensing, cybernetic regulation,
     /// loop orchestration, events, and energy estimation.
     pub fn ledger(&self) -> &regulation::RegulationContext {
         &self.ledger
@@ -420,7 +420,7 @@ impl AgentService {
     }
 
     /// Inference port for surface inference calls. Returns the governed
-    /// port if configured (preferred — CNS-observable), or `None` if
+    /// port if configured (preferred — Regulation-observable), or `None` if
     /// inference is unavailable.
     pub fn inference_port(&self) -> Option<Arc<dyn InferencePort>> {
         self.infra.inference.clone()

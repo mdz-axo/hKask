@@ -174,7 +174,7 @@ pub fn run(
 /// Execute one input through the standard governed REPL turn loop.
 ///
 /// Used by non-interactive surfaces that must retain the REPL's MCP tool
-/// dispatch, OCAP delegation, gas accounting, and CNS updates.
+/// dispatch, OCAP delegation, gas accounting, and Regulation updates.
 pub fn run_once(
     registry: &mut SqliteRegistry,
     initial_model: Option<&str>,

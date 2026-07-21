@@ -10,7 +10,7 @@
 //!
 //! - **Sense:** Measure disk usage percentage on the data directory
 //! - **Compare:** Detect deviations from configurable thresholds (warn 80%, critical 95%)
-//! - **Compute:** At warn level → log CNS span. At critical level → produce Prune action.
+//! - **Compute:** At warn level → log Regulation span. At critical level → produce Prune action.
 //! - **Act:** Prune old export archives. If pruning is insufficient, escalate to Curator.
 //! - **Verify:** Re-check after dampener cooldown (5 min). If still critical → escalate.
 //!
@@ -35,7 +35,7 @@ use std::time::{Duration, Instant};
 pub struct StorageGuardConfig {
     /// Enable autonomous export pruning. Default: false (P2 consent required).
     pub prune_exports_enabled: Arc<AtomicBool>,
-    /// Disk usage percentage threshold for warning (CNS span only).
+    /// Disk usage percentage threshold for warning (Regulation span only).
     pub warn_threshold_pct: f64,
     /// Disk usage percentage threshold for critical action.
     pub critical_threshold_pct: f64,
@@ -230,7 +230,7 @@ impl RegulationLoop for StorageGuardLoop {
     }
 
     /// Act: if Prune, delete export archives older than the configured threshold.
-    /// If Notify, log a CNS span (the Cybernetics loop handles escalation).
+    /// If Notify, log a Regulation span (the Cybernetics loop handles escalation).
     async fn act(&self, actions: &[RegulatoryAction]) {
         for action in actions {
             if action.action_type == ActionType::Prune {

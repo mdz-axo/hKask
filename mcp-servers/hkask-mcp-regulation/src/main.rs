@@ -1,11 +1,13 @@
 //! hkask-mcp-regulation — binary entrypoint.
 //!
-//! Thin wrapper around the CNS server library.
+//! Thin wrapper around the regulation server library.
 
 #![allow(unused_crate_dependencies)]
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp::McpError> {
-    let boot = hkask_mcp::bootstrap_mcp_server("regulation", "hkask.mcp.regulation", "HKASK_MCP_HOST").await?;
+    let boot =
+        hkask_mcp::bootstrap_mcp_server("regulation", "hkask.mcp.regulation", "HKASK_MCP_HOST")
+            .await?;
     hkask_mcp_regulation::run(boot.userpod, boot.daemon_client).await
 }

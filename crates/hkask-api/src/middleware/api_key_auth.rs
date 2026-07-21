@@ -49,7 +49,7 @@ pub struct ApiKeyAuthService {
     wallet_service: Arc<WalletService>,
     /// API rate limiter — when present, per-key rate limits are enforced.
     api_meter: Option<Arc<std::sync::RwLock<hkask_regulation::ApiMeter>>>,
-    /// CNS event sink — when present, a `reg.api.request` span is emitted
+    /// Regulation event sink — when present, a `reg.api.request` span is emitted
     /// for every authenticated request after the rate limit check.
     event_sink: Option<Arc<dyn RegulationSink>>,
 }
@@ -77,7 +77,7 @@ impl ApiKeyAuthService {
         self
     }
 
-    /// Attach a CNS event sink. When set, a `reg.api.request` span is emitted
+    /// Attach a Regulation event sink. When set, a `reg.api.request` span is emitted
     /// for every authenticated request after the rate limit check.
     #[must_use]
     pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
@@ -301,7 +301,7 @@ impl IntoResponse for ApiKeyAuthError {
 /// global `auth_middleware`). This allows wallet and non-wallet routes to coexist.
 ///
 /// When a valid Bearer token is present, registers a wallet-backed energy budget
-/// in the CNS so that subsequent tool/inference calls consume rJoules from the
+/// in the Regulation so that subsequent tool/inference calls consume rJoules from the
 /// key's encumbrance.
 ///
 /// expect: "API endpoints enforce OCAP boundaries"

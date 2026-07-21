@@ -1,8 +1,8 @@
 //! Signal types — metrics, afferent signals, deviations, and deviation direction.
 //!
 //! Moved from hkask-regulation to hkask-types to break the circular dependency
-//! that prevented extracting CNS subcrates (storage guard, SLO, seam watcher).
-//! These types have no CNS-internal dependencies — only LoopId, serde, and chrono.
+//! that prevented extracting Regulation subcrates (storage guard, SLO, seam watcher).
+//! These types have no Regulation-internal dependencies — only LoopId, serde, and chrono.
 
 use super::core::LoopId;
 

@@ -64,7 +64,7 @@ impl CurationLoop {
     ///
     /// The `curator_handle` is the single Curator capability handle for
     /// the system. Use `CuratorHandle::system()` to construct it.
-    /// The `context` provides capability-disciplined access to CNS, dispatch,
+    /// The `context` provides capability-disciplined access to Regulation, dispatch,
     /// and escalation — the Curation Loop's only runtime dependencies.
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
@@ -136,7 +136,7 @@ impl CurationLoop {
     /// Access the CuratorContext (capability-disciplined runtime references).
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — context exposes CNS and escalation
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — context exposes Regulation and escalation
     /// pre:  (none — accessor).
     /// post: Returns a reference to the inner `Arc<CuratorContext>`.
     pub fn context(&self) -> &Arc<CuratorContext> {
@@ -335,7 +335,7 @@ impl RegulationLoop for CurationLoop {
     }
 
     /// Sense: read algedonic-significant RegulationRecords from the persistent store.
-    /// Falls back to live CNS reads if no RegulationRecord store is configured.
+    /// Falls back to live Regulation reads if no RegulationRecord store is configured.
     async fn sense(&self) -> Vec<Signal> {
         // Primary: Read from RegulationRecord store using cursor-based algedonic review
         let since_ms = self.last_review_ms.load(Ordering::Relaxed);
@@ -379,12 +379,12 @@ impl RegulationLoop for CurationLoop {
                     count
                 }
                 Err(e) => {
-                    tracing::warn!(target: CUR_TARGET, error = %e, "Failed to query RegulationRecord store, falling back to live CNS reads");
+                    tracing::warn!(target: CUR_TARGET, error = %e, "Failed to query RegulationRecord store, falling back to live Regulation reads");
                     self.context.ledger().critical_alerts().await.len() as u64
                 }
             }
         } else {
-            // No RegulationRecord store configured: fall back to live CNS reads
+            // No RegulationRecord store configured: fall back to live Regulation reads
             self.context.ledger().critical_alerts().await.len() as u64
         };
 

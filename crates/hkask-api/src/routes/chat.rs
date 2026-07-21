@@ -90,7 +90,7 @@ pub(crate) async fn chat(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<ApiChatRequest>,
 ) -> Result<Json<ApiChatResponse>, crate::error::ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "chat", "REG");
 
     // Input length validation
@@ -181,7 +181,7 @@ pub(crate) async fn chat_stream(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<ApiChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "chat_stream", "REG");
 
     // Input length validation

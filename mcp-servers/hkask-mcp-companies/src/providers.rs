@@ -200,7 +200,7 @@ pub async fn companies_get(
 /// Approximated field count for EODHD key_metrics normalization (FinGPT §3.2).
 const APPROXIMATED_KEY_METRICS_FIELDS: u32 = 4;
 
-/// Emit a CNS span for provider quality monitoring (FinGPT §3.2 — data quality feedback loop).
+/// Emit a Regulation span for provider quality monitoring (FinGPT §3.2 — data quality feedback loop).
 fn emit_provider_cns(tool: &str, symbol: &str, provider: &str, was_normalised: bool) {
     let approx_count = if was_normalised {
         match tool {
@@ -217,7 +217,7 @@ fn emit_provider_cns(tool: &str, symbol: &str, provider: &str, was_normalised: b
         provider = %provider,
         was_normalised = %was_normalised,
         approximated_fields = %approx_count,
-        "Provider quality: CNS data_quality span"
+        "Provider quality: Regulation data_quality span"
     );
 }
 

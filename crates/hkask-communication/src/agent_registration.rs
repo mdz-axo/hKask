@@ -4,10 +4,10 @@
 //! local Conduit homeserver. Threads are the unit of attention; agents can
 //! monitor threads (watchlist) or be tagged into discussions (@mentions).
 //!
-//! CNS spans route algedonic signals for thread lifecycle events:
+//! Regulation spans route algedonic signals for thread lifecycle events:
 //!   `cns.communication.thread.{created,escalated,resolved}`
 //!
-//! The 7R7 listener polls Matrix rooms and emits CNS observation spans.
+//! The 7R7 listener polls Matrix rooms and emits Regulation observation spans.
 //! The agent layer (Curator + skills + templates) decides what action to take.
 
 use crate::matrix::{RoomId, UserId};

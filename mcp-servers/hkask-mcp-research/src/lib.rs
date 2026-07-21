@@ -266,7 +266,7 @@ impl ResearchServer {
                 total_before_dedup = metadata.total_before_dedup,
                 duplicates_removed = metadata.duplicates_removed,
                 top_rrf_scores = ?metadata.top_rrf_scores,
-                "CNS web_search metadata"
+                "Regulation web_search metadata"
             );
 
             let output = serde_json::to_value(&search_output)

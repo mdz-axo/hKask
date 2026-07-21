@@ -12,7 +12,7 @@ use thiserror::Error;
 /// Unified error type for hkask-mcp library operations.
 ///
 /// Replaces `anyhow::Error` in all public APIs. Every variant carries
-/// structured context suitable for CNS spans and operator diagnostics.
+/// structured context suitable for Regulation spans and operator diagnostics.
 #[derive(Debug, Error)]
 pub enum McpError {
     #[error("{0} set but HKASK_DB_PASSPHRASE missing")]

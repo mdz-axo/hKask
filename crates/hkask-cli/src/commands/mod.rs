@@ -2,7 +2,7 @@
 //!
 //! Admin, config, startup, shutdown, and the single `tui` runtime launch.
 //! Runtime operations (skills, bundles, templates, kata, kanban, goals,
-//! adapters, CNS queries, curator escalations, consolidation, style,
+//! adapters, Regulation queries, curator escalations, consolidation, style,
 //! web search) live in the TUI's REPL slash commands or are invoked via
 //! MCP tools from within the runtime.
 

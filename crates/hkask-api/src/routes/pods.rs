@@ -97,7 +97,7 @@ async fn list_pods(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
 ) -> Json<ListPodsResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "pods_list", "REG");
     let pod_statuses = state
         .agent_service
@@ -203,7 +203,7 @@ async fn activate_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "pods_activate", pod_id = %id, "REG");
     let pid = parse_pod_id(&id)?;
     state
@@ -233,7 +233,7 @@ async fn sleep_pod(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "pods_sleep", pod_id = %id, "REG");
     let pid = parse_pod_id(&id)?;
     state
@@ -263,7 +263,7 @@ async fn pod_status(
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<PodStatusResponse>, ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "pods_status", pod_id = %id, "REG");
     let pid = parse_pod_id(&id)?;
     let status = state

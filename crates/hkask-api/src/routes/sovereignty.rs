@@ -104,7 +104,7 @@ pub(crate) async fn sovereignty_status(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "sovereignty_status", "REG");
     let cm = &state.agent_service.governance().consent;
     let webid_str = auth.webid.to_string();
@@ -156,7 +156,7 @@ pub(crate) async fn sovereignty_grant_consent(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<SovereigntyConsentRequest>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "sovereignty_grant", category = %req.category, "REG");
     let webid_str = auth.webid.to_string();
     let cat_str = req.category;
@@ -198,7 +198,7 @@ pub(crate) async fn sovereignty_revoke_consent(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "sovereignty_revoke", "REG");
     let webid_str = auth.webid.to_string();
     let cm = &state.agent_service.governance().consent;
@@ -232,7 +232,7 @@ pub(crate) async fn sovereignty_check_access(
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<AccessCheckResponse>, ServiceErrorResponse> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.api", operation = "sovereignty_check_access", "REG");
     let cat_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     if cat_str.is_empty() {

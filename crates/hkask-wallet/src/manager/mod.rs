@@ -44,7 +44,7 @@ pub trait WalletSelfHealer: Send + Sync {
 ///
 /// # Ownership `[OUGHT-DECL]`
 /// - Sole-owns `ChainPort` implementations
-/// - Shares `Arc<WalletStore>` with CNS for algedonic monitoring
+/// - Shares `Arc<WalletStore>` with Regulation for algedonic monitoring
 /// - Holds `wallet_seed` in `Zeroizing` for deposit reference generation
 /// - Does NOT hold treasury keys (loaded per-operation in signing.rs)
 ///
@@ -58,14 +58,14 @@ pub struct WalletManager {
     store: Arc<WalletStore>,
     chains: HashMap<ChainId, Arc<dyn ChainPort>>,
     wallet_seed: Zeroizing<[u8; 32]>,
-    /// Optional CNS event sink for span emission (Phase 5).
+    /// Optional Regulation event sink for span emission (Phase 5).
     /// When present, wallet operations emit cns.wallet.* spans.
     event_sink: Option<Arc<dyn RegulationSink>>,
     /// Price feed for native token USD rates (fee estimation).
     /// Resolved from user's `PriceFeedConfig` at build time.
     price_feed: Arc<dyn PriceFeed>,
     /// Runtime-adjustable gas→rJoule conversion rate.
-    /// Initialized from `config.gas_per_rjoule`; updated by the CNS calibration loop.
+    /// Initialized from `config.gas_per_rjoule`; updated by the Regulation calibration loop.
     gas_per_rjoule: Arc<AtomicU64>,
     /// Optional self-heal hook for centralized recovery policies.
     self_heal_hook: Arc<Mutex<Option<Arc<dyn WalletSelfHealer>>>>,
@@ -105,7 +105,7 @@ impl WalletManager {
         })
     }
 
-    /// Attach a CNS event sink for span emission.
+    /// Attach a Regulation event sink for span emission.
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_event_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
@@ -140,7 +140,7 @@ impl WalletManager {
         &self.price_feed
     }
 
-    // CNS event emission moved to cns.rs. All methods are available via impl blocks
+    // Regulation event emission moved to cns.rs. All methods are available via impl blocks
     // in that module, loaded through `use super::*`.
 
     // ── Balance ──────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ impl WalletManager {
         Ok(balance)
     }
 
-    /// Get an API key's capability metadata for CNS health monitoring.
+    /// Get an API key's capability metadata for Regulation health monitoring.
     /// Returns `None` if the key doesn't exist or has been revoked.
     ///
     /// expect: "The system manages API key issuance with spending limits and expiry"
@@ -217,7 +217,7 @@ impl WalletManager {
         self.store
             .store_deposit_address(wallet_id, &address, 0, chain, privacy)?;
 
-        // CNS span: deposit address derived
+        // Regulation span: deposit address derived
         self.emit_span(
             WalletSpan::Deposit,
             "derived",
@@ -304,8 +304,8 @@ fn hkdf_expand(seed: &[u8], info: &[u8]) -> Result<Vec<u8>, WalletError> {
 
 // ── WalletBudgetPort implementation ────────────────────────────────────────────
 
-/// Implement the hexagonal port so CNS depends on the trait, not the concrete type.
-/// Per Conant-Ashby: the regulator (CNS) models the system (wallet) via this
+/// Implement the hexagonal port so Regulation depends on the trait, not the concrete type.
+/// Per Conant-Ashby: the regulator (Regulation) models the system (wallet) via this
 /// abstract interface, not via direct coupling to `WalletManager`.
 impl hkask_ports::WalletBudgetPort for WalletManager {
     fn gas_to_rjoules(&self, gas: u64) -> RJoule {

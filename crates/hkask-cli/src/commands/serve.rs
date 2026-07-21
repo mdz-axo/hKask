@@ -17,7 +17,7 @@ use hkask_mcp::runtime::McpRuntime;
 /// pre:  port is a valid u16; host is a non-empty bind address string
 /// post: starts the HTTP API server on the given host:port; returns Ok(()) on successful bind or Error on failure
 pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error::Error>> {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.cli", operation = "serve", host = %host, port = port, "REG");
     // Resolve configuration from keystore and environment.
     // Refuse to start with in-memory fallback — a server without proper

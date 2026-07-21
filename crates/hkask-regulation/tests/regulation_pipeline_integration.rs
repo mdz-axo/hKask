@@ -1,6 +1,6 @@
 //! CyberneticsLoop regulation pipeline integration test.
 //!
-//! Verifies the full CNS regulation pipeline: create loop → register budget →
+//! Verifies the full Regulation regulation pipeline: create loop → register budget →
 //! run ticks → verify regulation behaviors.
 //!
 //! Three key regulation behaviors tested:
@@ -9,7 +9,7 @@
 //! 3. `ActionDecision::Block` fires when worsening exceeds 20%
 //!
 //! # Principle grounding
-//! - P9 (Homeostatic Self-Regulation): CNS must detect and respond to energy depletion
+//! - P9 (Homeostatic Self-Regulation): Regulation must detect and respond to energy depletion
 //! - P8 (Semantic Grounding): every assertion ties to a stated behavioral property
 
 use hkask_regulation::cybernetics_loop::CyberneticsLoop;
@@ -454,17 +454,17 @@ async fn loop_quality_reflects_regulation_activity() {
 
 /// End-to-end cybernetic regulation cycle with multiple signal metrics.
 ///
-/// Verifies the complete pipeline described by CNS contracts:
+/// Verifies the complete pipeline described by Regulation contracts:
 ///   1. Construct a CyberneticsLoop with known set-points
 ///   2. Register budgets for two agents — one depleted, one healthy
-///   3. Inject CNS ν-events through a configured event sink
+///   3. Inject Regulation ν-events through a configured event sink
 ///   4. Run tick(): sense → compare → compute → act → verify
 ///   5. Verify each phase produces correct outputs
 ///   6. Assert LoopMetrics reflects the pipeline state
 ///   7. Assert regulation history is recorded
 ///
 /// Principle grounding:
-/// - P9 (Homeostatic Self-Regulation): CNS must detect, respond, and verify
+/// - P9 (Homeostatic Self-Regulation): Regulation must detect, respond, and verify
 /// - P8 (Semantic Grounding): every assertion ties to a stated behavioral property
 /// - P5 (Essentialism): a single test that covers the full pipeline replaces
 ///   fragmented per-phase tests

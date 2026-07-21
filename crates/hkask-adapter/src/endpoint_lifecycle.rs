@@ -1,7 +1,7 @@
 //! EndpointLifecycle — state machine for inference endpoints (P9 Homeostatic Self-Regulation).
 //!
 //! Every endpoint has exactly five phases: Provisioning → Ready → Active → Draining → Terminated.
-//! CNS spans are emitted on every transition. Cost accrual is tracked per phase.
+//! Regulation spans are emitted on every transition. Cost accrual is tracked per phase.
 
 use chrono::Utc;
 use std::fmt;
@@ -73,7 +73,7 @@ pub enum EndpointPhaseError {
 /// Tracks the lifecycle of an inference endpoint.
 ///
 /// Every phase transition is validated, recorded with a timestamp,
-/// and produces a CNS span. Cost accrual is computed based on
+/// and produces a Regulation span. Cost accrual is computed based on
 /// the duration spent in billable phases.
 ///
 /// expect: "The adapter manages LoRA adapter lifecycle and inference composition"

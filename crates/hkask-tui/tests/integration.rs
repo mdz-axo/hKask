@@ -629,7 +629,7 @@ fn chat_windows_receive_only_their_owned_inference() {
     assert!(!second_text.contains("reply: first"));
 }
 
-// CNS Monitor, Backup, and Registry snapshot tests removed — windows deleted.
+// Regulation Monitor, Backup, and Registry snapshot tests removed — windows deleted.
 
 #[test]
 fn wallet_snapshot_shows_gas() {

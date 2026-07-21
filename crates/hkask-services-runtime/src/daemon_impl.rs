@@ -47,7 +47,7 @@ const NARRATIVE_SYSTEM_PROMPT: &str = "You are an observant agent monitoring an 
 pub struct ServiceDaemonHandler {
     pod_manager: Arc<ActivePods>,
     user_store: Arc<std::sync::Mutex<UserStore>>,
-    /// CNS runtime for health and variety queries (None if unavailable)
+    /// Regulation runtime for health and variety queries (None if unavailable)
     ledger_runtime: Option<Arc<RwLock<RegulationLedger>>>,
     /// Inference port for narrative generation (None if inference unavailable)
     inference_port: Option<Arc<dyn InferencePort>>,
@@ -81,7 +81,7 @@ impl ServiceDaemonHandler {
 #[async_trait::async_trait]
 impl DaemonHandler for ServiceDaemonHandler {
     async fn check_auth(&self, userpod: &str) -> (bool, Option<String>) {
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "hkask.daemon", operation = "check_auth", userpod = %userpod, "REG");
 
         let has_sessions = {
@@ -117,7 +117,7 @@ impl DaemonHandler for ServiceDaemonHandler {
 
 
     async fn check_capability(&self, userpod: &str, tool: &str) -> bool {
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "hkask.daemon", operation = "check_capability", userpod = %userpod, tool = %tool, "REG");
 
         match self.pod_manager.find_pod_by_name(userpod).await {
@@ -138,7 +138,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         value: &serde_json::Value,
         confidence: Option<f64>,
     ) -> (bool, Option<String>, Option<String>) {
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "hkask.daemon", operation = "store_experience", userpod = %userpod, entity = %entity, attribute = %attribute, confidence = ?confidence, "REG");
 
         let pod_id = match self.pod_manager.find_pod_by_name(userpod).await {
@@ -246,7 +246,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         tool: &str,
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>) {
-        // P9: CNS span
+        // P9: Regulation span
         tracing::info!(target: "hkask.daemon", operation = "dispatch_tool", userpod = %userpod, tool = %tool, "REG");
 
         let pod_id = match self.pod_manager.find_pod_by_name(userpod).await {
@@ -274,7 +274,7 @@ impl DaemonHandler for ServiceDaemonHandler {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
                 "cns_health": "unknown",
-                "note": "CNS runtime not available"
+                "note": "Regulation runtime not available"
             });
         };
         let ledger = cns_lock.read().await;
@@ -301,7 +301,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         let Some(ref cns_lock) = self.ledger_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
-                "note": "CNS runtime not available"
+                "note": "Regulation runtime not available"
             });
         };
         let ledger = cns_lock.read().await;
@@ -328,7 +328,7 @@ async fn generate_narrative(
     inference: &dyn InferencePort,
     userpod: &str,
 ) {
-    // P9: CNS span
+    // P9: Regulation span
     tracing::info!(target: "hkask.daemon", operation = "generate_narrative", userpod = %userpod, "REG");
 
     let pod_id = match pod_manager.find_pod_by_name(userpod).await {
@@ -474,8 +474,8 @@ fn generalize_value(value: &serde_json::Value) -> serde_json::Value {
 /// file under `agents/{name}/sessions/{date}.jsonl`. One JSON object per line
 /// for easy streaming/parsing by downstream tools.
 ///
-/// CNS: emits `cns.session.recorded` span for variety tracking and algedonic
-/// monitoring — if sessions stop writing, the CNS detects the silence.
+/// Regulation: emits `cns.session.recorded` span for variety tracking and algedonic
+/// monitoring — if sessions stop writing, the Regulation detects the silence.
 fn append_session_entry(userpod: &str, entity: &str, attribute: &str, value: &serde_json::Value) {
     let sessions_dir = hkask_types::agent_paths::userpod_sessions_dir(userpod);
     if let Err(e) = std::fs::create_dir_all(&sessions_dir) {
@@ -507,7 +507,7 @@ fn append_session_entry(userpod: &str, entity: &str, attribute: &str, value: &se
             if let Err(e) = file.write_all(line_with_newline.as_bytes()) {
                 tracing::warn!(target: "hkask.daemon.session", userpod = %userpod, path = %session_file.display(), error = %e, "Failed to write session entry");
             } else {
-                // CNS: session recorded — variety signal for algedonic monitoring
+                // Regulation: session recorded — variety signal for algedonic monitoring
                 tracing::info!(target: "hkask.session.recorded", userpod = %userpod, entity = %entity, "REG");
             }
         }

@@ -1,4 +1,4 @@
-//! Gas Report — query/aggregation layer over the RegulationArchive for CNS gas consumption data.
+//! Gas Report — query/aggregation layer over the RegulationArchive for Regulation gas consumption data.
 //!
 //! Provides tools for querying gas events (reserved, settled, depleted) across agents
 //! and time windows, aggregating into per-agent summaries and grand-total reports.
@@ -116,7 +116,7 @@ enum GasEventKind {
 
 // ── GasReport struct ────────────────────────────────────────────────────────────
 
-/// Query and aggregation layer for CNS gas consumption data.
+/// Query and aggregation layer for Regulation gas consumption data.
 ///
 /// Wraps a [`LedgerStoragePort`] and provides methods for querying gas events
 /// by agent, by time window, and aggregating into reports.
@@ -129,7 +129,7 @@ impl GasReport {
     /// Create a new GasReport backed by the given event store.
     ///
     /// # Arguments
-    /// * `store` — An `Arc<dyn LedgerStoragePort>` providing access to raw CNS events.
+    /// * `store` — An `Arc<dyn LedgerStoragePort>` providing access to raw Regulation events.
     pub fn new(store: Arc<dyn LedgerStoragePort>) -> Self {
         Self { store }
     }
