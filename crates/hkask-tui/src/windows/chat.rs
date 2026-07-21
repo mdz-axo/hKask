@@ -317,7 +317,7 @@ impl ChatWindow {
                                         self.model = result.resolved_name.clone();
                                         let mut text = format!("Model set to: {}", result.resolved_name);
                                         if !result.detail.is_empty() {
-                                            text.push_str("\n");
+                                            text.push('\n');
                                             text.push_str(&result.detail);
                                         }
                                         self.add_message(MessageSender::CnsAlert, text);
@@ -833,13 +833,58 @@ mod tests {
     }
 
     #[test]
-    fn prompt_colors_are_visible() {
-        // All mode colors should be different
-        let chat_color = TuiMode::Chat.prompt_color();
-        let cmd_color = TuiMode::Command.prompt_color();
-        let curator_color = TuiMode::Curator.prompt_color();
-        assert_ne!(chat_color, cmd_color);
-        assert_ne!(chat_color, curator_color);
-        assert_ne!(cmd_color, curator_color);
+    :    #[test]
+        fn prompt_colors_are_visible() {
+            // All mode colors should be different
+            let chat_color = TuiMode::Chat.prompt_color();
+            let cmd_color = TuiMode::Command.prompt_color();
+            let curator_color = TuiMode::Curator.prompt_color();
+            assert_ne!(chat_color, cmd_color);
+            assert_ne!(chat_color, curator_color);
+            assert_ne!(cmd_color, curator_color);
+        }
+
+        fn make_window_id() -> WindowId {
+            WindowId(uuid::Uuid::new_v4())
+        }
+
+        #[test]
+        fn model_command_switches_model_via_settings_bridge() {
+            let (_sys, repl) = crate::test_util::mock_bridges();
+            let settings = crate::test_util::mock_settings_bridge();
+            let mut chat =
+                ChatWindow::new(make_window_id(), "test-agent", "old-model", repl)
+                    .with_settings_bridge(settings);
+            assert_eq!(chat.model, "old-model");
+
+            chat.execute_slash_command("/model new-model");
+
+            assert_eq!(chat.model, "new-model", "/model must update ChatWindow.model");
+            let last = chat.messages.last().expect("a confirmation message was added");
+            assert!(
+                last.content.contains("Model set to: new-model"),
+                "got: {}",
+                last.content
+            );
+        }
+
+        #[test]
+        fn model_no_arg_shows_real_pressure_not_fake_tokens() {
+            let (_sys, repl) = crate::test_util::mock_bridges();
+            let mut chat = ChatWindow::new(make_window_id(), "test-agent", "m", repl);
+
+            chat.execute_slash_command("/model");
+
+            let last = chat.messages.last().expect("a status message was added");
+            assert!(
+                last.content.contains("Current model: m"),
+                "got: {}",
+                last.content
+            );
+            assert!(
+                last.content.contains("% used"),
+                "/model must show real context pressure %, not a fake token count; got: {}",
+                last.content
+            );
+        }
     }
-}
