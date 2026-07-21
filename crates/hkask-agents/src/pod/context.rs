@@ -23,7 +23,7 @@ use super::AgentPodError;
 use super::deployment::{PerPodCnsRuntime, PodDeployment};
 use super::types::PodID;
 use crate::SovereigntyChecker;
-use crate::curator::SemanticIndex;
+use crate::curation::SemanticIndex;
 use crate::ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,

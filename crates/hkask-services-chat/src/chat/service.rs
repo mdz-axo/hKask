@@ -13,7 +13,7 @@ use std::time::Duration;
 use futures_util::Stream;
 use futures_util::StreamExt;
 
-use hkask_agents::curator::persona_filter;
+use hkask_agents::curation::persona_filter;
 use hkask_agents::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::DelegationAction;
 use hkask_ports::InferencePort;

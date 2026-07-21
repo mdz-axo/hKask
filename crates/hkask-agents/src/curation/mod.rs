@@ -1,4 +1,4 @@
-//! Curator — pure regulatory code (Loop 5)
+//! Curation — pure regulatory code (Loop 5)
 //!
 //! observe → evaluate → compose → regulate
 //!

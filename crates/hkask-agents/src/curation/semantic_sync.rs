@@ -26,7 +26,7 @@
 use crate::PodID;
 use crate::PodKind;
 use crate::PodRegistry;
-use crate::curator::SemanticIndex;
+use crate::curation::SemanticIndex;
 use hkask_storage::Database;
 use hkask_types::Visibility;
 use r2d2_sqlite::rusqlite;

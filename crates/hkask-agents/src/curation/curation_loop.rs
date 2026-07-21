@@ -29,7 +29,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
 
-use crate::curator::context::CuratorContext;
+use crate::curation::context::CuratorContext;
 
 const CUR_TARGET: &str = "curation.loop";
 

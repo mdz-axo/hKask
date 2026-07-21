@@ -4,7 +4,7 @@
 //! It holds metacognition, bot metrics, spec curation, and human-facing
 //! reporting — everything that is NOT pure regulatory loop behavior.
 //!
-//! The Curation Loop (`curator::CurationLoop`) is the pure regulatory half:
+//! The Curation Loop (`curation::CurationLoop`) is the pure regulatory half:
 //! sense/compute/act with no persona, no chat, no memory. The Curator Agent
 //! *uses* the Curation Loop through Communication dispatch and receives
 //! `CuratorDirective`s that it formats for human consumption.
@@ -21,8 +21,8 @@
 pub mod cat;
 pub mod metacognition;
 
-use crate::curator::context::CuratorContext;
-use crate::curator::curation_loop::CurationLoop;
+use crate::curation::context::CuratorContext;
+use crate::curation::curation_loop::CurationLoop;
 use crate::pod::CommunicationPosture;
 use hkask_cns::types::loops::CurationInput;
 use hkask_memory::ConsolidationBridge;

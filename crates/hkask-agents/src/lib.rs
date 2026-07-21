@@ -16,7 +16,7 @@
 pub mod a2a; // Loop 6 (Cybernetics: A2A is access control)
 pub mod adapters;
 pub mod consent; // Loop 6
-pub mod curator; // Loop 5
+pub mod curation; // Loop 5
 pub mod curator_agent; // Loop 5
 pub mod error;
 
@@ -37,9 +37,9 @@ pub mod types;
 pub use a2a::{A2AAgent, A2AError, A2AMessage, A2ARuntime};
 
 pub use consent::{ConsentError, ConsentManager};
-pub use curator::context::CuratorContext;
-pub use curator::curation_loop::CurationLoop;
-pub use curator::{CuratorSync, SemanticIndex};
+pub use curation::context::CuratorContext;
+pub use curation::curation_loop::CurationLoop;
+pub use curation::{CuratorSync, SemanticIndex};
 pub use curator_agent::CuratorAgent;
 
 pub use error::{CoreError, MemoryError};

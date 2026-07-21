@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-//! hKask Types — Foundation types for the hKask agent platform
+//! hKask Types — Foundation types for the hKask tool platform
 //!
 
 pub mod agent;

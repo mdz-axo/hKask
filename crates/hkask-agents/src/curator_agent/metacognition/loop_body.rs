@@ -14,7 +14,7 @@ use tokio::sync::RwLock;
 use tracing::{info, warn};
 
 use crate::a2a::A2AMessage;
-use crate::curator::context::CuratorContext;
+use crate::curation::context::CuratorContext;
 use crate::curator_agent::cat;
 use crate::pod::CommunicationPosture;
 

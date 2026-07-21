@@ -10,7 +10,7 @@ use hkask_ports::federation::{
 use hkask_types::Visibility;
 use hkask_types::id::PodID;
 
-use crate::curator::SemanticIndex;
+use crate::curation::SemanticIndex;
 
 /// Adapter that implements FederationSyncPort backed by a SemanticIndex.
 /// Converts ReplicaId (federation) ↔ PodID (intra-server).

@@ -62,36 +62,6 @@ pub async fn token_issue(
     // Set expiry on the token
     token.expires_at = Some(expires_at);
 
-    // Persist to agent registry for listing
-    let def = hkask_types::agent_registry::AgentDefinition {
-        name: replicant.to_string(),
-        charter: None,
-        capabilities,
-        rights: vec![],
-        responsibilities: vec![],
-        depends_on: vec![],
-        persona: None,
-        process_manifest: None,
-        voice_description: None,
-        voice_id: None,
-    };
-    let reg = hkask_types::agent_registry::RegisteredAgent {
-        definition: def,
-        token_hash: hex::encode(token.signature_bytes()),
-        registered_at: hkask_types::time::now_rfc3339(),
-        source_yaml: String::new(),
-    };
-    ctx.storage()
-        .agents
-        .clone()
-        .insert(&reg)
-        .map_err(|e| ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Agent,
-            source: None,
-            message: e.to_string(),
-        })?;
-
     serde_json::to_string_pretty(&token).map_err(|e| ServiceError::Domain {
         kind: ErrorKind::BadRequest,
         domain: DomainKind::Infrastructure,

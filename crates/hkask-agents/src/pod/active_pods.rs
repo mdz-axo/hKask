@@ -8,7 +8,7 @@ use super::context::PodContext;
 use super::deployment::{PodDeployment, PodFactory, PodRegistry};
 use super::types::{PodID, PodKind, PodLifecycleState};
 use crate::a2a::A2ARuntime;
-use crate::curator::SemanticIndex;
+use crate::curation::SemanticIndex;
 use hkask_capability::CapabilityChecker;
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
@@ -322,7 +322,7 @@ impl ActivePods {
         }
 
         let (index, registry) = self.create_curator_pod(&data_dir).await?;
-        let sync = crate::curator::CuratorSync::new(Arc::clone(&index), registry);
+        let sync = crate::curation::CuratorSync::new(Arc::clone(&index), registry);
         tokio::spawn(async move {
             sync.run().await;
         });
@@ -340,12 +340,12 @@ impl ActivePods {
     ) -> Result<
         (
             Arc<std::sync::RwLock<SemanticIndex>>,
-            crate::curator::CuratorSync,
+            crate::curation::CuratorSync,
         ),
         AgentPodError,
     > {
         let (index, registry) = self.create_curator_pod(&data_dir).await?;
-        let sync = crate::curator::CuratorSync::new(Arc::clone(&index), registry);
+        let sync = crate::curation::CuratorSync::new(Arc::clone(&index), registry);
         Ok((index, sync))
     }
 

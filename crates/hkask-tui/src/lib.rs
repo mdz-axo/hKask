@@ -1,4 +1,4 @@
-//! hKask TUI — Terminal UI workspace for the hKask agent platform.
+//! hKask TUI — Terminal UI workspace for the hKask tool platform.
 //!
 //! Provides a multi-window, split-pane terminal interface modelled on
 //! Zed's workspace architecture: a binary tree of splits hosts stateful

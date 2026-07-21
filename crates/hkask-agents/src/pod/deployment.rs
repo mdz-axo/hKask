@@ -31,7 +31,7 @@ use tracing::{debug, info};
 use super::types::{PodID, PodKind};
 use super::{AgentPod, AgentPodError};
 use crate::SovereigntyChecker;
-use crate::curator::SemanticIndex;
+use crate::curation::SemanticIndex;
 use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_templates::TemplateCrateLoader;
 
