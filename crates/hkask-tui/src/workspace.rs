@@ -109,6 +109,100 @@ impl SplitNode {
         }
     }
 
+    fn find_kind(&self, kind: WindowKind) -> Option<WindowId> {
+        match self {
+            SplitNode::Leaf(Some(window)) if window.kind() == kind => Some(window.id()),
+            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Horizontal { left, right, .. } => {
+                left.find_kind(kind).or_else(|| right.find_kind(kind))
+            }
+            SplitNode::Vertical { top, bottom, .. } => {
+                top.find_kind(kind).or_else(|| bottom.find_kind(kind))
+            }
+            _ => None,
+        }
+    }
+
+    fn can_close(&self, target: WindowId) -> Option<bool> {
+        match self {
+            SplitNode::Leaf(Some(window)) if window.id() == target => Some(window.can_close()),
+            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Horizontal { left, right, .. } => {
+                left.can_close(target).or_else(|| right.can_close(target))
+            }
+            SplitNode::Vertical { top, bottom, .. } => {
+                top.can_close(target).or_else(|| bottom.can_close(target))
+            }
+            _ => None,
+        }
+    }
+
+    fn remove(self, target: WindowId) -> (Option<Self>, bool) {
+        match self {
+            SplitNode::Leaf(Some(window)) if window.id() == target => (None, true),
+            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Horizontal { left, right, ratio } => {
+                let (left, removed) = left.remove(target);
+                if removed {
+                    return match left {
+                        Some(left) => (
+                            Some(SplitNode::Horizontal {
+                                left: Box::new(left),
+                                right,
+                                ratio,
+                            }),
+                            true,
+                        ),
+                        None => (Some(*right), true),
+                    };
+                }
+                let left = left.expect("unchanged branch remains present");
+                let (right, removed) = right.remove(target);
+                match right {
+                    Some(right) => (
+                        Some(SplitNode::Horizontal {
+                            left: Box::new(left),
+                            right: Box::new(right),
+                            ratio,
+                        }),
+                        removed,
+                    ),
+                    None => (Some(left), true),
+                }
+            }
+            SplitNode::Vertical { top, bottom, ratio } => {
+                let (top, removed) = top.remove(target);
+                if removed {
+                    return match top {
+                        Some(top) => (
+                            Some(SplitNode::Vertical {
+                                top: Box::new(top),
+                                bottom,
+                                ratio,
+                            }),
+                            true,
+                        ),
+                        None => (Some(*bottom), true),
+                    };
+                }
+                let top = top.expect("unchanged branch remains present");
+                let (bottom, removed) = bottom.remove(target);
+                match bottom {
+                    Some(bottom) => (
+                        Some(SplitNode::Vertical {
+                            top: Box::new(top),
+                            bottom: Box::new(bottom),
+                            ratio,
+                        }),
+                        removed,
+                    ),
+                    None => (Some(top), true),
+                }
+            }
+            leaf => (Some(leaf), false),
+        }
+    }
+
     fn find_leaf_mut(&mut self, target: WindowId) -> Option<&mut Box<dyn Window>> {
         match self {
             SplitNode::Leaf(Some(w)) if w.id() == target => Some(w),
@@ -559,10 +653,7 @@ impl Workspace {
                 true
             }
             (KeyModifiers::CONTROL, Char('w')) => {
-                self.close_tab();
-                if self.is_empty() {
-                    self.should_quit = true;
-                }
+                self.close_focused_window();
                 true
             }
             (modifiers, Char('h'))
@@ -768,6 +859,22 @@ impl Workspace {
         }
     }
 
+    pub fn close_focused_window(&mut self) {
+        let Some(target) = self.focused_window else {
+            return;
+        };
+        if self.window_count() <= 1 || self.root().can_close(target) != Some(true) {
+            return;
+        }
+
+        let root = std::mem::replace(self.root_mut(), SplitNode::Leaf(None));
+        let (root, removed) = root.remove(target);
+        *self.root_mut() = root.expect("closing one of multiple windows preserves a root");
+        if removed {
+            self.focused_window = self.root().window_ids().first().copied();
+        }
+    }
+
     /// Open a new Chat window as a vertical split from the focused window.
     pub fn new_chat_window(&mut self) {
         self.open_window_kind(WindowKind::Chat);
@@ -823,6 +930,19 @@ impl Workspace {
     }
     /// Open a window of the given kind at the currently focused split.
     pub fn open_window_kind(&mut self, kind: WindowKind) {
+        if !kind.allows_multiple() {
+            if let Some((tab_index, window_id)) = self
+                .tabs
+                .iter()
+                .enumerate()
+                .find_map(|(index, tab)| tab.root.find_kind(kind).map(|id| (index, id)))
+            {
+                self.active_tab = tab_index;
+                self.focus_window(window_id);
+                return;
+            }
+        }
+
         let new_id = WindowId(uuid::Uuid::new_v4());
         let new_win = self.create_window_of_kind(kind, new_id);
         let focused = self.focused_window;

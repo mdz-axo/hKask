@@ -12,6 +12,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
 use crate::repl_bridge::ReplBridge;
+use crate::text_cursor;
 use crate::window::{Window, WindowId, WindowKind};
 
 pub struct EditorWindow {
@@ -43,15 +44,13 @@ impl EditorWindow {
     fn insert_char(&mut self, c: char) {
         self.modified = true;
         let line = &mut self.lines[self.cursor_line];
-        line.insert(self.cursor_col, c);
-        self.cursor_col += 1;
+        text_cursor::insert(line, &mut self.cursor_col, c);
     }
 
     fn delete_char(&mut self) {
         if self.cursor_col > 0 {
             self.modified = true;
-            self.lines[self.cursor_line].remove(self.cursor_col - 1);
-            self.cursor_col -= 1;
+            text_cursor::backspace(&mut self.lines[self.cursor_line], &mut self.cursor_col);
         } else if self.cursor_line > 0 {
             self.modified = true;
             let cur = self.cursor_line;
@@ -101,14 +100,14 @@ impl Window for EditorWindow {
             if i == self.cursor_line {
                 // Show cursor on current line
                 let mut spans = vec![line_num];
-                let col = self.cursor_col.min(text.len());
-                spans.push(Span::raw(&text[..col]));
-                if col < text.len() {
+                let (before, at, after) = text_cursor::parts(text, self.cursor_col);
+                spans.push(Span::raw(before));
+                if let Some(at) = at {
                     spans.push(Span::styled(
-                        text[col..col + 1].to_string(),
+                        at.to_string(),
                         Style::default().fg(Color::Black).bg(Color::Cyan),
                     ));
-                    spans.push(Span::raw(&text[col + 1..]));
+                    spans.push(Span::raw(after));
                 } else {
                     spans.push(Span::styled(
                         " ",
@@ -152,7 +151,7 @@ impl Window for EditorWindow {
             KeyCode::Delete => {
                 if self.cursor_col < self.lines[self.cursor_line].len() {
                     self.modified = true;
-                    self.lines[self.cursor_line].remove(self.cursor_col);
+                    text_cursor::delete(&mut self.lines[self.cursor_line], self.cursor_col);
                 } else if self.cursor_line + 1 < self.lines.len() {
                     self.modified = true;
                     let next = self.lines.remove(self.cursor_line + 1);
@@ -163,27 +162,23 @@ impl Window for EditorWindow {
             KeyCode::Up => {
                 if self.cursor_line > 0 {
                     self.cursor_line -= 1;
-                    self.cursor_col = self.cursor_col.min(self.lines[self.cursor_line].len());
+                    text_cursor::clamp(&self.lines[self.cursor_line], &mut self.cursor_col);
                 }
                 true
             }
             KeyCode::Down => {
                 if self.cursor_line + 1 < self.lines.len() {
                     self.cursor_line += 1;
-                    self.cursor_col = self.cursor_col.min(self.lines[self.cursor_line].len());
+                    text_cursor::clamp(&self.lines[self.cursor_line], &mut self.cursor_col);
                 }
                 true
             }
             KeyCode::Left => {
-                if self.cursor_col > 0 {
-                    self.cursor_col -= 1;
-                }
+                text_cursor::move_left(&self.lines[self.cursor_line], &mut self.cursor_col);
                 true
             }
             KeyCode::Right => {
-                if self.cursor_col < self.lines[self.cursor_line].len() {
-                    self.cursor_col += 1;
-                }
+                text_cursor::move_right(&self.lines[self.cursor_line], &mut self.cursor_col);
                 true
             }
             KeyCode::Home => {

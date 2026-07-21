@@ -39,6 +39,13 @@ pub(crate) fn move_right(text: &str, cursor: &mut usize) -> bool {
     true
 }
 
+pub(crate) fn clamp(text: &str, cursor: &mut usize) {
+    *cursor = (*cursor).min(text.len());
+    while !text.is_char_boundary(*cursor) {
+        *cursor -= 1;
+    }
+}
+
 pub(crate) fn parts(text: &str, cursor: usize) -> (&str, Option<char>, &str) {
     debug_assert!(text.is_char_boundary(cursor));
     let before = &text[..cursor];

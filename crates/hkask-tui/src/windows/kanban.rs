@@ -15,6 +15,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 /// Column definitions for the kanban board.
 const COLUMN_STATUSES: &[&str] = &["backlog", "ready", "in_progress", "review", "done"];
@@ -29,6 +30,8 @@ pub struct KanbanWindow {
     chat_state: McpChatState,
     bridge: Arc<dyn ReplBridge>,
     kanban: Option<Arc<dyn KanbanDataBridge>>,
+    columns: [Vec<KanbanTaskSummary>; 5],
+    last_refresh: Option<Instant>,
 
     // Interaction state
     col_idx: usize,
@@ -44,6 +47,8 @@ impl KanbanWindow {
             chat_state: McpChatState::new(),
             bridge,
             kanban: None,
+            columns: std::array::from_fn(|_| Vec::new()),
+            last_refresh: None,
             col_idx: 0,
             row_idx: 0,
             status_message: None,
@@ -55,12 +60,19 @@ impl KanbanWindow {
         self
     }
 
-    /// Get tasks for a column, clamped to visible area height.
-    fn column_tasks(&self, status: &str) -> Vec<KanbanTaskSummary> {
-        self.kanban
-            .as_ref()
-            .map(|kb| kb.tasks_by_status(status, TASKS_PER_COLUMN))
-            .unwrap_or_default()
+    fn refresh_data(&mut self) {
+        let Some(kanban) = self.kanban.as_ref() else {
+            return;
+        };
+        for (index, status) in COLUMN_STATUSES.iter().enumerate() {
+            self.columns[index] = kanban.tasks_by_status(status, TASKS_PER_COLUMN);
+        }
+        self.last_refresh = Some(Instant::now());
+    }
+
+    fn refresh_due(&self) -> bool {
+        self.last_refresh
+            .is_none_or(|last| last.elapsed() >= Duration::from_secs(1))
     }
 
     /// Advance selected task to the next status column.
@@ -70,9 +82,8 @@ impl KanbanWindow {
             None => return,
         };
 
-        let tasks = kb.tasks_by_status(COLUMN_STATUSES[self.col_idx], TASKS_PER_COLUMN);
-        let task = match tasks.get(self.row_idx) {
-            Some(t) => t,
+        let task = match self.columns[self.col_idx].get(self.row_idx).cloned() {
+            Some(task) => task,
             None => return,
         };
 
@@ -96,12 +107,13 @@ impl KanbanWindow {
                     COLUMN_TITLES[target_idx]
                 ));
                 // Adjust row_idx: stay in bounds after removal
-                let new_count = tasks.len().saturating_sub(1);
+                let new_count = self.columns[self.col_idx].len().saturating_sub(1);
                 if self.row_idx >= new_count && new_count > 0 {
                     self.row_idx = new_count - 1;
                 } else if new_count == 0 {
                     self.row_idx = 0;
                 }
+                self.refresh_data();
             }
             Err(e) => {
                 self.status_message = Some(e.to_string());
@@ -160,6 +172,9 @@ impl Window for KanbanWindow {
     fn tick(&mut self) {
         let bridge = self.bridge.clone();
         self.poll_chat_request(bridge.as_ref());
+        if self.refresh_due() {
+            self.refresh_data();
+        }
     }
 }
 
@@ -196,10 +211,7 @@ impl KanbanWindow {
             }
             // Row navigation: j / Down
             Char('j') | Down => {
-                let max = self
-                    .column_tasks(COLUMN_STATUSES[self.col_idx])
-                    .len()
-                    .saturating_sub(1);
+                let max = self.columns[self.col_idx].len().saturating_sub(1);
                 if self.row_idx < max {
                     self.row_idx += 1;
                 }
@@ -216,7 +228,7 @@ impl KanbanWindow {
                 true
             }
             PageDown => {
-                let count = self.column_tasks(COLUMN_STATUSES[self.col_idx]).len();
+                let count = self.columns[self.col_idx].len();
                 self.row_idx = (self.row_idx + 5).min(count.saturating_sub(1));
                 true
             }
@@ -226,7 +238,7 @@ impl KanbanWindow {
                 true
             }
             End => {
-                let count = self.column_tasks(COLUMN_STATUSES[self.col_idx]).len();
+                let count = self.columns[self.col_idx].len();
                 self.row_idx = count.saturating_sub(1);
                 true
             }
@@ -274,7 +286,7 @@ impl KanbanWindow {
     }
 
     fn render_column(&self, f: &mut Frame, area: Rect, col_idx: usize, is_selected: bool) {
-        let tasks = self.column_tasks(COLUMN_STATUSES[col_idx]);
+        let tasks = &self.columns[col_idx];
         let count = tasks.len();
         let status = COLUMN_TITLES[col_idx];
 
@@ -337,8 +349,8 @@ impl KanbanWindow {
 
         let mut title = task.title.clone();
         // Truncate to fit column width (approx 25 chars for 1/5 of 120-char terminal)
-        if title.len() > 30 {
-            title.truncate(27);
+        if title.chars().count() > 30 {
+            title = title.chars().take(27).collect();
             title.push('…');
         }
 
@@ -382,8 +394,7 @@ impl KanbanWindow {
         let detail = if let Some(ref msg) = self.status_message {
             Span::styled(msg.clone(), Style::default().fg(Color::Yellow))
         } else {
-            let tasks = self.column_tasks(COLUMN_STATUSES[self.col_idx]);
-            match tasks.get(self.row_idx) {
+            match self.columns[self.col_idx].get(self.row_idx) {
                 Some(task) => {
                     let id_short = &task.id[..task.id.len().min(8)];
                     let assignee = task.assignee.as_deref().unwrap_or("unassigned");

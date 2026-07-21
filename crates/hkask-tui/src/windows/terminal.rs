@@ -19,6 +19,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 use crate::repl_bridge::ReplBridge;
+use crate::text_cursor;
 use crate::window::{Window, WindowId, WindowKind};
 
 pub struct TerminalWindow {
@@ -40,11 +41,24 @@ pub struct TerminalWindow {
 
 impl TerminalWindow {
     pub fn new(id: WindowId, bridge: Arc<dyn ReplBridge>) -> Self {
-        let output = Arc::new(Mutex::new(vec![
-            "Terminal ready — PTY shell active.".into(),
-        ]));
+        let output = Arc::new(Mutex::new(Vec::new()));
         let (tx, rx) = mpsc::channel();
-        let (master, writer) = spawn_shell(output.clone(), tx);
+        let (master, pty_writer) = match spawn_shell(output.clone(), tx) {
+            Ok((master, writer)) => {
+                output
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push("Terminal ready — PTY shell active.".into());
+                (Some(master), Some(writer))
+            }
+            Err(error) => {
+                output
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .push(format!("Terminal unavailable: {error}"));
+                (None, None)
+            }
+        };
         Self {
             id,
             bridge,
@@ -53,8 +67,8 @@ impl TerminalWindow {
             output,
             output_rx: rx,
             scroll_offset: 0,
-            master: Some(master),
-            pty_writer: Some(writer),
+            master,
+            pty_writer,
             pending_cols: Cell::new(80),
             pending_rows: Cell::new(24),
             last_cols: Cell::new(80),
@@ -98,25 +112,27 @@ fn shell_command() -> CommandBuilder {
 fn spawn_shell(
     output: Arc<Mutex<Vec<String>>>,
     tx: Sender<String>,
-) -> (Box<dyn MasterPty>, Box<dyn std::io::Write + Send>) {
-    let pty_system = portable_pty::native_pty_system();
-    let pair = pty_system
-        .openpty(PtySize {
-            rows: 24,
-            cols: 80,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .expect("failed to open PTY");
+) -> anyhow::Result<(Box<dyn MasterPty>, Box<dyn std::io::Write + Send>)> {
+    spawn_command(shell_command(), output, tx)
+}
 
-    let cmd = shell_command();
-    let _child = pair
-        .slave
-        .spawn_command(cmd)
-        .expect("failed to spawn shell");
+fn spawn_command(
+    cmd: CommandBuilder,
+    output: Arc<Mutex<Vec<String>>>,
+    tx: Sender<String>,
+) -> anyhow::Result<(Box<dyn MasterPty>, Box<dyn std::io::Write + Send>)> {
+    let pty_system = portable_pty::native_pty_system();
+    let pair = pty_system.openpty(PtySize {
+        rows: 24,
+        cols: 80,
+        pixel_width: 0,
+        pixel_height: 0,
+    })?;
+
+    let _child = pair.slave.spawn_command(cmd)?;
     drop(pair.slave);
 
-    let mut reader = pair.master.try_clone_reader().expect("clone reader");
+    let mut reader = pair.master.try_clone_reader()?;
     thread::spawn(move || {
         let mut buf = [0u8; 4096];
         loop {
@@ -140,8 +156,21 @@ fn spawn_shell(
     });
 
     let master = pair.master;
-    let writer: Box<dyn std::io::Write + Send> = Box::new(master.take_writer().unwrap());
-    (master, writer)
+    let writer: Box<dyn std::io::Write + Send> = Box::new(master.take_writer()?);
+    Ok((master, writer))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_shell_returns_error_instead_of_panicking() {
+        let output = Arc::new(Mutex::new(Vec::new()));
+        let (tx, _rx) = mpsc::channel();
+        let command = CommandBuilder::new("/hkask/does/not/exist");
+        assert!(spawn_command(command, output, tx).is_err());
+    }
 }
 
 impl Window for TerminalWindow {
@@ -207,17 +236,15 @@ impl Window for TerminalWindow {
             Style::default().fg(Color::Gray)
         };
         if is_focused && !self.input.is_empty() {
-            let cp = self.cursor_pos.min(self.input.len());
-            let before = &self.input[..cp];
+            let (before, at, after) = text_cursor::parts(&self.input, self.cursor_pos);
             spans.push(Span::styled(before.to_string(), input_style));
-            if cp < self.input.len() {
-                let at = self.input.chars().nth(cp).unwrap_or(' ');
+            if let Some(at) = at {
                 spans.push(Span::styled(
                     at.to_string(),
                     Style::default().fg(Color::Black).bg(Color::Green),
                 ));
-                if cp + 1 < self.input.len() {
-                    spans.push(Span::styled(self.input[cp + 1..].to_string(), input_style));
+                if !after.is_empty() {
+                    spans.push(Span::styled(after.to_string(), input_style));
                 }
             } else {
                 spans.push(Span::styled(
@@ -263,29 +290,24 @@ impl Window for TerminalWindow {
                         _ => return false,
                     }
                 }
-                self.input.insert(self.cursor_pos, c);
-                self.cursor_pos += 1;
+                text_cursor::insert(&mut self.input, &mut self.cursor_pos, c);
                 self.send_input(&c.to_string());
                 true
             }
             KeyCode::Backspace => {
-                if self.cursor_pos > 0 {
-                    self.cursor_pos -= 1;
-                    self.input.remove(self.cursor_pos);
+                if text_cursor::backspace(&mut self.input, &mut self.cursor_pos) {
                     self.send_input("\x08");
                 }
                 true
             }
             KeyCode::Left => {
-                if self.cursor_pos > 0 {
-                    self.cursor_pos -= 1;
+                if text_cursor::move_left(&self.input, &mut self.cursor_pos) {
                     self.send_input("\x1b[D");
                 }
                 true
             }
             KeyCode::Right => {
-                if self.cursor_pos < self.input.len() {
-                    self.cursor_pos += 1;
+                if text_cursor::move_right(&self.input, &mut self.cursor_pos) {
                     self.send_input("\x1b[C");
                 }
                 true
@@ -318,8 +340,7 @@ impl Window for TerminalWindow {
             }
             KeyCode::Tab => {
                 self.send_input("\t");
-                self.input.insert(self.cursor_pos, '\t');
-                self.cursor_pos += 1;
+                text_cursor::insert(&mut self.input, &mut self.cursor_pos, '\t');
                 true
             }
             KeyCode::Esc => {

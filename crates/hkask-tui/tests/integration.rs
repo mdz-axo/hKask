@@ -491,6 +491,38 @@ fn editor_text_operations() {
     render_smoke(&w, 80, 24);
 }
 
+#[test]
+fn text_windows_handle_multibyte_cursor_operations() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let keys = [
+        KeyCode::Char('é'),
+        KeyCode::Char('界'),
+        KeyCode::Left,
+        KeyCode::Delete,
+        KeyCode::Backspace,
+    ];
+    let b = bridge();
+    let mut chat = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), b.clone());
+    let mut curator = CuratorWindow::new(window_id(), b.clone());
+    let mut terminal = TerminalWindow::new(window_id(), b.clone());
+    let mut editor = EditorWindow::new(window_id(), b);
+
+    for key in keys {
+        let event = KeyEvent::new(key, KeyModifiers::NONE);
+        chat.handle_key(event);
+        curator.handle_key(event);
+        terminal.handle_key(event);
+        editor.handle_key(event);
+    }
+    editor.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    render_smoke(&chat, 80, 24);
+    render_smoke(&curator, 80, 24);
+    render_smoke(&terminal, 80, 24);
+    render_smoke(&editor, 80, 24);
+}
+
 // ────────────────────────────────────────────────────────────────
 // Domain bridge tests — memory, kanban, registry with mock data
 // ────────────────────────────────────────────────────────────────
@@ -512,11 +544,22 @@ fn memory_empty_shows_placeholder() {
 }
 
 #[test]
-fn kanban_shows_live_data_with_bridge() {
+fn kanban_refreshes_outside_render() {
     use hkask_tui::bridges::kanban::MockKanbanBridge;
-    let w = KanbanWindow::new(window_id(), bridge())
-        .with_kanban_bridge(MockKanbanBridge::with_sample_data().arc());
-    render_smoke(&w, 80, 24);
+
+    let kanban = MockKanbanBridge::with_sample_data().arc();
+    let mut window = KanbanWindow::new(window_id(), bridge()).with_kanban_bridge(kanban.clone());
+
+    render_smoke(&window, 120, 30);
+    render_smoke(&window, 120, 30);
+    assert_eq!(kanban.query_count(), 0, "render must not query services");
+
+    window.tick();
+    assert_eq!(kanban.query_count(), 5, "one refresh fetches five columns");
+    let text = render_snapshot(&window, 120, 30).join("\n");
+    assert!(text.contains("Implement wallet TUI bridge"));
+    render_smoke(&window, 120, 30);
+    assert_eq!(kanban.query_count(), 5, "render reads the cached snapshot");
 }
 
 #[test]
@@ -1318,6 +1361,44 @@ fn workspace_command_palette_opens_and_closes() {
     // Dismiss with Esc
     ws.handle_palette_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     assert!(!ws.palette_open);
+}
+
+#[test]
+fn workspace_enforces_singleton_window_kinds() {
+    let mut workspace = {
+        let (system, repl) = bridges();
+        Workspace::new_test(system, repl)
+    };
+
+    workspace.open_window_kind(WindowKind::Configuration);
+    assert_eq!(workspace.window_count(), 2);
+    let first = workspace.focused_window();
+    workspace.open_window_kind(WindowKind::Configuration);
+    assert_eq!(workspace.window_count(), 2);
+    assert_eq!(workspace.focused_window(), first);
+}
+
+#[test]
+fn workspace_ctrl_w_closes_focused_window_but_not_logo() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let mut workspace = {
+        let (system, repl) = bridges();
+        Workspace::new_test(system, repl)
+    };
+    workspace.open_window_kind(WindowKind::Configuration);
+    assert_eq!(workspace.window_count(), 2);
+    workspace.handle_global_key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL));
+    assert_eq!(workspace.window_count(), 1);
+
+    workspace.open_window_kind(WindowKind::Logo);
+    assert_eq!(workspace.window_count(), 2);
+    workspace.handle_global_key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL));
+    assert_eq!(
+        workspace.window_count(),
+        2,
+        "persistent Logo must remain open"
+    );
 }
 
 #[test]

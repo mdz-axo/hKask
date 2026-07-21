@@ -3,6 +3,7 @@
 //! Provides the Kanban window with live board data. Implemented by
 //! the CLI via kanban service.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// Summary of a task for TUI display.
@@ -65,6 +66,7 @@ pub struct MockKanbanBridge {
     in_progress_tasks: Mutex<Vec<KanbanTaskSummary>>,
     review_tasks: Mutex<Vec<KanbanTaskSummary>>,
     done_tasks: Mutex<Vec<KanbanTaskSummary>>,
+    query_count: AtomicUsize,
 }
 
 impl MockKanbanBridge {
@@ -87,6 +89,7 @@ impl MockKanbanBridge {
             done_tasks: Mutex::new(Vec::new()),
             ready_tasks: Mutex::new(Vec::new()),
             review_tasks: Mutex::new(Vec::new()),
+            query_count: AtomicUsize::new(0),
         }
     }
 
@@ -167,7 +170,12 @@ impl MockKanbanBridge {
                     labels: vec!["tui".into(), "testing".into()],
                 },
             ]),
+            query_count: AtomicUsize::new(0),
         }
+    }
+
+    pub fn query_count(&self) -> usize {
+        self.query_count.load(Ordering::Relaxed)
     }
 
     pub fn arc(self) -> Arc<Self> {
@@ -193,6 +201,7 @@ impl KanbanDataBridge for MockKanbanBridge {
     }
 
     fn tasks_by_status(&self, status: &str, _limit: usize) -> Vec<KanbanTaskSummary> {
+        self.query_count.fetch_add(1, Ordering::Relaxed);
         self.task_vec(status)
             .lock()
             .unwrap_or_else(|e| e.into_inner())
