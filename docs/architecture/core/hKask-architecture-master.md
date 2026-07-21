@@ -199,7 +199,7 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 - **Separated key responsibilities.** OCAP capability signing uses the system/A2A signing authorities. SQLCipher databases consistently use `HKASK_DB_PASSPHRASE`, resolved through `hkask-keystore`; database encryption keys are not derived from WebIDs.
 - **Mode mutual exclusion (initial).** Chat OR Server, not both. Safety boundary: prevents context leakage between human dialogue and tool serving (P11).
 - **Server mode flow.** 4 gates: `kask login → pod assign → pod mode server → IDE spawns MCP binary → daemon auth → assignment → capability → serve`.
-- **Canonical agent registry schema.** Agent definitions are parsed from YAML into `hkask_types::agent_registry::AgentDefinition` and persisted verbatim by storage. `rights`/`responsibilities` are tagged enums (e.g., `read`, `write`, `perform`, `emit`); flat legacy records are not accepted.
+:** Agent definitions are written as `persona_yaml` on the `userpod_identities` table during onboarding. The YAML includes capabilities, charter description, and directory declarations.
 - **Dual memory encoding.** Every tool call → `record_experience()` → daemon `store_experience` → episodic (private) + semantic (public). Every 10 experiences → `generate_narrative()`.
 - **No cross-agent memory access.** `EpisodicMemory::query_for_deduped` filters by `perspective == Some(agent_webid)`. Semantic memory is public. P11: right to choose public/private extends to agents.
 - **Default is private — sovereignty fails closed.** `Visibility::Private` default. `ConsentManager` requires explicit affirmative consent for visibility transitions.
@@ -295,7 +295,7 @@ public/private directory declarations, and persona constraints.
 
 **Creation paths:**
 - **Onboarding (`register_userpod`):** Writes the full YAML during `kask chat` first run.
-  Stored as `source_yaml` in the `agent_registry` SQL table so the REPL can load
+  Stored as `persona_yaml` on the `userpod_identities` table so the REPL can load
   `persona_constraints` and `process_manifest` without re-reading from disk.
 - **CLI registration (`agent_register`):** Writes YAML from WebID, agent type, and
   capabilities passed at the command line.
@@ -326,9 +326,9 @@ private_dirs:
 ```
 
 **Loading order (REPL init, `/agent` command):**
-1. Query `agent_registry.source_yaml` → `parse_agent_from_yaml()`
-2. Fallback: read `agents/{name}/agent.yaml` from disk
-3. If neither succeeds, agent runs without persona constraints or process manifest
+1. Read `userpod_identities.persona_yaml` from the UserStore
+2. Fallback: read `userpods/{name}/agent.yaml` from disk
+3. If neither succeeds, userpod runs without persona constraints or process manifest
 
 This two-source approach ensures backward compatibility with pre-fix agents
 (where `source_yaml` was a placeholder string) while maintaining filesystem
@@ -4235,11 +4235,12 @@ pub trait FederationSyncPort: Send + Sync {
 }
 
 pub trait FederationRegistryPort: Send + Sync {
-    fn resolve_user(&self, webid: &WebID) -> Option<UserProfile>;
-    fn resolve_agent(&self, webid: &WebID) -> Option<AgentInfo>;
-    fn list_local_users(&self) -> Vec<UserProfile>;
-    fn list_local_agents(&self) -> Vec<AgentInfo>;
-}
+    :FederationRegistryPort: Send + Sync {
+        fn resolve_user(&self, webid: &WebID) -> Option<UserPod>;
+        fn resolve_agent(&self, webid: &WebID) -> Option<AgentInfo>;
+        fn list_local_users(&self) -> Vec<UserPod>;
+        fn list_local_agents(&self) -> Vec<AgentInfo>;
+    }
 
 pub trait FederationTransport: Send + Sync {
     async fn send(&self, peer: ReplicaId, message: FederationMessage) -> Result<(), TransportError>;
@@ -4463,7 +4464,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 # Storage Schema ERD
 
-Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/CNS** (nu_events, cns_alerts, cns_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (agent_registry, specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
+Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/CNS** (nu_events, cns_alerts, cns_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
 
 ```mermaid
 erDiagram
@@ -4757,38 +4758,6 @@ erDiagram
         INTEGER repaired
     }
 
-    agent_registry {
-        TEXT name PK
-        TEXT agent_kind
-        TEXT definition_json
-        TEXT token_hash
-        TEXT registered_at
-        TEXT source_yaml
-    }
-
-    user_profile {
-        INTEGER id PK
-        TEXT profile_json
-    }
-
-    contacts {
-        INTEGER id PK
-        TEXT agent_name
-        TEXT contact_name
-        TEXT relationship
-        TEXT notes
-    }
-
-    scheduled_tasks {
-        INTEGER id PK
-        TEXT agent_name
-        TEXT trigger_expr
-        TEXT action
-        TEXT params
-        TEXT next_run
-        INTEGER enabled
-    }
-
     specs {
         TEXT id PK
         TEXT name
@@ -4897,7 +4866,6 @@ erDiagram
 | `user_sessions` | `idx_user_sessions_expiry` | `expires_at` | Expired session cleanup |
 | `invites` | `idx_invites_code` | `code` | Invite code lookup |
 | `invites` | `idx_invites_created_by` | `created_by` | Invites by creator |
-| `agent_registry` | `idx_agent_registry_kind` | `agent_kind` | Filter by agent kind |
 | `contacts` | `idx_contacts_agent` | `agent_name` | Agent contact lookup |
 | `scheduled_tasks` | `idx_scheduled_agent` | `agent_name` | Agent task lookup |
 | `embeddings` | `idx_embeddings_entity_ref` | `entity_ref` | Embedding lookup by entity |
@@ -4931,7 +4899,6 @@ erDiagram
 This diagram models the storage layer for all [MDS Core Entities](MDS.md#11-core-entities):
 - **`HumanUser`** → `human_users` table
 - **`Replicant`** → `userpod_identities` table
-- **`AgentDefinition` / `RegisteredAgent`** → `agent_registry` table
 - **`Wallet`** → `wallet_balances`, `wallet_transactions`, `encumbrances`, `deposit_addresses`, `deposit_references`
 - **`ApiKey`** → `api_keys` table
 - **`hMem`** → `triples` table
@@ -4996,15 +4963,6 @@ erDiagram
         INTEGER expires_at
         INTEGER accepted_at
         TEXT accepted_user_id FK
-    }
-
-    agent_registry {
-        TEXT name PK
-        TEXT agent_kind
-        TEXT definition_json
-        TEXT token_hash
-        TEXT registered_at
-        TEXT source_yaml
     }
 
     nu_events {
@@ -5250,7 +5208,6 @@ status: VERIFIED
 | `audit_log` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `cns_variety_checkpoint` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `cns_alerts` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `agent_registry` | `hkask-storage` | `src/agent_registry.rs` |
 | `goals` | `hkask-storage` | `src/goals.rs` |
 | `goal_criteria` | `hkask-storage` | `src/sql/schema.sql` |
 | `goal_artifacts` | `hkask-storage` | `src/sql/schema.sql` |

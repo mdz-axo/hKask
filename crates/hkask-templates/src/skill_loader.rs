@@ -18,8 +18,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing;
 
+use crate::ports::{FsSkillReader, Result, SkillReader, TemplateError};
+
 /// Parsed SKILL.md front matter.
+///
+/// Uses `deny_unknown_fields` to catch typos (e.g. `visibilty` instead of
+/// `visibility`) at parse time rather than silently dropping them.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SkillFrontMatter {
     #[serde(default)]
     pub name: String,
@@ -59,10 +65,14 @@ pub struct SkillLoadResult {
 pub struct SkillLoader {
     /// Root directory for skill discovery (typically the project root).
     project_root: PathBuf,
+    /// Injected filesystem reader (purity seam). Production uses
+    /// `FsSkillReader`; tests inject a mock. Defaults to `FsSkillReader`.
+    reader: Box<dyn SkillReader>,
 }
 
 impl SkillLoader {
-    /// Create a new skill loader rooted at `project_root`.
+    /// Create a new skill loader rooted at `project_root` with the production
+    /// filesystem reader.
     ///
     /// expect: "The system loads skills into the template registry"
     /// \[P3\] Motivating: Generative Space — loader for skill registry entries
@@ -71,6 +81,20 @@ impl SkillLoader {
     pub fn new(project_root: impl Into<PathBuf>) -> Self {
         Self {
             project_root: project_root.into(),
+            reader: Box::new(FsSkillReader),
+        }
+    }
+
+    /// Create a new skill loader with an injected reader (test seam).
+    ///
+    /// expect: "The system loads skills into the template registry"
+    /// \[P3\] Motivating: Generative Space — testable loader with injected I/O
+    /// pre:  project_root is a valid directory path, reader implements SkillReader
+    /// post: returns SkillLoader configured for the given root and reader
+    pub fn with_reader(project_root: impl Into<PathBuf>, reader: Box<dyn SkillReader>) -> Self {
+        Self {
+            project_root: project_root.into(),
+            reader,
         }
     }
 
@@ -152,12 +176,18 @@ impl SkillLoader {
 
     /// Discover skill directories within a zone directory.
     /// A skill directory is any directory containing a `SKILL.md` file.
-    fn discover_skills(zone_dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+    fn discover_skills(zone_dir: &Path) -> Result<Vec<PathBuf>> {
         let mut skill_dirs = Vec::new();
-        let entries = fs::read_dir(zone_dir).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let entries = fs::read_dir(zone_dir).map_err(|e| TemplateError::SkillLoad {
+            path: zone_dir.display().to_string(),
+            source: e,
+        })?;
 
         for entry in entries {
-            let entry = entry.map_err(|e| anyhow::anyhow!("{e}"))?;
+            let entry = entry.map_err(|e| TemplateError::SkillLoad {
+                path: zone_dir.display().to_string(),
+                source: e,
+            })?;
             let path = entry.path();
             if path.is_dir() && path.join("SKILL.md").exists() {
                 skill_dirs.push(path);
@@ -169,10 +199,15 @@ impl SkillLoader {
     }
 
     /// Load a single skill from its directory.
-    fn load_skill(&self, skill_dir: &Path, zone: SkillZone) -> anyhow::Result<Skill> {
+    fn load_skill(&self, skill_dir: &Path, zone: SkillZone) -> Result<Skill> {
         let skill_md_path = skill_dir.join("SKILL.md");
-        let content = fs::read_to_string(&skill_md_path)
-            .map_err(|e| anyhow::anyhow!("read {}: {}", skill_md_path.display(), e))?;
+        let content =
+            self.reader
+                .read_to_string(&skill_md_path)
+                .map_err(|e| TemplateError::SkillLoad {
+                    path: skill_md_path.display().to_string(),
+                    source: e,
+                })?;
 
         let front_matter = Self::parse_front_matter(&content)?;
 
@@ -220,7 +255,7 @@ impl SkillLoader {
             .join(&id)
             .join("manifest.yaml");
         let (registry_present, template_count, broken_paths) =
-            Self::validate_registry_integrity(&registry_manifest);
+            self.validate_registry_integrity(&registry_manifest);
         tracing::info!(
             target: "cns.skill",
             operation = "registry_validated",
@@ -264,14 +299,41 @@ impl SkillLoader {
             .join(id)
             .join("manifest.yaml");
 
-        let content = match fs::read_to_string(&registry_manifest) {
+        // F-03 fix: distinguish "file not found" (legitimate — Zed-only skill,
+        // default to KnowAct) from "file present but unparseable" (error — a
+        // malformed manifest.yaml is a real defect, not a default case).
+        let content = match self.reader.read_to_string(&registry_manifest) {
             Ok(c) => c,
-            Err(_) => return TemplateType::KnowAct,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // Legitimate: no registry layer for this skill (Zed-only).
+                return TemplateType::KnowAct;
+            }
+            Err(_) => {
+                // File exists but unreadable — emit a CNS span and default.
+                // (Non-blocking: the skill still loads, but the drift is visible.)
+                tracing::warn!(
+                    target: "cns.skill",
+                    operation = "manifest_unreadable",
+                    skill_id = %id,
+                    "registry manifest exists but is unreadable — defaulting to KnowAct"
+                );
+                return TemplateType::KnowAct;
+            }
         };
 
         let manifest: SkillManifest = match serde_yaml_neo::from_str(&content) {
             Ok(m) => m,
-            Err(_) => return TemplateType::KnowAct,
+            Err(e) => {
+                // F-03: malformed manifest is a real error, not a silent default.
+                tracing::warn!(
+                    target: "cns.skill",
+                    operation = "manifest_unparseable",
+                    skill_id = %id,
+                    error = %e,
+                    "registry manifest.yaml is malformed — defaulting to KnowAct"
+                );
+                return TemplateType::KnowAct;
+            }
         };
 
         let mut has_flowdef = false;
@@ -301,8 +363,8 @@ impl SkillLoader {
     ///
     /// Returns (registry_present, template_count, broken_paths).
     /// Non-blocking — records drift for skill-maintenance to audit via CNS.
-    fn validate_registry_integrity(manifest_path: &Path) -> (bool, usize, Vec<String>) {
-        let content = match fs::read_to_string(manifest_path) {
+    fn validate_registry_integrity(&self, manifest_path: &Path) -> (bool, usize, Vec<String>) {
+        let content = match self.reader.read_to_string(manifest_path) {
             Ok(c) => c,
             Err(_) => return (false, 0, Vec::new()),
         };
@@ -332,27 +394,37 @@ impl SkillLoader {
     /// \[P3\] Motivating: Generative Space — parses skill front matter metadata
     /// pre:  content is a valid SKILL.md file content
     /// post: returns SkillFrontMatter parsed from YAML front matter
-    /// post: returns default SkillFrontMatter if no front matter present
-    pub fn parse_front_matter(content: &str) -> anyhow::Result<SkillFrontMatter> {
+    /// post: returns Err(TemplateError::Frontmatter) if front matter is missing or malformed
+    ///       (F-02 fix: silent default-on-missing was a defect — a SKILL.md with no
+    ///       frontmatter would silently register with an empty name. Now it errors.)
+    pub fn parse_front_matter(content: &str) -> Result<SkillFrontMatter> {
         let content = content.trim_start();
 
         if !content.starts_with("---") {
-            // No front matter — return default with empty name.
-            return Ok(SkillFrontMatter::default());
+            // F-02: missing frontmatter is now an error, not a silent default.
+            // A SKILL.md without frontmatter cannot be registered — the name and
+            // description fields are required for the registry to function.
+            return Err(TemplateError::Frontmatter {
+                detail: "no YAML frontmatter — SKILL.md opens with `---`".to_string(),
+            });
         }
 
         // Find the closing `---`.
         let after_first = &content[3..];
         let rest = after_first.trim_start_matches(['-', '\n', '\r']);
 
-        let end_marker = rest.find("\n---").ok_or_else(|| {
-            anyhow::anyhow!("SKILL.md front matter: opening `---` found but no closing `---`")
-        })?;
+        let end_marker = rest
+            .find("\n---")
+            .ok_or_else(|| TemplateError::Frontmatter {
+                detail: "opening `---` found but no closing `---`".to_string(),
+            })?;
 
         let yaml_str = &rest[..end_marker];
 
         let fm: HashMap<String, serde_yaml_neo::Value> = serde_yaml_neo::from_str(yaml_str)
-            .map_err(|e| anyhow::anyhow!("SKILL.md YAML parse error: {}", e))?;
+            .map_err(|e| TemplateError::Frontmatter {
+                detail: format!("YAML parse error: {e}"),
+            })?;
 
         let as_string = |key: &str| fm.get(key).and_then(|v| v.as_str()).map(|s| s.to_string());
 

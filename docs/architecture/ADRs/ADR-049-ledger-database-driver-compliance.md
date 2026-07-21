@@ -30,7 +30,7 @@ The ledger has been refactored to depend on `hkask_database::DatabaseDriver` (20
 
 ## Context
 
-ADR-043 established the `DatabaseDriver` abstraction to decouple storage from SQLite/SQLCipher. The mandate: "All stores construct via `from_driver(driver)`." Every store in `hkask-storage` complies — `HMemStore`, `EmbeddingStore`, `WalletStore`, `AgentRegistryStore`, etc.
+ADR-043 established the `DatabaseDriver` abstraction to decouple storage from SQLite/SQLCipher. The mandate: "All stores construct via `from_driver(driver)`." Every store in `hkask-storage` complies — `HMemStore`, `EmbeddingStore`, `WalletStore`, etc.
 
 The `hkask-ledger` crate does **not** comply. It uses raw `rusqlite::Connection` directly:
 

@@ -659,7 +659,7 @@ flowchart TD
 
     subgraph PhaseD["Phase D: Registry + Wallet"]
         Daemon --> RegStore[SqliteRegistry on primary DB]
-        RegStore --> AgtStore[AgentRegistryStore + schema]
+        RegStore --> AgtStore[UserStore + schema]
         AgtStore --> A2ARestore[Restore A2A agents from store]
         A2ARestore --> WalletSvc[WalletService per-agent wallet]
         WalletSvc --> DepositM[Bg: deposit monitor]
@@ -701,7 +701,7 @@ flowchart TD
 - `crates/hkask-services-context/src/context_impl/build/foundation.rs:168–292` — `build_foundation()` — DB open, 7 stores, CNS runtime, seam watcher
 - `crates/hkask-services-context/src/context_impl/build/loops.rs:324–530` — `build_loops()` — LoopSystem, CyberneticsLoop, Inference, Memory, Curator, Federation
 - `crates/hkask-services-context/src/context_impl/build/mcp_pods.rs:547–712` — `build_mcp_and_pods()` — GovernedTool, McpDispatcher, CapabilityChecker, ActivePods, CuratorPod, DaemonListener
-- `crates/hkask-services-context/src/context_impl/build/reg_wallet.rs:744–820` — `build_registry_and_wallet()` — SqliteRegistry, AgentRegistryStore, A2A restore, WalletService
+- `crates/hkask-services-context/src/context_impl/build/reg_wallet.rs:744–820` — `build_registry_and_wallet()` — SqliteRegistry, A2A restore, WalletService
 - `crates/hkask-services-context/src/context_impl/build/mod.rs:95–146` — `into_service()` — AgentServiceWiring → AgentService
 - `crates/hkask-api/src/lib.rs:102–155` — `ApiState::with_defaults()` + `from_service_context()`
 - `crates/hkask-api/src/lib.rs:201–279` — `create_router()` — axum router + middleware layers

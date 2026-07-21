@@ -15,6 +15,8 @@ use hkask_types::Visibility;
 use serde::Deserialize;
 use tracing::info;
 
+use crate::ports::ManifestResolveError;
+
 /// Wrapper struct for deserializing YAML manifest files.
 ///
 /// YAML manifest files have this structure:
@@ -178,22 +180,28 @@ pub fn load_manifest_from_yaml(yaml: &str) -> Result<BundleManifest, ManifestLoa
 /// - A file path (contains '/' or '.'): loaded from disk
 /// - A manifest ID: looked up from the registry
 ///
-/// Returns `None` if the manifest cannot be found or loaded (logs a warning).
+/// # Errors
+///
+/// Returns `ManifestResolveError::NotFound` if the reference matches no
+/// registry entry and no file path. Returns `ManifestResolveError::LoadFailed`
+/// if a file path matches but the manifest fails to load. Returns
+/// `ManifestResolveError::NotASkill` if the manifest loads but is not a
+/// `skill` category.
 ///
 /// expect: "The system resolves and executes template manifest cascades"
 /// \[P3\] Motivating: Generative Space — resolves template manifest references
 /// \[P8\] Constraining: Semantic Grounding — manifest terms validated against lexicon
 /// pre:  reference is non-empty, registry is initialized
-/// post: returns Some(BundleManifest) if found via registry or file path
-/// post: returns None if not found (graceful degradation)
+/// post: returns Ok(BundleManifest) if found via registry or file path
+/// post: returns Err(ManifestResolveError) with typed failure mode
 pub fn resolve_manifest(
     reference: &str,
     registry: &dyn crate::BundleRegistryIndex,
-) -> Option<BundleManifest> {
+) -> std::result::Result<BundleManifest, ManifestResolveError> {
     // Try as a registry ID first
     if let Some(bundle) = registry.get_bundle(reference) {
         if bundle.is_skill() {
-            return Some(bundle);
+            return Ok(bundle);
         }
         tracing::warn!(
             target: "hkask.manifest_loader",
@@ -204,7 +212,10 @@ pub fn resolve_manifest(
              only `skill` manifests may bind as agent process_manifests",
             bundle.category
         );
-        return None;
+        return Err(ManifestResolveError::NotASkill {
+            reference: reference.to_owned(),
+            category: format!("{:?}", bundle.category),
+        });
     }
 
     // Try as a file path
@@ -222,7 +233,10 @@ pub fn resolve_manifest(
                          only `skill` manifests may bind as agent process_manifests",
                         manifest.category
                     );
-                    return None;
+                    return Err(ManifestResolveError::NotASkill {
+                        reference: reference.to_owned(),
+                        category: format!("{:?}", manifest.category),
+                    });
                 }
                 info!(
                     target: "hkask.manifest_loader",
@@ -230,7 +244,7 @@ pub fn resolve_manifest(
                     path = reference,
                     "Loaded manifest from file"
                 );
-                return Some(manifest);
+                return Ok(manifest);
             }
             Err(e) => {
                 tracing::warn!(
@@ -239,6 +253,10 @@ pub fn resolve_manifest(
                     error = %e,
                     "Failed to load manifest from file"
                 );
+                return Err(ManifestResolveError::LoadFailed {
+                    reference: reference.to_owned(),
+                    source: e,
+                });
             }
         }
     }
@@ -258,7 +276,10 @@ pub fn resolve_manifest(
                          only `skill` manifests may bind as agent process_manifests",
                         manifest.category
                     );
-                    return None;
+                    return Err(ManifestResolveError::NotASkill {
+                        reference: reference.to_owned(),
+                        category: format!("{:?}", manifest.category),
+                    });
                 }
                 info!(
                     target: "hkask.manifest_loader",
@@ -266,7 +287,7 @@ pub fn resolve_manifest(
                     path = reference,
                     "Loaded manifest from relative path"
                 );
-                return Some(manifest);
+                return Ok(manifest);
             }
             Err(e) => {
                 tracing::warn!(
@@ -275,6 +296,10 @@ pub fn resolve_manifest(
                     error = %e,
                     "Failed to load manifest from relative path"
                 );
+                return Err(ManifestResolveError::LoadFailed {
+                    reference: reference.to_owned(),
+                    source: e,
+                });
             }
         }
     }
@@ -284,7 +309,9 @@ pub fn resolve_manifest(
         reference = reference,
         "Manifest not found in registry or filesystem"
     );
-    None
+    Err(ManifestResolveError::NotFound {
+        reference: reference.to_owned(),
+    })
 }
 
 /// Errors that can occur when loading a manifest from YAML.

@@ -31,7 +31,9 @@ pub use hkask_ports::SkillZone;
 pub use hkask_types::SkillPolarity;
 
 pub use manifest_loader::{ManifestLoadError, load_manifest_from_yaml, resolve_manifest};
-pub use ports::{Result, TemplateError};
+pub use ports::{
+    FsSkillReader, ManifestResolveError, Result, SkillFinding, SkillReader, TemplateError,
+};
 pub use prompt_strategy::PromptStrategy;
 
 pub use registry::Registry;
