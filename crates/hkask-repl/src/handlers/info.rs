@@ -3,6 +3,12 @@
 use hkask_services_chat::MemoryService;
 
 pub fn handle_history(state: &super::super::ReplState) {
+    println!("{}", history_display(state));
+}
+
+/// Render the session history (recent turns) as a display string (no printing).
+/// Shared by the REPL `/history` handler and the TUI `SessionBridge`.
+pub(crate) fn history_display(state: &super::super::ReplState) -> String {
     let token = state.service_context.governance().checker.grant_registry(
         hkask_capability::DelegationAction::Read,
         *state.service_context.webid(),
@@ -20,7 +26,7 @@ pub fn handle_history(state: &super::super::ReplState) {
     ) {
         Some(history) => {
             let turn_count = history.lines().filter(|l| l.starts_with("User:")).count();
-            println!("  Session history ({} turns):", turn_count);
+            let mut out = format!("Session history ({} turns):\n", turn_count);
             for line in history.lines() {
                 if line.is_empty() {
                     continue;
@@ -30,12 +36,12 @@ pub fn handle_history(state: &super::super::ReplState) {
                 } else {
                     line.to_string()
                 };
-                println!("    {}", preview);
+                out.push_str(&format!("    {}\n", preview));
             }
+            out
         }
-        None => println!("  No turns in this session yet."),
+        None => "No turns in this session yet.".to_string(),
     }
-    println!();
 }
 
 pub fn handle_pods(rt: &tokio::runtime::Handle, state: &super::super::ReplState) {

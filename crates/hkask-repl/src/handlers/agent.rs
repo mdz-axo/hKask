@@ -79,55 +79,70 @@ pub fn handle_agent(
 
         // Default: switch agent
         name => {
-            state.current_agent = name.to_string();
-            state.persona_constraints = state
-                .service_context
-                .storage()
-                .agents
-                .get(name)
-                .ok()
-                .and_then(|agent| {
-                    hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml)
-                        .map_err(|e| format!("{e}"))
-                        .or_else(|_| {
-                            let disk_path = hkask_types::agent_paths::agent_definition_yaml(name);
-                            std::fs::read_to_string(&disk_path)
-                                .map_err(|e| format!("Failed to read agent YAML from disk: {e}"))
-                                .and_then(|content| {
-                                    hkask_agents::yaml_parser::parse_agent_from_yaml(&content)
-                                        .map_err(|e| format!("{e}"))
-                                })
-                        })
-                        .ok()
-                        .and_then(|def| def.persona)
-                });
-            println!("  Switched to agent: \x1b[1m{}\x1b[0m", state.current_agent);
+            let msg = switch_agent(state, name);
+            println!("  \x1b[1m{}\x1b[0m", msg);
             println!();
         }
     }
 }
 
+
+/// Switch the active agent and load its persona constraints.
+/// Returns a confirmation string. Shared by the REPL `/agent` handler and
+/// the TUI `SessionBridge` (no parallel logic).
+pub(crate) fn switch_agent(
+    state: &mut super::super::ReplState,
+    name: &str,
+) -> String {
+    state.current_agent = name.to_string();
+    state.persona_constraints = state
+        .service_context
+        .storage()
+        .agents
+        .get(name)
+        .ok()
+        .and_then(|agent| {
+            hkask_agents::yaml_parser::parse_agent_from_yaml(&agent.source_yaml)
+                .map_err(|e| format!("{e}"))
+                .or_else(|_| {
+                    let disk_path = hkask_types::agent_paths::agent_definition_yaml(name);
+                    std::fs::read_to_string(&disk_path)
+                        .map_err(|e| format!("Failed to read agent YAML from disk: {e}"))
+                        .and_then(|content| {
+                            hkask_agents::yaml_parser::parse_agent_from_yaml(&content)
+                                .map_err(|e| format!("{e}"))
+                        })
+                })
+                .ok()
+                .and_then(|def| def.persona)
+        });
+    format!("Switched to agent: {}", state.current_agent)
+}
+
+/// Render the registered-agent list as a display string (no printing).
+pub(crate) fn list_agents_display(state: &super::super::ReplState) -> String {
+    match state.service_context.storage().agents.list() {
+        Ok(agents) if agents.is_empty() => "No agents registered.".to_string(),
+        Ok(agents) => {
+            let mut out = format!("Agents ({})\n", agents.len());
+            out.push_str(&format!("{:<25} {:<12} CAPABILITIES\n", "NAME", "KIND"));
+            out.push_str(&"-".repeat(70));
+            out.push('\n');
+            for agent in &agents {
+                out.push_str(&format!(
+                    "{:<25} {:<12} {}\n",
+                    agent.definition.name,
+                    agent.definition.agent_kind,
+                    agent.definition.capabilities.join(", ")
+                ));
+            }
+            out
+        }
+        Err(e) => format!("Error listing agents: {}", e),
+    }
+}
+
 /// Handle `/agents` — list all registered agents.
 pub fn handle_agents(state: &super::super::ReplState) {
-    match state.service_context.storage().agents.list() {
-        Ok(agents) => {
-            if agents.is_empty() {
-                println!("  No agents registered.");
-            } else {
-                println!("  \x1b[1mAgents ({})\x1b[0m", agents.len());
-                println!("  {:<25} {:<12} CAPABILITIES", "NAME", "KIND");
-                println!("  {}", "-".repeat(70));
-                for agent in &agents {
-                    println!(
-                        "  \x1b[36m{:<25}\x1b[0m {:<12} {}",
-                        agent.definition.name,
-                        agent.definition.agent_kind,
-                        agent.definition.capabilities.join(", "),
-                    );
-                }
-            }
-        }
-        Err(e) => println!("  Error listing agents: {}", e),
-    }
-    println!();
+    println!("{}", list_agents_display(state));
 }

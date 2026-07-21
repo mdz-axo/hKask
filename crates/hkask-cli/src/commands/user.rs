@@ -331,7 +331,7 @@ pub fn login_replicant() {
 }
 
 /// pre:  store is a valid UserStore; replicant_name is non-empty and exists
-/// post: prints replicant details (name, user_id, created_at, primary status) to stdout; ServiceError if not found
+/// post: prints replicant details (name, user_id, created_at) to stdout; ServiceError if not found
 pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), ServiceError> {
     let identity = store
         .lock()
@@ -352,14 +352,11 @@ pub fn show_replicant(store: &Store, replicant_name: &str) -> Result<(), Service
     println!("Replicant: {}", identity.replicant_name);
     println!("  User ID: {}", identity.user_id);
     println!("  Created: {}", identity.created_at);
-    if identity.is_primary {
-        println!("  Primary: yes");
-    }
     Ok(())
 }
 
 /// pre:  store is a valid UserStore
-/// post: prints all replicants with name, primary status, user_id, and created_at; prints "No replicants registered." if empty
+/// post: prints all replicants with name, user_id, and created_at; prints "No replicants registered." if empty
 pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
     let user_id = hkask_types::UserID::new();
     let replicants = store
@@ -378,11 +375,7 @@ pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
     }
     println!("Replicants ({}):", replicants.len());
     for r in replicants {
-        println!(
-            "  {} ({})",
-            r.replicant_name,
-            if r.is_primary { "primary" } else { "secondary" }
-        );
+        println!("  {}", r.replicant_name);
         println!("    User ID: {}", r.user_id);
         println!("    Created: {}", r.created_at);
     }

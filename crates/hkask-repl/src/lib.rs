@@ -10,7 +10,6 @@
 mod builtin_servers;
 
 #[cfg(feature = "tui")]
-use hkask_tui::SystemBridge;
 mod cns_display;
 mod commands;
 pub mod deps;
@@ -795,5 +794,31 @@ impl hkask_tui::SettingsBridge for TuiReplBridge {
     fn set_setting(&self, key: &str, value: &str) -> anyhow::Result<String> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         handlers::repl_settings::apply_setting(&mut state, key, value)
+    }
+}
+
+#[cfg(feature = "tui")]
+impl hkask_tui::SessionBridge for TuiReplBridge {
+    fn current_agent(&self) -> String {
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .current_agent
+            .clone()
+    }
+
+    fn set_agent(&self, name: &str) -> anyhow::Result<String> {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        Ok(handlers::agent::switch_agent(&mut state, name))
+    }
+
+    fn list_agents_display(&self) -> String {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        handlers::agent::list_agents_display(&state)
+    }
+
+    fn history_display(&self) -> String {
+        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        handlers::info::history_display(&state)
     }
 }

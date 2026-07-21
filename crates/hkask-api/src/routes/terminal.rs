@@ -241,7 +241,6 @@ const TERMINAL_HTML: &str = r###"<!DOCTYPE html>
 </head>
 <body>
 <div id="toolbar">
-  <select id="replicant-select"><option>loading...</option></select>
   <div id="tab-bar"></div>
   <button id="add-tab" title="New terminal tab">+</button>
 </div>
@@ -252,21 +251,8 @@ const TERMINAL_HTML: &str = r###"<!DOCTYPE html>
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const tabBar = document.getElementById('tab-bar');
   const terminalsDiv = document.getElementById('terminals');
-  const replicantSelect = document.getElementById('replicant-select');
   let tabs = [];
   let tabCounter = 0;
-
-  // Load replicant list
-  fetch('/api/v1/replicants').then(r => r.json()).then(data => {
-    replicantSelect.innerHTML = '';
-    data.replicants.forEach(r => {
-      const opt = document.createElement('option');
-      opt.value = r.webid;
-      opt.textContent = r.name + (r.is_primary ? ' (primary)' : '');
-      if (r.name === data.active) opt.selected = true;
-      replicantSelect.appendChild(opt);
-    });
-  }).catch(() => { replicantSelect.innerHTML = '<option>unavailable</option>'; });
 
   function createTab(name) {
     const id = ++tabCounter;

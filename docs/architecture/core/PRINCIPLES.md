@@ -80,7 +80,7 @@ Remove before adding. Every module must earn existence by reducing total system 
 
 This is not abstract philosophy — it's an operational filter with teeth:
 
-- **Who** — agent, replicant, bot, human, role, owner (anchored by P12 replicant host mandate)
+- **Who** — agent (generic), human user, userpod, role, owner (anchored by P12 authenticated host mandate)
 - **What** — entity, artifact, resource, data, input, output, state
 - **When** — time, sequence, ordering, duration, schedule, temporal scope
 - **Where** — location, pod boundary, namespace, domain, spatial context
@@ -125,10 +125,10 @@ Every artifact in hKask has both a state identity and a process identity — it 
 - State axis vocabulary: `crates/hkask-bridge-dublincore/` (shared crate)
 - Domain-specific bridges: server-local modules following the `fibo.rs` pattern
 
-#### P6 — Space for Replicants & Bots
-hKask exists as a generative container for bot and replicant agency under sovereignty and capability constraints.
+#### P6 — Space for UserPods
+hKask exists as a generative container for **human user agency** (each user via their own userpod) and **AI tools** (skills + MCP servers), coordinated by the curator daemon, under sovereignty and capability constraints.
 
-**P6.1 — Per-Pod Deployment Model (v0.29.0):** Each human+replicant pair inhabits its own pod. The pod IS the deployment unit — not a cache entry in a shared manager. A pod owns its SQLCipher file (`{data_dir}/agents/{sanitized_name}/pod.db`), its CNS runtime (per-pod variety counters), and its MCP server bindings (no cross-pod dispatch). `PodDeployment` makes shared state structurally impossible. See Pattern D.1 — AgentPod as Solid Pod Isomorphism.
+**P6.1 — Per-UserPod Deployment Model (v0.29.0):** Each user inhabits exactly one persistent userpod (1:1; multi-persona removed). The userpod IS the deployment unit — not a cache entry in a shared manager — and persists for the life of the account. A userpod owns its SQLCipher file (`{data_dir}/agents/{sanitized_name}/pod.db`), its CNS runtime (per-pod variety counters), and its MCP server bindings (no cross-pod dispatch). The userpod makes shared state structurally impossible. See Pattern D.1 — UserPod as Solid Pod Isomorphism.
 
 #### P7 — Evolutionary Architecture
 Types and seams should emerge from real usage, not speculative abstraction.
@@ -197,36 +197,36 @@ tracing::info!(target: "cns.{domain}", operation = "{verb}", {key} = %{value}, .
 - Target: `"cns.{canonical_domain}"` — uses the `cns.*` namespace convention. Essential domains map to `CnsSpan` variants in `hkask-types::cns`; performative spans (CLI, API) use stringly-typed tracing targets.
 - Message: Must be `"CNS"` — enables ν-event filtering
 - Latency: Use `std::time::Instant`, emit as `latency_ms`
-- Authority: Every span carries a `replicant` or `owner` WebID
+- Authority: Every span carries a `userpod` or `owner` WebID
 
 ---
 
 ### 1.4 Agent Principles (Nature of Agency)
 
-#### P10 — Bot/Replicant Taxonomy
-Bot and replicant roles are distinct and explicit, with clear interaction contracts and responsibilities.
+#### P10 — User Agency
+Users act as agents in the AI world through their userpod. Userpods present in A2A as agents (the generic "agent" concept is preserved); the hKask-specific bot/replicant role taxonomy is removed. User agency is bounded by sovereignty (P1) and capability (P4) — the userpod is the unit of agency, not a separate "replicant" or "bot" role.
 
 #### P11 — Digital Public/Private Sphere
-Agents and users can explicitly control what is private versus shared; visibility is consent-governed.
+Users, via their userpods, can explicitly control what is private versus shared; visibility is consent-governed. (The generic "agent" concept remains for A2A interop.)
 
 **P11.1 — SQLCipher File as Private Sphere Boundary (v0.29.0):** The pod's SQLCipher database file IS the private sphere boundary. Each pod owns its own encrypted file at `{data_dir}/agents/{sanitized_name}/pod.db`. No cross-pod data access is structurally possible — a pod cannot accidentally query another pod's data because it has no connection handle to that file. Backup IS copying the SQLCipher file. This was already the backup model; the storage layer now matches.
 
-#### P12 — Replicant Host Mandate
+#### P12 — Authenticated Host Mandate
 Every action has an accountable host identity. No anonymous agency.
 
 **P12.1 — Surface-Host Mapping (v0.30.0):**
 
 > **Incorporated from:** `docs/architecture/mandates/P12-replicant-host-mandate.md`
 
-Every interaction with hKask carries a replicant identity. Three interaction surfaces map to three host classes:
+Every interaction with hKask carries a userpod (or curator) host identity. Three interaction surfaces map to three host classes:
 
 | Surface | Host | WebID Source | Storage | Keychain |
 |---------|------|-------------|---------|----------|
-| **CLI / REPL** | Human replicant + Curator daemon | `kask login <name>` → UserStore session | `~/.config/hkask/agents/<replicant>.db` | OS keychain via `hkask-keystore` |
-| **Daemon / System** | Curator daemon | `Curator` — hardcoded master system daemon | `~/.config/hkask/agents/curator.db` | System keychain |
-| **API** | 7R7 bots | Bot-managed capability tokens | Per-bot DB within pod | Bot-attested HKDF keys |
+| **CLI / REPL** | Human user (via userpod) + Curator daemon | `kask login <name>` → UserStore session | `~/.config/hkask/agents/<userpod>.db` | OS keychain via `hkask-keystore` |
+| **Daemon / System** | Curator daemon | `Curator` — system daemon | `~/.config/hkask/agents/curator.db` | System keychain |
+| **API** | Userpods | Userpod-managed capability tokens | Per-userpod DB | Userpod-attested HKDF keys |
 
-**Dual-presence pattern:** The CLI/REPL surface hosts both the user's replicant AND the Curator daemon in a single loop. The user speaks; the Curator observes, surfaces CNS alerts, provides memory summaries, and can be addressed directly via `kask curator chat`. This is not two separate sessions — it is one conversation with two participants. The user's replicant is the sovereign host; the Curator daemon is the system's presence.
+**Dual-presence pattern:** The CLI/REPL surface hosts both the user's userpod AND the Curator daemon in a single loop. The user speaks; the Curator observes, surfaces CNS alerts, provides memory summaries, and can be addressed directly via `kask curator chat`. This is not two separate sessions — it is one conversation with two participants. The user's userpod is the sovereign host; the Curator daemon is the system's presence.
 
 [^dublin-core]: Dublin Core Metadata Initiative. *DCMI Metadata Terms*. ISO 15836. <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/>.
 [^bibo]: D'Arcus, B. & Giasson, F. *Bibliographic Ontology (BIBO)*. <https://bibliontology.com/>.

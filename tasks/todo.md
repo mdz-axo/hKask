@@ -7,11 +7,12 @@
 - [x] **T0.1** 1:1 userpod (multi-persona removed); A2A transport kept (userpods present as agents); no crate rename; persistent userpods; curator = systemd daemon. — *Done*
 
 ## Phase 1 — Foundation types
-- [ ] **T1.1** Rename `ReplicantIdentity`→`UserPod`; drop `is_primary`; fields `replicant_name`→`userpod_name`, `replicant_webid`→`webid`. Update `hkask-identity` + tests — *Acc: identity compiles, tests green; ≤3 files; checkpoint: User*
-- [ ] **T1.2** Delete `AgentKind` (Q-AK); delete `PodKind::Team`; rename `PodKind::Replicant`→`PodKind::UserPod`. Update `hkask-types` — *Acc: hkask-types compiles (consumers broken, expected); ≤2 files*
+- [x] **T1.1a** Rename `ReplicantIdentity`→`UserPod` + strangler-fig alias `pub type ReplicantIdentity = UserPod;` (hkask-identity). *Workspace build GREEN; alias removed in Phase 6.* — *Done 2026-07-20*
+- [ ] **T1.1b** Drop `is_primary` field from `UserPod` + `new()` (sub-slice S-1to1-a; gates S-1to1-b) — *Acc: identity compiles; ≤2 files*
+- [ ] **T1.2** Delete `AgentKind` enum (via S-AK-a/b/c strangler-fig); delete `PodKind::Team`; rename `PodKind::Replicant`→`PodKind::UserPod`. Update `hkask-types` — *Acc: hkask-types compiles; ≤2 files*
 
 ## Phase 2 — UserPod runtime (focus obstacle, early)
-- [ ] **T2.0** Trace ALL `AgentPod`/`PodDeployment` consumers repo-wide (Q6) → caller table — *Acc: table file:line; checkpoint: User*
+- [x] **T2.0** Consumer trace written to `tasks/consumer-trace.md` (ReplicantIdentity/AgentKind/is_primary/list_replicants) — *Done 2026-07-20*
 - [ ] **T2.1** Fold `AgentPod`+`PodDeployment`→`UserPod` (deep: SQLCipher+CNS+capability); persistent (no Deactivated). Rewrite `agent_pod_integration.rs`→`userpod_integration.rs`, `pod_portability.rs` — *Acc: UserPod deploys+persists; tests green; ≤5 files; checkpoint: User*
 - [ ] **T2.2** Delete persona from userpods; rename `AgentPersona`→`CuratorPersona` (curator-only). Remove persona-YAML from userpod creation; userpod presents in A2A via WebID+name+capabilities only — *Acc: no persona on userpods; curator persona intact; ≤4 files*
 
@@ -24,9 +25,10 @@
 - [ ] **T4.2** Collapse `PodLifecycleState`→persistent + register-on-start, per T4.0 decision (≤2–3 states incl. offline state); remove `Deactivated`/teardown — *Acc: states match T4.0 design; tests green; ≤3 files; checkpoint: User*
 
 ## Phase 5 — Principles + docs (in scope per user)
-- [ ] **T5.1** Edit P6 "Space for Replicants & Bots"→"Space for UserPods" + P6.1 1:1 (`PRINCIPLES.md:128-131`); P5.2 "Who" drop replicant/bot (`:83`); P9 authority (`:200`) — *Acc: PRINCIPLES.md consistent; ≤1 file*
-- [ ] **T5.2** Refocus P10 Bot/Replicant Taxonomy → **P10 User Agency** (`PRINCIPLES.md:206-208`); Twelve Principles stay twelve — *Acc: P10 retitled+refocused to user agency/sovereignty; ≤1 file; checkpoint: User*
-- [ ] **T5.3** Retitle P12→"Authenticated Host Mandate"; rewrite P12.1 surface-host table (drop Bot row; CLI=user+curator, Daemon=curator, API=userpods) (`PRINCIPLES.md:214-230`); rewrite `mandates/P12-replicant-host-mandate.md` — *Acc: P12 consistent; ≤2 files*
+- [x] **T5.1** Edit P6 "Space for Replicants & Bots"→"Space for UserPods" + P6.1 1:1 (`PRINCIPLES.md:128-131`); P5.2 "Who" drop replicant/bot (`:83`); P9 authority (`:200`) — *Done 2026-07-20*
+- [x] **T5.2** Refocus P10 Bot/Replicant Taxonomy → **P10 User Agency** (`PRINCIPLES.md:206-208`); Twelve Principles stay twelve — *Done 2026-07-20 (folded into T5.1 edit pass)*
+- [x] **T5.3a** Retitle P12→"Authenticated Host Mandate"; rewrite P12.1 surface-host table (drop Bot row; CLI=user+curator, Daemon=curator, API=userpods) (`PRINCIPLES.md:214-230`) — *Done 2026-07-20 (folded into T5.1 edit pass)*
+- [ ] **T5.3b** Rewrite `mandates/P12-replicant-host-mandate.md` to match retitled P12 — *Acc: mandate doc consistent; ≤1 file*
 - [ ] **T5.4** Sweep code comments: `deployment.rs:11`, `openapi.rs:59`, `identity/lib.rs:222`, `ports/registry.rs:113`, `mcp/runtime.rs:246`, `test-harness/lib.rs:17`, `tui/windows/chat.rs:16`, `FUNCTIONAL_SPECIFICATION.md` — *Acc: no "replicant/bot" in principle-cited comments; ≤5 files*
 - [ ] **T5.5** Sweep skill docs: `attack-taxonomy-mapper`, `runtime-posture-monitor`, `supply-chain-sentinel` — rename `replicant_host` span field per Q-SPAN — *Acc: skills consistent; ≤3 files; checkpoint: User*
 

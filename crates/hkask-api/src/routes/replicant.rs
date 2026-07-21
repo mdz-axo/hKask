@@ -14,7 +14,6 @@ use crate::middleware::AuthContext;
 pub struct ReplicantInfo {
     pub name: String,
     pub webid: String,
-    pub is_primary: bool,
     pub created_at: i64,
     pub last_login: Option<i64>,
 }
@@ -63,7 +62,6 @@ pub async fn list_replicants(
         .map(|r| ReplicantInfo {
             name: r.replicant_name,
             webid: r.replicant_webid.to_string(),
-            is_primary: r.is_primary,
             created_at: r.created_at,
             last_login: r.last_login,
         })

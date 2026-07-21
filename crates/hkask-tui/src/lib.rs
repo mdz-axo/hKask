@@ -67,8 +67,8 @@ use bridges::{
     WalletDataBridge, tui_bridge_setter, with_bridges,
 };
 pub use repl_bridge::{
-    InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SettingsBridge,
-    SystemBridge, TuiModelInfo, TuiTurnResult,
+    InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SessionBridge,
+    SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult,
 };
 pub use splash::SplashScreen;
 pub use window::{Window, WindowId, WindowKind};

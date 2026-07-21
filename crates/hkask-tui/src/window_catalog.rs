@@ -8,7 +8,7 @@ use crate::bridges::{
     ResearchDataBridge, ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge,
     WalletDataBridge,
 };
-use crate::repl_bridge::{ReplBridge, SettingsBridge, SystemBridge};
+use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
 use crate::window::{Window, WindowId, WindowKind};
 use crate::windows::backup::BackupWindow;
 use crate::windows::chat::ChatWindow;
@@ -61,6 +61,7 @@ pub(crate) struct WindowBridges {
     pub system_bridge: Arc<dyn SystemBridge>,
     pub repl_bridge: Arc<dyn ReplBridge>,
     pub settings_bridge: Option<Arc<dyn SettingsBridge>>,
+    pub session_bridge: Option<Arc<dyn SessionBridge>>,
     pub wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     pub config_bridge: Option<Arc<dyn ConfigDataBridge>>,
     pub backup_bridge: Option<Arc<dyn BackupDataBridge>>,
@@ -231,6 +232,9 @@ pub(crate) fn create_window(
             );
             if let Some(b) = ctx.settings_bridge.clone() {
                 w = w.with_settings_bridge(b);
+            }
+            if let Some(b) = ctx.session_bridge.clone() {
+                w = w.with_session_bridge(b);
             }
             Box::new(w)
         }

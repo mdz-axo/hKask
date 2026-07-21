@@ -158,3 +158,20 @@ pub trait ReplBridge: SystemBridge {
         self.start_inference(input)
     }
 }
+
+/// Session-state surface for the TUI — agent switching, agent listing, and
+/// session history. Distinct from [`SettingsBridge`] (model/settings) to
+/// keep each trait's public surface ≤7 items. The same concrete bridge
+/// implements it; the TUI receives `Arc<dyn SessionBridge>` optionally and
+/// falls back to a stub when unset.
+pub trait SessionBridge: Send + Sync {
+    /// The live current agent name (read from session state, not a cached
+    /// field, so it reflects prior `/agent` switches).
+    fn current_agent(&self) -> String;
+    /// Switch to `name`; returns a rendered confirmation or an error message.
+    fn set_agent(&self, name: &str) -> anyhow::Result<String>;
+    /// Render the registered-agent list as a display string.
+    fn list_agents_display(&self) -> String;
+    /// Render the session history (recent turns) as a display string.
+    fn history_display(&self) -> String;
+}
