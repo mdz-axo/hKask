@@ -696,6 +696,21 @@ impl TrainingHost for RunpodHost {
             })?;
         env_entries.push(("HKASK_AXOLOTL_CONFIG", axolotl_yaml));
 
+        // HF_TOKEN — required for the pod to download private datasets and upload
+        // adapters to private model repos. The publish step (HuggingFaceTraining::from_env)
+        // reads the same token from the local env to publish artifacts; it must also
+        // cross the pod boundary so the pod can consume those artifacts. Without it,
+        // axolotl fails with HTTP 401 on private dataset load and the container exits
+        // after the (public) base-model download completes — GPU never utilized.
+        if let Ok(token) = std::env::var("HF_TOKEN") {
+            env_entries.push(("HF_TOKEN", token));
+        } else {
+            tracing::warn!(
+                target: "hkask.training.runpod",
+                "HF_TOKEN not set — pod cannot access private HF datasets or upload to private model repos"
+            );
+        }
+
         // Generate docker args if not provided via env var.
         // The image `docker.io/mdzaxo/axolotl-lora-trainer:latest` ships a bash
         // entrypoint at /usr/local/bin/entrypoint.sh (set as Docker ENTRYPOINT)

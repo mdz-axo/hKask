@@ -99,17 +99,6 @@ async fn a2a_register(
 ) -> Result<Json<A2ARegisterResponse>, ServiceErrorResponse> {
     let webid = parse_webid(&req.webid)?;
 
-    let _agent_kind =
-        hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Agent,
-            source: None,
-            message: format!(
-                "Agent type must be 'Bot' or 'Replicant', got: {}",
-                req.agent_type
-            ),
-        })?;
-
     if req.capabilities.is_empty() {
         return Err(ServiceError::Domain {
             kind: ErrorKind::BadRequest,

@@ -158,7 +158,7 @@ impl ActivePods {
             .read()
             .await
             .values()
-            .map(|d| d.pod.persona.agent.name.clone())
+            .map(|d| d.pod.name.clone())
             .collect()
     }
 
@@ -191,7 +191,7 @@ impl ActivePods {
     pub async fn find_by_name(&self, name: &str) -> Option<PodID> {
         let deployments = self.deployments.read().await;
         for (id, d) in deployments.iter() {
-            if d.pod.persona.agent.name == name {
+            if d.pod.name == name {
                 return Some(*id);
             }
         }
@@ -375,7 +375,7 @@ impl ActivePods {
         }
 
         // Create CuratorPod
-        let curator_persona = super::types::AgentPersona::system("curator", AgentKind::Bot);
+        let curator_persona = super::types::AgentPersona::system("curator");
         let pod_id = self
             .create_pod("curator", &curator_persona, None, PodKind::Curator)
             .await?;
@@ -407,7 +407,7 @@ impl ActivePods {
             let d = self.deployments.read().await;
             let d = d.get(pod_id).ok_or(AgentPodError::PodNotFound(*pod_id))?;
             if d.pod.state == PodLifecycleState::Populated {
-                Some((d.pod.webid, d.pod.persona.capabilities.clone()))
+                Some((d.pod.webid, d.pod.capabilities.clone()))
             } else {
                 None
             }
@@ -438,7 +438,7 @@ impl ActivePods {
             // immediately when it starts. Failed registrations are retried
             // on the next activation attempt.
             if let Some(ref homeserver_url) = self.matrix_homeserver_url {
-                let pod_name = d.pod.persona.agent.name.clone();
+                let pod_name = d.pod.name.clone();
 
                 // Check for pending retry from a previous failed attempt.
                 let url = if let Ok(saved_url) = hkask_keystore::Keychain::default()
@@ -504,7 +504,7 @@ impl ActivePods {
         let d = d.get(pod_id).ok_or(AgentPodError::PodNotFound(*pod_id))?;
         Ok(PodStatusInfo {
             pod_id: d.pod_id.to_string(),
-            name: Some(d.pod.persona.agent.name.clone()),
+            name: Some(d.pod.name.clone()),
             state: d.pod.state,
             webid: d.pod.webid.to_string(),
             template: d.pod.template_crate.name.clone(),
@@ -522,7 +522,7 @@ impl ActivePods {
             .map(|d| {
                 Ok(PodStatusInfo {
                     pod_id: d.pod_id.to_string(),
-                    name: Some(d.pod.persona.agent.name.clone()),
+                    name: Some(d.pod.name.clone()),
                     state: d.pod.state,
                     webid: d.pod.webid.to_string(),
                     template: d.pod.template_crate.name.clone(),
@@ -541,7 +541,7 @@ impl ActivePods {
             .await
             .values()
             .filter(|d| d.storage.db_path.exists())
-            .map(|d| (d.pod.persona.agent.name.clone(), d.storage.db_path.clone()))
+            .map(|d| (d.pod.name.clone(), d.storage.db_path.clone()))
             .collect()
     }
 

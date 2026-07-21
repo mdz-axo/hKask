@@ -37,7 +37,6 @@ pub mod sql_impls;
 
 // ── Essential re-exports (used by ≥3 downstream crates) ─────────────────
 
-pub use agent::AgentKind;
 pub use agent::PersonaConstraints;
 pub use agent_registry::{
     AgentDefinition, Charter, Contact, RegisteredAgent, Responsibility, Right, ScheduledTask,

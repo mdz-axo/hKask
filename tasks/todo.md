@@ -16,7 +16,10 @@
 ## Phase 2 — UserPod runtime (focus obstacle, early)
 - [x] **T2.0** Consumer trace written to `tasks/consumer-trace.md` (ReplicantIdentity/AgentKind/is_primary/list_replicants) — *Done 2026-07-20*
 - [ ] **T2.1** Fold `AgentPod`+`PodDeployment`→`UserPod` (deep: SQLCipher+CNS+capability); persistent (no Deactivated). Rewrite `agent_pod_integration.rs`→`userpod_integration.rs`, `pod_portability.rs` — *Acc: UserPod deploys+persists; tests green; ≤5 files; checkpoint: User*
-- [ ] **T2.2** Delete persona from userpods; rename `AgentPersona`→`CuratorPersona` (curator-only). Remove persona-YAML from userpod creation; userpod presents in A2A via WebID+name+capabilities only — *Acc: no persona on userpods; curator persona intact; ≤4 files*
+- [x] **T2.2a** Strangler-fig: add direct `name`+`capabilities` fields to `AgentPod` (populated from persona in `new()`); migrate 7 `active_pods.rs` reads off `persona.agent.name`/`persona.capabilities` → `d.pod.name`/`d.pod.capabilities`. *Persona field retained for now. Workspace green; agents tests pass.* — *Done 2026-07-20*
+- [ ] **T2.2b** Migrate `deployment.rs` reads (`PodFactory::deploy`, `create_pod_storage`) off persona; change `deploy`/`create_pod` signatures to take name+webid+capabilities directly (persona optional, curator-only) — *Acc: deploy green; ≤3 files*
+- [ ] **T2.2c** Migrate `persona()` accessor + `has_capability` + tests (`make_test_persona`, `AgentPersona::system` callers) off the AgentPod.persona field — *Acc: tests green; ≤4 files*
+- [ ] **T2.2d** Remove `persona` field from `AgentPod`; curator keeps a separate `CuratorPersona` type (T2.2 userpod-persona split complete) — *Acc: no persona on userpod runtime; ≤2 files; checkpoint: User*
 
 ## Phase 3 — Curator daemon promotion
 - [ ] **T3.1** Promote curator OUT of `PodKind::Curator` to first-class systemd daemon (`kask serve` already generates unit at `init.rs:180`); `CuratorSync` polls UserPods via `curator_index`. Keep test harness — *Acc: `kask serve` runs curator; CuratorSync green vs UserPod; ≤5 files; checkpoint: User*

@@ -85,9 +85,7 @@ pub use deployment::{
     PerPodCnsRuntime, PerPodStorage, PodDeployError, PodDeployment, PodFactory, PodRegistry,
 };
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
-pub use types::{
-    AgentKind, AgentMode, AgentPersona, CommunicationPosture, PodID, PodKind, PodLifecycleState,
-};
+pub use types::{AgentMode, AgentPersona, CommunicationPosture, PodID, PodKind, PodLifecycleState};
 
 /// Agent Pod — Runtime container for A2A agents
 pub struct AgentPod {
@@ -95,7 +93,11 @@ pub struct AgentPod {
     pub id: PodID,
     /// Agent's WebID
     pub webid: WebID,
-    /// Agent persona
+    /// Pod name (decoupled from persona — T2.2 strangler-fig; persona field removed once all reads migrate)
+    pub name: String,
+    /// Capabilities granted to this pod (decoupled from persona — T2.2 strangler-fig)
+    pub capabilities: Vec<String>,
+    /// Agent persona (curator keeps; userpods migrate off this — T2.2)
     pub persona: AgentPersona,
     /// Template crate reference
     pub template_crate: TemplateCrate,
@@ -246,6 +248,8 @@ impl AgentPod {
         Ok(Self {
             id: PodID::new(),
             webid: persona.webid(),
+            name: persona.agent.name.clone(),
+            capabilities: persona.capabilities.clone(),
             persona: persona.clone(),
             template_crate,
             capability_token,

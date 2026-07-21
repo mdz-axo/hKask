@@ -133,8 +133,6 @@ pub struct AgentPersona {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct AgentIdentity {
     pub name: String,
-    #[serde(rename = "type")]
-    pub agent_type: AgentKind,
     #[serde(default = "default_version")]
     pub version: String,
 }
@@ -220,10 +218,9 @@ impl AgentPersona {
     ///
     /// expect: "The system provides bounded agent pod identity with capability-gated lifecycle management"
     /// post: returns AgentPersona
-    pub fn system(name: &str, agent_type: AgentKind) -> Self {
+    pub fn system(name: &str) -> Self {
         let agent = AgentIdentity {
             name: name.to_string(),
-            agent_type,
             version: "0.1.0".to_string(),
         };
         let canonical = serde_json::to_string(&agent).unwrap_or_else(|e| {
@@ -321,7 +318,6 @@ impl AgentPersona {
     /// post: returns Result<(), AgentPodError>
     pub fn validate_fields(
         name: &str,
-        agent_type: &str,
         version: &str,
         description: &str,
         editor: &str,
@@ -343,12 +339,6 @@ impl AgentPersona {
         {
             return Err(super::AgentPodError::PersonaParseError(
                 "name: invalid format".to_string(),
-            ));
-        }
-
-        if !["bot", "replicant"].contains(&agent_type) {
-            return Err(super::AgentPodError::PersonaParseError(
-                "agent_type must be 'bot' or 'replicant'".to_string(),
             ));
         }
 

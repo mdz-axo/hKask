@@ -30,7 +30,7 @@ impl AgentRegistryStore {
         let _ = driver.execute_batch(
             "CREATE TABLE IF NOT EXISTS agent_registry (
                 name TEXT PRIMARY KEY,
-                agent_kind TEXT NOT NULL,
+                agent_kind TEXT,
                 definition_json TEXT NOT NULL,
                 token_hash TEXT NOT NULL,
                 registered_at TEXT NOT NULL,
@@ -71,11 +71,10 @@ impl AgentRegistryStore {
         let definition_json = serde_json::to_string(&agent.definition)
             .map_err(|e| AgentRegistryError::Infra(InfrastructureError::from(e)))?;
         self.driver.execute(
-            "INSERT OR REPLACE INTO agent_registry (name, agent_kind, definition_json, token_hash, registered_at, source_yaml)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT OR REPLACE INTO agent_registry (name, definition_json, token_hash, registered_at, source_yaml)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
             &[
                 DbValue::Text(agent.definition.name.clone()),
-                DbValue::Text(agent.definition.agent_kind.as_str().to_string()),
                 DbValue::Text(definition_json),
                 DbValue::Text(agent.token_hash.clone()),
                 DbValue::Text(agent.registered_at.clone()),
@@ -149,38 +148,7 @@ impl AgentRegistryStore {
             },
         )?)
     }
-    /// List agents by kind.
-    ///
-    /// expect: "The system provides durable storage for agent registry data"
-    /// \[P3\] Motivating: Generative Space — list agents by kind
-    /// pre:  kind is a valid AgentKind
-    /// post: returns Vec of agents matching kind
-    #[must_use = "result must be used"]
-    pub fn list_by_kind(
-        &self,
-        kind: AgentKind,
-    ) -> Result<Vec<RegisteredAgent>, AgentRegistryError> {
-        Ok(query_map(
-            &*self.driver,
-            "SELECT definition_json, token_hash, registered_at, source_yaml
-             FROM agent_registry WHERE agent_kind = ?1 ORDER BY name ",
-            &[DbValue::Text(kind.as_str().to_string())],
-            |row| {
-                let def_json: String = row.get_str(0)?.to_string();
-                let token_hash: String = row.get_str(1)?.to_string();
-                let registered_at: String = row.get_str(2)?.to_string();
-                let source_yaml: String = row.get_str(3)?.to_string();
-                let definition: AgentDefinition = serde_json::from_str(&def_json)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
-                Ok(RegisteredAgent {
-                    definition,
-                    token_hash,
-                    registered_at,
-                    source_yaml,
-                })
-            },
-        )?)
-    }
+
     /// Remove an agent by name.
     ///
     /// expect: "The system provides durable storage for agent registry data"

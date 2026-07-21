@@ -5,7 +5,7 @@
 //! representation for agent definitions, rights, responsibilities, and
 //! related registry records.
 
-use crate::agent::{AgentKind, PersonaConstraints};
+use crate::agent::PersonaConstraints;
 use serde::{Deserialize, Serialize};
 
 /// Charter — defines what an agent may do.
@@ -93,7 +93,6 @@ impl Responsibility {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentDefinition {
     pub name: String,
-    pub agent_kind: AgentKind,
     #[serde(default)]
     pub charter: Option<Charter>,
     pub capabilities: Vec<String>,
@@ -133,10 +132,7 @@ impl AgentDefinition {
     pub fn compose_system_prompt(&self) -> String {
         let mut prompt = String::new();
 
-        prompt.push_str(&format!(
-            "You are {}, a {} in the hKask system.\n\n",
-            self.name, self.agent_kind
-        ));
+        prompt.push_str(&format!("You are {} in the hKask system.\n\n", self.name));
 
         if let Some(charter) = &self.charter {
             prompt.push_str(&format!("## Charter\n{}\n\n", charter.description));

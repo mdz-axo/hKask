@@ -745,16 +745,14 @@ fn print_creation_summary(
 fn list_replicants(
     store: &hkask_storage::AgentRegistryStore,
 ) -> Result<Vec<RegisteredAgent>, OnboardingError> {
-    store
-        .list_by_kind(hkask_types::AgentKind::Replicant)
-        .map_err(|e| {
-            OnboardingError::Service(ServiceError::Domain {
-                kind: ErrorKind::BadRequest,
-                domain: DomainKind::Agent,
-                source: None,
-                message: e.to_string(),
-            })
+    store.list().map_err(|e| {
+        OnboardingError::Service(ServiceError::Domain {
+            kind: ErrorKind::BadRequest,
+            domain: DomainKind::Agent,
+            source: None,
+            message: e.to_string(),
         })
+    })
 }
 
 /// Resolve secrets from the OS keychain for operating-mode sessions.

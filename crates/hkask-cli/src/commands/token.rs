@@ -65,7 +65,6 @@ pub async fn token_issue(
     // Persist to agent registry for listing
     let def = hkask_types::agent_registry::AgentDefinition {
         name: replicant.to_string(),
-        agent_kind: AgentKind::Replicant,
         charter: None,
         capabilities,
         rights: vec![],

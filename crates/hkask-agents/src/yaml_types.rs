@@ -162,11 +162,8 @@ impl RawYamlAgent {
         unknown_type_err: impl FnOnce(String) -> E,
     ) -> Result<AgentDefinition, E> {
         let header = self.agent.or(self.bot).ok_or_else(missing_agent_err)?;
-        let agent_kind = AgentKind::parse(&header.agent_type)
-            .ok_or_else(|| unknown_type_err(header.agent_type.clone()))?;
         Ok(AgentDefinition {
             name: header.name,
-            agent_kind,
             charter: self.charter.map(|c| Charter {
                 description: c.description,
                 archetype: c.archetype,

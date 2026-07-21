@@ -164,8 +164,8 @@ impl ChatService {
         // Compose system prompt from agent definition
         let mut system_prompt = match agent {
             Some(registered) => format!(
-                "You are {}, a {} in the hKask system.\n\n",
-                registered.definition.name, registered.definition.agent_kind
+                "You are {} in the hKask system.\n\n",
+                registered.definition.name
             ),
             None => format!("You are {}, an assistant in the hKask system.\n\n", name),
         };
@@ -185,18 +185,7 @@ impl ChatService {
             system_prompt.push_str(spec);
         }
 
-        // Determine agent kind (used for capability routing, not model selection)
-        let _agent_kind = match agent {
-            Some(registered) => registered.definition.agent_kind,
-            None => {
-                return Err(ServiceError::Domain {
-                    kind: ErrorKind::NotFound,
-                    domain: DomainKind::Agent,
-                    source: None,
-                    message: "Agent not registered — run `kask agent register` first.".to_string(),
-                });
-            }
-        };
+        // Agent kind taxonomy removed (consolidation); capability routing no longer keyed on kind.
         // Model flows from request override → config default.
         // Agent kind no longer hardcodes model selection — use session/replicant settings.
         let model = req

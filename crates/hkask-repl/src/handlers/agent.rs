@@ -126,9 +126,8 @@ pub(crate) fn list_agents_display(state: &super::super::ReplState) -> String {
             out.push('\n');
             for agent in &agents {
                 out.push_str(&format!(
-                    "{:<25} {:<12} {}\n",
+                    "{:<25} {}\n",
                     agent.definition.name,
-                    agent.definition.agent_kind,
                     agent.definition.capabilities.join(", ")
                 ));
             }

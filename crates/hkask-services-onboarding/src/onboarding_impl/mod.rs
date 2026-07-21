@@ -294,7 +294,6 @@ impl OnboardingService {
         let registered = RegisteredAgent {
             definition: AgentDefinition {
                 name: display_name,
-                agent_kind: AgentKind::Replicant,
                 charter: Some(Charter {
                     description: description.to_string(),
                     archetype: String::new(),
@@ -472,7 +471,7 @@ impl OnboardingService {
         };
         let driver = Arc::new(SqliteDriver::new(pool));
         let store = AgentRegistryStore::from_driver(driver);
-        store.list_by_kind(AgentKind::Replicant).unwrap_or_default()
+        store.list().unwrap_or_default()
     }
 
     /// Check for an orphaned DB from a previous failed onboarding attempt.
@@ -508,7 +507,7 @@ impl OnboardingService {
                 };
                 let driver = Arc::new(SqliteDriver::new(pool));
                 let store = AgentRegistryStore::from_driver(driver);
-                matches!(store.list_by_kind(AgentKind::Replicant), Ok(r) if r.is_empty())
+                matches!(store.list(), Ok(r) if r.is_empty())
             }
             Err(_) => true, // Can't open — likely orphaned/corrupted
         }

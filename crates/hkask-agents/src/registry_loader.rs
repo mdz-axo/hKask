@@ -94,7 +94,6 @@ impl AgentRegistryLoader {
                     info!(
                         target: "hkask.storage().registry.clone()",
                         name = %agent.definition.name,
-                        kind = %agent.definition.agent_kind,
                         capabilities = agent.definition.capabilities.len(),
                         "Registered agent from {}",
                         path

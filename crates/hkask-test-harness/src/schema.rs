@@ -78,7 +78,7 @@ resolved_at TEXT\
 );\n\
 CREATE TABLE IF NOT EXISTS agent_registry (\
 name TEXT PRIMARY KEY, \
-agent_kind TEXT NOT NULL, \
+agent_kind TEXT, \
 definition_json TEXT NOT NULL, \
 token_hash TEXT NOT NULL, \
 registered_at TEXT NOT NULL, \
