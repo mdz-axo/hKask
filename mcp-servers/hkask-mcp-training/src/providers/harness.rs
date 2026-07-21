@@ -154,6 +154,9 @@ impl HarnessAdapter for AxolotlHarness {
         let base_lower = job.base_model.to_lowercase();
         let chat_asset = if base_lower.contains("gemma-4") || base_lower.contains("gemma4") {
             Some("gemma4.jinja")
+        } else if base_lower.contains("qwen3") {
+            // Qwen3.5/3.6 text decoder — uses training-optimized template with enable_thinking=false
+            Some("qwen3.jinja")
         } else {
             None
         };
