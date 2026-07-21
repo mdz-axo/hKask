@@ -1,4 +1,4 @@
-//! Integration tests for the ACP replicant protocol.
+//! Integration tests for the ACP userpod protocol.
 
 use futures_util::Stream;
 use hkask_acp::HkaskAcpAgent;

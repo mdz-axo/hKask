@@ -88,7 +88,6 @@ pub struct UserPod {
 
 /// Strangler-fig bridge alias — removed in Phase 6 once all consumers use `UserPod`.
 /// (Plain alias, not `#[deprecated]` — P5 compliant during transition.)
-pub type UserPod = UserPod;
 
 impl UserPod {
     /// expect: "System types preserve semantic identity and are provenance-aware"

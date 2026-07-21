@@ -1,4 +1,4 @@
-//! hkask-acp — ACP (Agent Client Protocol) replicant library.
+//! hkask-acp — ACP (Agent Client Protocol) userpod library.
 //!
 //! Re-exports the public API for integration testing and external consumers.
 

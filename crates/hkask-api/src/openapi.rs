@@ -15,7 +15,7 @@ use crate::routes::{
     DismissEscalationRequest, DismissEscalationResponse, EscalationEntryResponse,
     EscalationStatsResponse, EvolveBundleResponse, ExportRequest, ExportResponse, GoalListResponse,
     GoalResponse, InviteResponse, ListEscalationsResponse, LoginQuery, MetacognitionStatusResponse,
-    RenameRequest, UserPodInfo, ReplicantListResponse, ResolveEscalationRequest,
+    RenameRequest, UserPodInfo, UserPodListResponse, ResolveEscalationRequest,
     ResolveEscalationResponse, ResolveShaResponse, SetGoalStateRequest, SettingsResponse,
     UpdateSettingsRequest, UploadRequest,
 };
@@ -115,7 +115,7 @@ use crate::routes::cns::CnsSubscribeParams;
         UploadRequest,
         // Replicant schemas
         UserPodInfo,
-        ReplicantListResponse,
+        UserPodListResponse,
         RenameRequest,
         // Settings schemas
         SettingsResponse,

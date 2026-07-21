@@ -19,7 +19,7 @@ pub struct UserPodInfo {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct ReplicantListResponse {
+pub struct UserPodListResponse {
     pub replicants: Vec<UserPodInfo>,
     pub active: String,
 }
@@ -36,13 +36,13 @@ pub struct RenameRequest {
     path = "/api/v1/replicants",
     tag = "replicants",
     responses(
-        (status = 200, description = "List of replicants for the authenticated user", body = ReplicantListResponse),
+        (status = 200, description = "List of replicants for the authenticated user", body = UserPodListResponse),
     ),
 )]
 pub async fn list_userpods(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-) -> Result<Json<ReplicantListResponse>, (StatusCode, String)> {
+) -> Result<Json<UserPodListResponse>, (StatusCode, String)> {
     let user_store = state.agent_service.storage().users.clone();
     let store = user_store.lock().map_err(|e| {
         (
@@ -71,7 +71,7 @@ pub async fn list_userpods(
         .find(|r| r.webid == auth.webid.to_string())
         .map(|r| r.name.clone())
         .unwrap_or_default();
-    Ok(Json(ReplicantListResponse {
+    Ok(Json(UserPodListResponse {
         replicants: list,
         active,
     }))
@@ -139,7 +139,7 @@ pub async fn delete_userpod(
     Ok(Json(serde_json::json!({"status": "deleted", "name": name})))
 }
 
-pub fn replicant_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
+pub fn userpod_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     use utoipa_axum::router::OpenApiRouter;
     use utoipa_axum::routes;
     OpenApiRouter::new().routes(routes!(list_userpods, rename_userpod, delete_userpod))

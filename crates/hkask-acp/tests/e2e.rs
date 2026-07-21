@@ -9,7 +9,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 
 const BINARY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/debug/hkask-acp");
-const REPLICANT: &str = "e2e-test-acp";
+const USERPOD: &str = "e2e-test-acp";
 const MODEL: &str = hkask_inference::model_constants::TEST_MODEL_SMALL;
 
 async fn read_line_timeout<R: tokio::io::AsyncRead + Unpin>(
@@ -40,7 +40,7 @@ async fn e2e_initialize_and_prompt() {
 
     // Spawn the ACP binary
     let mut child = Command::new(BINARY)
-        .env("HKASK_MCP_HOST", REPLICANT)
+        .env("HKASK_MCP_HOST", USERPOD)
         .env("HKASK_ACP_MODEL", MODEL)
         .env("RUST_LOG", "hkask.acp=info")
         .stdin(Stdio::piped())

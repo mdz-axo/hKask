@@ -1,7 +1,7 @@
-//! hkask-acp — ACP (Agent Client Protocol) replicant binary
+//! hkask-acp — ACP (Agent Client Protocol) userpod binary
 //!
 //! Presents hKask coding agents in IDEs (Zed, VS Code, etc.) via the
-//! Agent Client Protocol (agentclientprotocol.com). The replicant:
+//! Agent Client Protocol (agentclientprotocol.com). The userpod:
 //!
 //! 1. Connects to the hKask daemon for auth, capability, and memory
 //! 2. Implements ACP JSON-RPC 2.0 over stdio
@@ -36,7 +36,7 @@ use tracing::{info, warn};
 
 use crate::cloud::CloudClient;
 
-const ENV_REPLICANT: &str = "HKASK_MCP_HOST";
+const ENV_USERPOD: &str = "HKASK_MCP_HOST";
 
 /// Error type for hkask-acp library operations.
 #[derive(Debug, Error)]
@@ -50,22 +50,22 @@ pub enum AcpError {
 }
 
 pub struct SessionState {
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// pre:  session_id is a non-empty UUID string
     /// post: holds session identifier for request routing
     pub session_id: String,
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// pre:  cwd is a valid filesystem path
     /// post: holds working directory for the session
     pub cwd: String,
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// pre:  created_at is a valid Unix timestamp
     /// post: holds session creation time
     pub created_at: i64,
 }
 
 pub struct HkaskAcpAgent {
-    replicant: String,
+    userpod: String,
     daemon: Option<DaemonClient>,
     /// Cloud gateway client — used when HKASK_CLOUD_GATEWAY is configured.
     cloud: Option<CloudClient>,
@@ -88,9 +88,9 @@ impl HkaskAcpAgent {
             )
             .init();
 
-        let replicant = std::env::var(ENV_REPLICANT).unwrap_or_else(|_| {
-            warn!("HKASK_MCP_HOST not set, using default 'acp-replicant'");
-            "acp-replicant".to_string()
+        let userpod = std::env::var(ENV_USERPOD).unwrap_or_else(|_| {
+            warn!("HKASK_MCP_HOST not set, using default 'acp-userpod'");
+            "acp-userpod".to_string()
         });
 
         // Try cloud gateway first (HKASK_CLOUD_GATEWAY set)
@@ -98,14 +98,14 @@ impl HkaskAcpAgent {
             Ok(Some(c)) => {
                 info!(
                     target: "hkask.acp",
-                    replicant = %replicant,
+                    userpod = %userpod,
                     "Connected via cloud gateway"
                 );
                 Some(c)
             }
             Ok(None) => None,
             Err(e) => {
-                warn!(target: "hkask.acp", replicant = %replicant, error = %e, "Cloud gateway config error — falling back to local daemon");
+                warn!(target: "hkask.acp", userpod = %userpod, error = %e, "Cloud gateway config error — falling back to local daemon");
                 None
             }
         };
@@ -115,17 +115,17 @@ impl HkaskAcpAgent {
             (None, None)
         } else {
             let daemon_client = DaemonClient::new();
-            match verify_startup_gates(&daemon_client, &replicant, "acp", &["inference:call"]).await
+            match verify_startup_gates(&daemon_client, &userpod, "acp", &["inference:call"]).await
             {
                 Ok(gate_result) => {
                     info!(
                         target: "hkask.acp",
-                        replicant = %replicant,
+                        userpod = %userpod,
                         "P4 gates verified — {} tool(s) denied: {:?}",
                         gate_result.denied_tools.len(),
                         gate_result.denied_tools
                     );
-                    cns_emit_acp("cns.acp.ide.connection_state", &replicant, "connected");
+                    cns_emit_acp("cns.acp.ide.connection_state", &userpod, "connected");
                     (Some(daemon_client), None)
                 }
                 Err(e) => {
@@ -133,8 +133,8 @@ impl HkaskAcpAgent {
                         "hKask daemon unavailable: {}. Start it with: kask daemon start",
                         e
                     );
-                    warn!(target: "hkask.acp", replicant = %replicant, error = %msg);
-                    cns_emit_acp("cns.acp.ide.connection_state", &replicant, "degraded");
+                    warn!(target: "hkask.acp", userpod = %userpod, error = %msg);
+                    cns_emit_acp("cns.acp.ide.connection_state", &userpod, "degraded");
                     (None, Some(msg))
                 }
             }
@@ -163,7 +163,7 @@ impl HkaskAcpAgent {
             .unwrap_or_else(|_| model_constants::DEFAULT_FALLBACK_MODEL.to_string());
 
         Self {
-            replicant,
+            userpod,
             daemon,
             cloud,
             daemon_error,
@@ -175,12 +175,12 @@ impl HkaskAcpAgent {
 
     /// Test constructor — uses provided inference port, no daemon.
     ///
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// pre:  inference is a valid `Arc<dyn InferencePort>`
     /// post: returns HkaskAcpAgent in test mode with no daemon connection
     pub fn for_testing(inference: Arc<dyn InferencePort>) -> Self {
         Self {
-            replicant: "test-replicant".into(),
+            userpod: "test-userpod".into(),
             daemon: None,
             cloud: None,
             daemon_error: None,
@@ -192,7 +192,7 @@ impl HkaskAcpAgent {
 
     /// Set the default model for inference.
     ///
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// pre:  model is a non-empty model name string
     /// post: default_model set; returns Self for builder chaining
     pub fn with_model(mut self, model: &str) -> Self {
@@ -207,7 +207,7 @@ impl HkaskAcpAgent {
 
     /// Run inference stream — process prompt through LLM, dispatch tool calls, emit to stdout.
     ///
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// pre:  prompt is non-empty; session_id is valid; stdout is writable
     /// post: returns Ok(stop_reason) on completion; streams ACP JSON notifications to stdout
     /// post: encodes prompt + response as episodic memory h_mems if daemon is connected
@@ -273,7 +273,7 @@ impl HkaskAcpAgent {
                 } else if let Some(ref daemon) = self.daemon {
                     let tool_name = format!("{}:{}", tc.server, tc.tool);
                     match daemon
-                        .tool_dispatch(&self.replicant, &tool_name, &tc.args)
+                        .tool_dispatch(&self.userpod, &tool_name, &tc.args)
                         .await
                     {
                         Ok(hkask_mcp::daemon::DaemonResponse::ToolDispatchResponse {
@@ -346,7 +346,7 @@ impl HkaskAcpAgent {
             // Store prompt text
             let _ = daemon
                 .store_experience(
-                    &self.replicant,
+                    &self.userpod,
                     &format!("session:{}:prompt", session_id),
                     "text",
                     &serde_json::json!(prompt),
@@ -357,7 +357,7 @@ impl HkaskAcpAgent {
             // Store response text
             let _ = daemon
                 .store_experience(
-                    &self.replicant,
+                    &self.userpod,
                     &format!("session:{}:response", session_id),
                     "text",
                     &serde_json::json!(total_text),
@@ -368,7 +368,7 @@ impl HkaskAcpAgent {
             // Store response metadata
             let _ = daemon
                 .store_experience(
-                    &self.replicant,
+                    &self.userpod,
                     &format!("session:{}:metadata", session_id),
                     "stats",
                     &serde_json::json!({
@@ -410,11 +410,11 @@ fn map_tool_kind(tc: &hkask_ports::inference_types::StructuredToolCall) -> Strin
     }
 }
 
-fn cns_emit_acp(span: &str, replicant: &str, detail: &str) {
+fn cns_emit_acp(span: &str, userpod: &str, detail: &str) {
     info!(
         target: "hkask.acp",
         cns_span = %span,
-        replicant = %replicant,
+        userpod = %userpod,
         detail = %detail,
         "CNS"
     );
@@ -422,20 +422,20 @@ fn cns_emit_acp(span: &str, replicant: &str, detail: &str) {
 
 /// Entry point — build agent, serve ACP over stdio until disconnect.
 ///
-/// expect: "The ACP replicant provides IDE agent presence"
+/// expect: "The ACP userpod provides IDE agent presence"
 /// pre:  HKASK_MCP_HOST env var may be set; cargo build must have succeeded
 /// post: ACP JSON-RPC server runs over stdin/stdout until EOF or error
 /// post: emits cns.acp.ide.connection_state span on connect and disconnect
 pub async fn run() -> Result<(), AcpError> {
     let agent = Arc::new(HkaskAcpAgent::build().await);
-    info!(target: "hkask.acp", replicant = %agent.replicant, daemon_ok = agent.daemon_ready(), "ACP replicant starting");
+    info!(target: "hkask.acp", userpod = %agent.userpod, daemon_ok = agent.daemon_ready(), "ACP userpod starting");
 
     let mut transport = protocol::StdioTransport::new();
     transport.serve(Arc::clone(&agent)).await?;
 
     cns_emit_acp(
         "cns.acp.ide.connection_state",
-        &agent.replicant,
+        &agent.userpod,
         "disconnected",
     );
     Ok(())

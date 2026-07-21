@@ -72,8 +72,8 @@ struct ClientInfo {
     version: Option<String>,
 }
 
-fn initialize_response(id: Value, replicant: &str) -> JsonRpcResponse {
-    let title = format!("hKask — {}", replicant);
+fn initialize_response(id: Value, userpod: &str) -> JsonRpcResponse {
+    let title = format!("hKask — {}", userpod);
     let result = serde_json::json!({
         "protocolVersion": 1,
         "agentCapabilities": {
@@ -287,7 +287,7 @@ pub(crate) async fn write_notification(
 pub struct StdioTransport {}
 
 impl StdioTransport {
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// post: returns empty StdioTransport ready for serve()
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
@@ -296,7 +296,7 @@ impl StdioTransport {
 
     /// Serve ACP JSON-RPC 2.0 over stdin/stdout.
     ///
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// pre:  agent is fully built (inference + daemon configured)
     /// post: reads JSON-RPC requests from stdin, writes responses to stdout
     /// post: runs until stdin EOF or unrecoverable error
@@ -308,7 +308,7 @@ impl StdioTransport {
 
     /// Test entry point — serves ACP over arbitrary reader/writer.
     ///
-    /// expect: "The ACP replicant provides IDE agent presence"
+    /// expect: "The ACP userpod provides IDE agent presence"
     /// pre:  agent is fully built; reader implements AsyncRead; writer implements AsyncWrite
     /// post: reads JSON-RPC requests from reader, writes responses to writer
     /// post: runs until reader EOF or unrecoverable error
@@ -369,11 +369,11 @@ impl StdioTransport {
 
         match req.method.as_str() {
             "initialize" => {
-                info!(target: "hkask.acp", replicant = %agent.replicant, "initialize");
+                info!(target: "hkask.acp", userpod = %agent.userpod, "initialize");
                 if let Some(ref err) = agent.daemon_error {
                     return error_response(id, -32000, err);
                 }
-                initialize_response(id, &agent.replicant)
+                initialize_response(id, &agent.userpod)
             }
 
             "session/new" => {
@@ -412,8 +412,8 @@ impl StdioTransport {
 
                 let count = agent.sessions.lock().await.len();
                 super::cns_emit_acp(
-                    "cns.acp.replicant.memory_size",
-                    &agent.replicant,
+                    "cns.acp.userpod.memory_size",
+                    &agent.userpod,
                     &format!("sessions={}", count),
                 );
 
