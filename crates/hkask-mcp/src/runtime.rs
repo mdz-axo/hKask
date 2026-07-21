@@ -245,7 +245,7 @@ impl McpRuntime {
         // to PATH-based resolution. The env var allows pointing at a specific build
         // (e.g., target/debug/hkask-mcp-filesystem) without polluting PATH.
         //
-        // P12 replicant-host-mandate: the binary path is not a secret — it's a
+        // P12 authenticated-host-mandate: the binary path is not a secret — it's a
         // deployment-time configuration, not an ambient authority.
         let binary = resolve_mcp_binary(server_id, command);
 

@@ -8,7 +8,7 @@
 //!
 //! # Principles
 //!
-//! - \[P6\] Goal: Space for Replicants — each replicant inhabits its own pod
+//! - \[P6\] Goal: Space for UserPods — each user inhabits their own userpod (1:1)
 //!   - Constraining: Digital Public/Private Sphere — per-pod SQLCipher boundary
 //!   - Constraining: Clear Boundaries — OCAP tokens scoped to this pod
 //! - \[P5\] Goal: Essentialism — factory only; no runtime cache

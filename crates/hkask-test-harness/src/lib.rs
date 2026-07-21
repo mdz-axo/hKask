@@ -14,7 +14,7 @@
 //! # Principle grounding
 //! - P5 (Essentialism): each public item does one thing well
 //! - P8 (Semantic Grounding): every test using these fixtures carries REQ tags
-//! - P12 (Replicant Host Mandate): all test identities use TestWebId (authenticated)
+//! - P12 (Authenticated Host Mandate): all test identities use TestWebId (authenticated)
 
 // Used via derive macros (serde/thiserror/async_trait) — invisible to unused_crate_dependencies lint
 #![allow(unused_crate_dependencies)]

@@ -226,7 +226,6 @@ const TERMINAL_HTML: &str = r###"<!DOCTYPE html>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #1e1e1e; font-family: Menlo, Monaco, monospace; display: flex; flex-direction: column; height: 100vh; }
   #toolbar { display: flex; align-items: center; padding: 4px 8px; background: #2d2d2d; border-bottom: 1px solid #404040; gap: 8px; flex-shrink: 0; }
-  #replicant-select { background: #3c3c3c; color: #e0e0e0; border: 1px solid #555; padding: 3px 6px; border-radius: 3px; font-size: 12px; cursor: pointer; min-width: 120px; }
   #tab-bar { display: flex; align-items: center; gap: 0; flex: 1; overflow-x: auto; }
   .tab { padding: 5px 12px; background: #333; color: #999; border: 1px solid #404040; border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; font-size: 12px; white-space: nowrap; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .tab.active { background: #1e1e1e; color: #e0e0e0; border-color: #555; }

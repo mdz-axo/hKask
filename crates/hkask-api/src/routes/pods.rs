@@ -50,8 +50,6 @@ pub struct PodStatusResponse {
     pub state: String,
     /// Agent WebID (P12 — accountable identity)
     pub webid: String,
-    /// Agent type: "Bot" or "Replicant" (P10)
-    pub agent_type: String,
     /// FlowDef template ID
     pub template: String,
     /// Unix epoch seconds of pod creation
@@ -120,7 +118,6 @@ async fn list_pods(
             name: s.name,
             state: s.state.to_string(),
             webid: s.webid,
-            agent_type: s.agent_type.to_string(),
             template: s.template,
             created_at: s.created_at,
         })
@@ -290,7 +287,6 @@ async fn pod_status(
         name: status.name,
         state: status.state.to_string(),
         webid: status.webid,
-        agent_type: status.agent_type.to_string(),
         template: status.template,
         created_at: status.created_at,
     }))

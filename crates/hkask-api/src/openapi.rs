@@ -56,7 +56,7 @@ use crate::routes::cns::CnsSubscribeParams;
 /// - **P5 — Essentialism:** Every endpoint must earn its existence. Prefer
 ///   deletion over deprecation.
 /// - **P8 — Semantic Grounding:** Responses carry provenance-aware representations.
-/// - **P12 — Replicant Host Mandate:** Every action has an accountable host identity
+/// - **P12 — Authenticated Host Mandate:** Every action has an accountable host identity
 ///   (WebID). No anonymous agency.
 ///
 /// ## Authentication

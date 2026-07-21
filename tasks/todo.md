@@ -10,8 +10,8 @@
 - [x] **T1.1a** Rename `ReplicantIdentity`→`UserPod` + strangler-fig alias `pub type ReplicantIdentity = UserPod;` (hkask-identity). *Workspace build GREEN; alias removed in Phase 6.* — *Done 2026-07-20*
 - [x] **T1.1b** Drop `is_primary` from API surface (S-1to1-b) + CLI prints (S-1to1-c). Switcher removed from terminal UI. *Committed 0c06d9f7; workspace green.* — *Done 2026-07-20*
 - [ ] **T1.1c (deferred migration)** Drop `is_primary` field from `UserPod` + `user_store.rs` mapping + DB column — *deferred per user decision (leave DB column for now)*
-- [ ] **T1.1d (cleanup)** Remove orphan `#replicant-select` CSS rule at `terminal.rs:229` — *≤1 file*
-- [ ] **T1.2** Delete `AgentKind` enum (via S-AK-a/b/c strangler-fig); delete `PodKind::Team`; rename `PodKind::Replicant`→`PodKind::UserPod`. Update `hkask-types` — *Acc: hkask-types compiles; ≤2 files*
+- [x] **T1.1d (cleanup)** Remove orphan `#replicant-select` CSS rule at `terminal.rs:229` — *Done 2026-07-20*
+- [x] **S-AK-a** Drop `agent_type` from `A2AAgent` + `register_agent` signature (a2a/mod.rs); from `AgentPod`+`new()`+`register()` (pod/mod.rs); from `PodStatusInfo`+2 constructions+`activate_pod` (active_pods.rs); fix 9 callers (registry_loader, onboarding, token.rs, reg_wallet.rs, api a2a.rs/pods.rs, repl agent.rs/pod.rs). *AgentKind enum retained (persona system) — deleted in T2.2.* *Workspace green; a2a 11/11 + agents tests green. Committed ce7cd7ba by concurrent process.* — *Done 2026-07-20*
 
 ## Phase 2 — UserPod runtime (focus obstacle, early)
 - [x] **T2.0** Consumer trace written to `tasks/consumer-trace.md` (ReplicantIdentity/AgentKind/is_primary/list_replicants) — *Done 2026-07-20*
@@ -30,8 +30,9 @@
 - [x] **T5.1** Edit P6 "Space for Replicants & Bots"→"Space for UserPods" + P6.1 1:1 (`PRINCIPLES.md:128-131`); P5.2 "Who" drop replicant/bot (`:83`); P9 authority (`:200`) — *Done 2026-07-20*
 - [x] **T5.2** Refocus P10 Bot/Replicant Taxonomy → **P10 User Agency** (`PRINCIPLES.md:206-208`); Twelve Principles stay twelve — *Done 2026-07-20 (folded into T5.1 edit pass)*
 - [x] **T5.3a** Retitle P12→"Authenticated Host Mandate"; rewrite P12.1 surface-host table (drop Bot row; CLI=user+curator, Daemon=curator, API=userpods) (`PRINCIPLES.md:214-230`) — *Done 2026-07-20 (folded into T5.1 edit pass)*
-- [ ] **T5.3b** Rewrite `mandates/P12-replicant-host-mandate.md` to match retitled P12 — *Acc: mandate doc consistent; ≤1 file*
-- [ ] **T5.4** Sweep code comments: `deployment.rs:11`, `openapi.rs:59`, `identity/lib.rs:222`, `ports/registry.rs:113`, `mcp/runtime.rs:246`, `test-harness/lib.rs:17`, `tui/windows/chat.rs:16`, `FUNCTIONAL_SPECIFICATION.md` — *Acc: no "replicant/bot" in principle-cited comments; ≤5 files*
+- [x] **T5.3b** Rewrote mandate doc as `docs/architecture/mandates/P12-authenticated-host-mandate.md` (old `P12-replicant-host-mandate.md` was a dangling reference — dir didn't exist); fixed `PRINCIPLES.md:219` citation — *Done 2026-07-20*
+- [x] **T5.4 (core)** Swept code comments: `deployment.rs:11` (P6→UserPods), `openapi.rs:59` (P12→Authenticated), `identity/lib.rs:226` (P6→UserPods), `ports/registry.rs:110-113` (userpod/human-users), `mcp/runtime.rs:247` (P12→authenticated-host), `test-harness/lib.rs:17` (P12→Authenticated), `tui/windows/chat.rs:16` (P12→Authenticated), `FUNCTIONAL_SPECIFICATION.md:1412,1433` (P12→Authenticated). *Workspace green.* — *Done 2026-07-20*
+- [ ] **T5.4 (remaining docs)** `TESTING_DISCIPLINE.md:249,296,299`, `hKask-architecture-master.md:2659,2906,2910,2912`, `architecture-patterns.md:479` — principle-cited doc references still name Replicant/Bot (low-risk doc consistency; deferred to avoid racing concurrent doc edits)
 - [ ] **T5.5** Sweep skill docs: `attack-taxonomy-mapper`, `runtime-posture-monitor`, `supply-chain-sentinel` — rename `replicant_host` span field per Q-SPAN — *Acc: skills consistent; ≤3 files; checkpoint: User*
 
 ## Phase 6 — Surface rewiring + verification

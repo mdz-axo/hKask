@@ -68,7 +68,6 @@ pub struct A2ARegisterResponse {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct A2AAgentResponse {
     pub webid: String,
-    pub agent_type: String,
     pub capabilities: Vec<String>,
     pub registered_at: i64,
     pub active: bool,
@@ -100,7 +99,7 @@ async fn a2a_register(
 ) -> Result<Json<A2ARegisterResponse>, ServiceErrorResponse> {
     let webid = parse_webid(&req.webid)?;
 
-    let agent_kind =
+    let _agent_kind =
         hkask_types::AgentKind::parse(&req.agent_type).ok_or_else(|| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Agent,
@@ -122,9 +121,7 @@ async fn a2a_register(
     }
 
     let a2a = &state.agent_service.governance().a2a;
-    let token = a2a
-        .register_agent(webid, agent_kind, req.capabilities)
-        .await?;
+    let token = a2a.register_agent(webid, req.capabilities).await?;
 
     Ok(Json(A2ARegisterResponse {
         token: token.id.clone(),
@@ -155,7 +152,6 @@ pub(crate) async fn a2a_list_agents(
         .into_iter()
         .map(|a| A2AAgentResponse {
             webid: a.webid.to_string(),
-            agent_type: a.agent_type.to_string(),
             capabilities: a.capabilities,
             registered_at: a.registered_at,
             active: a.active,

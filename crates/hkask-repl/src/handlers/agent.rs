@@ -56,7 +56,7 @@ pub fn handle_agent(
             };
 
             let a2a = state.service_context.governance().a2a.clone();
-            match rt.block_on(a2a.register_agent(webid, agent_type, capabilities.clone())) {
+            match rt.block_on(a2a.register_agent(webid, capabilities.clone())) {
                 Ok(_token) => {
                     println!("  \x1b[32m✓\x1b[0m Registered agent: {}", webid_str);
                     println!("    Type:         {}", agent_type);
@@ -86,14 +86,10 @@ pub fn handle_agent(
     }
 }
 
-
 /// Switch the active agent and load its persona constraints.
 /// Returns a confirmation string. Shared by the REPL `/agent` handler and
 /// the TUI `SessionBridge` (no parallel logic).
-pub(crate) fn switch_agent(
-    state: &mut super::super::ReplState,
-    name: &str,
-) -> String {
+pub(crate) fn switch_agent(state: &mut super::super::ReplState, name: &str) -> String {
     state.current_agent = name.to_string();
     state.persona_constraints = state
         .service_context

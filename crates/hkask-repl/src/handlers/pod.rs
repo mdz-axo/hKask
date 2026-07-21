@@ -40,7 +40,6 @@ pub fn handle_pod(
                                 pod.name.as_deref().unwrap_or("unnamed")
                             );
                             println!("      WebID: {}", pod.webid);
-                            println!("      Type:  {}", pod.agent_type);
                         }
                     }
                 }
@@ -74,7 +73,6 @@ pub fn handle_pod(
                     );
                     println!("    State:      {}", status.state);
                     println!("    WebID:      {}", status.webid);
-                    println!("    Agent type: {}", status.agent_type);
                     println!("    Template:   {}", status.template);
                     println!("    Created:    {}", status.created_at);
                     println!();

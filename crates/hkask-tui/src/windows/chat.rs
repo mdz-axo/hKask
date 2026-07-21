@@ -13,7 +13,7 @@
 //!
 //! Mode transitions emit `cns.tui.mode_switch { from, to }` spans.
 //!
-//! # Prompt Mode Prefixes (P12 Replicant Host Mandate)
+//! # Prompt Mode Prefixes (P12 Authenticated Host Mandate)
 //!
 //! - `REPL ▸` in cyan — normal chat mode
 //! - `CMD  ▸` in yellow — slash-command entry
@@ -28,7 +28,9 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crate::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge, SessionBridge, SettingsBridge};
+use crate::repl_bridge::{
+    InferenceRequestId, InferenceState, ReplBridge, SessionBridge, SettingsBridge,
+};
 use crate::text_cursor;
 use crate::window::{Window, WindowId, WindowKind};
 
@@ -416,37 +418,34 @@ impl ChatWindow {
                             self.agent_name = sub.to_string();
                             match b.set_agent(sub) {
                                 Ok(msg) => self.add_message(MessageSender::CnsAlert, msg),
-                                Err(e) => self.add_message(
-                                    MessageSender::CnsAlert,
-                                    format!("Error: {}", e),
-                                ),
+                                Err(e) => self
+                                    .add_message(MessageSender::CnsAlert, format!("Error: {}", e)),
                             }
                         }
                     }
                     None => self.add_message(
                         MessageSender::CnsAlert,
-                        format!("Current agent: {} (agent switching unavailable in this host)", self.agent_name),
+                        format!(
+                            "Current agent: {} (agent switching unavailable in this host)",
+                            self.agent_name
+                        ),
                     ),
                 }
             }
-            "agents" | "ls" => {
-                match self.session_bridge.as_ref() {
-                    Some(b) => self.add_message(MessageSender::CnsAlert, b.list_agents_display()),
-                    None => self.add_message(
-                        MessageSender::CnsAlert,
-                        "Agent listing unavailable in this host. Use `kask agents`.".into(),
-                    ),
-                }
-            }
-            "history" | "hist" => {
-                match self.session_bridge.as_ref() {
-                    Some(b) => self.add_message(MessageSender::CnsAlert, b.history_display()),
-                    None => self.add_message(
-                        MessageSender::CnsAlert,
-                        "History unavailable in this host. Use `kask history`.".into(),
-                    ),
-                }
-            }
+            "agents" | "ls" => match self.session_bridge.as_ref() {
+                Some(b) => self.add_message(MessageSender::CnsAlert, b.list_agents_display()),
+                None => self.add_message(
+                    MessageSender::CnsAlert,
+                    "Agent listing unavailable in this host. Use `kask agents`.".into(),
+                ),
+            },
+            "history" | "hist" => match self.session_bridge.as_ref() {
+                Some(b) => self.add_message(MessageSender::CnsAlert, b.history_display()),
+                None => self.add_message(
+                    MessageSender::CnsAlert,
+                    "History unavailable in this host. Use `kask history`.".into(),
+                ),
+            },
             "curator" => {
                 self.mode = TuiMode::Curator;
                 self.add_message(
@@ -909,56 +908,62 @@ mod tests {
     }
 
     #[test]
-        fn prompt_colors_are_visible() {
-            let chat_color = TuiMode::Chat.prompt_color();
-            let cmd_color = TuiMode::Command.prompt_color();
-            let curator_color = TuiMode::Curator.prompt_color();
-            assert_ne!(chat_color, cmd_color);
-            assert_ne!(chat_color, curator_color);
-            assert_ne!(cmd_color, curator_color);
-        }
+    fn prompt_colors_are_visible() {
+        let chat_color = TuiMode::Chat.prompt_color();
+        let cmd_color = TuiMode::Command.prompt_color();
+        let curator_color = TuiMode::Curator.prompt_color();
+        assert_ne!(chat_color, cmd_color);
+        assert_ne!(chat_color, curator_color);
+        assert_ne!(cmd_color, curator_color);
+    }
 
-        fn make_window_id() -> WindowId {
-            WindowId(uuid::Uuid::new_v4())
-        }
+    fn make_window_id() -> WindowId {
+        WindowId(uuid::Uuid::new_v4())
+    }
 
-        #[test]
-        fn model_command_switches_model_via_settings_bridge() {
-            let (_sys, repl) = crate::test_util::mock_bridges();
-            let settings = crate::test_util::mock_settings_bridge();
-            let mut chat = ChatWindow::new(make_window_id(), "test-agent", "old-model", repl)
-                .with_settings_bridge(settings);
-            assert_eq!(chat.model, "old-model");
+    #[test]
+    fn model_command_switches_model_via_settings_bridge() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let settings = crate::test_util::mock_settings_bridge();
+        let mut chat = ChatWindow::new(make_window_id(), "test-agent", "old-model", repl)
+            .with_settings_bridge(settings);
+        assert_eq!(chat.model, "old-model");
 
-            chat.execute_slash_command("/model new-model");
+        chat.execute_slash_command("/model new-model");
 
-            assert_eq!(chat.model, "new-model", "/model must update ChatWindow.model");
-            let last = chat.messages.last().expect("a confirmation message was added");
-            assert!(
-                last.content.contains("Model set to: new-model"),
-                "got: {}",
-                last.content
-            );
-        }
+        assert_eq!(
+            chat.model, "new-model",
+            "/model must update ChatWindow.model"
+        );
+        let last = chat
+            .messages
+            .last()
+            .expect("a confirmation message was added");
+        assert!(
+            last.content.contains("Model set to: new-model"),
+            "got: {}",
+            last.content
+        );
+    }
 
-        #[test]
-        fn model_no_arg_shows_real_pressure_not_fake_tokens() {
-            let (_sys, repl) = crate::test_util::mock_bridges();
-            let mut chat = ChatWindow::new(make_window_id(), "test-agent", "m", repl);
+    #[test]
+    fn model_no_arg_shows_real_pressure_not_fake_tokens() {
+        let (_sys, repl) = crate::test_util::mock_bridges();
+        let mut chat = ChatWindow::new(make_window_id(), "test-agent", "m", repl);
 
-            chat.execute_slash_command("/model");
+        chat.execute_slash_command("/model");
 
-                    let status = chat
-                        .messages
-                        .iter()
-                        .find(|m| m.content.contains("Current model: m"))
-                        .expect("a status message with the current model was added");
-                    assert!(
-                        status.content.contains("% used"),
-                        "/model must show real context pressure %, not a fake token count; got: {}",
-                        status.content
-                    );
-        }
+        let status = chat
+            .messages
+            .iter()
+            .find(|m| m.content.contains("Current model: m"))
+            .expect("a status message with the current model was added");
+        assert!(
+            status.content.contains("% used"),
+            "/model must show real context pressure %, not a fake token count; got: {}",
+            status.content
+        );
+    }
 
     #[test]
     fn repl_show_renders_settings_via_settings_bridge() {
@@ -1013,12 +1018,15 @@ mod tests {
     fn agent_switch_uses_session_bridge_and_updates_chat_window() {
         let (_sys, repl) = crate::test_util::mock_bridges();
         let session = crate::test_util::mock_session_bridge();
-        let mut chat = ChatWindow::new(make_window_id(), "old-agent", "m", repl)
-            .with_session_bridge(session);
+        let mut chat =
+            ChatWindow::new(make_window_id(), "old-agent", "m", repl).with_session_bridge(session);
 
         chat.execute_slash_command("/agent new-agent");
 
-        assert_eq!(chat.agent_name, "new-agent", "/agent must update ChatWindow.agent_name");
+        assert_eq!(
+            chat.agent_name, "new-agent",
+            "/agent must update ChatWindow.agent_name"
+        );
         let last = chat.messages.last().expect("a confirmation was added");
         assert!(
             last.content.contains("Switched to agent: new-agent"),
@@ -1031,8 +1039,8 @@ mod tests {
     fn agent_no_arg_shows_live_current_agent() {
         let (_sys, repl) = crate::test_util::mock_bridges();
         let session = crate::test_util::mock_session_bridge();
-        let mut chat = ChatWindow::new(make_window_id(), "stale-name", "m", repl)
-            .with_session_bridge(session);
+        let mut chat =
+            ChatWindow::new(make_window_id(), "stale-name", "m", repl).with_session_bridge(session);
 
         chat.execute_slash_command("/agent");
 
@@ -1048,8 +1056,8 @@ mod tests {
     fn agents_command_renders_list_via_session_bridge() {
         let (_sys, repl) = crate::test_util::mock_bridges();
         let session = crate::test_util::mock_session_bridge();
-        let mut chat = ChatWindow::new(make_window_id(), "a", "m", repl)
-            .with_session_bridge(session);
+        let mut chat =
+            ChatWindow::new(make_window_id(), "a", "m", repl).with_session_bridge(session);
 
         chat.execute_slash_command("/agents");
 
@@ -1065,8 +1073,8 @@ mod tests {
     fn history_command_renders_via_session_bridge() {
         let (_sys, repl) = crate::test_util::mock_bridges();
         let session = crate::test_util::mock_session_bridge();
-        let mut chat = ChatWindow::new(make_window_id(), "a", "m", repl)
-            .with_session_bridge(session);
+        let mut chat =
+            ChatWindow::new(make_window_id(), "a", "m", repl).with_session_bridge(session);
 
         chat.execute_slash_command("/history");
 
@@ -1077,4 +1085,4 @@ mod tests {
             last.content
         );
     }
-    }
+}

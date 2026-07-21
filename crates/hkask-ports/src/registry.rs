@@ -107,10 +107,10 @@ pub struct Skill {
     pub content_hash: Option<String>,
     pub visibility: Visibility,
     pub zone: SkillZone,
-    /// Namespace (replicant handle) for collision-free public sharing.
+    /// Namespace (userpod handle) for collision-free public sharing.
     ///
-    /// \[DECLARATIVE\] Always a user replicant name (e.g. "alice"), never a system agent. (P6 — Space for Replicants).
-    /// System agents (bots) don't author or share skills — only human replicants do.
+    /// \[DECLARATIVE\] Always a userpod name (e.g. "alice"). (P6 — Space for UserPods).
+    /// Only human users (via their userpod) author or share skills.
     ///
     /// In the public zone, skills are stored as `<namespace>--<id>/` directories.
     /// In the private zone, namespace is typically `None` (user-local, no collision).

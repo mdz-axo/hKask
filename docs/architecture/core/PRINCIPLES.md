@@ -216,7 +216,7 @@ Every action has an accountable host identity. No anonymous agency.
 
 **P12.1 — Surface-Host Mapping (v0.30.0):**
 
-> **Incorporated from:** `docs/architecture/mandates/P12-replicant-host-mandate.md`
+> **Incorporated from:** `docs/architecture/mandates/P12-authenticated-host-mandate.md`
 
 Every interaction with hKask carries a userpod (or curator) host identity. Three interaction surfaces map to three host classes:
 

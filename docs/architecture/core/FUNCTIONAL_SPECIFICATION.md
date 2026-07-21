@@ -1409,7 +1409,7 @@ This is distinct from the sovereignty export (SQLCipher archive) described in §
 3.18 Deployment (`deploy`)
 
 **Goal Principle:** P5 (Essentialism) — single binary, zero-config deployment, sidecar generation
-**Constraining Principles:** P4 (Clear Boundaries) — Caddy TLS perimeter, Conduit Matrix boundary; P1 (User Sovereignty) — OAuth sign-in per user; P12 (Replicant Host Mandate) — every session has an owner
+**Constraining Principles:** P4 (Clear Boundaries) — Caddy TLS perimeter, Conduit Matrix boundary; P1 (User Sovereignty) — OAuth sign-in per user; P12 (Authenticated Host Mandate) — every session has an owner
 **Crates:** `hkask-api`, `kask` (CLI) | **Reference:** `docs/plans/deployment-and-backup.md`, `docs/guides/DEPLOYMENT.md`
 
 The deployment domain covers the cloud server provisioning model: one `kask` binary, one server, multi-user access via browser terminal. Two deployment paths are supported: **Docker Compose** (single VPS with systemd, generated via `kask matrix deploy-sidecar`) and **Kubernetes** (cluster deployment with 18 YAML manifests in `deploy/k8s/`, including Litestream S3 backup, NetworkPolicies, PDB, and health probes). There is no client binary. The browser is the client.
@@ -1430,7 +1430,7 @@ erDiagram
     UserSession }o--|| P3_Generative : "goal"
     UserSession }o--|| P1_Sovereignty : "constrains"
     UserSession }o--|| P2_Consent : "constrains"
-    UserSession }o--|| P12_ReplicantHost : "constrains"
+    UserSession }o--|| P12_AuthenticatedHost : "constrains"
     CloudServer {
         string binary "single kask binary"
         string access "browser xterm.js via WebSocket"
