@@ -96,8 +96,11 @@ fn main() {
         for (name, yaml) in platform_manifests {
             match load_manifest_from_yaml(yaml) {
                 Ok(bundle) => {
-                    registry.register_bundle(bundle);
-                    tracing::info!(target: "bootstrap", name, "Registered platform engineering manifest");
+                    if let Err(e) = registry.register_bundle(bundle) {
+                        tracing::warn!(target: "bootstrap", name, error = %e, "Failed to register platform manifest");
+                    } else {
+                        tracing::info!(target: "bootstrap", name, "Registered platform engineering manifest");
+                    }
                 }
                 Err(e) => {
                     tracing::warn!(target: "bootstrap", name, error = %e, "Failed to load platform manifest");

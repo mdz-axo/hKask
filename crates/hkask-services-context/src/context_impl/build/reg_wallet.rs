@@ -60,7 +60,7 @@ pub(super) async fn build_registry_and_wallet(
                 .iter()
                 .map(|up| hkask_agents::a2a::A2AAgent {
                     webid: up.webid,
-                    capabilities: vec![],
+                    capabilities: up.capabilities.clone(),
                     registered_at: up.created_at,
                     active: true,
                 })

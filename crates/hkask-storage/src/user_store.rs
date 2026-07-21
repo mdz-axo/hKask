@@ -16,7 +16,7 @@ use std::str::FromStr;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-const USERPOD_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, created_at, last_login";
+const USERPOD_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, capabilities, created_at, last_login";
 const SESSION_COLUMNS: &str =
     "session_id, userpod_name, webid, user_id, session_key_salt, expires_at, last_active";
 
@@ -71,8 +71,15 @@ fn userpod_from_row(
         },
         first_name_enc: row.get_blob(4)?.to_vec(),
         last_name_enc: row.get_blob(5)?.to_vec(),
-        created_at: row.get_int(6)?,
-        last_login: match row.get(7)? {
+        capabilities: {
+            let json: String = match row.get(6)? {
+                DbValue::Null => "[]".to_string(),
+                v => v.as_text()?.to_string(),
+            };
+            serde_json::from_str(&json).unwrap_or_default()
+        },
+        created_at: row.get_int(7)?,
+        last_login: match row.get(8)? {
             DbValue::Null => None,
             v => Some(v.as_int()?),
         },
@@ -136,6 +143,7 @@ impl UserStore {
         first_name: String,
         last_name: String,
         passphrase: String,
+        capabilities: Vec<String>,
     ) -> UserResult<UserPod> {
         let user_id = UserID::new();
         let salt = Self::generate_salt();
@@ -177,18 +185,20 @@ impl UserStore {
                     chrono::Utc::now().timestamp(),
                 ],
             )?;
+            let caps_json = serde_json::to_string(&capabilities).unwrap_or_else(|_| "[]".to_string());
             let identity =
-                UserPod::new(userpod_name, user_id, first_name_enc, last_name_enc);
+                UserPod::new(userpod_name, user_id, first_name_enc, last_name_enc, capabilities);
             conn.execute(
                 "INSERT INTO userpod_identities
-                 (userpod_name, user_id, webid, first_name_enc, last_name_enc, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                 (userpod_name, user_id, webid, first_name_enc, last_name_enc, capabilities, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 rusqlite::params![
                     identity.userpod_name,
                     identity.user_id,
                     identity.webid,
                     identity.first_name_enc,
                     identity.last_name_enc,
+                    caps_json,
                     chrono::Utc::now().timestamp()
                 ],
             )?;
@@ -284,22 +294,26 @@ impl UserStore {
                     display_name,
                 ],
             )?;
+            let oauth_caps: Vec<String> = UserPod::DEFAULT_CAPABILITIES.iter().map(|s| s.to_string()).collect();
+            let caps_json = serde_json::to_string(&oauth_caps).unwrap_or_else(|_| "[]".to_string());
             let identity = UserPod::new(
                 userpod_name.clone(),
                 user_id,
                 first_name_enc,
                 last_name_enc,
+                oauth_caps,
             );
             conn.execute(
                 "INSERT INTO userpod_identities
-                 (userpod_name, user_id, webid, first_name_enc, last_name_enc, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                 (userpod_name, user_id, webid, first_name_enc, last_name_enc, capabilities, created_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 rusqlite::params![
                     identity.userpod_name,
                     identity.user_id,
                     identity.webid,
                     identity.first_name_enc,
                     identity.last_name_enc,
+                    caps_json,
                     now
                 ],
             )?;

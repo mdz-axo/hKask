@@ -146,7 +146,7 @@ impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
         use hkask_services_core::DomainKind;
         use hkask_services_core::ErrorKind;
         let kind = match &e {
-            PE::PodNotActivated | PE::PodNotFound(_) => ErrorKind::NotFound,
+            PE::PodNotActive | PE::PodNotFound(_) => ErrorKind::NotFound,
             PE::CapabilityDenied { .. }
             | PE::SovereigntyDenied { .. }
             | PE::AttenuationLimitExceeded

@@ -441,7 +441,7 @@ impl Registry {
                         steps = bundle.steps.len(),
                         "Registered platform engineering manifest",
                     );
-                    registry.register_bundle(bundle);
+                    let _ = registry.register_bundle(bundle);
                 }
                 Err(e) => {
                     tracing::warn!(

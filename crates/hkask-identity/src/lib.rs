@@ -79,6 +79,8 @@ pub struct UserPod {
     pub wallet_id: Option<WalletId>,
     pub first_name_enc: Vec<u8>,
     pub last_name_enc: Vec<u8>,
+    /// Capabilities granted to this userpod (e.g., ["tool:inference:call", "tool:mcp:invoke"]).
+    pub capabilities: Vec<String>,
     pub created_at: i64,
     pub last_login: Option<i64>,
 }
@@ -100,11 +102,15 @@ impl UserPod {
     ///       created_at set to current Unix timestamp,
     ///       last_login=None
     #[must_use]
+    /// Default capabilities granted to every userpod.
+    pub const DEFAULT_CAPABILITIES: &[&str] = &["tool:inference:call", "tool:mcp:invoke"];
+
     pub fn new(
         userpod_name: String,
         user_id: UserID,
         first_name_enc: Vec<u8>,
         last_name_enc: Vec<u8>,
+        capabilities: Vec<String>,
     ) -> Self {
         Self {
             webid: Self::derive_webid(&userpod_name),
@@ -113,6 +119,7 @@ impl UserPod {
             wallet_id: None,
             first_name_enc,
             last_name_enc,
+            capabilities,
             created_at: chrono::Utc::now().timestamp(),
             last_login: None,
         }

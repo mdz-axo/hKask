@@ -116,6 +116,7 @@ pub fn register_userpod_with_passphrase(
             request.first_name,
             request.last_name,
             request.passphrase,
+            hkask_identity::UserPod::DEFAULT_CAPABILITIES.iter().map(|s| s.to_string()).collect(),
         )
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,

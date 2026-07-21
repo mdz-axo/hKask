@@ -187,6 +187,7 @@ impl OnboardingSession {
                     self.first_name.clone(),
                     self.last_name.clone(),
                     passphrase.to_string(),
+                    hkask_identity::UserPod::DEFAULT_CAPABILITIES.iter().map(|s| s.to_string()).collect(),
                 )
                 .map_err(|e| {
                     eprintln!("  \x1b[31m✗\x1b[0m Failed to create userpod: {}", e);

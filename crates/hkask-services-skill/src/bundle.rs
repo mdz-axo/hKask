@@ -232,7 +232,9 @@ impl BundleService {
         // Register the bundle in the registry.
         {
             let mut registry_guard = registry.lock().await;
-            registry_guard.register_bundle(manifest.clone());
+            if let Err(e) = registry_guard.register_bundle(manifest.clone()) {
+                tracing::warn!(target: "hkask.bundle", error = %e, "Failed to register bundle in registry");
+            }
         }
 
         let mut warnings = validation.warnings;
@@ -324,8 +326,12 @@ impl BundleService {
         {
             let registry = ctx.storage().registry.clone();
             let mut guard = registry.lock().await;
-            guard.remove_bundle(id);
-            guard.register_bundle(result.manifest.clone());
+            if let Err(e) = guard.remove_bundle(id) {
+                tracing::warn!(target: "hkask.bundle", error = %e, id = %id, "Failed to remove old bundle");
+            }
+            if let Err(e) = guard.register_bundle(result.manifest.clone()) {
+                tracing::warn!(target: "hkask.bundle", error = %e, "Failed to register evolved bundle");
+            }
         }
 
         Ok(result)
