@@ -160,19 +160,6 @@ fn spawn_command(
     Ok((master, writer))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn missing_shell_returns_error_instead_of_panicking() {
-        let output = Arc::new(Mutex::new(Vec::new()));
-        let (tx, _rx) = mpsc::channel();
-        let command = CommandBuilder::new("/hkask/does/not/exist");
-        assert!(spawn_command(command, output, tx).is_err());
-    }
-}
-
 impl Window for TerminalWindow {
     fn id(&self) -> WindowId {
         self.id
@@ -362,5 +349,18 @@ impl Window for TerminalWindow {
             self.last_cols.set(cols);
             self.last_rows.set(rows);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_shell_returns_error_instead_of_panicking() {
+        let output = Arc::new(Mutex::new(Vec::new()));
+        let (tx, _rx) = mpsc::channel();
+        let command = CommandBuilder::new("/hkask/does/not/exist");
+        assert!(spawn_command(command, output, tx).is_err());
     }
 }
