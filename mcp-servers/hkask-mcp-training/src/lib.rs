@@ -757,8 +757,19 @@ impl TrainingServer {
                     Ok(result)
                 }
                 Err(e) => {
+                    if let Some(job_store) = &self.job_store
+                        && let Err(store_error) = job_store.update_status(&job.id, "failed")
+                    {
+                        tracing::warn!(
+                            target: "hkask.training.job.persist",
+                            job_id = %job.id,
+                            error = %store_error,
+                            "Failed to persist submission failure"
+                        );
+                    }
                     tracing::error!(
                         target: "hkask.training.job.fail",
+                        job_id = %job.id,
                         error = %e,
                         "Training job submission failed"
                     );
@@ -1550,7 +1561,10 @@ pub async fn run(
                                 )
                             })?;
                         let pool = db.sqlite_pool().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
-                        let job_store = Some(JobStore::new(pool.clone()));
+                        let job_store = Some(
+                            JobStore::new(pool.clone())
+                                .map_err(|error| anyhow::anyhow!("job store schema: {error}"))?,
+                        );
                         let hmem_driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
                             Arc::new(hkask_database::sqlite::SqliteDriver::new(pool.clone()));
                         let h_mem_store = hkask_storage::HMemStore::from_driver(Arc::clone(&hmem_driver));

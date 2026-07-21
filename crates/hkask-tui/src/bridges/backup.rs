@@ -29,19 +29,25 @@ pub struct BackupConfigSummary {
     pub retention_weekly_weeks: u32,
 }
 
-/// Trait for querying backup subsystem state.
+#[derive(Debug, Clone)]
+pub struct BackupReady {
+    pub last_snapshot: Option<SnapshotInfo>,
+    pub snapshot_count: usize,
+    pub config: BackupConfigSummary,
+    pub verified: bool,
+    pub verification_detail: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum BackupSnapshot {
+    Unavailable { reason: String },
+    Ready(BackupReady),
+    Failed { error: String },
+}
+
+/// Trait for querying backup subsystem state as one coherent snapshot.
 pub trait BackupDataBridge: Send + Sync {
-    /// Most recent snapshot, if any exist.
-    fn last_snapshot(&self) -> Option<SnapshotInfo>;
-
-    /// Total number of snapshots stored.
-    fn snapshot_count(&self) -> usize;
-
-    /// Current backup configuration.
-    fn config(&self) -> BackupConfigSummary;
-
-    /// Whether the last verification passed. Returns (healthy, detail message).
-    fn verify_status(&self) -> (bool, String);
+    fn snapshot(&self) -> BackupSnapshot;
 }
 
 /// Mock implementation for TUI development and testing.
@@ -92,23 +98,17 @@ impl MockBackupBridge {
 }
 
 impl BackupDataBridge for MockBackupBridge {
-    fn last_snapshot(&self) -> Option<SnapshotInfo> {
-        self.last.clone()
-    }
-
-    fn snapshot_count(&self) -> usize {
-        self.count
-    }
-
-    fn config(&self) -> BackupConfigSummary {
-        self.cfg.clone()
-    }
-
-    fn verify_status(&self) -> (bool, String) {
-        if self.verified {
-            (true, "All repos healthy".into())
-        } else {
-            (false, "No verification run".into())
-        }
+    fn snapshot(&self) -> BackupSnapshot {
+        BackupSnapshot::Ready(BackupReady {
+            last_snapshot: self.last.clone(),
+            snapshot_count: self.count,
+            config: self.cfg.clone(),
+            verified: self.verified,
+            verification_detail: if self.verified {
+                "All repos healthy".into()
+            } else {
+                "No verification run".into()
+            },
+        })
     }
 }

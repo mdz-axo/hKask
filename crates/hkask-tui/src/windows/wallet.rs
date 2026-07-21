@@ -19,6 +19,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Gauge, Paragraph, Wrap};
 
 use crate::bridges::WalletDataBridge;
+use crate::bridges::wallet::WalletSnapshot;
 use crate::repl_bridge::ReplBridge;
 use crate::window::{Window, WindowId, WindowKind};
 
@@ -102,28 +103,38 @@ impl Window for WalletWindow {
         f.render_widget(gauge, vert[0]);
 
         let mut lines = vec![headers::section("Wallet"), Line::from("")];
+        let wallet_snapshot = self.wallet.as_ref().map(|wallet| wallet.snapshot(10));
 
         // ── rJoule balance section ──
         lines.push(Line::from(Span::styled(
             "  rJoule Balance:",
             Style::default().fg(Color::Yellow),
         )));
-        if let Some(ref w) = self.wallet {
-            let (rj, usdc, gas_equiv) = w.wallet_balance();
-            let rate = w.gas_per_rjoule();
-            lines.push(Line::from(format!("    Balance:  {} rJ", rj)));
-            lines.push(Line::from(format!(
-                "    USD:      {:.6} ({} µUSDC)",
-                usdc as f64 / 1_000_000.0,
-                usdc
-            )));
-            lines.push(Line::from(format!(
-                "    Gas Equiv: {} gas ({} gas/rJ)",
-                gas_equiv, rate
-            )));
-        } else {
-            lines.push(Line::from("    Balance:  0 rJ"));
-            lines.push(Line::from("    Wallet service not connected."));
+        match wallet_snapshot.as_ref() {
+            Some(WalletSnapshot::Ready(wallet)) => {
+                lines.push(Line::from(format!("    Balance:  {} rJ", wallet.rjoules)));
+                lines.push(Line::from(format!(
+                    "    USD:      {:.6} ({} µUSDC)",
+                    wallet.usdc_micro as f64 / 1_000_000.0,
+                    wallet.usdc_micro
+                )));
+                lines.push(Line::from(format!(
+                    "    Gas Equiv: {} gas ({} gas/rJ)",
+                    wallet.gas_equivalent, wallet.gas_per_rjoule
+                )));
+            }
+            Some(WalletSnapshot::Unavailable { reason }) => lines.push(Line::from(Span::styled(
+                format!("    Unavailable: {reason}"),
+                Style::default().fg(Color::Yellow),
+            ))),
+            Some(WalletSnapshot::Failed { error }) => lines.push(Line::from(Span::styled(
+                format!("    Failed: {error}"),
+                Style::default().fg(Color::Red),
+            ))),
+            None => lines.push(Line::from(Span::styled(
+                "    Unavailable: wallet bridge not configured",
+                Style::default().fg(Color::Yellow),
+            ))),
         }
         lines.push(Line::from(""));
 
@@ -134,11 +145,10 @@ impl Window for WalletWindow {
         )));
         lines.push(Line::from(format!("    Remaining: {}", remaining)));
         lines.push(Line::from(format!("    Cap:       {}", cap)));
-        let rate = self
-            .wallet
-            .as_ref()
-            .map(|w| w.gas_per_rjoule())
-            .unwrap_or(1000);
+        let rate = match wallet_snapshot.as_ref() {
+            Some(WalletSnapshot::Ready(wallet)) => wallet.gas_per_rjoule,
+            _ => 0,
+        };
         lines.push(Line::from(format!("    Rate:      {} gas / rJ", rate)));
         lines.push(Line::from(""));
 
@@ -147,15 +157,14 @@ impl Window for WalletWindow {
             "  Transactions:",
             Style::default().fg(Color::Yellow),
         )));
-        if let Some(ref w) = self.wallet {
-            let txs = w.wallet_transactions(10);
-            if txs.is_empty() {
+        if let Some(WalletSnapshot::Ready(wallet)) = wallet_snapshot.as_ref() {
+            if wallet.transactions.is_empty() {
                 lines.push(Line::from(format!(
                     "    No transactions yet ({} total).",
-                    w.transaction_count()
+                    wallet.transaction_count
                 )));
             } else {
-                for tx in &txs {
+                for tx in &wallet.transactions {
                     let sign = if tx.rjoules_delta >= 0 { "+" } else { "" };
                     let color = if tx.rjoules_delta >= 0 {
                         Color::Green
@@ -180,7 +189,7 @@ impl Window for WalletWindow {
                 }
             }
         } else {
-            lines.push(Line::from("    No recent transactions."));
+            lines.push(Line::from("    Transactions unavailable."));
         }
         lines.push(Line::from(""));
 

@@ -20,6 +20,7 @@ Terminal user interface built with Ratatui. The crate owns workspace state, rend
 |-----|--------|
 | `Ctrl+N` | New Chat window |
 | `Ctrl+P` | Command palette (fuzzy search 22 window kinds) |
+| `Ctrl+W` | Close focused window (persistent Logo is protected) |
 | `Tab` | Focus next pane (in Kanban: toggle board/chat) |
 | `Ctrl+Q` | Quit |
 | `?` | Help overlay |

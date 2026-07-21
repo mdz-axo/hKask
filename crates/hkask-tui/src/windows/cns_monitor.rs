@@ -101,16 +101,23 @@ impl Window for CnsMonitorWindow {
         )));
 
         let (loaded, total_mcp) = self.bridge.mcp_status();
-        let (curator, replicant, team) = self.bridge.pod_counts();
+        let pod_counts = self.bridge.pod_counts();
         lines.push(Line::from(""));
         lines.push(Line::from(format!(
             "MCP Servers: {}/{} loaded",
             loaded, total_mcp
         )));
-        lines.push(Line::from(format!(
-            "Pods: {} curator, {} replicant, {} team",
-            curator, replicant, team
-        )));
+        if let Some((curator, replicant, team)) = pod_counts {
+            lines.push(Line::from(format!(
+                "Pods: {} curator, {} replicant, {} team",
+                curator, replicant, team
+            )));
+        } else {
+            lines.push(Line::from(Span::styled(
+                "Pods: unavailable — registry scan failed",
+                Style::default().fg(Color::Red),
+            )));
+        }
 
         f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }

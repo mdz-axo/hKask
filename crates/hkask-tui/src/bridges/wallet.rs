@@ -20,23 +20,26 @@ pub struct WalletTxSummary {
     pub detail: Option<String>,
 }
 
-/// Trait for querying wallet state.
-///
-/// Designed to keep the TUI crate free of wallet service dependencies.
-/// All domain types are simple value structs that the Wallet window
-/// can render without importing `hkask-wallet` or `hkask-wallet-types`.
+#[derive(Debug, Clone)]
+pub struct WalletReady {
+    pub rjoules: u64,
+    pub usdc_micro: u64,
+    pub gas_equivalent: u64,
+    pub gas_per_rjoule: u64,
+    pub transactions: Vec<WalletTxSummary>,
+    pub transaction_count: u64,
+}
+
+#[derive(Debug, Clone)]
+pub enum WalletSnapshot {
+    Unavailable { reason: String },
+    Ready(WalletReady),
+    Failed { error: String },
+}
+
+/// Trait for querying wallet state without exposing wallet service dependencies.
 pub trait WalletDataBridge: Send + Sync {
-    /// Returns (rjoules_balance, usdc_equivalent_micro, gas_equivalent).
-    fn wallet_balance(&self) -> (u64, u64, u64);
-
-    /// Returns the most recent transactions, newest first.
-    fn wallet_transactions(&self, limit: usize) -> Vec<WalletTxSummary>;
-
-    /// Gas-to-rJoule conversion rate (default: 1000 gas per rJ).
-    fn gas_per_rjoule(&self) -> u64;
-
-    /// Total number of transactions for this wallet.
-    fn transaction_count(&self) -> u64;
+    fn snapshot(&self, transaction_limit: usize) -> WalletSnapshot;
 }
 
 /// A mock implementation for TUI development and testing.
@@ -78,19 +81,14 @@ impl MockWalletBridge {
 }
 
 impl WalletDataBridge for MockWalletBridge {
-    fn wallet_balance(&self) -> (u64, u64, u64) {
-        (self.rjoules, self.usdc_micro, self.gas_equiv)
-    }
-
-    fn wallet_transactions(&self, limit: usize) -> Vec<WalletTxSummary> {
-        self.txs.iter().take(limit).cloned().collect()
-    }
-
-    fn gas_per_rjoule(&self) -> u64 {
-        self.gas_per_rj
-    }
-
-    fn transaction_count(&self) -> u64 {
-        self.txs.len() as u64
+    fn snapshot(&self, transaction_limit: usize) -> WalletSnapshot {
+        WalletSnapshot::Ready(WalletReady {
+            rjoules: self.rjoules,
+            usdc_micro: self.usdc_micro,
+            gas_equivalent: self.gas_equiv,
+            gas_per_rjoule: self.gas_per_rj,
+            transactions: self.txs.iter().take(transaction_limit).cloned().collect(),
+            transaction_count: self.txs.len() as u64,
+        })
     }
 }

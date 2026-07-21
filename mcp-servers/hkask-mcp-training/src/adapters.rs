@@ -67,8 +67,60 @@ pub struct JobStore {
 }
 
 impl JobStore {
-    pub fn new(pool: r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>) -> Self {
-        Self { pool }
+    /// Create a job store and initialize its owned persistence schema.
+    ///
+    /// expect: "Training jobs survive server restarts without external migrations."
+    /// [P5] Motivating: JobStore owns the minimum schema required by its public operations.
+    /// post: the training_jobs table and restart-recovery columns exist.
+    /// [P4] Constraining: persistence initialization fails explicitly rather than weakening boundaries.
+    pub fn new(
+        pool: r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>,
+    ) -> Result<Self, AdapterStoreError> {
+        let store = Self { pool };
+        store.init_schema()?;
+        Ok(store)
+    }
+
+    fn init_schema(&self) -> Result<(), AdapterStoreError> {
+        let conn = self.lock()?;
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS training_jobs (
+                id TEXT PRIMARY KEY,
+                base_model TEXT NOT NULL,
+                dataset_path TEXT NOT NULL,
+                params_json TEXT NOT NULL DEFAULT '{}',
+                status TEXT NOT NULL DEFAULT 'queued',
+                created_at INTEGER NOT NULL,
+                host TEXT NOT NULL,
+                artifact_manifest_json TEXT,
+                provider_job_id TEXT
+            );",
+        )
+        .map_err(|error| AdapterStoreError::Storage(format!("Initialize schema: {error}")))?;
+
+        for (column, definition) in [
+            ("artifact_manifest_json", "TEXT"),
+            ("provider_job_id", "TEXT"),
+        ] {
+            let mut statement = conn
+                .prepare("PRAGMA table_info(training_jobs)")
+                .map_err(|error| AdapterStoreError::Storage(format!("Inspect schema: {error}")))?;
+            let columns = statement
+                .query_map([], |row| row.get::<_, String>(1))
+                .map_err(|error| AdapterStoreError::Storage(format!("Inspect schema: {error}")))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| AdapterStoreError::Storage(format!("Inspect schema: {error}")))?;
+            drop(statement);
+            if !columns.iter().any(|existing| existing == column) {
+                conn.execute_batch(&format!(
+                    "ALTER TABLE training_jobs ADD COLUMN {column} {definition};"
+                ))
+                .map_err(|error| {
+                    AdapterStoreError::Storage(format!("Migrate {column}: {error}"))
+                })?;
+            }
+        }
+        Ok(())
     }
 
     fn lock(
@@ -254,11 +306,19 @@ mod tests {
     use hkask_storage::Database;
 
     fn setup_db() -> Database {
-        let db = Database::in_memory().expect("in-memory db");
+        Database::in_memory().expect("in-memory db")
+    }
+
+    /// expect: JobStore creates and upgrades the schema it owns.
+    /// [P5] Motivating: training persistence must not depend on an ambient migration.
+    /// post: legacy tables gain artifact and provider recovery columns.
+    #[test]
+    fn job_store_initializes_and_migrates_owned_schema() {
+        let db = setup_db();
         let pool = db.sqlite_pool().expect("pool");
-        let conn = pool.get().unwrap();
+        let conn = pool.get().expect("connection");
         conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS training_jobs (
+            "CREATE TABLE training_jobs (
                 id TEXT PRIMARY KEY,
                 base_model TEXT NOT NULL,
                 dataset_path TEXT NOT NULL,
@@ -268,16 +328,32 @@ mod tests {
                 host TEXT NOT NULL
             );",
         )
-        .expect("migration");
+        .expect("legacy schema");
         drop(conn);
-        db
+
+        let _store = JobStore::new(pool.clone()).expect("migrate job store");
+        let conn = pool.get().expect("connection");
+        let mut statement = conn
+            .prepare("PRAGMA table_info(training_jobs)")
+            .expect("inspect schema");
+        let columns = statement
+            .query_map([], |row| row.get::<_, String>(1))
+            .expect("query columns")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("collect columns");
+        assert!(
+            columns
+                .iter()
+                .any(|column| column == "artifact_manifest_json")
+        );
+        assert!(columns.iter().any(|column| column == "provider_job_id"));
     }
 
     #[test]
     fn job_store_store_and_get() {
         let db = setup_db();
         let pool = db.sqlite_pool().expect("pool");
-        let store = JobStore::new(pool);
+        let store = JobStore::new(pool).expect("initialize job store");
 
         store
             .store(
@@ -301,7 +377,7 @@ mod tests {
     fn job_store_update_status() {
         let db = setup_db();
         let pool = db.sqlite_pool().expect("pool");
-        let store = JobStore::new(pool);
+        let store = JobStore::new(pool).expect("initialize job store");
 
         store
             .store(
@@ -325,7 +401,7 @@ mod tests {
     fn job_store_list_all() {
         let db = setup_db();
         let pool = db.sqlite_pool().expect("pool");
-        let store = JobStore::new(pool);
+        let store = JobStore::new(pool).expect("initialize job store");
 
         store
             .store("j1", "m1", "/d1", "{}", "queued", 100, "t")
@@ -344,7 +420,7 @@ mod tests {
     fn job_store_missing_returns_none() {
         let db = setup_db();
         let pool = db.sqlite_pool().expect("pool");
-        let store = JobStore::new(pool);
+        let store = JobStore::new(pool).expect("initialize job store");
 
         let result = store.get("nonexistent").expect("get");
         assert!(result.is_none());

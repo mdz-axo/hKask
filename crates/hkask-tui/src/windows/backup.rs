@@ -14,6 +14,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
 use crate::bridges::BackupDataBridge;
+use crate::bridges::backup::BackupSnapshot;
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
 use crate::window::{Window, WindowId, WindowKind};
@@ -54,70 +55,85 @@ impl Window for BackupWindow {
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
         let mut lines = vec![headers::section("Backup Operations"), Line::from("")];
 
-        if let Some(ref bk) = self.backup {
-            let cfg = bk.config();
-            let (verified, verify_msg) = bk.verify_status();
-
-            lines.push(Line::from(Span::styled(
-                "  Status:",
+        match self.backup.as_ref().map(|backup| backup.snapshot()) {
+            None => lines.push(Line::from(Span::styled(
+                "  Status: unavailable — backup bridge not configured",
                 Style::default().fg(Color::Yellow),
-            )));
-            lines.push(Line::from(format!(
-                "    Snapshots:    {}",
-                bk.snapshot_count()
-            )));
-            if let Some(ref snap) = bk.last_snapshot() {
-                lines.push(Line::from(format!(
-                    "    Last:         {} — {} artifacts (trigger: {})",
-                    snap.timestamp, snap.artifact_count, snap.trigger
+            ))),
+            Some(BackupSnapshot::Unavailable { reason }) => lines.push(Line::from(Span::styled(
+                format!("  Status: unavailable — {reason}"),
+                Style::default().fg(Color::Yellow),
+            ))),
+            Some(BackupSnapshot::Failed { error }) => lines.push(Line::from(Span::styled(
+                format!("  Status: failed — {error}"),
+                Style::default().fg(Color::Red),
+            ))),
+            Some(BackupSnapshot::Ready(snapshot)) => {
+                lines.push(Line::from(Span::styled(
+                    "  Status:",
+                    Style::default().fg(Color::Yellow),
                 )));
-            } else {
-                lines.push(Line::from("    Last:         none"));
-            }
-            let verify_color = if verified {
-                Color::Green
-            } else {
-                Color::Yellow
-            };
-            lines.push(Line::from(vec![
-                Span::raw("    Verified:     "),
-                Span::styled(verify_msg, Style::default().fg(verify_color)),
-            ]));
-            lines.push(Line::from(""));
+                lines.push(Line::from(format!(
+                    "    Snapshots:    {}",
+                    snapshot.snapshot_count
+                )));
+                if let Some(ref last) = snapshot.last_snapshot {
+                    lines.push(Line::from(format!(
+                        "    Last:         {} — {} artifacts (trigger: {})",
+                        last.timestamp, last.artifact_count, last.trigger
+                    )));
+                } else {
+                    lines.push(Line::from("    Last:         none"));
+                }
+                let verify_color = if snapshot.verified {
+                    Color::Green
+                } else {
+                    Color::Yellow
+                };
+                lines.push(Line::from(vec![
+                    Span::raw("    Verified:     "),
+                    Span::styled(
+                        snapshot.verification_detail,
+                        Style::default().fg(verify_color),
+                    ),
+                ]));
+                lines.push(Line::from(""));
 
-            lines.push(Line::from(Span::styled(
-                "  Configuration:",
-                Style::default().fg(Color::Yellow),
-            )));
-            lines.push(Line::from(format!(
-                "    Auto-Snapshot:        {}",
-                if cfg.auto_snapshot { "on" } else { "off" }
-            )));
-            lines.push(Line::from(format!(
-                "    Verify After Snapshot: {}",
-                if cfg.verify_after_snapshot {
-                    "on"
-                } else {
-                    "off"
-                }
-            )));
-            lines.push(Line::from(format!(
-                "    Encryption:           {}",
-                if cfg.encryption_enabled {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-            )));
-            lines.push(Line::from(format!(
-                "    Tracked Types:        {}",
-                cfg.tracked_types_count
-            )));
-            lines.push(Line::from(format!(
-                "    Retention:            {} daily / {} weekly",
-                cfg.retention_daily_days, cfg.retention_weekly_weeks
-            )));
-            lines.push(Line::from(""));
+                let config = snapshot.config;
+                lines.push(Line::from(Span::styled(
+                    "  Configuration:",
+                    Style::default().fg(Color::Yellow),
+                )));
+                lines.push(Line::from(format!(
+                    "    Auto-Snapshot:        {}",
+                    if config.auto_snapshot { "on" } else { "off" }
+                )));
+                lines.push(Line::from(format!(
+                    "    Verify After Snapshot: {}",
+                    if config.verify_after_snapshot {
+                        "on"
+                    } else {
+                        "off"
+                    }
+                )));
+                lines.push(Line::from(format!(
+                    "    Encryption:           {}",
+                    if config.encryption_enabled {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                )));
+                lines.push(Line::from(format!(
+                    "    Tracked Types:        {}",
+                    config.tracked_types_count
+                )));
+                lines.push(Line::from(format!(
+                    "    Retention:            {} daily / {} weekly",
+                    config.retention_daily_days, config.retention_weekly_weeks
+                )));
+                lines.push(Line::from(""));
+            }
         }
 
         lines.push(Line::from("  Commands:"));

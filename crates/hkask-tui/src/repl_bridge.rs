@@ -75,8 +75,8 @@ pub trait SystemBridge: Send + Sync {
     fn context_pressure(&self) -> f64;
     /// Get MCP server count (loaded / total).
     fn mcp_status(&self) -> (usize, usize);
-    /// Get pod counts (curator, replicant, team).
-    fn pod_counts(&self) -> (usize, usize, usize);
+    /// Get pod counts (curator, replicant, team), or `None` when scanning fails.
+    fn pod_counts(&self) -> Option<(usize, usize, usize)>;
     /// Get CNS domain health summary.
     fn cns_domains(&self) -> Vec<(String, bool)>;
 }

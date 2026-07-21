@@ -8,7 +8,7 @@ use hkask_ports::ToolPort;
 use hkask_templates::BundleRegistryIndex;
 use hkask_tui::SystemBridge;
 use hkask_tui::bridges::{
-    backup::{BackupConfigSummary, BackupDataBridge, SnapshotInfo},
+    backup::{BackupDataBridge, BackupSnapshot},
     companies::{CompaniesDataBridge, CompanySummary, FinancialSummary, PortfolioSummary},
     config::{ConfigDataBridge, ConfigSnapshot},
     docproc::{ChunkInfo, DocprocDataBridge, QAPair},
@@ -24,9 +24,8 @@ use hkask_tui::bridges::{
     },
     skills::{SkillExecResult, SkillListItem, SkillsDataBridge},
     training::{AdapterSummary, DeploymentSummary, TrainingDataBridge},
-    wallet::{WalletDataBridge, WalletTxSummary},
+    wallet::{WalletDataBridge, WalletSnapshot},
 };
-use hkask_wallet::GAS_PER_RJOULE;
 
 #[allow(unused_imports)]
 use hkask_tui::bridges::matrix::{
@@ -164,46 +163,10 @@ impl RegistryDataBridge for TuiReplBridge {
 // ── WalletDataBridge ────────────────────────────────────────────────
 
 impl WalletDataBridge for TuiReplBridge {
-    fn wallet_balance(&self) -> (u64, u64, u64) {
-        let rjoules = self.gas_remaining();
-        let usdc_micro = rjoules.saturating_mul(10);
-        let gas_equiv = rjoules;
-        (rjoules, usdc_micro, gas_equiv)
-    }
-
-    fn wallet_transactions(&self, limit: usize) -> Vec<WalletTxSummary> {
-        let total = self.gas_cap();
-        let remaining = self.gas_remaining();
-        let consumed = total.saturating_sub(remaining);
-        let mut txs = Vec::new();
-        if total > 0 {
-            txs.push(WalletTxSummary {
-                timestamp: chrono::Utc::now().to_rfc3339(),
-                rjoules_delta: total as i64,
-                tx_type: "Session Budget".into(),
-                balance_after: total,
-                detail: Some("gas cap".into()),
-            });
+    fn snapshot(&self, _transaction_limit: usize) -> WalletSnapshot {
+        WalletSnapshot::Unavailable {
+            reason: "live wallet ledger data is not exposed to the TUI; use `kask wallet`".into(),
         }
-        if consumed > 0 {
-            txs.push(WalletTxSummary {
-                timestamp: chrono::Utc::now().to_rfc3339(),
-                rjoules_delta: -(consumed as i64),
-                tx_type: "Consumed".into(),
-                balance_after: remaining,
-                detail: Some("inference + tool calls".into()),
-            });
-        }
-        txs.truncate(limit.max(1));
-        txs
-    }
-
-    fn gas_per_rjoule(&self) -> u64 {
-        GAS_PER_RJOULE
-    }
-
-    fn transaction_count(&self) -> u64 {
-        if self.gas_cap() > 0 { 2 } else { 0 }
     }
 }
 
@@ -507,32 +470,10 @@ impl MatrixDataBridge for TuiReplBridge {
 // ── BackupDataBridge ─────────────────────────────────────────────────
 
 impl BackupDataBridge for TuiReplBridge {
-    fn last_snapshot(&self) -> Option<SnapshotInfo> {
-        // Pod-directory backup replaced the old CAS-based system.
-        // Use `kask backup status` for per-pod snapshot info.
-        None
-    }
-
-    fn snapshot_count(&self) -> usize {
-        0
-    }
-
-    fn config(&self) -> BackupConfigSummary {
-        BackupConfigSummary {
-            auto_snapshot: false,
-            verify_after_snapshot: false,
-            encryption_enabled: false,
-            tracked_types_count: 0,
-            retention_daily_days: 0,
-            retention_weekly_weeks: 0,
+    fn snapshot(&self) -> BackupSnapshot {
+        BackupSnapshot::Unavailable {
+            reason: "live pod-directory backup status is not exposed to the TUI; use `kask backup status`".into(),
         }
-    }
-
-    fn verify_status(&self) -> (bool, String) {
-        (
-            true,
-            "Pod-directory backup active — run `kask backup verify` for CAS integrity".into(),
-        )
     }
 }
 

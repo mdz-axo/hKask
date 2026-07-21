@@ -403,7 +403,7 @@ The workspace opens with Logo and Chat on the left, Curator on the right, and a 
 | Resize focused split | `Ctrl+=` / `Ctrl+-` |
 | Create Chat window | `Ctrl+N` |
 | Create tab | `Ctrl+T` |
-| Close active tab | `Ctrl+W` |
+| Close focused window | `Ctrl+W` |
 | Switch tab | `Ctrl+1` … `Ctrl+9` |
 | Command palette | `Ctrl+P` |
 | Help | `?` |

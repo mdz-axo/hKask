@@ -39,7 +39,18 @@ impl Window for PodsWindow {
     }
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
-        let (curator, replicant, team) = self.bridge.pod_counts();
+        let Some((curator, replicant, team)) = self.bridge.pod_counts() else {
+            let lines = vec![
+                headers::section("Pod Deployment Status"),
+                Line::from(""),
+                Line::from(Span::styled(
+                    "Pod registry unavailable — scan failed",
+                    Style::default().fg(Color::Red),
+                )),
+            ];
+            f.render_widget(Paragraph::new(lines), area);
+            return;
+        };
         let lines = vec![
             headers::section("Pod Deployment Status"),
             Line::from(""),

@@ -1309,7 +1309,7 @@ Terminal UI workspace for hKask — multi-window agent interface.
 | `widgets` | Reusable UI widgets |
 | `windows` | Window management |
 
-**Key Public Types:** `TuiSession`, `Window`, `WindowId`, `WindowKind`, `Workspace`, `SplitDirection`, `InferenceState`, `ReplBridge`, `SystemBridge`, `TuiTurnResult`, `SplashScreen`.
+**Key Public Types:** `TuiSession`, `Window`, `WindowId`, `WindowKind`, `Workspace`, `SplitDirection`, `InferenceRequestId`, `InferenceState`, `ReplBridge`, `SystemBridge`, `TuiTurnResult`, `SplashScreen`.
 
 **Feature Flags:** `tui` — enables TUI rendering with `ratatui` and `crossterm`.
 
@@ -2063,9 +2063,9 @@ classDiagram
     namespace bridges {
         class ReplBridge {
             <<interface>>
-            +start_inference(String)
-            +poll_inference() InferenceState
-            +streaming_text() String
+            +start_inference(String) InferenceRequestId
+            +poll_inference(InferenceRequestId) InferenceState
+            +streaming_text(InferenceRequestId) String
             +send_message_blocking(str) TuiTurnResult
             +agent_name() str
             +model_name() str
@@ -2074,17 +2074,14 @@ classDiagram
             +cns_alert_count() u32
             +context_pressure() f64
             +mcp_status() (usize, usize)
-            +pod_counts() (usize, usize, usize)
+            +pod_counts() Option~(usize, usize, usize)~
             +cns_domains() Vec~(String, bool)~
             +send_curator_message(str) String
-            +start_scoped_inference(String, str)
+            +start_scoped_inference(String, str) InferenceRequestId
         }
         class WalletDataBridge {
             <<interface>>
-            +wallet_balance() (u64, u64, u64)
-            +wallet_transactions(usize) Vec~WalletTxSummary~
-            +gas_per_rjoule() u64
-            +transaction_count() u64
+            +snapshot(usize) WalletSnapshot
         }
     }
     namespace windows {
@@ -2177,9 +2174,9 @@ Each of the 15 domain bridge traits exposes ≤7 methods, following deep-module 
 | Bridge | Methods | Purpose |
 |--------|---------|---------|
 | `ReplBridge` | 6 (+9 inherited) | Chat/inference layered on `SystemBridge` |
-| `WalletDataBridge` | 4 | rJoule balance, transactions, conversion rate |
+| `WalletDataBridge` | 1 | Coherent ready/unavailable/failed wallet snapshot |
 | `ConfigDataBridge` | 1 | Configuration snapshot |
-| `BackupDataBridge` | 4 | Snapshot and verification status |
+| `BackupDataBridge` | 1 | Coherent ready/unavailable/failed backup snapshot |
 | `RegistryDataBridge` | 6 | Templates, skills, bundles |
 | `MemoryDataBridge` | 4 | Episodic/semantic memory, consolidation |
 | `KanbanDataBridge` | 5 | Task board queries + status transitions |
@@ -2234,7 +2231,7 @@ flowchart TD
         I1["Ctrl+Q → quit"] 
         I2["Ctrl+N → new chat"]
         I3["Ctrl+T → new tab"]
-        I4["Ctrl+W → close tab"]
+        I4["Ctrl+W → close focused window"]
         I5["Ctrl+P → command palette"]
         I6["Ctrl+H/J/K/L → focus nav"]
         I7["Ctrl+Shift+H → split H"]
@@ -2342,13 +2339,12 @@ stateDiagram-v2
             ActiveTab --> SwitchedTab: Ctrl+1-9
             ActiveTab --> NewTab: Ctrl+T
             NewTab --> ActiveTab: auto-focus
-            ActiveTab --> TabClosed: Ctrl+W
-            TabClosed --> ActiveTab: focus prev/next
-            TabClosed --> [*]: empty → quit
         }
     }
 
     WindowOpened --> Running: new window added to split tree
+    Running --> WindowClosed: Ctrl+W on closeable leaf
+    WindowClosed --> Running: parent split collapses
 
     Running --> LayoutSaved: Ctrl+Q (quit)
     LayoutSaved --> [*]: ratatui::restore()
@@ -2556,10 +2552,10 @@ hkask-tui ──✗→ hkask-cli (PROHIBITED — would be circular)
 |-------|--------|----------|
 | 1. Trait definition | `trait WalletDataBridge { ... }` | `hkask-tui/src/bridges/wallet.rs` |
 | 2. Mock implementation | `impl WalletDataBridge for MockWalletBridge` | Same file (tests + dev) |
-| 3. Live implementation | `impl WalletDataBridge for TuiReplBridge` | `hkask-repl/src/tui_bridges.rs` |
+| 3. Production implementation | `impl WalletDataBridge for TuiReplBridge` | `hkask-repl/src/tui_bridges.rs` |
 | 4. Injection | `session.with_wallet_bridge(bridge)` | `hkask-cli` (builder pattern) |
 | 5. Window wiring | `mk_bridge!(WalletWindow, ctx.wallet_bridge, ...)` | `window_catalog.rs` |
-| 6. Consumption | `self.wallet.as_ref().map(|w| w.wallet_balance())` | Window `render()` |
+| 6. Consumption | `wallet.snapshot(10)` with explicit unavailable/failed rendering | Window `render()` |
 
 ## Key Architectural Decision
 

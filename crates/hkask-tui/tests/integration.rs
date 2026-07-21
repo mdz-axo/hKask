@@ -30,6 +30,7 @@ struct MockBridge {
     pod_curator: usize,
     pod_replicant: usize,
     pod_team: usize,
+    pods_available: bool,
     cns_domains: Vec<(String, bool)>,
     pending: Mutex<HashMap<InferenceRequestId, TuiTurnResult>>,
 }
@@ -48,6 +49,7 @@ impl MockBridge {
             pod_curator: 1,
             pod_replicant: 3,
             pod_team: 2,
+            pods_available: true,
             cns_domains: vec![
                 ("sovereignty".into(), true),
                 ("gas".into(), true),
@@ -80,8 +82,9 @@ impl SystemBridge for MockBridge {
     fn mcp_status(&self) -> (usize, usize) {
         (self.mcp_loaded, self.mcp_total)
     }
-    fn pod_counts(&self) -> (usize, usize, usize) {
-        (self.pod_curator, self.pod_replicant, self.pod_team)
+    fn pod_counts(&self) -> Option<(usize, usize, usize)> {
+        self.pods_available
+            .then_some((self.pod_curator, self.pod_replicant, self.pod_team))
     }
     fn cns_domains(&self) -> Vec<(String, bool)> {
         self.cns_domains.clone()
@@ -286,6 +289,13 @@ fn backup_renders() {
 }
 
 #[test]
+fn backup_without_bridge_is_explicitly_unavailable() {
+    let window = BackupWindow::new(window_id(), bridge());
+    let text = render_snapshot(&window, 80, 24).join("\n");
+    assert!(text.contains("unavailable — backup bridge not configured"));
+}
+
+#[test]
 fn registry_renders() {
     let w = RegistryWindow::new(window_id(), bridge());
     render_smoke(&w, 80, 24);
@@ -295,6 +305,15 @@ fn registry_renders() {
 fn pods_renders() {
     let w = PodsWindow::new(window_id(), bridge());
     render_smoke(&w, 80, 24);
+}
+
+#[test]
+fn pods_report_scan_failure_as_unavailable() {
+    let mut mock = MockBridge::new();
+    mock.pods_available = false;
+    let window = PodsWindow::new(window_id(), Arc::new(mock));
+    let text = render_snapshot(&window, 80, 24).join("\n");
+    assert!(text.contains("unavailable — scan failed"));
 }
 
 #[test]
@@ -670,6 +689,7 @@ fn wallet_snapshot_shows_gas() {
         text.contains("Gas Budget") || text.contains("gas"),
         "Wallet should show gas info"
     );
+    assert!(text.contains("Unavailable: wallet bridge not configured"));
 }
 
 #[test]

@@ -168,10 +168,17 @@ pub fn run(
     rt_handle: tokio::runtime::Handle,
     host: Arc<dyn host::ReplHost>,
 ) {
-    let Some(mut state) = init::init_repl_state(_registry, initial_model, &rt_handle, host) else {
+    let Some(state) = init::init_repl_state(_registry, initial_model, &rt_handle, host) else {
         return;
     };
+    run_with_state(state, template_id, rt_handle);
+}
 
+fn run_with_state(
+    mut state: ReplState,
+    template_id: Option<&str>,
+    rt_handle: tokio::runtime::Handle,
+) {
     let helper = KaskHelper::new(state.thread_registry.clone());
 
     let rl_config = ReadlineConfig::builder()
@@ -285,16 +292,14 @@ fn history_path() -> std::path::PathBuf {
 /// Launch the TUI workspace instead of the line-based REPL.
 #[cfg(feature = "tui")]
 pub fn run_tui(
-    _registry: &mut SqliteRegistry,
+    registry: &mut SqliteRegistry,
     template_id: Option<&str>,
     _agent_name: &str,
     initial_model: Option<&str>,
     rt_handle: tokio::runtime::Handle,
     host: Arc<dyn host::ReplHost>,
 ) {
-    let Some(state) =
-        init::init_repl_state(_registry, initial_model, &rt_handle, Arc::clone(&host))
-    else {
+    let Some(state) = init::init_repl_state(registry, initial_model, &rt_handle, host) else {
         return;
     };
 
@@ -357,16 +362,22 @@ pub fn run_tui(
             }
         }
         Err(e) => {
-            eprintln!("Failed to initialize TUI: {}", e);
+            eprintln!("Failed to initialize TUI: {e}");
             eprintln!("Falling back to line-based REPL.");
-            // Can't recover ReplState from inside the Arc<Mutex>, so just run fresh
-            run(
-                _registry,
+            let Ok(bridge) = Arc::try_unwrap(bridge) else {
+                eprintln!("Cannot recover initialized REPL state after TUI failure.");
+                return;
+            };
+            let Ok(state) = Arc::try_unwrap(bridge.state) else {
+                eprintln!("Cannot recover shared REPL state after TUI failure.");
+                return;
+            };
+            run_with_state(
+                state
+                    .into_inner()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner()),
                 template_id,
-                _agent_name,
-                initial_model,
                 rt_handle,
-                host,
             );
         }
     }
@@ -656,7 +667,7 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
             (0, hkask_mcp::BUILTIN_SERVERS.len())
         }
     }
-    fn pod_counts(&self) -> (usize, usize, usize) {
+    fn pod_counts(&self) -> Option<(usize, usize, usize)> {
         if self.state.lock().is_ok() {
             let data_dir = dirs::data_local_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -674,12 +685,12 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
                             hkask_agents::PodKind::Team => team += 1,
                         }
                     }
-                    (curator, replicant, team)
+                    Some((curator, replicant, team))
                 }
-                Err(_) => (1, 1, 0),
+                Err(_) => None,
             }
         } else {
-            (1, 1, 0)
+            None
         }
     }
     fn cns_domains(&self) -> Vec<(String, bool)> {

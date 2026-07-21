@@ -23,7 +23,7 @@ dataset:
   huggingface_repo: mdz-axo/capabilities-researcher-qa
   file: train_chat_full.jsonl
   format: chatml
-  examples: 183000
+  examples: 229520
 
 # ── Base model ───────────────────────────────────────────────────────────
 base_model: unsloth/Qwen3.6-27B
@@ -52,7 +52,7 @@ training:
 
 # ── Eval + early stopping ────────────────────────────────────────────────
 eval:
-  val_set_size: 0.0012  # canonical held-out split for the 183K-example corpus
+  val_set_size: 0.0012  # canonical held-out split for the 229,520-example corpus
   eval_steps: 200
   save_steps: 200
   save_total_limit: 5

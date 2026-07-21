@@ -39,8 +39,8 @@ impl SystemBridge for MockReplBridge {
     fn mcp_status(&self) -> (usize, usize) {
         (0, 0)
     }
-    fn pod_counts(&self) -> (usize, usize, usize) {
-        (1, 1, 0)
+    fn pod_counts(&self) -> Option<(usize, usize, usize)> {
+        Some((1, 1, 0))
     }
     fn cns_domains(&self) -> Vec<(String, bool)> {
         Vec::new()

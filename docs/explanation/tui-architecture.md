@@ -76,11 +76,13 @@ This table records observed implementation behavior, not intended future behavio
 | MCP-tabbed behavior | Implemented by 11 windows; Scenarios uses custom section keys | `crates/hkask-tui/src/windows/`, `crates/hkask-tui/src/window.rs:219-224` |
 | Layout validation | Implemented | `crates/hkask-tui/src/layout.rs:49-112` |
 | Configuration snapshot | Recursive-lock defect removed | `crates/hkask-repl/src/tui_bridges.rs:40-63` |
-| Inference routing | Degraded: one global pending receiver and stream buffer | `crates/hkask-repl/src/lib.rs:378-393,428-530` |
-| Render isolation | Degraded: some windows query bridges during render | `crates/hkask-tui/src/windows/kanban.rs:254-383`, `crates/hkask-tui/src/windows/media.rs:161-168` |
-| Domain-state fidelity | Degraded: several adapters collapse errors or return placeholders | `crates/hkask-repl/src/tui_bridges.rs` |
-| Text editing | Degraded: several cursors mix character increments with byte indexing | `crates/hkask-tui/src/windows/chat.rs:429-435,673-687` |
-| Terminal creation | Degraded: recoverable PTY failures can panic | `crates/hkask-tui/src/windows/terminal.rs:102-144` |
+| Inference routing | Implemented: request-owned receiver and stream state; one active request per window | `crates/hkask-tui/src/repl_bridge.rs`, `crates/hkask-repl/src/lib.rs`, `crates/hkask-tui/src/mcp_tabbed.rs` |
+| Render isolation | Partial: Kanban renders a cached five-column snapshot refreshed from `tick`; other domains still require measurement | `crates/hkask-tui/src/windows/kanban.rs` |
+| Domain-state fidelity | Partial: Backup and Wallet use explicit `Unavailable/Ready/Failed` snapshots; pod scan failure is optional rather than fabricated | `crates/hkask-tui/src/bridges/backup.rs`, `crates/hkask-tui/src/bridges/wallet.rs`, `crates/hkask-tui/src/repl_bridge.rs` |
+| Text editing | Implemented: shared UTF-8 byte-boundary cursor operations cover Chat, Curator, Terminal, and Editor | `crates/hkask-tui/src/text_cursor.rs` |
+| Terminal creation | Implemented: PTY and shell failures render an unavailable state instead of panicking | `crates/hkask-tui/src/windows/terminal.rs` |
+| Window lifecycle policy | Implemented: singleton kinds refocus; `Ctrl+W` closes closeable focused leaves; persistent Logo is protected | `crates/hkask-tui/src/workspace.rs` |
+| TUI fallback | Implemented: initialized `ReplState` is recovered for line-REPL fallback | `crates/hkask-repl/src/lib.rs` |
 
 ## Adversarial architecture review
 
@@ -88,42 +90,44 @@ The review applies the deletion test before proposing a new abstraction: a modul
 
 | Priority | Observed problem (`IS`) | Smallest next component (`OUGHT`) | Essentialist / skeptical challenge |
 |----------|-------------------------|-----------------------------------|------------------------------------|
-| P0 | Inference uses one destructive global completion slot although multiple Chat and MCP windows can start work. | Add a failing two-producer routing test that proves overwrite or cross-delivery before selecting an API. | Do not build an event bus unless request IDs plus one owner map are insufficient. Falsifier: demonstrate that the workspace enforces one producer at runtime. |
-| P0 | MCP windows start scoped inference but do not consume completion into their `McpChatState`. | Add one end-to-end scoped-chat completion test for a single MCP window. | Do not generalize across all windows until one vertical path works. |
-| P1 | Domain/service calls occur in render paths on the event-loop thread. | Measure bridge-call count and frame latency for one Kanban render; then move one domain to a cached `Loading/Ready/Failed` snapshot. | A global cache is presumptively unnecessary. Falsifier: measured calls are bounded and remain below the frame budget under realistic storage latency. |
-| P1 | Service errors, unavailable capabilities, and empty data often collapse to the same value. | Introduce an explicit status on one high-consequence snapshot, starting with Backup. | Do not create bespoke error enums for every getter; one domain snapshot should carry one status. |
-| P1 | Unicode text input can create invalid UTF-8 byte indices. | Write a multibyte edit/render regression test for Chat, then extract the minimal cursor primitive only when the same fix is repeated. | A shared editor module is justified only if complexity reappears in at least two callers. |
-| P1 | PTY setup uses `expect`/`unwrap`, so opening Terminal can terminate unrelated work. | Make terminal construction fallible and render an unavailable window state. | Do not redesign the whole window factory; first test one missing-shell/PTY failure seam. |
-| P2 | `can_close` and `allows_multiple` describe policy that workspace operations do not enforce. | Write policy tests, then either enforce each policy or delete the metadata. | Metadata with no actuator fails the contract gate; keeping it requires observable behavior. |
-| P2 | TUI bootstrap repeats REPL initialization on terminal failure. | Separate terminal acquisition from already-created application state. | Avoid a broad “application runtime” abstraction unless state recovery cannot be expressed directly. |
+| Resolved P0 | Inference previously used one destructive global completion slot. | `InferenceRequestId` now owns receiver and streaming state; two-window routing is regression-tested. | No event bus was added; one request map proved sufficient. |
+| Resolved P0 | MCP windows previously discarded scoped completions. | Shared `McpTabbedWindow` helpers bind and poll window-owned requests. | Generalization followed a working Training vertical test. |
+| Partial P1 | Domain/service calls can occur in render paths. | Kanban now proves zero service calls across repeated renders; measure the next domain before copying the pattern. | No global cache exists. The remaining recommendation is falsified per domain if measured calls are bounded and non-blocking. |
+| Partial P1 | Service failures and empty data were conflated. | Backup, Wallet, and pod scanning now preserve unavailability; migrate another domain only when consequence or evidence warrants it. | Snapshot enums are domain-local, not a generic status framework. |
+| Resolved P1 | Unicode input could create invalid UTF-8 byte indices. | A private byte-boundary cursor module serves four input surfaces with multibyte regressions. | Extraction occurred only after duplication was confirmed in four callers. |
+| Resolved P1 | PTY setup panicked on recoverable failures. | Fallible PTY setup renders a terminal-unavailable message. | The window factory remains unchanged. |
+| Resolved P2 | `can_close` and `allows_multiple` had no actuator. | Workspace operations now enforce both contracts. | Metadata is retained because behavior and tests now depend on it. |
+| Resolved P2 | TUI failure repeated REPL initialization. | Fallback recovers the existing `ReplState` and enters the extracted line loop. | No application-runtime abstraction was introduced. |
 
 ### Pragmatic component order
 
 Each component is intended to be independently testable and revertible:
 
-1. Reproduce two-producer inference overwrite.
-2. Define the minimum request ownership type.
-3. Route one ordinary Chat completion by owner.
-4. Route one MCP scoped completion by owner.
-5. Reject or queue a second request according to an explicit policy.
-6. Measure one render-bound domain query.
-7. Add one domain snapshot state.
-8. Refresh that snapshot outside `render`.
-9. Repeat only for domains whose measurements show the same problem.
-10. Add one Unicode regression test.
-11. Repair one editor path.
-12. Extract shared cursor behavior only after a second repair proves duplication.
-13. Make PTY construction return a typed result.
-14. Render terminal unavailability without ending the session.
-15. Test lifecycle metadata and either enforce or remove each unused contract.
+1. ✅ Reproduce two-producer inference overwrite.
+2. ✅ Define the minimum request ownership type.
+3. ✅ Route ordinary Chat completion by owner.
+4. ✅ Route MCP scoped completion by owner.
+5. ✅ Enforce one active request per window.
+6. ✅ Measure Kanban render-bound queries.
+7. ✅ Add the Kanban snapshot state.
+8. ✅ Refresh Kanban outside `render`.
+9. ⏳ Repeat only for domains whose measurements show the same problem.
+10. ✅ Add multibyte regressions.
+11. ✅ Repair all four known editor paths.
+12. ✅ Extract shared cursor behavior after duplication was demonstrated.
+13. ✅ Make PTY construction fallible.
+14. ✅ Render terminal unavailability without ending the session.
+15. ✅ Enforce lifecycle metadata contracts.
+16. ✅ Reuse initialized state during line-REPL fallback.
+17. ⏳ Add explicit domain snapshots only where failures remain consequential and currently indistinguishable.
 
 This ordering treats the UI as a regulator: sensing must preserve fidelity, decisions must identify their owning request, actions must not block the sensing loop, and effects must return through a closed feedback path.[^conant-ashby]
 
 ## Why the current bridge split remains
 
-The bridge boundary survives the deletion test. Removing it would force Ratatui windows to depend directly on REPL state, MCP wire schemas, storage locks, and service implementations; test doubles would then need to recreate those dependencies. The open problem is not the existence of bridges but their granularity and semantics: repeated getters encourage render-time calls, infallible return types erase disturbances, and the global inference slot cannot represent the variety produced by multiple windows.
+The bridge boundary survives the deletion test. Removing it would force Ratatui windows to depend directly on REPL state, MCP wire schemas, storage locks, and service implementations; test doubles would then need to recreate those dependencies. Request-owned inference now represents multiple windows without a global event bus. Remaining friction is domain-specific: repeated getters can encourage render-time calls, and some infallible return types still erase disturbances.
 
-A single monolithic “TUI service” is therefore not recommended. The next deepening step is a small number of domain snapshots and request-owned inference operations, introduced one vertical path at a time.
+A single monolithic “TUI service” is therefore not recommended. Continue with measured, domain-local snapshots one vertical path at a time.
 
 [^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal architecture*. https://alistair.cockburn.us/hexagonal-architecture/.
 [^ousterhout-design]: Ousterhout, J. (2018). *A Philosophy of Software Design*. Yaknyam Press. https://web.stanford.edu/~ouster/cgi-bin/book.php.

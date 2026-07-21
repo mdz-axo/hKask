@@ -51,7 +51,7 @@ weight_decay: 0.01
 max_grad_norm: 0.3
 optim: adamw_8bit
 
-# Eval — canonical held-out split for the 183K-example corpus.
+# Eval — canonical held-out split for the 229,520-example corpus.
 val_set_size: 0.0012
 eval_steps: 200
 save_steps: 200
