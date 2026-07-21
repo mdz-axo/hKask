@@ -61,7 +61,7 @@ impl MockBridge {
 }
 
 impl SystemBridge for MockBridge {
-    fn agent_name(&self) -> &str {
+    fn userpod_name(&self) -> &str {
         &self.agent_name
     }
     fn model_name(&self) -> &str {
@@ -302,7 +302,7 @@ fn all_titles_are_distinct() {
 #[test]
 fn chat_renders() {
     let b = bridge();
-    let w = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), b.clone());
+    let w = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
     render_smoke(&w, 80, 24);
 }
 
@@ -444,7 +444,7 @@ fn all_windows_render_at_multiple_sizes() {
     let windows: Vec<Box<dyn Window>> = vec![
         Box::new(ChatWindow::new(
             window_id(),
-            b.agent_name(),
+            b.userpod_name(),
             b.model_name(),
             b.clone(),
         )),
@@ -552,7 +552,7 @@ fn text_windows_handle_multibyte_cursor_operations() {
         KeyCode::Backspace,
     ];
     let b = bridge();
-    let mut chat = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), b.clone());
+    let mut chat = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
     let mut curator = CuratorWindow::new(window_id(), b.clone());
     let mut terminal = TerminalWindow::new(window_id(), b.clone());
     let mut editor = EditorWindow::new(window_id(), b);
@@ -655,7 +655,7 @@ fn render_snapshot(window: &dyn Window, width: u16, height: u16) -> Vec<String> 
 #[test]
 fn chat_snapshot_contains_prompt() {
     let b = bridge();
-    let agent_name = b.agent_name().to_string();
+    let agent_name = b.userpod_name().to_string();
     let model_name = b.model_name().to_string();
     let w = ChatWindow::new(window_id(), &agent_name, &model_name, b);
     let lines = render_snapshot(&w, 80, 24);
@@ -668,8 +668,8 @@ fn chat_windows_receive_only_their_owned_inference() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     let b = bridge();
-    let mut first = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), b.clone());
-    let mut second = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), b.clone());
+    let mut first = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
+    let mut second = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
 
     for c in "first".chars() {
         first.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));

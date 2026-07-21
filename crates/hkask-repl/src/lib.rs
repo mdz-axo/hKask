@@ -163,7 +163,7 @@ impl std::fmt::Debug for ReplState {
 pub fn run(
     _registry: &mut SqliteRegistry,
     template_id: Option<&str>,
-    _agent_name: &str,
+    _userpod_name: &str,
     initial_model: Option<&str>,
     rt_handle: tokio::runtime::Handle,
     host: Arc<dyn host::ReplHost>,
@@ -330,7 +330,7 @@ fn history_path() -> std::path::PathBuf {
 pub fn run_tui(
     registry: &mut SqliteRegistry,
     template_id: Option<&str>,
-    _agent_name: &str,
+    _userpod_name: &str,
     initial_model: Option<&str>,
     rt_handle: tokio::runtime::Handle,
     host: Arc<dyn host::ReplHost>,
@@ -339,7 +339,7 @@ pub fn run_tui(
         return;
     };
 
-    let agent_name = state.current_agent.clone();
+    let userpod_name = state.current_agent.clone();
     let model = state.current_model.clone();
 
     // Resolve A2A secret for capability tokens. Wrapped in ZeroizingSecret
@@ -350,15 +350,15 @@ pub fn run_tui(
         .map(|s| hkask_types::secret::ZeroizingSecret::new(s.a2a_secret.as_bytes().to_vec()))
         .unwrap_or_else(|| hkask_types::secret::ZeroizingSecret::new(Vec::new()));
 
-    // Compute layout path before agent_name is moved into the bridge
-    let layout_path = hkask_tui::layout::layout_path(&agent_name);
+    // Compute layout path before userpod_name is moved into the bridge
+    let layout_path = hkask_tui::layout::layout_path(&userpod_name);
 
     // Keep ReplState alive inside the bridge for full inference
     let bridge = Arc::new(TuiReplBridge {
         state: Arc::new(std::sync::Mutex::new(state)),
         rt_handle: rt_handle.clone(),
         a2a_secret,
-        agent_name,
+        userpod_name,
         model,
         pending: std::sync::Mutex::new(std::collections::HashMap::new()),
         alert_count: std::sync::atomic::AtomicU32::new(0),
@@ -434,7 +434,7 @@ struct TuiReplBridge {
     state: Arc<std::sync::Mutex<ReplState>>,
     rt_handle: tokio::runtime::Handle,
     a2a_secret: hkask_types::secret::ZeroizingSecret,
-    agent_name: String,
+    userpod_name: String,
     model: String,
     pending: std::sync::Mutex<
         std::collections::HashMap<hkask_tui::InferenceRequestId, PendingTuiInference>,
@@ -673,8 +673,8 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
 
 #[cfg(feature = "tui")]
 impl hkask_tui::SystemBridge for TuiReplBridge {
-    fn agent_name(&self) -> &str {
-        &self.agent_name
+    fn userpod_name(&self) -> &str {
+        &self.userpod_name
     }
     fn model_name(&self) -> &str {
         &self.model
@@ -717,7 +717,7 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
             (0, hkask_mcp::BUILTIN_SERVERS.len())
         }
     }
-    fn pod_counts(&self) -> Option<(usize, usize, usize)> {
+    fn pod_counts(&self) -> Option<(usize, usize)> {
         if self.state.lock().is_ok() {
             let data_dir = dirs::data_local_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -733,7 +733,7 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
                             hkask_agents::PodKind::UserPod => userpod += 1,
                         }
                     }
-                    Some((curator, userpod, 0))
+                    Some((curator, userpod))
                 }
                 Err(_) => None,
             }

@@ -3,7 +3,6 @@
 pub use hkask_types::PodID;
 use serde::{Deserialize, Serialize};
 
-
 /// Agent operating mode — how the agent is currently interacting with the world.
 ///
 /// Initially mutually exclusive: an agent can be in Chat mode OR Server mode,
@@ -45,56 +44,49 @@ impl std::fmt::Display for PodKind {
     }
 }
 
-/// Pod lifecycle state machine
+/// Pod lifecycle state machine.
+///
+/// Simplified for the 1:1 persistent-pod model: a pod is created `Active`
+/// (A2A-reachable, inference available). When the user logs out or the
+/// account goes inactive, the pod `Sleep`s (storage-at-rest, no compute,
+/// no A2A reachability). Logging back in wakes it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PodLifecycleState {
-    /// Pod instantiated from template crate, not yet registered
-    Populated,
-    /// Registered with A2A runtime, capability token minted
-    Registered,
-    /// Activated for A2A communication, MCP access granted
-    Activated,
-    /// Deactivated, capabilities revoked
-    Deactivated,
+    /// Pod is running — A2A-reachable, inference available.
+    Active,
+    /// Pod is sleeping — storage-at-rest, no compute, no A2A reachability.
+    /// User is logged out or account is inactive-but-not-cancelled.
+    Sleeping,
 }
 
 impl PodLifecycleState {
     /// Whether a transition from `self` to `next` is legal.
     ///
-    /// The lifecycle is a linear progression:
-    /// `Populated → Registered → Activated → Deactivated`
-    ///
-    /// \[DECLARATIVE\] Re-stating the current state is a no-op and always permitted. (P7 — Evolutionary Architecture).
-    /// Terminal state `Deactivated` admits no further transitions.
+    /// The lifecycle is bidirectional: `Active ↔ Sleeping`.
+    /// Re-stating the current state is a no-op and always permitted.
     ///
     /// expect: "Agent interactions are gated by OCAP boundaries"
     /// \[P4\] Motivating: Clear Boundaries — lifecycle state machine enforces transitions
-    /// \[P7\] Constraining: Evolutionary Architecture — linear model + idempotent restate
     /// pre:  `self` and `next` are valid `PodLifecycleState` variants.
     /// post: Returns `true` if `self == next` (idempotent) or if the
-    ///       transition follows the linear progression; `false` for all
-    ///       other transitions (including from `Deactivated`).
+    ///       transition is `Active ↔ Sleeping`; `false` otherwise.
     pub fn can_transition_to(&self, next: PodLifecycleState) -> bool {
         if *self == next {
             return true;
         }
-        match (self, next) {
-            (PodLifecycleState::Populated, PodLifecycleState::Registered)
-            | (PodLifecycleState::Registered, PodLifecycleState::Activated)
-            | (PodLifecycleState::Activated, PodLifecycleState::Deactivated) => true,
-            // Deactivated is terminal; all other moves illegal.
-            _ => false,
-        }
+        matches!(
+            (self, next),
+            (PodLifecycleState::Active, PodLifecycleState::Sleeping)
+                | (PodLifecycleState::Sleeping, PodLifecycleState::Active)
+        )
     }
 }
 
 impl std::fmt::Display for PodLifecycleState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PodLifecycleState::Populated => write!(f, "populated"),
-            PodLifecycleState::Registered => write!(f, "registered"),
-            PodLifecycleState::Activated => write!(f, "activated"),
-            PodLifecycleState::Deactivated => write!(f, "deactivated"),
+            PodLifecycleState::Active => write!(f, "active"),
+            PodLifecycleState::Sleeping => write!(f, "sleeping"),
         }
     }
 }

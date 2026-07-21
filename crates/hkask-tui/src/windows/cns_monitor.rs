@@ -107,10 +107,10 @@ impl Window for CnsMonitorWindow {
             "MCP Servers: {}/{} loaded",
             loaded, total_mcp
         )));
-        if let Some((curator, userpod, team)) = pod_counts {
+        if let Some((curator, userpod)) = pod_counts {
             lines.push(Line::from(format!(
-                "Pods: {} curator, {} userpod, {} team",
-                curator, userpod, team
+                "Pods: {} curator, {} userpod",
+                curator, userpod
             )));
         } else {
             lines.push(Line::from(Span::styled(

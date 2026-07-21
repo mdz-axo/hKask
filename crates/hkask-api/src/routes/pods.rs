@@ -72,7 +72,7 @@ pub fn pods_router() -> OpenApiRouter<ApiState> {
         .routes(routes!(list_pods))
         .routes(routes!(create_pod))
         .routes(routes!(activate_pod))
-        .routes(routes!(deactivate_pod))
+        .routes(routes!(sleep_pod))
         .routes(routes!(pod_status))
 }
 
@@ -232,7 +232,7 @@ async fn activate_pod(
         (status = 400, description = "Invalid pod ID"),
     ),
 )]
-async fn deactivate_pod(
+async fn sleep_pod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
@@ -245,7 +245,7 @@ async fn deactivate_pod(
         .infra()
         .pods
         .clone()
-        .deactivate_pod(&pid)
+        .sleep_pod(&pid)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -122,7 +122,7 @@ pub(crate) async fn chat(
 
     let svc_req = ServiceChatTurnRequest {
         input: prompt,
-        agent_name: Some("Curator".to_string()),
+        userpod_name: Some("Curator".to_string()),
         model_override: req.model,
         tool_section: None,
         api_spec: Some(crate::openapi_spec::condensed_api_spec()),

@@ -19,7 +19,7 @@ pub(crate) struct MockReplBridge {
 }
 
 impl SystemBridge for MockReplBridge {
-    fn agent_name(&self) -> &str {
+    fn userpod_name(&self) -> &str {
         &self.agent_name
     }
     fn model_name(&self) -> &str {
@@ -40,8 +40,8 @@ impl SystemBridge for MockReplBridge {
     fn mcp_status(&self) -> (usize, usize) {
         (0, 0)
     }
-    fn pod_counts(&self) -> Option<(usize, usize, usize)> {
-        Some((1, 1, 0))
+    fn pod_counts(&self) -> Option<(usize, usize)> {
+        Some((1, 1))
     }
     fn cns_domains(&self) -> Vec<(String, bool)> {
         Vec::new()

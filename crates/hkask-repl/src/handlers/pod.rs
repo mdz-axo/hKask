@@ -168,7 +168,7 @@ pub fn handle_pod(
                     return;
                 }
             };
-            match rt.block_on(pods.deactivate_pod(&pod_id)) {
+            match rt.block_on(pods.sleep_pod(&pod_id)) {
                 Ok(()) => {
                     println!("  \x1b[32m✓\x1b[0m Pod {} deactivated", pod_id);
                     println!();

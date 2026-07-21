@@ -226,7 +226,7 @@ pub(crate) fn create_window(
         WindowKind::Chat => {
             let mut w = ChatWindow::new(
                 id,
-                ctx.system_bridge.agent_name(),
+                ctx.system_bridge.userpod_name(),
                 ctx.system_bridge.model_name(),
                 bridge,
             );

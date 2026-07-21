@@ -403,7 +403,7 @@ impl ActivePods {
         let registration_data = {
             let d = self.deployments.read().await;
             let d = d.get(pod_id).ok_or(AgentPodError::PodNotFound(*pod_id))?;
-            if d.pod.state == PodLifecycleState::Populated {
+            if d.pod.state == PodLifecycleState::Active {
                 Some((d.pod.webid, d.pod.capabilities.clone()))
             } else {
                 None
@@ -428,7 +428,7 @@ impl ActivePods {
             .ok_or(AgentPodError::PodNotFound(*pod_id))?;
         if let Some(token) = token {
             d.pod.capability_token = token;
-            d.pod.state = PodLifecycleState::Registered;
+            d.pod.state = PodLifecycleState::Active;
 
             // Matrix registration — register pod on Conduit synchronously.
             // Must complete before activation so the pod can authenticate
@@ -486,13 +486,13 @@ impl ActivePods {
         d.pod.activate(&self.capability_checker)
     }
 
-    /// Deactivate a pod — matches old PodManager::deactivate_pod(id).
-    pub async fn deactivate_pod(&self, pod_id: &PodID) -> Result<(), AgentPodError> {
+    /// Sleep a pod — transitions Active → Sleeping (user logged out / inactive).
+    pub async fn sleep_pod(&self, pod_id: &PodID) -> Result<(), AgentPodError> {
         let mut d = self.deployments.write().await;
         d.get_mut(pod_id)
             .ok_or(AgentPodError::PodNotFound(*pod_id))?
             .pod
-            .deactivate()
+            .sleep()
     }
 
     /// Get pod status — matches old PodManager::get_pod_status(id).

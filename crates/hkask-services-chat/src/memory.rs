@@ -137,7 +137,7 @@ impl MemoryService {
         response: &str,
         agent_webid: WebID,
         token: &DelegationToken,
-        agent_name: &str,
+        userpod_name: &str,
     ) {
         let request = StorageRequest::episodic(
             "chatted",
@@ -153,14 +153,14 @@ impl MemoryService {
             Ok(_) => {
                 tracing::debug!(
                     target: "hkask.chat.memory",
-                    agent = %agent_name,
+                    agent = %userpod_name,
                     "Episodic trace stored"
                 );
             }
             Err(e) => {
                 tracing::debug!(
                     target: "hkask.chat.memory",
-                    agent = %agent_name,
+                    agent = %userpod_name,
                     error = %e,
                     "Episodic storage failed — response still returned"
                 );

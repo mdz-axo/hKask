@@ -57,7 +57,7 @@ impl CuratorWindow {
             kind: CuratorEntryKind::Reply,
             content: format!(
                 "Curator daemon active. I monitor CNS health, surface alerts, and provide memory summaries.\nAgent: {} | Model: {}",
-                bridge.agent_name(),
+                bridge.userpod_name(),
                 bridge.model_name(),
             ),
         });

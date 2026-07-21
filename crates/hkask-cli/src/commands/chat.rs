@@ -89,7 +89,7 @@ async fn finish_stream(
         &full_text,
         prepared.agent_webid,
         &prepared.capability_token,
-        &prepared.agent_name,
+        &prepared.userpod_name,
     );
 
     ChatTurnResponse {
@@ -112,7 +112,7 @@ async fn finish_stream(
 #[allow(clippy::too_many_arguments)]
 pub async fn chat_with_agent_streaming(
     input: &str,
-    agent_name: Option<&str>,
+    userpod_name: Option<&str>,
     model_override: Option<&str>,
     inference_port: Option<Arc<dyn InferencePort>>,
     secrets: Option<&ResolvedSecrets>,
@@ -121,7 +121,7 @@ pub async fn chat_with_agent_streaming(
     _agent_webid: Option<hkask_types::WebID>,
     tool_section: Option<&str>,
 ) -> ChatTurnResponse {
-    let name = agent_name.unwrap_or("Curator");
+    let name = userpod_name.unwrap_or("Curator");
 
     let ctx = match build_chat_context(name, secrets) {
         Ok(ctx) => ctx,
@@ -130,7 +130,7 @@ pub async fn chat_with_agent_streaming(
 
     let req = ChatTurnRequest {
         input: input.to_string(),
-        agent_name: Some(name.to_string()),
+        userpod_name: Some(name.to_string()),
         model_override: model_override.map(|s| s.to_string()),
         tool_section: tool_section.map(|s| s.to_string()),
         inference_port_override: inference_port,

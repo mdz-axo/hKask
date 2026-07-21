@@ -107,7 +107,7 @@ impl Window for ConfigurationWindow {
             Line::from(""),
             Line::from("  System:"),
             Line::from(format!("    MCP Servers:   {}/{}", mcp_loaded, mcp_total)),
-            Line::from(format!("    Agent:         {}", self.bridge.agent_name())),
+            Line::from(format!("    Agent:         {}", self.bridge.userpod_name())),
             Line::from(""),
             Line::from(Span::styled(
                 "  Use `kask settings` CLI or /repl command to change values.",

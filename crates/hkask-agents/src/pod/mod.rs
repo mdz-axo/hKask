@@ -251,7 +251,7 @@ impl AgentPod {
             capabilities: capabilities.clone(),
             template_crate,
             capability_token,
-            state: PodLifecycleState::Populated,
+            state: PodLifecycleState::Active,
             created_at: current_timestamp()?,
             max_attenuation: SYSTEM_MAX_ATTENUATION,
             sovereignty_checker,
@@ -263,7 +263,7 @@ impl AgentPod {
 
     /// Register the pod with the A2A runtime
     ///
-    /// Transitions state: `Populated` → `Registered`
+    /// Mints A2A capability token (pod is already Active)
     ///
     /// # Arguments
     /// * `acp` — A2A runtime port for agent registration
@@ -280,13 +280,7 @@ impl AgentPod {
     ///       `self.capability_token` is updated with the A2A-issued token.
     ///       On failure, state is unchanged.
     pub async fn register(&mut self, a2a: &A2ARuntime) -> AgentPodResult<()> {
-        if !self.state.can_transition_to(PodLifecycleState::Registered) {
-            return Err(AgentPodError::InvalidStateTransition(
-                self.state,
-                PodLifecycleState::Registered,
-            ));
-        }
-
+        // A2A registration — pod is already Active; this mints the capability token.
         let capabilities: Vec<String> = self.capabilities.clone();
         let token = a2a
             .register_agent(self.webid, capabilities)
@@ -294,7 +288,6 @@ impl AgentPod {
             .map_err(|e| AgentPodError::A2ARegistrationError(e.to_string()))?;
 
         self.capability_token = token;
-        self.state = PodLifecycleState::Registered;
 
         tracing::debug!(
             target: "hkask.pod",
@@ -312,19 +305,14 @@ impl AgentPod {
 
     /// Activate the pod for A2A communication.
     ///
-    /// Transitions state: `Registered` → `Activated` after verifying that the
+    /// Verifies OCAP capability (pod is already Active) after verifying that the
     /// pod's capability token is rooted in the configured OCAP authority.
     pub fn activate(
         &mut self,
         checker: &hkask_capability::CapabilityChecker,
     ) -> AgentPodResult<()> {
-        if !self.state.can_transition_to(PodLifecycleState::Activated) {
-            return Err(AgentPodError::InvalidStateTransition(
-                self.state,
-                PodLifecycleState::Activated,
-            ));
-        }
-
+        // Verify the capability token is rooted in the OCAP authority.
+        // Pod starts Active; this is a capability check, not a state transition.
         if !checker.verify(&self.capability_token)
             || self.capability_token.delegated_to != self.webid
         {
@@ -333,8 +321,6 @@ impl AgentPod {
                 action: hkask_capability::DelegationAction::Execute,
             });
         }
-
-        self.state = PodLifecycleState::Activated;
 
         tracing::debug!(
             target: "hkask.pod",
@@ -353,7 +339,7 @@ impl AgentPod {
 
     /// Deactivate the pod and revoke capabilities
     ///
-    /// Transitions state: `Activated` → `Deactivated`
+    /// Transitions state: `Active` → `Sleeping`
     ///
     /// # Returns
     /// * `Ok(())` — Deactivation successful
@@ -363,15 +349,15 @@ impl AgentPod {
     /// pre:  `self.state` must be `Activated` (or `Deactivated` for
     ///       idempotent re-deactivation).
     /// post: `self.state` is `Deactivated`.
-    pub fn deactivate(&mut self) -> AgentPodResult<()> {
-        if !self.state.can_transition_to(PodLifecycleState::Deactivated) {
+    pub fn sleep(&mut self) -> AgentPodResult<()> {
+        if !self.state.can_transition_to(PodLifecycleState::Sleeping) {
             return Err(AgentPodError::InvalidStateTransition(
                 self.state,
-                PodLifecycleState::Deactivated,
+                PodLifecycleState::Sleeping,
             ));
         }
 
-        self.state = PodLifecycleState::Deactivated;
+        self.state = PodLifecycleState::Sleeping;
 
         tracing::debug!(
             target: "hkask.pod",
@@ -430,9 +416,9 @@ impl AgentPod {
     /// expect: "My agents operate within my sovereignty boundaries"
     /// \[P8\] Motivating: Semantic Grounding — state accessor for Activated
     /// pre:  (none).
-    /// post: Returns `true` iff `self.state == PodLifecycleState::Activated`.
+    /// post: Returns `true` iff `self.state == PodLifecycleState::Active`.
     pub fn is_active(&self) -> bool {
-        self.state == PodLifecycleState::Activated
+        self.state == PodLifecycleState::Active
     }
 
     /// Get the current lifecycle state.
@@ -465,7 +451,7 @@ impl AgentPod {
     /// post: `self.mode` is set to `Some(AgentMode::Server)`.
     ///       Returns `Err` if any precondition fails.
     pub fn enter_server_mode(&mut self, role: &str) -> AgentPodResult<()> {
-        if self.state != PodLifecycleState::Activated {
+        if self.state != PodLifecycleState::Active {
             return Err(AgentPodError::ModeRequiresActivation(self.state));
         }
         if let Some(ref current) = self.mode {
@@ -500,7 +486,7 @@ impl AgentPod {
     /// post: `self.mode` is set to `Some(AgentMode::Chat)`.
     ///       Returns `Err` if any precondition fails.
     pub fn enter_chat_mode(&mut self) -> AgentPodResult<()> {
-        if self.state != PodLifecycleState::Activated {
+        if self.state != PodLifecycleState::Active {
             return Err(AgentPodError::ModeRequiresActivation(self.state));
         }
         if let Some(ref current) = self.mode {

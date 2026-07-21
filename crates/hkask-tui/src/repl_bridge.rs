@@ -62,7 +62,7 @@ pub enum InferenceState {
 /// must not perform blocking service or network I/O.
 pub trait SystemBridge: Send + Sync {
     /// Get the current agent name.
-    fn agent_name(&self) -> &str;
+    fn userpod_name(&self) -> &str;
     /// Get the current model name.
     fn model_name(&self) -> &str;
     /// Get gas remaining.
@@ -76,7 +76,7 @@ pub trait SystemBridge: Send + Sync {
     /// Get MCP server count (loaded / total).
     fn mcp_status(&self) -> (usize, usize);
     /// Get pod counts (curator, userpod, team), or `None` when scanning fails.
-    fn pod_counts(&self) -> Option<(usize, usize, usize)>;
+    fn pod_counts(&self) -> Option<(usize, usize)>;
     /// Get CNS domain health summary.
     fn cns_domains(&self) -> Vec<(String, bool)>;
 }

@@ -248,7 +248,7 @@ async fn handle_chat_ws(socket: WebSocket, state: ApiState) {
                                 // Build the service request with auto-discovered MCP tools
                                 let svc_req = ChatTurnRequest {
                                     input,
-                                    agent_name: Some("Curator".to_string()),
+                                    userpod_name: Some("Curator".to_string()),
                                     model_override: model,
                                     tool_section: None,
                                     api_spec: Some(crate::openapi_spec::condensed_api_spec()),

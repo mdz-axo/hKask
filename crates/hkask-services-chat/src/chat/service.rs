@@ -121,7 +121,7 @@ impl ChatService {
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  ctx must be fully built; req.input must be non-empty; agent must be registered
-    /// post: returns PreparedChat with prompt, model, agent_webid, capability_token, inference_port, episodic_port, and agent_name; Err(AgentNotFound) if agent not registered
+    /// post: returns PreparedChat with prompt, model, agent_webid, capability_token, inference_port, episodic_port, and userpod_name; Err(AgentNotFound) if agent not registered
     ///
     /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and CNS observability"
     #[must_use = "result must be used"]
@@ -129,7 +129,7 @@ impl ChatService {
         ctx: &AgentService,
         req: &ChatTurnRequest,
     ) -> Result<PreparedChat, ServiceError> {
-        let name = req.agent_name.as_deref().unwrap_or("Curator");
+        let name = req.userpod_name.as_deref().unwrap_or("Curator");
 
         // Agent registry removed (consolidation): compose a direct system prompt.
         let mut system_prompt = format!("You are {} in the hKask system.\n\n", name);
@@ -247,7 +247,7 @@ impl ChatService {
             capability_token,
             inference_port: inference,
             episodic_port,
-            agent_name: name.to_string(),
+            userpod_name: name.to_string(),
         })
     }
 
@@ -308,7 +308,7 @@ impl ChatService {
             request_span,
             CyclePhase::Act,
             serde_json::json!({
-                "agent": &prepared.agent_name,
+                "agent": &prepared.userpod_name,
                 "model": &prepared.model,
                 "prompt_len": prepared.prompt.len(),
             }),
@@ -348,7 +348,7 @@ impl ChatService {
             response_span,
             CyclePhase::Act,
             serde_json::json!({
-                "agent": &prepared.agent_name,
+                "agent": &prepared.userpod_name,
                 "model": &prepared.model,
                 "tokens": result.usage.total_tokens,
                 "finish_reason": &result.finish_reason,
@@ -368,7 +368,7 @@ impl ChatService {
             memory_span,
             CyclePhase::Act,
             serde_json::json!({
-                "agent": &prepared.agent_name,
+                "agent": &prepared.userpod_name,
                 "operation": "store_episodic",
                 "input_len": req.input.len(),
                 "response_len": result.text.len(),
@@ -390,12 +390,12 @@ impl ChatService {
                 &result.text,
                 prepared.agent_webid,
                 &prepared.capability_token,
-                &prepared.agent_name,
+                &prepared.userpod_name,
             );
         } else {
             tracing::debug!(
                 target: "hkask.chat.memory",
-                agent = %prepared.agent_name,
+                agent = %prepared.userpod_name,
                 "Episodic store skipped — no episodic-memory consent (P2)"
             );
         }
@@ -532,13 +532,13 @@ impl ChatService {
                     &full_text,
                     prepared.agent_webid,
                     &prepared.capability_token,
-                    &prepared.agent_name,
+                    &prepared.userpod_name,
                 );
                 true
             } else {
                 tracing::debug!(
                     target: "hkask.chat.memory",
-                    agent = %prepared.agent_name,
+                    agent = %prepared.userpod_name,
                     "Episodic store skipped — no episodic-memory consent (P2)"
                 );
                 false
@@ -559,7 +559,7 @@ impl ChatService {
     /// Returns `None` if the agent has no manifest or execution fails.
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  executor must be initialized; manifest must be valid; input and agent_name must be non-empty
+    /// pre:  executor must be initialized; manifest must be valid; input and userpod_name must be non-empty
     /// post: returns Some(String) of concatenated step outputs if cascade completes; None if no manifest or execution fails
     ///
     /// expect: "The system executes skill manifest cascades with template rendering and inference composition"
@@ -567,7 +567,7 @@ impl ChatService {
         executor: &hkask_templates::ManifestExecutor,
         manifest: &hkask_templates::BundleManifest,
         input: &str,
-        agent_name: &str,
+        userpod_name: &str,
     ) -> Option<String> {
         let mut initial_ctx = std::collections::HashMap::new();
         initial_ctx.insert(
@@ -576,7 +576,7 @@ impl ChatService {
         );
         initial_ctx.insert(
             "agent".to_string(),
-            serde_json::Value::String(agent_name.to_string()),
+            serde_json::Value::String(userpod_name.to_string()),
         );
 
         let ctx = match executor.execute_manifest(manifest, initial_ctx).await {
@@ -668,7 +668,7 @@ impl ChatService {
     /// `tool_results`, and iteration counter fields matter for continuations).
     ///
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  ctx must be fully built; req.input must be non-empty; req.agent_name must be registered
+    /// pre:  ctx must be fully built; req.input must be non-empty; req.userpod_name must be registered
     /// post: returns TurnResult with response text, token usage, tool calls, and iteration count; manifest cascade and history suffix applied; persona filter applied; Err on inference failure
     ///
     /// expect: "The system orchestrates LLM chat turns with memory recall, episodic storage, and CNS observability"
@@ -682,7 +682,7 @@ impl ChatService {
         let base_input =
             if let (Some(executor), Some(manifest)) = (manifest_executor, process_manifest) {
                 let manifest_context =
-                    Self::execute_manifest_cascade(executor, manifest, &req.input, &req.agent_name)
+                    Self::execute_manifest_cascade(executor, manifest, &req.input, &req.userpod_name)
                         .await;
                 match manifest_context {
                     Some(ctx) => Self::wrap_manifest_input(&req.input, &ctx),
@@ -750,7 +750,7 @@ impl ChatService {
 
         let chat_req = ChatTurnRequest {
             input: effective_input,
-            agent_name: Some(req.agent_name.clone()),
+            userpod_name: Some(req.userpod_name.clone()),
             model_override: Some(req.model.clone()),
             tool_section: if req.tool_section.is_empty() {
                 None

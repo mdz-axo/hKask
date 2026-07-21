@@ -55,7 +55,7 @@ pub struct ChatTurnRequest {
     /// User input message
     pub input: String,
     /// Agent name (defaults to "Curator")
-    pub agent_name: Option<String>,
+    pub userpod_name: Option<String>,
     /// Model override (defaults to agent-kind-specific model)
     pub model_override: Option<String>,
     /// Pre-formatted tool-call section of the system prompt from MCP discovery
@@ -104,7 +104,7 @@ pub struct PreparedChat {
     /// The resolved episodic storage port.
     pub episodic_port: Arc<dyn EpisodicStoragePort>,
     /// The agent name (for episodic storage).
-    pub agent_name: String,
+    pub userpod_name: String,
 }
 
 /// Request for a single-agent turn through `ChatService::execute_turn()`.
@@ -112,7 +112,7 @@ pub struct TurnRequest {
     /// User input message
     pub input: String,
     /// Agent name for registry lookup and memory operations
-    pub agent_name: String,
+    pub userpod_name: String,
     /// Model name (e.g., "deepseek-v4-flash")
     pub model: String,
     /// Inference port override (REPL passes its long-lived port)

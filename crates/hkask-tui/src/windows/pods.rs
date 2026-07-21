@@ -1,7 +1,7 @@
 //! Pods window — displays pod deployment status.
 //!
-//! Shows CuratorPod, UserPodPods, and TeamPods with their
-//! deployment status, storage paths, and CNS runtime state.
+//! Shows CuratorPod and UserPod with their deployment status, storage
+//! paths, and CNS runtime state. One user = one userpod (no TeamPods).
 
 use std::sync::Arc;
 
@@ -39,7 +39,7 @@ impl Window for PodsWindow {
     }
 
     fn render(&self, f: &mut Frame, area: Rect, _focused: bool) {
-        let Some((curator, userpod, team)) = self.bridge.pod_counts() else {
+        let Some((curator, userpod)) = self.bridge.pod_counts() else {
             let lines = vec![
                 headers::section("Pod Deployment Status"),
                 Line::from(""),
@@ -55,7 +55,7 @@ impl Window for PodsWindow {
             headers::section("Pod Deployment Status"),
             Line::from(""),
             Line::from(Span::styled(
-                "Tier 1 — CuratorPod:",
+                "CuratorPod:",
                 Style::default().fg(Color::Yellow),
             )),
             Line::from(format!(
@@ -66,23 +66,19 @@ impl Window for PodsWindow {
                     "✗ Inactive"
                 }
             )),
-            Line::from("  Storage: ~/.config/hkask/agents/curator/pod.db"),
+            Line::from("  Storage: ~/.local/share/hkask/curator/pod.db"),
             Line::from("  Role:   SemanticIndex owner, CNS coordination"),
             Line::from(""),
-            Line::from(Span::styled(
-                "Tier 2 — TeamPods:",
-                Style::default().fg(Color::Yellow),
+            Line::from(Span::styled("UserPod:", Style::default().fg(Color::Yellow))),
+            Line::from(format!(
+                "  Status: {}",
+                if userpod > 0 {
+                    "✓ Active"
+                } else {
+                    "✗ Inactive"
+                }
             )),
-            Line::from(format!("  Count:  {}", team)),
-            Line::from("  Storage: ~/.config/hkask/agents/team.{name}/pod.db"),
-            Line::from("  Role:   Shared bot episodic storage"),
-            Line::from(""),
-            Line::from(Span::styled(
-                "Tier 3 — UserPodPods:",
-                Style::default().fg(Color::Yellow),
-            )),
-            Line::from(format!("  Count:  {}", userpod)),
-            Line::from("  Storage: ~/.config/hkask/agents/userpod.{name}/pod.db"),
+            Line::from("  Storage: ~/.local/share/hkask/userpods/{name}/pod.db"),
             Line::from("  Role:   Human+userpod pair, private episodic"),
             Line::from(""),
             Line::from(Span::styled(

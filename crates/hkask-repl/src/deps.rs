@@ -142,7 +142,7 @@ impl TurnExecutor for ReplTurnExecutor {
             .expect("per-agent memory");
         let req = TurnRequest {
             input: input.input.to_string(),
-            agent_name: input
+            userpod_name: input
                 .agent_override
                 .unwrap_or(&self.current_agent)
                 .to_string(),
