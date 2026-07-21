@@ -78,12 +78,7 @@ pub async fn health_check(State(state): State<ApiState>) -> impl IntoResponse {
 }
 
 fn check_db(state: &ApiState) -> bool {
-    state
-        .agent_service
-        .storage()
-        .agents
-        .get_user_profile()
-        .is_ok()
+    state.agent_service.storage().list_userpods().is_ok()
 }
 
 async fn check_conduit() -> bool {
