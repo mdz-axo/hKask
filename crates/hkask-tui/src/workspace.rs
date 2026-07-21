@@ -15,10 +15,10 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
 use crate::bridges::{
-    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge,
-    MatrixDataBridge, MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge,
-    ResearchDataBridge, ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge,
-    WalletDataBridge, with_bridges, workspace_bridge_setter,
+    CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge, MatrixDataBridge,
+    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge,
+    ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge, with_bridges,
+    workspace_bridge_setter,
 };
 use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
@@ -112,20 +112,6 @@ impl SplitNode {
             }
             SplitNode::Vertical { top, bottom, .. } => {
                 top.find_kind(kind).or_else(|| bottom.find_kind(kind))
-            }
-            _ => None,
-        }
-    }
-
-    fn can_close(&self, target: WindowId) -> Option<bool> {
-        match self {
-            SplitNode::Leaf(Some(window)) if window.id() == target => Some(window.can_close()),
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
-            SplitNode::Horizontal { left, right, .. } => {
-                left.can_close(target).or_else(|| right.can_close(target))
-            }
-            SplitNode::Vertical { top, bottom, .. } => {
-                top.can_close(target).or_else(|| bottom.can_close(target))
             }
             _ => None,
         }
@@ -386,7 +372,6 @@ struct WorkspaceBridges {
     session_bridge: Option<Arc<dyn SessionBridge>>,
     wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     config_bridge: Option<Arc<dyn ConfigDataBridge>>,
-    backup_bridge: Option<Arc<dyn BackupDataBridge>>,
     registry_bridge: Option<Arc<dyn RegistryDataBridge>>,
     memory_bridge: Option<Arc<dyn MemoryDataBridge>>,
     kanban_bridge: Option<Arc<dyn KanbanDataBridge>>,
@@ -414,7 +399,6 @@ impl WorkspaceBridges {
             session_bridge: self.session_bridge.clone(),
             wallet_bridge: self.wallet_bridge.clone(),
             config_bridge: self.config_bridge.clone(),
-            backup_bridge: self.backup_bridge.clone(),
             registry_bridge: self.registry_bridge.clone(),
             memory_bridge: self.memory_bridge.clone(),
             kanban_bridge: self.kanban_bridge.clone(),
@@ -472,7 +456,6 @@ impl Workspace {
         session_bridge, SessionBridge, with_session_bridge;
         wallet_bridge, WalletDataBridge, with_wallet_bridge;
         config_bridge, ConfigDataBridge, with_config_bridge;
-        backup_bridge, BackupDataBridge, with_backup_bridge;
         registry_bridge, RegistryDataBridge, with_registry_bridge;
         memory_bridge, MemoryDataBridge, with_memory_bridge;
         kanban_bridge, KanbanDataBridge, with_kanban_bridge;

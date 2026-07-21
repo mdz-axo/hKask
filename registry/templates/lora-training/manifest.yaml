@@ -48,8 +48,10 @@ templates:
       not establish OOM. AutoPEFT (arXiv:2301.12132) is referenced as the
       rejected alternative — multi-objective BO over hundreds of training
       runs is infeasible per training job. G6 (harness capability) recommends
-      axolotl or trl based on task requirements; TRL trainers (SFT, DPO, KTO,
-      ORPO, Reward) are selected based on data shape and task type.
+      axolotl, trl, or ludwig based on task requirements; TRL trainers (SFT, DPO,
+      KTO, ORPO, Reward) are selected based on data shape and task type. Ludwig
+      is the only harness covering GRPO (reward-model-free RLHF) and the full
+      advanced-PEFT initializer set (PiSSA, EVA, CorDA, LoftQ).
 
   - id: lora-training/audit-config
     name: "Audit training config against math/quant/data/forgetting/harness gates"
@@ -68,7 +70,7 @@ templates:
       quality, G-D2 eval protocol, G-D3 lemon-pick analysis), 2
       forgetting (G-F1 intruder dimensions, G-F2 knowledge preservation
       for CorDA mode), 1 harness-method compatibility (G-H1: axolotl=SFT
-      only, trl=SFT/DPO/KTO/ORPO/Reward). Preserve the operator-selected
+      only, trl=SFT/DPO/KTO/ORPO/Reward, ludwig=SFT/DPO/KTO/ORPO/GRPO). Preserve the operator-selected
       initializer; harness evidence affects readiness state rather than
       rewriting the recommendation. Apply pragmatic-cybernetics (IS/OUGHT,
       epistemic mode, provenance, grill-me self-challenge). Emit

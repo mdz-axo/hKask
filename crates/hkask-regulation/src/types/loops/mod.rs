@@ -28,7 +28,7 @@
 //! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic}
 //! No sideways edges. Authority flows downward.
 
-// Channel types stay in hkask-cns (depend on RuntimeAlert).
+// Channel types stay in hkask-regulation (depend on RuntimeAlert).
 pub mod channels;
 pub mod loop_trait;
 
@@ -40,7 +40,7 @@ pub use hkask_types::loops::{
     RegulationData, Signal, SignalMetric, TriggerOrigin,
 };
 
-// The Loop trait stays in hkask-cns (orphan rule — external crates impl it for foreign types).
+// The Loop trait stays in hkask-regulation (orphan rule — external crates impl it for foreign types).
 pub use loop_trait::Loop;
 
 // Backward-compatible alias — old code used `RegulationLoop`.

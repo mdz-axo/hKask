@@ -382,7 +382,6 @@ pub fn run_tui(
             #[cfg(feature = "communication")]
             let session = session.with_matrix_bridge(bridge.clone());
             let session = session
-                .with_backup_bridge(bridge.clone())
                 .with_media_bridge(bridge.clone())
                 .with_training_bridge(bridge.clone())
                 .with_companies_bridge(bridge.clone())

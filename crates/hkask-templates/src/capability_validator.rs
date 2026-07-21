@@ -17,7 +17,7 @@ use hkask_capability::{CapabilitySpec, DelegationToken, capabilities_match};
 /// using `capabilities_match` (which respects the action hierarchy: Execute ≥ Write ≥ Read).
 ///
 /// This is a registration-time gate. Runtime enforcement is delegated to
-/// `GovernedTool` in `hkask-cns`.
+/// `GovernedTool` in `hkask-regulation`.
 pub struct CapabilityAwareValidator;
 
 impl CapabilityAwareValidator {

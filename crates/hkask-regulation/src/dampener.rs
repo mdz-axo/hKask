@@ -9,7 +9,7 @@
 //!
 //! Dampening is a Cybernetics regulation function — it prevents oscillation
 //! in the Curation↔Cybernetics feedback cycle. As such, it is owned by the
-//! Cybernetics loop and lives in `hkask-cns`, the crate responsible for
+//! Cybernetics loop and lives in `hkask-regulation`, the crate responsible for
 //! homeostatic self-regulation. The dampener operates on `CuratorDirective`
 //! data, but its purpose is regulatory, not curatorial: it is a FILTER
 //! function that enforces the cybernetic stability of the system.

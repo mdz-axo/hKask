@@ -220,7 +220,7 @@ mod tests {
     // WalletBackedBudget tests require a real WalletManager with an in-memory DB.
     // These are integration-style tests — they validate the gas→rJoule→debit pipeline.
     // Skipped by default (require keystore env); run with:
-    //   HKASK_MASTER_KEY=000102... cargo test -p hkask-cns -- wallet_budget
+    //   HKASK_MASTER_KEY=000102... cargo test -p hkask-regulation -- wallet_budget
 
     fn make_wallet_budget_with_key(spent_rj: u64, limit_rj: u64) -> WalletBackedBudget {
         // SAFETY: test-only setup for deterministic wallet manager construction.

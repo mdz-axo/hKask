@@ -1,6 +1,6 @@
 //! The Loop trait — sense → compare → compute → act → verify.
 //!
-//! This trait remains in hkask-cns (not moved to hkask-types) because
+//! This trait remains in hkask-regulation (not moved to hkask-types) because
 //! external crates implement it for foreign types (e.g.,
 //! `impl Loop for RwLock<CyberneticsLoop>`), which would violate the
 //! orphan rule if the trait lived in hkask-types.

@@ -177,7 +177,7 @@ impl Registry {
     ///
     /// Unknown terms are logged as warnings (Warn mode).
     /// The registry performs declaration-consistency checks at registration time;
-    /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-cns`.
+    /// OCAP enforcement at runtime is handled by `GovernedTool` in `hkask-regulation`.
     ///
     /// expect: "The system manages a template registry for skill rendering"
     /// \[P3\] Motivating: Generative Space — registers a template in the registry

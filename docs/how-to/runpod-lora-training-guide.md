@@ -85,6 +85,23 @@ output_dir: /workspace/outputs
 strict: false
 ```
 
+### Harness selection
+
+The training server supports three harnesses, selected via `TrainingParams.harness`
+(operator-accepted from the lora-training skill's G6 gate):
+
+| Harness | Config format | Env var | Image | Coverage |
+|---|---|---|---|---|
+| **Axolotl** (default) | YAML | `HKASK_AXOLOTL_CONFIG` | `winglian/axolotl-cloud:main-latest` | SFT only |
+| **TRL** | Python script | `HKASK_TRL_SCRIPT` | `docker.io/mdzaxo/trl-lora-trainer:latest` | SFT, DPO, KTO, ORPO, Reward |
+| **Ludwig** | YAML | `HKASK_LUDWIG_CONFIG` | (uses axolotl image; pip-installs ludwig at startup) | SFT, DPO, KTO, ORPO, GRPO |
+
+Ludwig (Linux Foundation AI & Data, Apache-2.0) is the only harness covering
+GRPO (reward-model-free RLHF) and the full advanced-PEFT initializer set (PiSSA,
+EVA, CorDA, LoftQ). Phase 1 (v0.31.0): Ludwig SFT only (`trainer.type: finetune`);
+DPO/KTO/ORPO/GRPO are Phase 2. Ludwig currently uses the axolotl Docker image and
+pip-installs at pod startup — a dedicated Ludwig image is future work.
+
 ---
 
 ## Lesson 1: Disk Space — The #1 Cause of Restart Loops

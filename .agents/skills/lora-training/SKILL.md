@@ -29,8 +29,8 @@ This skill does not train, load, initialize, merge, or evaluate models.
   `surface: training` regression proposals.
 - To compute convergence for the current lifecycle phase and expose preflight,
   runtime-contract, and post-training posture separately.
-- To recommend a training harness (Axolotl or TRL) and TRL trainer (SFT, DPO,
-  KTO, ORPO, Reward) based on task requirements and data shape.
+- To recommend a training harness (Axolotl, TRL, or Ludwig) and trainer (SFT,
+  DPO, KTO, ORPO, Reward, GRPO) based on task requirements and data shape.
 
 ## Authority and Boundary
 
@@ -67,10 +67,12 @@ This skill does not train, load, initialize, merge, or evaluate models.
 5. Preserve operator-requested initializers uniformly. For EVA, report
    `initialize_lora_eva_weights(model, dataloader)` as required evidence; do not
    hardcode a recommendation-phase refusal.
-6. G6 (harness capability) recommends axolotl or trl based on task requirements.
-   TRL trainers (SFT, DPO, KTO, ORPO, Reward) are selected based on data shape
-   and task type. Axolotl remains the runtime default when harness is
-   undetermined — no silent migration.
+6. G6 (harness capability) recommends axolotl, trl, or ludwig based on task
+   requirements. TRL trainers (SFT, DPO, KTO, ORPO, Reward) are selected based
+   on data shape and task type. Ludwig is the only harness covering GRPO
+   (reward-model-free RLHF) and the full advanced-PEFT initializer set (PiSSA,
+   EVA, CorDA, LoftQ) that hKask's LoraInit enum declares. Axolotl remains the
+   runtime default when harness is undetermined — no silent migration.
 7. Return separate `recommendation`, `readiness`, `justification`, and
    `authority` objects. Emit `cns.lora.select`.
 
@@ -218,3 +220,10 @@ Do not create alternate finding shapes. A recommendation never overwrites
   [ORPOTrainer](https://huggingface.co/docs/trl/main/en/orpo_trainer),
   [RewardTrainer](https://huggingface.co/docs/trl/main/en/reward_trainer),
   [TRL index](https://huggingface.co/docs/trl/index).
+- Ludwig v0.17: [Ludwig docs](https://ludwig.ai/latest/),
+  [Ludwig config](https://ludwig.ai/latest/configuration/),
+  [GitHub](https://github.com/ludwig-ai/ludwig) — declarative YAML framework
+  (Linux Foundation AI & Data, Apache-2.0). Covers SFT, DPO, KTO, ORPO, GRPO.
+- GRPO: [arXiv:2402.03300](https://arxiv.org/abs/2402.03300) — Group Relative
+  Policy Optimization (reward-model-free RLHF). Implemented in Ludwig via
+  `trainer.type: grpo`; TRL's online RL trainers are deferred.

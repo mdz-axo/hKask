@@ -10,10 +10,9 @@ use hkask_tui::{
     InferenceRequestId, ModelSwitchResult, ReplBridge, SessionBridge, SettingsBridge, SystemBridge,
     TuiModelInfo, TuiTurnResult, Window, WindowId, WindowKind, Workspace,
     windows::{
-        BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
-        DocprocWindow, EditorWindow, KanbanWindow, MatrixWindow, MediaWindow, MemoryWindow,
-        PodsWindow, RegistryWindow, ReplicaWindow, ResearchWindow, ScenariosWindow, SkillsWindow,
-        TerminalWindow, TrainingWindow, WalletWindow,
+        ChatWindow, CompaniesWindow, ConfigurationWindow, DocprocWindow, EditorWindow,
+        KanbanWindow, MatrixWindow, MediaWindow, MemoryWindow, ReplicaWindow, ResearchWindow,
+        ScenariosWindow, SkillsWindow, TerminalWindow, TrainingWindow, WalletWindow,
     },
 };
 
@@ -202,17 +201,12 @@ fn render_smoke(
 fn all_window_kinds() -> Vec<WindowKind> {
     vec![
         WindowKind::Chat,
-        WindowKind::CnsMonitor,
-        WindowKind::Backup,
-        WindowKind::Registry,
-        WindowKind::Pods,
         WindowKind::Kanban,
         WindowKind::Wallet,
         WindowKind::Memory,
         WindowKind::Companies,
         WindowKind::Matrix,
         WindowKind::Configuration,
-        WindowKind::Curator,
         WindowKind::Terminal,
         WindowKind::Editor,
         WindowKind::Training,
@@ -221,14 +215,13 @@ fn all_window_kinds() -> Vec<WindowKind> {
         WindowKind::Research,
         WindowKind::Docproc,
         WindowKind::Replica,
-        WindowKind::Logo,
         WindowKind::Scenarios,
     ]
 }
 
 #[test]
-fn all_22_kinds_exist() {
-    assert_eq!(all_window_kinds().len(), 22);
+fn all_16_kinds_exist() {
+    assert_eq!(all_window_kinds().len(), 16);
 }
 
 #[test]
@@ -271,16 +264,8 @@ fn allows_multiple_only_for_chat_and_matrix() {
     }
 }
 
-#[test]
-fn only_logo_is_persistent() {
-    for kind in all_window_kinds() {
-        if kind == WindowKind::Logo {
-            assert!(kind.is_persistent());
-        } else {
-            assert!(!kind.is_persistent(), "{:?} should not be persistent", kind);
-        }
-    }
-}
+// No window kind is persistent — all are closeable.
+// (The Logo window was removed; is_persistent() was removed from WindowKind.)
 
 #[test]
 fn all_titles_are_distinct() {
@@ -290,7 +275,7 @@ fn all_titles_are_distinct() {
         .collect();
     titles.sort_unstable();
     titles.dedup();
-    assert_eq!(titles.len(), 22, "duplicate titles: {:?}", titles);
+    assert_eq!(titles.len(), 16, "duplicate titles: {:?}", titles);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -302,46 +287,6 @@ fn chat_renders() {
     let b = bridge();
     let w = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
     render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn reg_monitor_renders() {
-    let w = CnsMonitorWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn backup_renders() {
-    let w = BackupWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn backup_without_bridge_is_explicitly_unavailable() {
-    let window = BackupWindow::new(window_id(), bridge());
-    let text = render_snapshot(&window, 80, 24).join("\n");
-    assert!(text.contains("unavailable — backup bridge not configured"));
-}
-
-#[test]
-fn registry_renders() {
-    let w = RegistryWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn pods_renders() {
-    let w = PodsWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn pods_report_scan_failure_as_unavailable() {
-    let mut mock = MockBridge::new();
-    mock.pods_available = false;
-    let window = PodsWindow::new(window_id(), Arc::new(mock));
-    let text = render_snapshot(&window, 80, 24).join("\n");
-    assert!(text.contains("unavailable — scan failed"));
 }
 
 #[test]
@@ -377,12 +322,6 @@ fn matrix_renders() {
 #[test]
 fn configuration_renders() {
     let w = ConfigurationWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn curator_renders() {
-    let w = CuratorWindow::new(window_id(), bridge());
     render_smoke(&w, 80, 24);
 }
 
@@ -446,17 +385,12 @@ fn all_windows_render_at_multiple_sizes() {
             b.model_name(),
             b.clone(),
         )),
-        Box::new(CnsMonitorWindow::new(window_id(), b.clone())),
-        Box::new(BackupWindow::new(window_id(), b.clone())),
-        Box::new(RegistryWindow::new(window_id(), b.clone())),
-        Box::new(PodsWindow::new(window_id(), b.clone())),
         Box::new(KanbanWindow::new(window_id(), b.clone())),
         Box::new(WalletWindow::new(window_id(), b.clone())),
         Box::new(MemoryWindow::new(window_id(), b.clone())),
         Box::new(CompaniesWindow::new(window_id(), b.clone())),
         Box::new(MatrixWindow::new(window_id(), b.clone())),
         Box::new(ConfigurationWindow::new(window_id(), b.clone())),
-        Box::new(CuratorWindow::new(window_id(), b.clone())),
         Box::new(TerminalWindow::new(window_id(), b.clone())),
         Box::new(EditorWindow::new(window_id(), b.clone())),
         Box::new(TrainingWindow::new(window_id(), b.clone())),
@@ -465,11 +399,10 @@ fn all_windows_render_at_multiple_sizes() {
         Box::new(ResearchWindow::new(window_id(), b.clone())),
         Box::new(DocprocWindow::new(window_id(), b.clone())),
         Box::new(ReplicaWindow::new(window_id(), b.clone())),
-        Box::new(LogoWindow::new(window_id())),
         Box::new(ScenariosWindow::new(window_id(), b.clone())),
     ];
 
-    assert_eq!(windows.len(), 22);
+    assert_eq!(windows.len(), 16);
 
     for (w, h) in sizes {
         for window in &windows {
@@ -551,21 +484,18 @@ fn text_windows_handle_multibyte_cursor_operations() {
     ];
     let b = bridge();
     let mut chat = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
-    let mut curator = CuratorWindow::new(window_id(), b.clone());
     let mut terminal = TerminalWindow::new(window_id(), b.clone());
     let mut editor = EditorWindow::new(window_id(), b);
 
     for key in keys {
         let event = KeyEvent::new(key, KeyModifiers::NONE);
         chat.handle_key(event);
-        curator.handle_key(event);
         terminal.handle_key(event);
         editor.handle_key(event);
     }
     editor.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
     render_smoke(&chat, 80, 24);
-    render_smoke(&curator, 80, 24);
     render_smoke(&terminal, 80, 24);
     render_smoke(&editor, 80, 24);
 }
@@ -606,13 +536,8 @@ fn kanban_empty_shows_placeholder() {
     render_smoke(&w, 80, 24);
 }
 
-#[test]
-fn registry_shows_live_data_with_bridge() {
-    use hkask_tui::bridges::registry::MockRegistryBridge;
-    let w = RegistryWindow::new(window_id(), bridge())
-        .with_registry_bridge(MockRegistryBridge::new().arc());
-    render_smoke(&w, 80, 24);
-}
+// Registry window removed — registry browsing is CLI-only.
+// Skills window still uses RegistryDataBridge internally.
 
 #[test]
 fn skills_shows_live_data_with_bridge() {
@@ -658,7 +583,12 @@ fn chat_snapshot_contains_prompt() {
     let w = ChatWindow::new(window_id(), &agent_name, &model_name, b);
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
-    assert!(text.contains("REPL"), "Chat should show REPL prompt");
+    // Default mode is Curator — the prompt should show CRTR.
+    assert!(
+        text.contains("CRTR"),
+        "Chat should show CRTR prompt in default Curator mode; got: {}",
+        text
+    );
 }
 
 #[test]
@@ -668,6 +598,16 @@ fn chat_windows_receive_only_their_owned_inference() {
     let b = bridge();
     let mut first = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
     let mut second = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
+
+    // Switch both windows from default Curator mode to Chat mode via /repl
+    for c in "/repl".chars() {
+        first.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    }
+    first.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    for c in "/repl".chars() {
+        second.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    }
+    second.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
 
     for c in "first".chars() {
         first.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
@@ -689,13 +629,7 @@ fn chat_windows_receive_only_their_owned_inference() {
     assert!(!second_text.contains("reply: first"));
 }
 
-#[test]
-fn reg_monitor_snapshot_shows_domains() {
-    let w = CnsMonitorWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(!text.is_empty(), "CNS monitor should render content");
-}
+// CNS Monitor, Backup, and Registry snapshot tests removed — windows deleted.
 
 #[test]
 fn wallet_snapshot_shows_gas() {
@@ -709,27 +643,9 @@ fn wallet_snapshot_shows_gas() {
     assert!(text.contains("Unavailable: wallet bridge not configured"));
 }
 
-#[test]
-fn backup_snapshot_shows_commands() {
-    let w = BackupWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(
-        text.contains("snapshot") || text.contains("Backup"),
-        "Backup should show commands"
-    );
-}
+// Backup snapshot test removed — window deleted.
 
-#[test]
-fn registry_snapshot_shows_sections() {
-    let w = RegistryWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(
-        text.contains("Templates") || text.contains("Registry"),
-        "Registry should show sections"
-    );
-}
+// Registry snapshot test removed — window deleted.
 
 #[test]
 fn memory_snapshot_shows_tabs() {
@@ -751,14 +667,6 @@ fn kanban_snapshot_shows_board() {
         text.contains("Backlog") || text.contains("Kanban"),
         "Kanban should show columns"
     );
-}
-
-#[test]
-fn logo_snapshot_renders() {
-    let w = LogoWindow::new(window_id());
-    let lines = render_snapshot(&w, 80, 30);
-    let text = lines.join("\n");
-    assert!(text.len() > 50, "Logo should render substantial content");
 }
 
 #[test]
@@ -1215,8 +1123,8 @@ fn workspace_renders_chat_content() {
     term.draw(|f| ws.render(f)).expect("render");
     let text = buffer_text(&term);
     assert!(
-        text.contains("REPL"),
-        "Workspace should render Chat REPL prompt"
+        text.contains("CRTR"),
+        "Workspace should render Chat CRTR prompt (default Curator mode)"
     );
     assert!(!text.is_empty(), "Workspace should render content");
 }
@@ -1416,7 +1324,7 @@ fn workspace_enforces_singleton_window_kinds() {
 }
 
 #[test]
-fn workspace_ctrl_w_closes_focused_window_but_not_logo() {
+fn workspace_ctrl_w_closes_focused_window() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
     let mut workspace = {
@@ -1428,14 +1336,12 @@ fn workspace_ctrl_w_closes_focused_window_but_not_logo() {
     workspace.handle_global_key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL));
     assert_eq!(workspace.window_count(), 1);
 
-    workspace.open_window_kind(WindowKind::Logo);
+    // All windows are closeable now — the persistent Logo window was removed.
+    // Opening a second window and closing it should reduce count back to 1.
+    workspace.open_window_kind(WindowKind::Configuration);
     assert_eq!(workspace.window_count(), 2);
     workspace.handle_global_key(KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL));
-    assert_eq!(
-        workspace.window_count(),
-        2,
-        "persistent Logo must remain open"
-    );
+    assert_eq!(workspace.window_count(), 1);
 }
 
 #[test]
@@ -1514,10 +1420,10 @@ fn workspace_render_after_split_shows_both_windows() {
     let mut term = test_terminal(80, 24);
     term.draw(|f| ws.render(f)).expect("render after split");
     let text = buffer_text(&term);
-    // Both windows should show their REPL prompts
-    let repl_count = text.matches("REPL").count();
+    // Both windows should show their CRTR prompts (default Curator mode)
+    let crtr_count = text.matches("CRTR").count();
     assert!(
-        repl_count >= 1,
-        "At least one REPL prompt should render after split"
+        crtr_count >= 1,
+        "At least one CRTR prompt should render after split"
     );
 }

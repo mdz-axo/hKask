@@ -3,8 +3,10 @@
 //! Provides a multi-window, split-pane terminal interface modelled on
 //! Zed's workspace architecture: a binary tree of splits hosts stateful
 //! Window implementations, with keyboard-driven focus, resize, and tab
-//! management. Each window renders a subsystem (chat, CNS monitor,
-//! backup, registry, matrix, pods, kanban) as a ratatui widget.
+//! management. Each window renders a subsystem (chat, kanban, wallet,
+//! memory, training, media, skills, research, docproc, replica,
+//! scenarios, matrix, companies, configuration, terminal, editor)
+//! as a ratatui widget.
 //!
 //! # Architecture
 //!
@@ -61,10 +63,10 @@ use std::io::Stdout;
 use std::time::Duration;
 
 use bridges::{
-    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge,
-    MatrixDataBridge, MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge,
-    ResearchDataBridge, ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge,
-    WalletDataBridge, tui_bridge_setter, with_bridges,
+    CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge, MatrixDataBridge,
+    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge,
+    ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge, tui_bridge_setter,
+    with_bridges,
 };
 pub use repl_bridge::{
     InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SessionBridge,
@@ -114,7 +116,6 @@ impl TuiSession {
         session_bridge, SessionBridge, with_session_bridge;
         wallet_bridge, WalletDataBridge, with_wallet_bridge;
         config_bridge, ConfigDataBridge, with_config_bridge;
-        backup_bridge, BackupDataBridge, with_backup_bridge;
         registry_bridge, RegistryDataBridge, with_registry_bridge;
         memory_bridge, MemoryDataBridge, with_memory_bridge;
         kanban_bridge, KanbanDataBridge, with_kanban_bridge;

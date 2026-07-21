@@ -3,14 +3,12 @@
 use std::sync::Arc;
 
 use crate::bridges::{
-    BackupDataBridge, CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge,
-    MatrixDataBridge, MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge,
-    ResearchDataBridge, ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge,
-    WalletDataBridge,
+    CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge, MatrixDataBridge,
+    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge,
+    ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge,
 };
 use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
 use crate::window::{Window, WindowId, WindowKind};
-use crate::windows::backup::BackupWindow;
 use crate::windows::chat::ChatWindow;
 use crate::windows::companies::CompaniesWindow;
 use crate::windows::configuration::ConfigurationWindow;
@@ -20,9 +18,6 @@ use crate::windows::kanban::KanbanWindow;
 use crate::windows::matrix::MatrixWindow;
 use crate::windows::media::MediaWindow;
 use crate::windows::memory::MemoryWindow;
-use crate::windows::pods::PodsWindow;
-use crate::windows::reg_monitor::CnsMonitorWindow;
-use crate::windows::registry::RegistryWindow;
 use crate::windows::replica::ReplicaWindow;
 use crate::windows::research::ResearchWindow;
 use crate::windows::scenarios::ScenariosWindow;
@@ -62,7 +57,6 @@ pub(crate) struct WindowBridges {
     pub session_bridge: Option<Arc<dyn SessionBridge>>,
     pub wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
     pub config_bridge: Option<Arc<dyn ConfigDataBridge>>,
-    pub backup_bridge: Option<Arc<dyn BackupDataBridge>>,
     pub registry_bridge: Option<Arc<dyn RegistryDataBridge>>,
     pub memory_bridge: Option<Arc<dyn MemoryDataBridge>>,
     pub kanban_bridge: Option<Arc<dyn KanbanDataBridge>>,
@@ -85,8 +79,6 @@ pub(crate) fn create_window(
     let bridge = ctx.repl_bridge.clone();
 
     match kind {
-        WindowKind::CnsMonitor => Box::new(CnsMonitorWindow::new(id, bridge)),
-        WindowKind::Pods => Box::new(PodsWindow::new(id, bridge)),
         WindowKind::Terminal => Box::new(TerminalWindow::new(id, bridge)),
         WindowKind::Editor => Box::new(EditorWindow::new(id, bridge)),
 
@@ -95,24 +87,6 @@ pub(crate) fn create_window(
                 WalletWindow,
                 ctx.wallet_bridge.clone(),
                 with_wallet_bridge,
-                id,
-                bridge
-            )
-        }
-        WindowKind::Registry => {
-            mk_bridge!(
-                RegistryWindow,
-                ctx.registry_bridge.clone(),
-                with_registry_bridge,
-                id,
-                bridge
-            )
-        }
-        WindowKind::Backup => {
-            mk_bridge!(
-                BackupWindow,
-                ctx.backup_bridge.clone(),
-                with_backup_bridge,
                 id,
                 bridge
             )

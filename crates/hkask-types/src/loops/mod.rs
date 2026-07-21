@@ -1,15 +1,15 @@
 //! Loop type system — identifiers, signals, actions, and quality telemetry.
 //!
-//! These types were moved from `hkask-cns/src/types/loops/` to `hkask-types`
+//! These types were moved from `hkask-regulation/src/types/loops/` to `hkask-types`
 //! to break the circular dependency that prevented extracting CNS subcrates
 //! (storage guard, SLO, seam watcher). They have no CNS-internal dependencies.
 //!
-//! The `Loop` trait remains in `hkask-cns` because external crates implement
+//! The `Loop` trait remains in `hkask-regulation` because external crates implement
 //! it for foreign types (e.g., `impl Loop for RwLock<CyberneticsLoop>`),
 //! which would violate the orphan rule if the trait lived in `hkask-types`.
 //!
 //! Channel types (`CurationInput`, `ToolConsumptionEvent`, etc.) also remain
-//! in `hkask-cns` because they depend on `RuntimeAlert` (CNS-internal).
+//! in `hkask-regulation` because they depend on `RuntimeAlert` (CNS-internal).
 
 pub mod actions;
 pub mod core;

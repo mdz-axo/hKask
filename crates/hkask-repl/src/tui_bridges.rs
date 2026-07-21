@@ -8,7 +8,6 @@ use hkask_ports::ToolPort;
 use hkask_templates::BundleRegistryIndex;
 use hkask_tui::SystemBridge;
 use hkask_tui::bridges::{
-    backup::{BackupDataBridge, BackupSnapshot},
     companies::{CompaniesDataBridge, CompanySummary, FinancialSummary, PortfolioSummary},
     config::{ConfigDataBridge, ConfigSnapshot},
     docproc::{ChunkInfo, DocprocDataBridge, QAPair},
@@ -464,16 +463,6 @@ impl MatrixDataBridge for TuiReplBridge {
 
     fn room_count(&self) -> usize {
         self.list_rooms().len()
-    }
-}
-
-// ── BackupDataBridge ─────────────────────────────────────────────────
-
-impl BackupDataBridge for TuiReplBridge {
-    fn snapshot(&self) -> BackupSnapshot {
-        BackupSnapshot::Unavailable {
-            reason: "live pod-directory backup status is not exposed to the TUI; use `kask backup status`".into(),
-        }
     }
 }
 

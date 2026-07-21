@@ -46,16 +46,8 @@ pub enum SplitDirection {
 /// The kind of window — determines icon, default title, and creation behaviour.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WindowKind {
-    /// AI chat interface — the primary interaction window
+    /// AI chat interface — the primary interaction window (default: Curator mode)
     Chat,
-    /// CNS health monitor — variety counters, alerts, span trace
-    CnsMonitor,
-    /// Backup operations — snapshots, restore, verify, prune
-    Backup,
-    /// Registry browser — templates, skills, styles, bundles
-    Registry,
-    /// Pod status — CuratorPod + UserPod (1:1, no TeamPods)
-    Pods,
     /// Kanban board view
     Kanban,
     /// Wallet — gas, rJoule balance, transactions
@@ -99,36 +91,8 @@ impl WindowKind {
         (
             WindowKind::Chat,
             "Chat",
-            "AI chat with your userpod agent",
+            "AI chat with your userpod agent (default: Curator mode)",
             true,
-            false,
-        ),
-        (
-            WindowKind::CnsMonitor,
-            "CNS Monitor",
-            "Cybernetic nervous system health and alerts",
-            false,
-            false,
-        ),
-        (
-            WindowKind::Backup,
-            "Backup",
-            "Snapshot, restore, verify, and prune backups",
-            false,
-            false,
-        ),
-        (
-            WindowKind::Registry,
-            "Registry",
-            "Browse templates, skills, styles, and bundles",
-            false,
-            false,
-        ),
-        (
-            WindowKind::Pods,
-            "Pods",
-            "Pod deployment status and agent inventory",
-            false,
             false,
         ),
         (
@@ -328,7 +292,7 @@ mod tests {
         let kinds: Vec<WindowKind> = WindowKind::META.iter().map(|(k, ..)| *k).collect();
         assert_eq!(
             kinds.len(),
-            20,
+            16,
             "META entry count changed — update this test"
         );
     }
@@ -346,7 +310,6 @@ mod tests {
         // Chat and Matrix are the only multi-instance windows.
         assert!(WindowKind::Chat.allows_multiple());
         assert!(WindowKind::Matrix.allows_multiple());
-        assert!(!WindowKind::CnsMonitor.allows_multiple());
         assert!(!WindowKind::Wallet.allows_multiple());
     }
 

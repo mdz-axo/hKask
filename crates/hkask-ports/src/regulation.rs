@@ -9,8 +9,8 @@ use async_trait::async_trait;
 
 /// Circuit breaker boundary for the Cybernetics membrane.
 ///
-/// Allows the Inference loop to use circuit breaking without depending on hkask-cns.
-/// Impl: `CircuitBreaker` (in hkask-cns)
+/// Allows the Inference loop to use circuit breaking without depending on hkask-regulation.
+/// Impl: `CircuitBreaker` (in hkask-regulation)
 pub trait CircuitBreakerPort: Send + Sync {
     fn allow_request(&self) -> bool;
     fn record_success(&self);

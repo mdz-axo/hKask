@@ -1,4 +1,4 @@
-//! MCP server for hkask-cns — CNS span history query tools.
+//! MCP server for hkask-regulation — CNS span history query tools.
 //!
 //! Exposes two tools for reading CNS ν-event history from the persistent
 //! `RegulationArchive`:

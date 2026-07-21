@@ -71,7 +71,7 @@ This table records observed implementation behavior, not intended future behavio
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Window catalog | Implemented: 22 kinds | `crates/hkask-tui/src/window.rs:18-265` |
+| Window catalog | Implemented: 16 kinds | `crates/hkask-tui/src/window.rs:18-265` |
 | Domain bridge surface | Implemented: 15 optional traits | `crates/hkask-tui/src/bridges/mod.rs:7-37` |
 | MCP-tabbed behavior | Implemented by 11 windows; Scenarios uses custom section keys | `crates/hkask-tui/src/windows/`, `crates/hkask-tui/src/window.rs:219-224` |
 | Layout validation | Implemented | `crates/hkask-tui/src/layout.rs:49-112` |

@@ -1,8 +1,8 @@
 //! McpServerGuard Loop — Proactive MCP server health monitoring (Loop 8)
 //!
-//! Lives in `hkask-services-context` (not `hkask-cns`) to avoid a circular
+//! Lives in `hkask-services-context` (not `hkask-regulation`) to avoid a circular
 //! dependency — it needs both `McpRuntime` from `hkask-mcp` and the `RegulationLoop`
-//! trait from `hkask-cns`. Both are available here.
+//! trait from `hkask-regulation`. Both are available here.
 
 use hkask_regulation::types::loops::{
     ActionType, Deviation, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId, Signal, SignalMetric,

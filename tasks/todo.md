@@ -44,6 +44,14 @@
 - [ ] **T6.3** `hkask-tui ReplicaDataBridge`→`UserPodDataBridge` — *Acc: TUI builds + smoke; ≤4 files; checkpoint: User*
 - [ ] **T6.4** Full verify: `cargo build --workspace`; `cargo test`; TUI flows; record `metric_after` — *Acc: green; metric_after JSON*
 
+## Phase 7 — TUI window pruning (in progress)
+- [ ] **T7.0** Remove `WindowKind::Logo` + `WindowKind::Curator` variants; delete `windows/logo.rs` + `windows/curator.rs`; merge Curator chat into `ChatWindow` as default `TuiMode::Curator`; simplify default workspace layout to single Chat pane; add window-management slash commands (`/open`, `/close`, `/split`, `/focus`, `/tab`, `/palette`, `/quit`); add `WorkspaceAction` + `Window::drain_action()` for chat→workspace communication — *In progress*
+- [ ] **T7.1** Delete `WindowKind::CnsMonitor` + `windows/reg_monitor.rs` — CNS health is visible via Curator chat and status bar; dedicated monitor window is redundant complexity — *Acc: TUI builds + tests green; ≤3 files*
+- [ ] **T7.2** Delete `WindowKind::Backup` + `windows/backup.rs` + `bridges/backup.rs` — backup operations are CLI-only (`kask backup`); TUI window adds surface area with minimal use case — *Acc: TUI builds + tests green; ≤4 files*
+- [ ] **T7.3** Delete `WindowKind::Registry` + `windows/registry.rs` + `bridges/registry.rs` — registry browsing is CLI-only (`kask registry`); TUI window duplicates CLI surface — *Acc: TUI builds + tests green; ≤4 files*
+- [ ] **T7.4** Delete `WindowKind::Pods` + `windows/pods.rs` — pod status is visible via Curator chat and `/status` command; dedicated pods window is redundant — *Acc: TUI builds + tests green; ≤2 files*
+- [ ] **T7.5** Update `WindowKind::META` count, integration tests, README, and `tui-architecture.md` after all T7.1–T7.4 deletions — *Acc: 16 window kinds; tests green; docs updated*
+
 ## Verification gates (every 2–3 slices)
 - [ ] Build passes after Phase 1, 2, 3, 5, 6
 - [ ] TUI flows (register, login, terminal, skills, MCP) end-to-end after T6.3

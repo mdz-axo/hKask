@@ -174,12 +174,14 @@ mod tests {
             ImprovMode::total_applications(&[ImprovMode::Plussing, ImprovMode::YesAnd]),
             2
         );
+        // Cascade([YesAnd, YesBut]) counts as 1 (cascade) + 2 (inner) = 3.
+        // Plus the outer Plussing = 4 total.
         assert_eq!(
             ImprovMode::total_applications(&[
                 ImprovMode::Plussing,
                 ImprovMode::Cascade(vec![ImprovMode::YesAnd, ImprovMode::YesBut]),
             ]),
-            3
+            4
         );
     }
 

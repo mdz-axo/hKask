@@ -508,15 +508,15 @@ impl SpanNamespace {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SpanCategory {
-    /// `cns.variety*`, `cns.gas*` — the cybernetics loop.
+    /// `reg.variety*`, `reg.gas*` — the cybernetics loop.
     Cybernetics,
-    /// `cns.curation*`, `cns.spec*` — the curation loop.
+    /// `reg.curation*`, `reg.spec*` — the curation loop.
     Curation,
-    /// `cns.inference*` — the inference loop.
+    /// `reg.inference*` — the inference loop.
     Inference,
-    /// `cns.agent_pod*`, `cns.connector*` — episodic memory.
+    /// `reg.pod*`, `reg.connector*` — episodic memory.
     Episodic,
-    /// `cns.wallet*` — wallet operations (balance, keys, deposits, withdrawals).
+    /// `reg.wallet*` — wallet operations (balance, keys, deposits, withdrawals).
     Wallet,
     /// Any other namespace. Callers decide the fallback policy.
     Unknown,
@@ -529,10 +529,10 @@ impl SpanCategory {
     pub fn from_short_name(s: &str) -> Self {
         let prefix = s.split('.').next().unwrap_or(s);
         match prefix {
-            "variety" | "gas" | "regulation" => Self::Cybernetics,
+            "variety" | "gas" | "outcome" | "alert" => Self::Cybernetics,
             "curation" | "spec" => Self::Curation,
             "inference" => Self::Inference,
-            "agent_pod" | "connector" => Self::Episodic,
+            "pod" | "connector" => Self::Episodic,
             "wallet" => Self::Wallet,
             _ => Self::Unknown,
         }
@@ -898,10 +898,7 @@ mod tests {
             SpanCategory::from_short_name("inference"),
             SpanCategory::Inference
         );
-        assert_eq!(
-            SpanCategory::from_short_name("agent_pod"),
-            SpanCategory::Episodic
-        );
+        assert_eq!(SpanCategory::from_short_name("pod"), SpanCategory::Episodic);
         assert_eq!(
             SpanCategory::from_short_name("unknown_ns"),
             SpanCategory::Unknown
@@ -1011,10 +1008,10 @@ mod tests {
             #[test]
             fn from_short_name_known_prefixes(
                 prefix in prop_oneof![
-                    Just("variety"), Just("gas"),
+                    Just("variety"), Just("gas"), Just("outcome"), Just("alert"),
                     Just("curation"), Just("spec"),
                     Just("inference"),
-                    Just("agent_pod"), Just("connector"),
+                    Just("pod"), Just("connector"),
                 ]
             ) {
                 let category = SpanCategory::from_short_name(prefix);
@@ -1028,10 +1025,10 @@ mod tests {
             fn from_short_name_unknown_prefix(
                 prefix in "[a-z][a-z0-9_]*"
             ) {
-                prop_assume!(prefix != "variety" && prefix != "gas"
+                prop_assume!(prefix != "variety" && prefix != "gas" && prefix != "outcome" && prefix != "alert"
                     && prefix != "curation" && prefix != "spec"
                     && prefix != "inference"
-                    && prefix != "agent_pod" && prefix != "connector");
+                    && prefix != "pod" && prefix != "connector");
                 let category = SpanCategory::from_short_name(&prefix);
                 prop_assert!(category == SpanCategory::Unknown,
                     "unknown prefix should be Unknown: {prefix}");
@@ -1049,10 +1046,10 @@ mod tests {
                 let prefix = short.split('.').next().unwrap_or(short);
 
                 let expected = match prefix {
-                    "variety" | "gas" | "regulation" => SpanCategory::Cybernetics,
+                    "variety" | "gas" | "outcome" | "alert" => SpanCategory::Cybernetics,
                     "curation" | "spec" => SpanCategory::Curation,
                     "inference" => SpanCategory::Inference,
-                    "agent_pod" | "connector" => SpanCategory::Episodic,
+                    "pod" | "connector" => SpanCategory::Episodic,
                     "wallet" => SpanCategory::Wallet,
                     _ => SpanCategory::Unknown,
                 };

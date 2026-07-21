@@ -1,6 +1,6 @@
 //! Core loop types — identifiers, the Loop trait, and quality telemetry.
 //!
-//! Moved from hkask-cns to hkask-types to break the circular dependency
+//! Moved from hkask-regulation to hkask-types to break the circular dependency
 //! that prevented extracting CNS subcrates. The Loop trait uses async-trait
 //! for object safety.
 

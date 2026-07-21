@@ -1,6 +1,6 @@
 // Integration tests for the gas → rJoule → budget → replenish feedback loop.
 //
-// These tests exercise the public seams of `hkask-cns` together with
+// These tests exercise the public seams of `hkask-regulation` together with
 // `hkask-wallet` and `hkask-storage` to verify end-to-end behavior:
 //
 // 1. WalletBackedBudget reserve/settle through GasBudgetManager.

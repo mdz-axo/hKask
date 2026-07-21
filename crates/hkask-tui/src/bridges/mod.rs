@@ -4,7 +4,6 @@
 //! service domain, following deep-module discipline. The CLI crate
 //! implements these traits to wire live service data into the TUI.
 
-pub mod backup;
 pub mod companies;
 pub mod config;
 pub mod docproc;
@@ -20,7 +19,6 @@ pub mod skills;
 pub mod training;
 pub mod wallet;
 
-pub use backup::BackupDataBridge;
 pub use companies::CompaniesDataBridge;
 pub use config::ConfigDataBridge;
 pub use docproc::DocprocDataBridge;
@@ -38,7 +36,7 @@ pub use wallet::{WalletDataBridge, WalletTxSummary};
 
 // ── Bridge generation macros ──────────────────────────────────────────
 //
-// `with_bridges!` takes a sub-macro name and 13 bridge specs, then invokes
+// `with_bridges!` takes a sub-macro name and 16 bridge specs, then invokes
 // the sub-macro for each. Type names are resolved at the call site (where
 // the bridge traits are in scope), avoiding macro-definition-site hygiene
 // issues with the callback-pattern approach.

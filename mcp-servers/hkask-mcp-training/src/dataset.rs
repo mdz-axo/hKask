@@ -437,6 +437,133 @@ impl DatasetPipeline {
         Ok(conversations)
     }
 
+    /// Normalize DPO preference JSONL to canonical `PreferenceExample`.
+    ///
+    /// Input: JSONL with `{"prompt": ..., "chosen": ..., "rejected": ...}` per line.
+    /// Prompt, chosen, and rejected can be strings or conversational (array of messages).
+    /// Output: `PreferenceExample` with prompt/chosen/rejected preserved as JSON values.
+    ///
+    /// Reference: https://huggingface.co/docs/trl/main/en/dpo_trainer#expected-dataset-type-and-format
+    fn normalize_preference_dpo(&self, raw: &str) -> Result<Vec<PreferenceExample>, DatasetError> {
+        let mut examples = Vec::new();
+        for (i, line) in raw.lines().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            #[derive(Deserialize)]
+            struct DpoRecord {
+                prompt: serde_json::Value,
+                chosen: serde_json::Value,
+                rejected: serde_json::Value,
+            }
+            let record: DpoRecord =
+                serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
+                    line: i + 1,
+                    message: format!("Invalid DPO preference record: {}", e),
+                })?;
+            examples.push(PreferenceExample {
+                prompt: Some(record.prompt),
+                chosen: record.chosen,
+                rejected: Some(record.rejected),
+                label: None,
+            });
+        }
+        if examples.is_empty() {
+            return Err(DatasetError::Empty);
+        }
+        Ok(examples)
+    }
+
+    /// Normalize KTO preference JSONL to canonical `PreferenceExample`.
+    ///
+    /// Input: JSONL with `{"prompt": ..., "completion": ..., "label": bool}` per line.
+    /// Unpaired binary preference data — each example has a single completion
+    /// and a boolean label (true=good, false=bad).
+    /// Output: `PreferenceExample` with prompt/chosen (completion)/label.
+    ///
+    /// Reference: https://huggingface.co/docs/trl/main/en/kto_trainer#expected-dataset-type-and-format
+    fn normalize_preference_kto(&self, raw: &str) -> Result<Vec<PreferenceExample>, DatasetError> {
+        let mut examples = Vec::new();
+        for (i, line) in raw.lines().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            #[derive(Deserialize)]
+            struct KtoRecord {
+                prompt: serde_json::Value,
+                completion: serde_json::Value,
+                label: bool,
+            }
+            let record: KtoRecord =
+                serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
+                    line: i + 1,
+                    message: format!("Invalid KTO preference record: {}", e),
+                })?;
+            // KTO stores the completion in `chosen` and the label in `label`.
+            // `rejected` is None — KTO is unpaired.
+            examples.push(PreferenceExample {
+                prompt: Some(record.prompt),
+                chosen: record.completion,
+                rejected: None,
+                label: Some(record.label),
+            });
+        }
+        if examples.is_empty() {
+            return Err(DatasetError::Empty);
+        }
+        Ok(examples)
+    }
+
+    /// Normalize ORPO preference JSONL to canonical `PreferenceExample`.
+    ///
+    /// Input: JSONL with `{"chosen": ..., "rejected": ...}` per line.
+    /// Prompt is implicit in chosen/rejected (each contains the full conversation).
+    /// Output: `PreferenceExample` with chosen/rejected, prompt=None.
+    ///
+    /// Reference: https://huggingface.co/docs/trl/main/en/orpo_trainer#expected-dataset-type-and-format
+    fn normalize_preference_orpo(&self, raw: &str) -> Result<Vec<PreferenceExample>, DatasetError> {
+        let mut examples = Vec::new();
+        for (i, line) in raw.lines().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            #[derive(Deserialize)]
+            struct OrpoRecord {
+                chosen: serde_json::Value,
+                rejected: serde_json::Value,
+            }
+            let record: OrpoRecord =
+                serde_json::from_str(trimmed).map_err(|e| DatasetError::Validation {
+                    line: i + 1,
+                    message: format!("Invalid ORPO preference record: {}", e),
+                })?;
+            examples.push(PreferenceExample {
+                prompt: None, // ORPO prompt is implicit
+                chosen: record.chosen,
+                rejected: Some(record.rejected),
+                label: None,
+            });
+        }
+        if examples.is_empty() {
+            return Err(DatasetError::Empty);
+        }
+        Ok(examples)
+    }
+
+    /// Validate the normalized dataset.
+    ///
+    /// For SFT data: checks roles, content, and alternation.
+    /// For preference data: checks that chosen/rejected are non-null and non-empty.
+    fn validate(&self, dataset: &NormalizedDataset) -> Result<(), DatasetError> {
+        match dataset {
+            NormalizedDataset::Sft(conversations) => self.validate_sft(conversations),
+            NormalizedDataset::Preference(examples) => self.validate_preference(examples),
+        }
+    }
+
     /// Validate canonical ChatML conversations.
     ///
     /// Checks:
@@ -444,7 +571,7 @@ impl DatasetPipeline {
     /// - Valid roles (user, assistant, system)
     /// - Non-empty content fields
     /// - Alternating user/assistant pattern (system allowed only as first message)
-    fn validate(&self, conversations: &[ChatConversation]) -> Result<(), DatasetError> {
+    fn validate_sft(&self, conversations: &[ChatConversation]) -> Result<(), DatasetError> {
         let valid_roles = ["user", "assistant", "system"];
         for (i, conv) in conversations.iter().enumerate() {
             if conv.messages.is_empty() {
@@ -482,22 +609,110 @@ impl DatasetPipeline {
         Ok(())
     }
 
-    /// Write normalized conversations to cache as JSONL.
+    /// Validate canonical preference examples.
+    ///
+    /// Checks:
+    /// - `chosen` is not null and not empty
+    /// - `rejected` is present for DPO/ORPO (not KTO)
+    /// - `label` is present for KTO
+    /// - For KTO, `label` is a boolean
+    fn validate_preference(&self, examples: &[PreferenceExample]) -> Result<(), DatasetError> {
+        for (i, ex) in examples.iter().enumerate() {
+            // chosen must be non-null and non-empty.
+            if ex.chosen.is_null() {
+                return Err(DatasetError::Validation {
+                    line: i + 1,
+                    message: "Preference example has null `chosen`".to_string(),
+                });
+            }
+            // Check for empty string chosen.
+            if let Some(s) = ex.chosen.as_str()
+                && s.trim().is_empty()
+            {
+                return Err(DatasetError::Validation {
+                    line: i + 1,
+                    message: "Preference example has empty `chosen`".to_string(),
+                });
+            }
+            // Check for empty array chosen (conversational).
+            if let Some(arr) = ex.chosen.as_array()
+                && arr.is_empty()
+            {
+                return Err(DatasetError::Validation {
+                    line: i + 1,
+                    message: "Preference example has empty `chosen` array".to_string(),
+                });
+            }
+            // rejected must be present for DPO/ORPO (absent for KTO).
+            if let Some(ref rejected) = ex.rejected {
+                if rejected.is_null() {
+                    return Err(DatasetError::Validation {
+                        line: i + 1,
+                        message: "Preference example has null `rejected`".to_string(),
+                    });
+                }
+                if let Some(s) = rejected.as_str()
+                    && s.trim().is_empty()
+                {
+                    return Err(DatasetError::Validation {
+                        line: i + 1,
+                        message: "Preference example has empty `rejected`".to_string(),
+                    });
+                }
+                if let Some(arr) = rejected.as_array()
+                    && arr.is_empty()
+                {
+                    return Err(DatasetError::Validation {
+                        line: i + 1,
+                        message: "Preference example has empty `rejected` array".to_string(),
+                    });
+                }
+            }
+            // KTO must have a label.
+            if ex.rejected.is_none() && ex.label.is_none() {
+                return Err(DatasetError::Validation {
+                    line: i + 1,
+                    message:
+                        "Preference example has neither `rejected` nor `label` — must have one"
+                            .to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Write normalized dataset to cache as JSONL.
+    ///
+    /// SFT data is written as `ChatConversation` JSONL (same as before).
+    /// Preference data is written as `PreferenceExample` JSONL — the TRL
+    /// trainers consume this format directly.
     fn cache(
         &self,
         path: &std::path::Path,
-        conversations: &[ChatConversation],
+        dataset: &NormalizedDataset,
     ) -> Result<(), DatasetError> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .map_err(|e| DatasetError::Cache(format!("Failed to create cache dir: {}", e)))?;
         }
         let mut output = String::new();
-        for conv in conversations {
-            let json = serde_json::to_string(conv)
-                .map_err(|e| DatasetError::Cache(format!("Serialization error: {}", e)))?;
-            output.push_str(&json);
-            output.push('\n');
+        match dataset {
+            NormalizedDataset::Sft(conversations) => {
+                for conv in conversations {
+                    let json = serde_json::to_string(conv)
+                        .map_err(|e| DatasetError::Cache(format!("Serialization error: {}", e)))?;
+                    output.push_str(&json);
+                    output.push('\n');
+                }
+            }
+            NormalizedDataset::Preference(examples) => {
+                for ex in examples {
+                    let json = serde_json::to_string(ex)
+                        .map_err(|e| DatasetError::Cache(format!("Serialization error: {}", e)))?;
+                    output.push_str(&json);
+                    output.push('\n');
+                }
+            }
         }
         std::fs::write(path, output)
             .map_err(|e| DatasetError::Cache(format!("Failed to write cache: {}", e)))?;
@@ -602,5 +817,213 @@ mod tests {
         let result = pipeline.ingest(&input);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), DatasetError::Empty));
+    }
+
+    // ── Preference format detection tests ──
+
+    #[test]
+    fn detect_dpo_format() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("dpo.jsonl");
+        let record = serde_json::json!({
+            "prompt": "What is P5?",
+            "chosen": "Minimal Architecture.",
+            "rejected": "Maximum Architecture."
+        });
+        std::fs::write(&input, format!("{}\n", record)).expect("write");
+        let format = DatasetFormat::detect(&input).expect("detect");
+        assert_eq!(format, DatasetFormat::PreferenceDpo);
+        assert!(format.is_preference());
+    }
+
+    #[test]
+    fn detect_kto_format() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("kto.jsonl");
+        let record = serde_json::json!({
+            "prompt": "What is P5?",
+            "completion": "Minimal Architecture.",
+            "label": true
+        });
+        std::fs::write(&input, format!("{}\n", record)).expect("write");
+        let format = DatasetFormat::detect(&input).expect("detect");
+        assert_eq!(format, DatasetFormat::PreferenceKto);
+        assert!(format.is_preference());
+    }
+
+    #[test]
+    fn detect_orpo_format() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("orpo.jsonl");
+        let record = serde_json::json!({
+            "chosen": [{"role": "user", "content": "What is P5?"}, {"role": "assistant", "content": "Minimal Architecture."}],
+            "rejected": [{"role": "user", "content": "What is P5?"}, {"role": "assistant", "content": "Maximum Architecture."}]
+        });
+        std::fs::write(&input, format!("{}\n", record)).expect("write");
+        let format = DatasetFormat::detect(&input).expect("detect");
+        assert_eq!(format, DatasetFormat::PreferenceOrpo);
+        assert!(format.is_preference());
+    }
+
+    #[test]
+    fn detect_chatml_not_confused_with_preference() {
+        // A ChatML dataset should NOT be detected as preference, even though
+        // it might contain the word "chosen" in the content.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("chatml.jsonl");
+        let record = serde_json::json!({"messages": [
+            {"role": "user", "content": "What is the chosen method?"},
+            {"role": "assistant", "content": "LoRA is chosen for efficiency."}
+        ]});
+        std::fs::write(&input, format!("{}\n", record)).expect("write");
+        let format = DatasetFormat::detect(&input).expect("detect");
+        assert_eq!(format, DatasetFormat::ChatML);
+        assert!(!format.is_preference());
+    }
+
+    // ── Preference ingestion tests ──
+
+    #[test]
+    fn ingest_dpo_preference() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("dpo.jsonl");
+        let cache = dir.path().join("cache");
+        std::fs::create_dir_all(&cache).expect("create cache dir");
+
+        let records = vec![
+            serde_json::json!({
+                "prompt": "What is P5?",
+                "chosen": "Minimal Architecture.",
+                "rejected": "Maximum Architecture."
+            }),
+            serde_json::json!({
+                "prompt": [{"role": "user", "content": "What is P1?"}],
+                "chosen": [{"role": "assistant", "content": "User Sovereignty."}],
+                "rejected": [{"role": "assistant", "content": "Admin Control."}]
+            }),
+        ];
+        let mut file = std::fs::File::create(&input).expect("create input");
+        for record in &records {
+            writeln!(file, "{}", serde_json::to_string(record).unwrap()).expect("write");
+        }
+
+        let mut pipeline = DatasetPipeline::new(cache.clone());
+        let normalized = pipeline.ingest(&input).expect("ingest should succeed");
+
+        assert!(normalized.exists(), "normalized output should exist");
+        let content = std::fs::read_to_string(&normalized).expect("read output");
+        let lines: Vec<_> = content.lines().filter(|l| !l.trim().is_empty()).collect();
+        assert_eq!(lines.len(), 2, "should have 2 preference examples");
+
+        // Verify each line is valid PreferenceExample JSON
+        for line in &lines {
+            let ex: PreferenceExample =
+                serde_json::from_str(line).expect("valid PreferenceExample JSON");
+            assert!(ex.prompt.is_some(), "DPO should have prompt");
+            assert!(!ex.chosen.is_null(), "chosen should be non-null");
+            assert!(ex.rejected.is_some(), "DPO should have rejected");
+            assert!(ex.label.is_none(), "DPO should not have label");
+        }
+    }
+
+    #[test]
+    fn ingest_kto_preference() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("kto.jsonl");
+        let cache = dir.path().join("cache");
+        std::fs::create_dir_all(&cache).expect("create cache dir");
+
+        let records = vec![
+            serde_json::json!({
+                "prompt": "What is P5?",
+                "completion": "Minimal Architecture.",
+                "label": true
+            }),
+            serde_json::json!({
+                "prompt": "What is P5?",
+                "completion": "I don't know.",
+                "label": false
+            }),
+        ];
+        let mut file = std::fs::File::create(&input).expect("create input");
+        for record in &records {
+            writeln!(file, "{}", serde_json::to_string(record).unwrap()).expect("write");
+        }
+
+        let mut pipeline = DatasetPipeline::new(cache.clone());
+        let normalized = pipeline.ingest(&input).expect("ingest should succeed");
+
+        let content = std::fs::read_to_string(&normalized).expect("read output");
+        let lines: Vec<_> = content.lines().filter(|l| !l.trim().is_empty()).collect();
+        assert_eq!(lines.len(), 2, "should have 2 KTO examples");
+
+        for line in &lines {
+            let ex: PreferenceExample =
+                serde_json::from_str(line).expect("valid PreferenceExample JSON");
+            assert!(ex.prompt.is_some(), "KTO should have prompt");
+            assert!(
+                !ex.chosen.is_null(),
+                "chosen (completion) should be non-null"
+            );
+            assert!(ex.rejected.is_none(), "KTO should not have rejected");
+            assert!(ex.label.is_some(), "KTO should have label");
+        }
+    }
+
+    #[test]
+    fn ingest_orpo_preference() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("orpo.jsonl");
+        let cache = dir.path().join("cache");
+        std::fs::create_dir_all(&cache).expect("create cache dir");
+
+        let records = vec![serde_json::json!({
+            "chosen": [{"role": "user", "content": "What is P5?"}, {"role": "assistant", "content": "Minimal Architecture."}],
+            "rejected": [{"role": "user", "content": "What is P5?"}, {"role": "assistant", "content": "Maximum Architecture."}]
+        })];
+        let mut file = std::fs::File::create(&input).expect("create input");
+        for record in &records {
+            writeln!(file, "{}", serde_json::to_string(record).unwrap()).expect("write");
+        }
+
+        let mut pipeline = DatasetPipeline::new(cache.clone());
+        let normalized = pipeline.ingest(&input).expect("ingest should succeed");
+
+        let content = std::fs::read_to_string(&normalized).expect("read output");
+        let lines: Vec<_> = content.lines().filter(|l| !l.trim().is_empty()).collect();
+        assert_eq!(lines.len(), 1, "should have 1 ORPO example");
+
+        let ex: PreferenceExample =
+            serde_json::from_str(&lines[0]).expect("valid PreferenceExample JSON");
+        assert!(
+            ex.prompt.is_none(),
+            "ORPO should not have prompt (implicit)"
+        );
+        assert!(!ex.chosen.is_null(), "chosen should be non-null");
+        assert!(ex.rejected.is_some(), "ORPO should have rejected");
+        assert!(ex.label.is_none(), "ORPO should not have label");
+    }
+
+    #[test]
+    fn ingest_dpo_rejects_null_chosen() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("bad_dpo.jsonl");
+        let cache = dir.path().join("cache");
+        std::fs::create_dir_all(&cache).expect("create cache dir");
+
+        let record = serde_json::json!({
+            "prompt": "What is P5?",
+            "chosen": null,
+            "rejected": "Maximum Architecture."
+        });
+        std::fs::write(&input, format!("{}\n", record)).expect("write");
+
+        let mut pipeline = DatasetPipeline::new(cache);
+        let result = pipeline.ingest(&input);
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            DatasetError::Validation { .. }
+        ));
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! Exposes 8 tools (simplified from 21 → 15 → 8 across 2026-07-19 cleanups):
 //! - `training_ingest_qa` — Ingest QA pairs for model fine-tuning
-//! - `training_ingest_dataset` — Ingest a raw dataset into the normalized cache
+//! - `training_ingest_dataset` — Ingest a raw dataset into the normalized cache (SFT or preference)
 //! - `training_assemble_dataset` — Assemble stored QA pairs into a ChatML JSONL dataset file
 //! - `training_submit` — Submit a training job (also handles retrain via optional feedback_path)
 //! - `training_status` — Query training job status (auto-registers adapter on completion)
@@ -1325,7 +1325,7 @@ impl TrainingServer {
     }
 
     #[tool(
-        description = "Ingest a raw dataset file into the normalized cache without submitting a training job. Detects format (ChatML, ShareGPT, Alpaca, raw text), normalizes to canonical ChatML, validates, and caches. Returns the cached path for use with training_submit or training_assemble_dataset."
+        description = "Ingest a raw dataset file into the normalized cache without submitting a training job. Detects format (ChatML, ShareGPT, Alpaca, raw text, DPO preference, KTO preference, ORPO preference), normalizes to canonical format (ChatML for SFT, PreferenceExample for DPO/KTO/ORPO), validates, and caches. Returns the cached path for use with training_submit or training_assemble_dataset."
     )]
     pub async fn training_ingest_dataset(
         &self,
@@ -1357,10 +1357,12 @@ impl TrainingServer {
 
         match pipeline.ingest(&file_path) {
             Ok(normalized_path) => {
+                let is_preference = format.map(|f| f.is_preference()).unwrap_or(false);
                 let result = json!({
                     "dataset_path": dataset_path,
                     "normalized_path": normalized_path.to_string_lossy(),
                     "detected_format": format.map(|f| format!("{:?}", f)).unwrap_or_else(|| "unknown".to_string()),
+                    "is_preference": is_preference,
                     "cached": true,
                 });
                 Ok(result)

@@ -1,6 +1,6 @@
 //! Loop 2a: Episodic Memory — private, agent-scoped experience.
 //!
-//! Moved from hkask-cns to hkask-types to break the circular dependency
+//! Moved from hkask-regulation to hkask-types to break the circular dependency
 //! that prevented extracting CNS subcrates.
 
 /// Classification of an episodic experience for encoding.

@@ -6,10 +6,10 @@
 //! a `SensorRegistry`. The `CyberneticsLoop::sense()` method walks the registry
 //! instead of containing inline sensing logic.
 //!
-//! ## Why this lives in hkask-cns
+//! ## Why this lives in hkask-regulation
 //!
 //! Sensor providers are CNS regulation infrastructure. They live alongside
-//! `CyberneticsLoop`, `StagnationDetector`, and `SetPoints` in `hkask-cns`,
+//! `CyberneticsLoop`, `StagnationDetector`, and `SetPoints` in `hkask-regulation`,
 //! the crate responsible for homeostatic self-regulation.
 //!
 //! ## Unified Sensor Catalog (v0.32.0)

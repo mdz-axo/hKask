@@ -22,7 +22,7 @@ use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
 use hkask_types::{DataCategory, WebID};
 
-use super::improv::{ImprovMode, improv_system_prompt};
+use super::improv::improv_system_prompt;
 use super::types::{
     ChatStreamEvent, ChatTurnRequest, ChatTurnResponse, PreparedChat, TokenUsage, TurnRequest,
     TurnResult,

@@ -40,7 +40,7 @@ pub struct ContractViolation {
 /// toolchain missing, etc.) — callers should treat this as non-fatal.
 ///
 /// # Arguments
-/// - `crate_name` — the Cargo package name (e.g., "hkask-cns")
+/// - `crate_name` — the Cargo package name (e.g., "hkask-regulation")
 /// - `workspace_root` — path to the workspace root containing `Cargo.toml`
 ///
 /// pre:  workspace_root exists and contains Cargo.toml

@@ -4,7 +4,7 @@
 //!
 //! Per the Authority DAG: Curation (Loop 5) → Cybernetics (Loop 6).
 //! The Curator's types must live in a crate that both Curator (hkask-agents)
-//! and Cybernetics (hkask-cns) can depend on without inversion.
+//! and Cybernetics (hkask-regulation) can depend on without inversion.
 //!
 //! NOTE: hkask-types must NOT depend on hkask-capability (cycle prevention).
 //! Methods that need capability tokens (e.g., `issue_consolidation_token`) live
@@ -277,9 +277,9 @@ fn default_drift_threshold() -> f64 {
 
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
 ///
-/// Consolidated from `hkask-cns/src/types/curation.rs` into `hkask-types`
+/// Consolidated from `hkask-regulation/src/types/curation.rs` into `hkask-types`
 /// (curation regulates cybernetics — its config belongs in the foundation layer).
-/// YAML loading remains in `hkask-cns` (requires `serde_yaml_neo`).
+/// YAML loading remains in `hkask-regulation` (requires `serde_yaml_neo`).
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct CurationThresholdConfig {
     #[serde(default = "default_coherence_threshold")]

@@ -4,7 +4,7 @@
 //! Monitors circuit breaker state, gas consumption, and model availability.
 //! Lives in `hkask-agents` because domain loops (Inference, Episodic, Semantic,
 //! Communication, Curation) are domain logic — they belong with the agents crate.
-//! Governance is applied externally via `GovernedTool` (in `hkask-cns`) before
+//! Governance is applied externally via `GovernedTool` (in `hkask-regulation`) before
 //! the port is passed to this loop.
 
 use hkask_regulation::sensor_provider::SensorBus;

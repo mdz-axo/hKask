@@ -3,8 +3,8 @@
 //! Implements the RegulationLoop (sense → compare → compute → act) cycle to
 //! monitor disk usage on the /data volume and take corrective action.
 //!
-//! Extracted from hkask-cns to separate disk space management from
-//! cybernetic regulation. Depends on hkask-cns only for the Loop trait.
+//! Extracted from hkask-regulation to separate disk space management from
+//! cybernetic regulation. Depends on hkask-regulation only for the Loop trait.
 //!
 //! ## Guardrail Contract
 //!

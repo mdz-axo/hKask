@@ -216,7 +216,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
         // F-SYN-013: `cns.memory.budget` is observed by the
         // cybernetics loop's `CyberneticsLoop` (consumes via
         // `tracing-subscriber` layer). The expected consumer is
-        // the `hkask-cns` crate's CNS runtime, not any in-source
+        // the `hkask-regulation` crate's CNS runtime, not any in-source
         // subscriber. The consumer boundary is the tracing
         // registry, configured at startup via
         // `hkask_cli::bootstrap::install_tracing_subscriber`.
@@ -224,7 +224,7 @@ impl EpisodicStoragePort for MemoryLoopForwarder {
             target: "reg.memory.budget",
             perspective = %perspective,
             count = count,
-            "Episodic storage usage checked (via loop membrane); consumer: hkask-cns"
+            "Episodic storage usage checked (via loop membrane); consumer: hkask-regulation"
         );
 
         Ok(count)

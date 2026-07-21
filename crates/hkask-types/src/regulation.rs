@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 /// thresholds in `SetPoints` (gas, variety deficit, error rate).
 ///
 /// Defined in hkask-types (substrate crate) because it is shared across
-/// hkask-cns (SetPoints, cybernetics loop) and hkask-agents
+/// hkask-regulation (SetPoints, cybernetics loop) and hkask-agents
 /// (communication loop).
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct QueueDepth(pub f64);
@@ -48,7 +48,7 @@ impl QueueDepth {
 
 /// Circuit breaker states
 ///
-/// Defined here (not in hkask-cns) so the `CircuitBreakerPort` trait can
+/// Defined here (not in hkask-regulation) so the `CircuitBreakerPort` trait can
 /// reference it without creating an upward dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -63,7 +63,7 @@ pub enum CircuitState {
 /// CNS health status
 ///
 /// Pure data struct — construction logic (`cns_health_check`) lives in
-/// hkask-cns where it has access to `AlgedonicManager`.
+/// hkask-regulation where it has access to `AlgedonicManager`.
 #[derive(Debug, Clone)]
 pub struct LedgerHealth {
     pub overall_deficit: u64,
