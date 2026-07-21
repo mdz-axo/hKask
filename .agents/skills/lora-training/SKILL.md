@@ -2,279 +2,198 @@
 name: lora-training
 visibility: public
 description: >
-  LoRA/QLoRA training skill for hKask (v0.31.0). Selects a PEFT method
-  via a deterministic 5-gate decision (inference constraint, memory
-  budget, task distance, quality/cost trade-off, knowledge preservation)
-  and enforces the LoRA/QLoRA math contracts as quality gates (no-op
-  init, merge equivalence, scaling form, rank budget, quant dtype,
-  gradient flow, intruder dimensions). Anchored to LoRA (arXiv:2106.09685),
-  QLoRA (arXiv:2305.14314), rsLoRA (arXiv:2312.03732), DoRA
-  (arXiv:2402.09353), PiSSA (arXiv:2404.02948), LoRA-GA (arXiv:2407.05000),
-  CorDA, EVA, Razin et al. intruder dimensions (arXiv:2410.21228), and
-  PEFT v0.19.0 config surface. Emits cns.lora.* spans (P9). Decomposed
-  into 4 phases matching bug-hunt, kali-audit, supply-chain-sentinel
-  pipeline. Minimal (P5): answers all 5W1H; single skill, no bundle;
-  complements kali-audit (security surface) and tdd (training-loop code)
-  with zero overlap — this skill governs training configuration and
-  contracts, not Rust code structure or security posture.
+  LoRA/QLoRA training configuration and contract enforcement skill for hKask
+  (v0.31.0). Produces an advisory, composable PEFT recommendation through a
+  deterministic 5-gate refinement; the operator accepts, overrides, or rejects
+  it, and the runtime enforces established hard contracts against concrete
+  accepted configuration. Audits math, quantization, data/evaluation, and
+  forgetting gates with phase-aware states and evidence. Emits cns.lora.* spans.
 ---
 
 # LoRA Training
 
-{# goal: Select a PEFT method via a deterministic 5-gate decision (inference constraint, memory budget, task distance, quality/cost trade-off, knowledge preservation) within user workspace boundaries (P4 OCAP). Enforce LoRA/QLoRA math contracts (no-op init, merge equivalence, scaling form, rank budget, quant dtype, gradient flow, intruder dimensions) as quality gates. Map findings to LoRA (arXiv:2106.09685), QLoRA (arXiv:2305.14314), rsLoRA (arXiv:2312.03732), DoRA (arXiv:2402.09353), PiSSA (arXiv:2404.02948), LoRA-GA (arXiv:2407.05000), CorDA, EVA, Razin et al. (arXiv:2410.21228). Emit cns.lora.* spans (P9). Compute convergence metric from real config evidence only. No synthetic benchmarks; no actual training execution; replicant_host mandatory (P12). #}
-
-LoRA/QLoRA training configuration and contract enforcement. Reads
-training config (`LoraConfig`, `BitsAndBytesConfig`, accelerate config,
-training script arguments) as concrete evidence. Selects a PEFT method
-via a deterministic 5-gate decision (not a search — AutoPEFT-style BO is
-infeasible per training job). Enforces the LoRA/QLoRA math contracts as
-quality gates. Emits `cns.lora.*` spans. Computes a training-readiness
-convergence metric.
+Recommend a composable PEFT configuration from declared evidence, audit the
+operator-selected configuration without replacing it, report normalized
+findings losslessly, and compute phase-aware training-readiness convergence.
+This skill does not train, load, initialize, merge, or evaluate models.
 
 ## When to Use
 
-- Before launching a LoRA/QLoRA training job — to select the method and
-  verify the config.
-- When auditing an existing training config (`LoraConfig`,
-  `BitsAndBytesConfig`, training script) for math-contract violations.
-- When deciding between LoRA, QLoRA, DoRA, PiSSA, LoRA-GA, CorDA, EVA,
-  AdaLoRA, IA³, Prefix Tuning, or full fine-tuning.
-- When verifying that the chosen init strategy (`init_lora_weights`)
-  matches the training goal (fast convergence vs knowledge preservation
-  vs quantization-error minimization).
-- When checking for intruder dimensions after training (Razin et al.
-  2024 — LoRA ≠ full fine-tune; forgetting is structured).
-- When proposing `security/regressions/` entries for training-config
-  anti-patterns (e.g., `bias='lora_only'` breaks merge equivalence).
+- Before training, to obtain an evidence-grounded PEFT recommendation while
+  preserving explicit operator requirements.
+- After the operator accepts, overrides, or rejects that recommendation, to
+  audit the selected concrete configuration and declared harness.
+- When runtime or post-training measurements are supplied, to assess established
+  contracts without fabricating execution results.
+- To report training findings, readiness, contract gaps, and evidence-backed
+  `surface: training` regression proposals.
+- To compute convergence for the current lifecycle phase and expose preflight,
+  runtime-contract, and post-training posture separately.
 
-## Design Constraints (Grounded in Project Principles)
+## Authority and Boundary
 
-- **P5 Essentialism (5W1H gate):** Who = training operator / replicant
-  host (P12); What = PEFT config / training hyperparameters / dataset
-  characteristics; Where = training script / config file / model card;
-  When = pre-training gate (config audit) and post-training gate
-  (intruder check, merge equivalence); Why = P3.1 safe container /
-  P1 user sovereignty over training choices / P4 explicit training
-  boundaries; How = select method → audit config → verify contracts →
-  post-train check → emit CNS span → compute convergence. All 6
-  present — passes gate.
-- **P5.1 Registry canonical:** Registry (`manifest.yaml` + `.j2`) is
-  source of truth. SKILL.md derived from it.
-- **P5.3 Minimalist test:** No actual training execution; config and
-  contract analysis only (P4 boundary). No extra abstractions.
-- **P5.4 Dual-axis:** Each finding has state identity (config line) and
-  process identity (gate flow).
-- **P7 Evolutionary:** Method catalog and gates emerge from real
-  config patterns and cited literature, not speculation.
-- **P8 Semantic grounding:** Every claim: file path, config line,
-  parameter value, evidence snippet, source citation (arXiv paper,
-  PEFT docs section, regression YAML). No fabricated benchmark numbers.
-- **P9 CNS regulation:** Emits `cns.lora.select`, `cns.lora.audit`,
-  `cns.lora.report`, `cns.lora.convergence` spans. All four are
-  registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
-  and emitted unconditionally.
-- **P10 Bot/replicant taxonomy:** `visibility: public` — transparent
-  training governance.
-- **P11 Visibility:** Regression proposals default `status: pending`
-  (human-curated ratchet, per `security/regressions/README.md`).
-- **P12 Replicant host mandate:** Every action includes `replicant_host`.
-- **P3.1 Safety floor:** Training-config errors (wrong scaling, broken
-  init, silent fp32 upcast) silently degrade model quality — this skill
-  is the safety floor for training.
-- **P4 OCAP boundaries:** Reads only declared workspace config paths;
-  no ambient model download; no network calls to HuggingFace Hub without
-  explicit consent (P2).
+- **Skill:** recommends.
+- **Authenticated operator:** accepts, overrides, or rejects; the selected method
+  and explicit requirements remain authoritative.
+- **Runtime:** enforces established hard contracts against the accepted concrete
+  configuration.
+- **Recommendation is not readiness:** selection leaves readiness undetermined
+  until audit evidence establishes it.
+- Read only declared workspace paths. Do not download models, call remote
+  services without explicit consent, or execute initialization, forward,
+  backward, merge, training, or evaluation.
+- Require `replicant_host` for every action and emit the corresponding registered
+  `cns.lora.*` span.
 
 ## Instructions
 
-### lora-training/select-method
+### `lora-training/select-method`
 
-1. Read the training config (`LoraConfig`, `BitsAndBytesConfig`, accelerate config, training script args).
-2. Extract the five gate inputs: `inference_constraint`, `memory_budget_gb`, `model_size_b`, `task_distance`, `quality_vs_cost`, `knowledge_preservation_required`.
-3. Apply the deterministic 5-gate decision (G1 inference → G2 memory → G3 task distance → G4 quality/cost → G5 knowledge preservation). Full gate logic and refusal conditions live in `select-method.j2`.
-4. Emit a `LoraConfig`-shaped JSON with per-gate justification citations, or refuse with a cited reason.
-5. Emit `cns.lora.select` CNS span.
+1. Read the declared training inputs and preserve explicit operator requirements.
+2. Refine one composable recommendation record through five gates: inference
+   constraint, memory evidence, task distance, quality/cost, and knowledge
+   preservation. Gates refine compatible fields; they do not overwrite the
+   whole recommendation or silently replace earlier constraints.
+3. Emit only derivable values for `base_mode`, `adapter_form`, `scaling`,
+   `initializer`, `preservation`, and `rank_range`; otherwise emit
+   `undetermined`, required evidence, alternatives, constraints, or conflicts.
+4. Treat `model_size_b × 2` only as an approximate bf16 base-weight floor.
+   Memory pressure may favor QLoRA, but these two scalar inputs do not establish
+   that a configuration fits or will OOM.
+5. Preserve operator-requested initializers uniformly. For EVA, report
+   `initialize_lora_eva_weights(model, dataloader)` as required evidence; do not
+   hardcode a recommendation-phase refusal.
+6. Return separate `recommendation`, `readiness`, `justification`, and
+   `authority` objects. Emit `cns.lora.select`.
 
-### lora-training/audit-config
+### `lora-training/audit-config`
 
-1. Read each config file; quote lines for evidence (not synthetic).
-2. Extract `LoraConfig`, `BitsAndBytesConfig`, and training script parameters.
-3. Apply the 16 quality gates (13 implemented: G-M1..G-M5, G-Q1, G-Q2, G-Q4, G-Q5, G-D1, G-D2, G-D3, G-F1; 3 deferred to runtime: G-Q3, G-Q6, G-F2). Pre-submit gates run in `lora_validation.rs`; post-training gates run in `training_preflight_check`. Full gate definitions live in `audit-config.j2` and `docs/reference/lora-training-catalog.md`.
-4. Apply pragmatic-semantics (IS/OUGHT, epistemic mode, provenance) and grill-me self-challenge.
-5. Emit `cns.lora.audit` spans per gate evaluated.
+1. Audit the operator-selected method unchanged. Keep advisory recommendations
+   separate from readiness.
+2. Read only declared config and harness artifacts. Quote exact paths, lines,
+   parameters, values, and snippets; unavailable evidence members remain null.
+3. Classify each gate into exactly one phase:
+   `static_config | harness | runtime | post_training`.
+4. Use exactly one state per gate:
+   `pass | warn | fail | refuse | deferred | planned | not_evaluated | not_applicable`.
+   Missing evidence is not failure. Runtime or post-training requirements without
+   measurements are `deferred`, or `planned` when a concrete supplied plan exists.
+5. Use exactly one evidence kind:
+   `config_value | code_presence | code_absence | runtime_measurement | operator_assertion | not_available`.
+   `code_absence` requires a search of the complete declared harness scope.
+6. Apply all 16 gates phase-appropriately: G-M1..G-M5, G-Q1..G-Q6,
+   G-D1..G-D3, and G-F1..G-F2. Runtime and post-training passes require supplied
+   measurements; this template never executes those checks.
+7. Inspect initializer-specific preprocessing and persistence according to the
+   selected initializer's documented contract. Do not introduce an EVA-specific
+   or framework-version-specific refusal rule.
+8. Emit every result using the normalized Finding schema below, compute readiness
+   separately, and emit `cns.lora.audit` for every represented gate.
 
-### lora-training/report
+### Normalized Finding Schema
 
-1. Group findings by severity (critical/high/medium/low).
-2. Propose `RR-NNNN.yaml` entries with `surface: training` for findings ≥ medium.
-3. Identify contract gaps and top 3 fixes.
-4. Produce verdict: Pass (zero critical/high, all math gates pass), Conditional (medium or 1-2 warn), Fail (critical/high or refuse).
-5. Emit `cns.lora.report` CNS span.
+Every finding has exactly these fields:
 
-### lora-training/convergence-check
+- `finding_id`
+- `gate_id`
+- `phase`: `static_config | harness | runtime | post_training`
+- `state`: `pass | warn | fail | refuse | deferred | planned | not_evaluated | not_applicable`
+- `severity`: `critical | high | medium | low | informational | none`
+- `selected_method`
+- `readiness_impact`: `blocking | conditional | non_blocking | none | unknown`
+- `claim`
+- `requirement`
+- `evidence_kind`: `config_value | code_presence | code_absence | runtime_measurement | operator_assertion | not_available`
+- `evidence`: `{config_path, line, parameter, value, snippet}`
+- `provenance`: `direct | inference | assessment | operator`
+- `epistemic_mode`: `declarative | probabilistic | subjunctive`
+- `citation`
+- `recommendation`
+- `replicant_host`
 
-1. Compute normalized convergence metric [0, 1] where 0 = training-ready.
-2. Weighted dimensions: critical/high findings (0.40), math gates (0.25), QLoRA gates (0.15), data/eval (0.10), forgetting (0.10). Full weights in `convergence-check.j2`.
-3. Converged when metric ≤ 0.10 with ≥5% relative improvement.
-4. Emit `cns.lora.convergence` CNS span.
+Do not create alternate finding shapes. A recommendation never overwrites
+`selected_method`, and unavailable evidence never becomes an observed violation.
+
+### `lora-training/report`
+
+1. Validate `replicant_host` and consume normalized findings without adding,
+   removing, renaming, repairing, or reclassifying fields.
+2. Present complete findings unchanged; grouped views may organize them by phase,
+   state, or severity only.
+3. Report counts for all eight states and four phases. Keep selected method,
+   advisory method recommendations, and readiness separate.
+4. Record `deferred`, `planned`, and `not_evaluated` requirements as contract
+   gaps with the next evidence needed; exclude `not_applicable`. Do not mutate
+   findings to create gaps.
+5. Propose `status: pending`, `surface: training` regressions only from eligible,
+   concretely evidenced `fail`/`refuse` findings, or policy-permitted `warn`
+   findings. Never propose one solely from unavailable evidence or an unevaluated
+   state.
+6. Derive readiness with precedence:
+   `Refuse > Fail > Conditional > Deferred > Not evaluated > Pass`.
+   A different method recommendation cannot change the verdict.
+7. Preserve claim-appropriate citations and emit `cns.lora.report` with exact
+   phase, state, severity, and evidence-kind counts.
+
+### `lora-training/convergence-check`
+
+1. Accept `current_phase` (`preflight | runtime | post_training`) and current
+   evidence only. Reject unknown gate states as blockers.
+2. Compute risk over currently applicable dimensions: critical/high findings
+   (0.40), math gates (0.25), QLoRA gates when applicable (0.15), data/eval
+   gates (0.10), and forgetting gates when applicable (0.10). Exclude
+   non-applicable gates and empty families, then normalize the remaining weights.
+3. Map gate risk as `pass=0`, `warn=0.5`, and
+   `fail/refuse/deferred/planned/not_evaluated=1`. Future- and past-phase gates
+   do not enter the current metric denominator.
+4. Set `converged=true` only when the normalized metric is `≤ 0.10` and no hard
+   blocker exists. A stable metric below threshold remains converged; a 5%
+   improvement is diagnostic only, not required.
+5. Return phase-aware outputs: `preflight_ready`,
+   `runtime_contracts_pending`, and `post_training_verified`, plus blockers and
+   a reproducible gate-results summary. These do not replace the current-phase
+   `converged` verdict.
+6. Emit `cns.lora.convergence` unconditionally.
 
 ## Registry Templates
 
 | Template | Type | Purpose |
-|----------|------|---------|
-| `select-method.j2` | KnowAct | Apply 5-gate decision (inference, memory, task distance, quality/cost, knowledge preservation); emit `LoraConfig`-shaped JSON with per-gate justification; emit `cns.lora.select` span. |
-| `audit-config.j2` | KnowAct | Read config evidence; apply 15 math/quant/data/forgetting gates (G-M1..G-M5, G-Q1..G-Q6, G-D1..G-D3, G-F1..G-F2); apply pragmatic-cybernetics; emit `cns.lora.audit` spans. |
-| `report.j2` | KnowAct | Synthesize findings with arXiv citations and PEFT doc references; propose `RR-NNNN.yaml` entries (`surface: training`); emit `cns.lora.report` span. |
-| `convergence-check.j2` | KnowAct | Compute training-readiness convergence metric (math-contract coverage + QLoRA coverage + data/eval + forgetting). Emit `cns.lora.convergence` span. |
+|---|---|---|
+| `select-method.j2` | `KnowAct` | Produce an advisory composable recommendation via five-gate refinement, explicit uncertainty, operator authority, and runtime enforcement boundaries. |
+| `audit-config.j2` | `KnowAct` | Audit declared artifacts with phase-aware gates, states, evidence kinds, normalized findings, and separate readiness. |
+| `report.j2` | `KnowAct` | Preserve findings losslessly; report readiness and contract gaps; propose only evidence-backed pending regressions. |
+| `convergence-check.j2` | `KnowAct` | Compute normalized current-phase convergence and preflight/runtime/post-training posture from supplied evidence. |
 
-## Method & Gate Catalog
+## Constraints
 
-The full method catalog (12 PEFT methods), gate catalog (16 quality
-gates: G-M1..G-M5, G-Q1..G-Q6, G-D1..G-D3, G-F1..G-F2), convergence
-metric weights, and source references live in
-[`docs/reference/lora-training-catalog.md`](../../docs/reference/lora-training-catalog.md).
-
-Summary:
-
-- **Methods:** LoRA, QLoRA, rsLoRA, DoRA, PiSSA, LoRA-GA, CorDA-KP,
-  EVA, AdaLoRA, aLoRA, IA³, Prefix Tuning.
-- **Math gates (G-M1..G-M5):** no-op-at-init, merge equivalence,
-  scaling form, rank budget, trainable param count.
-- **QLoRA gates (G-Q1..G-Q6):** frozen base quantized, adapter dtype,
-  gradient flow, no silent upcast, paged optimizer, NF4 optimality.
-- **Data/eval gates (G-D1..G-D3):** dataset size vs quality, eval
-  protocol, lemon-pick analysis.
-- **Forgetting gates (G-F1..G-F2):** intruder dimension check,
-  knowledge preservation (CorDA).
-- **Convergence weights:** critical/high (0.40), math (0.25), QLoRA
-  (0.15), data/eval (0.10), forgetting (0.10).
-
-## Relationship to Existing Skills
-
-- **`kali-audit`:** `kali-audit` covers security surfaces (Rust code,
-  templates, MCP, supply chain). This skill covers training
-  configuration and contracts. Zero overlap — different surface
-  (`surface: training` vs `surface: code`/`template`/`mcp`/`supply-chain`).
-  Both consume `security/regressions/` as input; both propose new
-  entries for human review.
-- **`tdd`:** `tdd` covers training-loop code (test-driven development
-  of Rust crates). This skill governs the training *configuration*
-  passed to that code, not the code itself. Complementary: `tdd`
-  builds the training loop; `lora-training` audits the config the loop
-  consumes.
-- **`bug-hunt`:** Provides decomposed pipeline structure (`Charter` →
-  `Probe` → `Oracle` → `Taxonomize` → `Report`). This skill replicates
-  that structure (`select-method` ≈ charter; `audit-config` ≈ probe +
-  oracle; `report` ≈ taxonomize + report; `convergence-check` ≈
-  convergence). Uses same pragmatic-cybernetics and pragmatic-semantics
-  reasoning embedded in instructions.
-- **`supply-chain-sentinel`:** Audits dependency manifests. This skill
-  audits training configs. Both are pre-flight gates (supply chain
-  before deploy; training config before training). Both emit CNS spans
-  and propose regressions.
-- **`diagnose`:** If a training run fails or produces a degraded model,
-  `diagnose` handles the cybernetic debugging loop (reproduce →
-  hypothesize → instrument → fix → regression-test). This skill is the
-  *pre-flight* gate; `diagnose` is the *post-failure* loop. This skill
-  proposes regressions that `diagnose` can use to anchor hypotheses.
-- **`lora-training` does NOT replace any of these:** It fills the gap
-  between `tdd` (training-loop code correctness) and `kali-audit`
-  (security posture) by governing training *configuration* and *math
-  contracts* — the layer where silent quality degradation happens
-  (wrong scaling, broken init, fp32 upcast, intruder dimensions).
-
-## Constraints (Concrete — Not Aspirational)
-
-- `select-method.j2`: `visibility: public`.
-- `audit-config.j2`: `visibility: public`.
-- `report.j2`: `visibility: public`.
-- `convergence-check.j2`: `visibility: public`.
-- Every finding includes concrete file path, config line, parameter
-  value, quoted evidence snippet, source citation — not summary
-  description.
-- Every proposed regression uses exact YAML format
-  (`security/regressions/`) with `surface: training`, concrete
-  `pattern` (grep regex against config content, or a Rust runtime
-  assertion at the owning training boundary), `status: pending`,
-  `gate: G-XX`.
-- No synthetic config quotes; read file before quoting.
-- No synthetic benchmark numbers; only reference paper-reported results
-  with explicit citation (paper, table/section).
-- No fabricated training-run results; this skill does not execute
-  training (P4 boundary enforcement).
-- Registry (`manifest.yaml` + `.j2`) is authoritative over this SKILL.md
-  (P5.1).
-- Do NOT invent config entries not present in the training config.
-- Do NOT claim actual training execution or model evaluation capability
-  — config and contract analysis only (P4 boundary enforcement).
-- Every audit action includes `replicant_host` identity (P12).
-- Every training-config audit emits `cns.lora.*` span. All four
-  namespaces (`select`, `audit`, `report`, `convergence`) are
-  registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
-- Apply pragmatic-cybernetics feedback loop analysis: scaling×rank
-  interaction, LR-vs-rank variety, Good Regulator (init strategy
-  matched to training goal), delay (init preprocessing overhead vs
-  convergence speedup).
-- Apply `grill-me` self-challenge before proposing findings.
-- Apply `IS/OUGHT` classification and label `epistemic_mode` and
-  `provenance` for every finding.
-- Convergence metric computed from real evidence: unresolved
-  critical/high findings (0.40), math-contract coverage (0.25), QLoRA
-  coverage (0.15), data/eval coverage (0.10), forgetting coverage (0.10).
-- Do NOT fabricate findings — only report what was discovered through
-  actual config reading (like `kali-audit` constraint).
-- Source citations must reference concrete sources (not aspirational):
-  arXiv paper URLs (abs/2106.09685, abs/2305.14314, abs/2312.03732,
-  abs/2402.09353, abs/2404.02948, abs/2407.05000, abs/2410.21228,
-  abs/2303.10512), PEFT v0.19.0 docs
-  (huggingface.co/docs/peft/v0.19.0/package_reference/lora),
-  `security/regressions/README.md` for regression format.
-- If config discovery finds zero training config files, return empty
-  `config_paths` and recommend `surface: training` defaults based on
-  workspace evidence (`.py` training script, `axolotl` config, `trl`
-  config) — do NOT invent config content.
-- Before proposing any regression entry, verify config line exists and
-  evidence snippet can be quoted from actual file content.
-- This skill does NOT execute training, load models, or run evals. It
-  audits training configuration within user-defined workspace
-  boundaries (P4 OCAP enforcement perimeter — config must be explicitly
-  declared, not ambient authority).
-- Propose `surface: training` regression entries only; do NOT reuse
-  `surface: code`, `surface: template`, `surface: mcp`, `surface: config`,
-  or `surface: supply-chain` — training findings have distinct gate
-  catalog (16 gates: 5 math, 6 QLoRA, 3 data/eval, 2 forgetting)
-  distinct from `kali-audit`'s 8-layer LLM/code defense catalog and
-  `supply-chain-sentinel`'s 4-layer manifest catalog.
-- Convergence metric must reflect actual coverage, not aspirational:
-  gates only count as pass when config evidence confirms them
-  (`init_lora_weights=True` = no-op-at-init; `bias='none'` = merge
-  equivalence; `lora_alpha/r` or `lora_alpha/sqrt(r)` = scaling form;
-  etc.).
+- The registry manifest and these four `.j2` templates are authoritative over
+  this companion.
+- All four templates are public. No hidden training controls or parameters.
+- Preserve operator sovereignty and authenticated `replicant_host` identity.
+- Emit only values, findings, states, citations, and measurements supported by
+  declared evidence. Do not invent defaults, snippets, line numbers, benchmark
+  results, training outcomes, or regression counts.
+- Runtime and post-training gates are requirements or assessments of supplied
+  measurements; the skill does not execute them.
+- Regression proposals are human-reviewed, `status: pending`, and
+  `surface: training`.
+- `kali-audit` owns security findings; `tdd` owns training-loop code correctness;
+  this skill owns training-configuration recommendation and contract evidence.
 
 ## Source References
 
-Anchored to concrete, verifiable literature and documentation (P8).
-Full citations with gate anchors live in
-[`docs/reference/lora-training-catalog.md`](../../docs/reference/lora-training-catalog.md).
-
-Key sources:
-
-- **LoRA:** arXiv:2106.09685 — anchors G-M1..G-M5.
-- **QLoRA:** arXiv:2305.14314 — anchors G-Q1..G-Q6, G-D1..G-D3.
-- **rsLoRA:** arXiv:2312.03732 — anchors G-M3 (`α/√r`).
-- **DoRA:** arXiv:2402.09353 — anchors G4 method choice.
-- **PiSSA:** arXiv:2404.02948 — anchors G4 method choice.
-- **LoRA-GA:** arXiv:2407.05000 — anchors G4 method choice.
-- **AdaLoRA:** arXiv:2303.10512 — method catalog (not default).
-- **Razin et al. (intruder dimensions):** arXiv:2410.21228 — anchors G-F1.
-- **AutoPEFT (rejected alternative):** arXiv:2301.12132 — multi-objective
-  BO infeasible per training job; deterministic gate used instead.
-- **PEFT v0.19.0:** huggingface.co/docs/peft/v0.19.0/package_reference/lora
-  — config surface (`LoraConfig` fields, `init_lora_weights` options,
-  `use_rslora`, `use_dora`, `use_qalora`, `lora_ga_config`, `corda_config`,
-  `loftq_config`, `eva_config`, `alora_invocation_tokens`,
-  `reduce_intruder_dimension`).
-- **Practitioner consensus (2024-2026):** Raschka, Brenndoerfer, Spheron,
-  Databricks, Gradient Flow — anchors G3 rank heuristics (r=16 default,
-  sweep {8,16,32,64}), α=2r heuristic, all-linear targets consensus,
-  LR-vs-r interaction.
+- LoRA: [arXiv:2106.09685](https://arxiv.org/abs/2106.09685) — initialization,
+  merge, scaling, rank, and trainable-parameter contracts.
+- QLoRA: [arXiv:2305.14314](https://arxiv.org/abs/2305.14314) — NF4,
+  quantized training, paged optimizers, data quality, and evaluation.
+- rsLoRA: [arXiv:2312.03732](https://arxiv.org/abs/2312.03732) — `α/√r` scaling.
+- DoRA: [arXiv:2402.09353](https://arxiv.org/abs/2402.09353).
+- PiSSA: [arXiv:2404.02948](https://arxiv.org/abs/2404.02948).
+- LoRA-GA: [arXiv:2407.05000](https://arxiv.org/abs/2407.05000).
+- EVA: [arXiv:2410.07170](https://arxiv.org/abs/2410.07170).
+- Razin et al.: [arXiv:2410.21228](https://arxiv.org/abs/2410.21228) — intruder
+  dimensions and structured forgetting.
+- AutoPEFT: [arXiv:2301.12132](https://arxiv.org/abs/2301.12132) — rejected
+  per-job multi-objective search alternative.
+- PEFT v0.19.0:
+  [LoraConfig reference](https://huggingface.co/docs/peft/v0.19.0/package_reference/lora).

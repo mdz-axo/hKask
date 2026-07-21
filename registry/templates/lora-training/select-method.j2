@@ -70,7 +70,7 @@ RECOMMENDATION RECORD (compose fields; never replace the whole record):
 - base_mode: full_precision | quantized_4bit | undetermined
 - adapter_form: lora | dora | alora | full_finetune | operator_requested | undetermined
 - scaling: original | rank_stabilized | undetermined
-- initializer: default_no_op | pissa | lora_ga | corda_kp | operator_requested | undetermined
+- initializer: default_no_op | eva | pissa | lora_ga | corda_kp | operator_requested | undetermined
 - preservation: standard | corda_kp | post_training_intruder_mitigation | undetermined
 - rank_range: {min: <int>, max: <int>} | undetermined
 - alternatives: []
@@ -209,7 +209,7 @@ OUTPUT (JSON; emit only derivable values and explicit undetermined states):
     "base_mode": "full_precision" | "quantized_4bit" | "undetermined",
     "adapter_form": "lora" | "dora" | "alora" | "full_finetune" | "operator_requested" | "undetermined",
     "scaling": "original" | "rank_stabilized" | "undetermined",
-    "initializer": "default_no_op" | "pissa" | "lora_ga" | "corda_kp" | "operator_requested" | "undetermined",
+    "initializer": "default_no_op" | "eva" | "pissa" | "lora_ga" | "corda_kp" | "operator_requested" | "undetermined",
     "preservation": "standard" | "corda_kp" | "post_training_intruder_mitigation" | "undetermined",
     "rank_range": {"min": <int>, "max": <int>} | "undetermined",
     "alternatives": [

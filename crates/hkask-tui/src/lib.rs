@@ -37,6 +37,7 @@ mod repl_bridge;
 mod splash;
 mod status_bar;
 mod tab;
+mod text_cursor;
 mod window;
 mod window_catalog;
 mod workspace;

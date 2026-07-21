@@ -144,8 +144,8 @@ impl Window for KanbanWindow {
         match self.active_tab {
             McpTab::Chat => {
                 if let Some(msg) = self.handle_chat_key(key) {
-                    self.bridge
-                        .start_scoped_inference(msg, self.mcp_server_name());
+                    let bridge = self.bridge.clone();
+                    self.start_chat_request(bridge.as_ref(), msg);
                     return true;
                 }
                 matches!(
@@ -157,7 +157,10 @@ impl Window for KanbanWindow {
         }
     }
 
-    fn tick(&mut self) {}
+    fn tick(&mut self) {
+        let bridge = self.bridge.clone();
+        self.poll_chat_request(bridge.as_ref());
+    }
 }
 
 impl KanbanWindow {

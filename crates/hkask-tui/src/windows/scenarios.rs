@@ -154,8 +154,8 @@ impl Window for ScenariosWindow {
         match self.active_tab {
             McpTab::Chat => {
                 if let Some(msg) = self.handle_chat_key(key) {
-                    self.bridge
-                        .start_scoped_inference(msg, self.mcp_server_name());
+                    let bridge = self.bridge.clone();
+                    self.start_chat_request(bridge.as_ref(), msg);
                     return true;
                 }
                 matches!(
@@ -166,7 +166,10 @@ impl Window for ScenariosWindow {
             McpTab::Data => self.handle_tree_key(key),
         }
     }
-    fn tick(&mut self) {}
+    fn tick(&mut self) {
+        let bridge = self.bridge.clone();
+        self.poll_chat_request(bridge.as_ref());
+    }
 }
 
 impl ScenariosWindow {
@@ -222,7 +225,8 @@ impl ScenariosWindow {
                         node.sub_question_count,
                         node.question
                     );
-                    self.bridge.start_scoped_inference(msg, "scenarios");
+                    let bridge = self.bridge.clone();
+                    self.start_chat_request(bridge.as_ref(), msg);
                 }
                 true
             }
@@ -232,7 +236,8 @@ impl ScenariosWindow {
                         "Research event '{}': {}. Search for recent developments, base rates, and evidence. Time horizon context: {}",
                         node.name, node.question, tree.time_horizon
                     );
-                    self.bridge.start_scoped_inference(msg, "scenarios");
+                    let bridge = self.bridge.clone();
+                    self.start_chat_request(bridge.as_ref(), msg);
                 }
                 true
             }

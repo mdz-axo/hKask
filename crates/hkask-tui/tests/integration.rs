@@ -3,7 +3,8 @@
 //! Covers window creation smoke tests, WindowKind invariant properties,
 //! StatusBar rendering, and workspace operations.
 
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use hkask_tui::{
     InferenceRequestId, ReplBridge, SystemBridge, TuiTurnResult, Window, WindowId, WindowKind,
@@ -30,6 +31,7 @@ struct MockBridge {
     pod_replicant: usize,
     pod_team: usize,
     cns_domains: Vec<(String, bool)>,
+    pending: Mutex<HashMap<InferenceRequestId, TuiTurnResult>>,
 }
 
 impl MockBridge {
@@ -51,6 +53,7 @@ impl MockBridge {
                 ("gas".into(), true),
                 ("consent".into(), true),
             ],
+            pending: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -86,11 +89,29 @@ impl SystemBridge for MockBridge {
 }
 
 impl ReplBridge for MockBridge {
-    fn start_inference(&self, _input: String) -> InferenceRequestId {
-        InferenceRequestId::new()
+    fn start_inference(&self, input: String) -> InferenceRequestId {
+        let request = InferenceRequestId::new();
+        self.pending.lock().expect("pending lock").insert(
+            request,
+            TuiTurnResult {
+                text: format!("reply: {input}"),
+                prompt_tokens: 1,
+                completion_tokens: 1,
+                total_tokens: 2,
+                gas_cost: 1,
+                iterations: 1,
+                budget_exhausted: false,
+            },
+        );
+        request
     }
-    fn poll_inference(&self, _request: InferenceRequestId) -> hkask_tui::InferenceState {
-        hkask_tui::InferenceState::Idle
+    fn poll_inference(&self, request: InferenceRequestId) -> hkask_tui::InferenceState {
+        self.pending
+            .lock()
+            .expect("pending lock")
+            .remove(&request)
+            .map(hkask_tui::InferenceState::Done)
+            .unwrap_or(hkask_tui::InferenceState::Idle)
     }
     fn streaming_text(&self, _request: InferenceRequestId) -> String {
         String::new()
@@ -562,6 +583,34 @@ fn chat_snapshot_contains_prompt() {
 }
 
 #[test]
+fn chat_windows_receive_only_their_owned_inference() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let b = bridge();
+    let mut first = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), b.clone());
+    let mut second = ChatWindow::new(window_id(), b.agent_name(), b.model_name(), b.clone());
+
+    for c in "first".chars() {
+        first.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    }
+    first.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    for c in "second".chars() {
+        second.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    }
+    second.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+
+    second.tick();
+    first.tick();
+
+    let first_text = render_snapshot(&first, 80, 24).join("\n");
+    let second_text = render_snapshot(&second, 80, 24).join("\n");
+    assert!(first_text.contains("reply: first"));
+    assert!(!first_text.contains("reply: second"));
+    assert!(second_text.contains("reply: second"));
+    assert!(!second_text.contains("reply: first"));
+}
+
+#[test]
 fn cns_monitor_snapshot_shows_domains() {
     let w = CnsMonitorWindow::new(window_id(), bridge());
     let lines = render_snapshot(&w, 80, 24);
@@ -719,6 +768,22 @@ fn mcp_tab_training_toggles_chat() {
     assert_eq!(w.active_tab(), McpTab::Chat);
     assert!(w.handle_key(left));
     assert_eq!(w.active_tab(), McpTab::Data);
+}
+
+#[test]
+fn mcp_tab_receives_its_scoped_inference_completion() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    let mut window = TrainingWindow::new(window_id(), bridge());
+    window.handle_key(KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE));
+    for c in "train".chars() {
+        window.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
+    }
+    window.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    window.tick();
+
+    let text = render_snapshot(&window, 80, 24).join("\n");
+    assert!(text.contains("reply: train"));
 }
 
 // ────────────────────────────────────────────────────────────────

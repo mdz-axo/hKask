@@ -53,9 +53,10 @@ templates:
     type: KnowAct
     lexicon_terms: [audit, verify, gate, contract, evidence, config]
     description: >
-      Read training config evidence (LoraConfig, BitsAndBytesConfig,
-      accelerate config, training script arguments). Apply 16 quality
-      gates: 5 math-contract (G-M1 no-op-at-init, G-M2 merge
+      Read training config, harness, runtime, and post-training evidence.
+      Evaluate the applicable subset of 16 quality gates without treating
+      unavailable or future-phase evidence as passed: 5 math-contract
+      (G-M1 no-op-at-init, G-M2 merge
       equivalence, G-M3 scaling form, G-M4 rank budget, G-M5 trainable
       param count), 6 QLoRA-specific (G-Q1..G-Q6: frozen base
       quantized, adapter dtype, gradient flow, no silent upcast, paged
@@ -78,10 +79,9 @@ templates:
       citations (arXiv paper sections + PEFT v0.19.0 doc sections),
       severity (critical/high/medium/low), gate ID, and remediation.
       Propose RR-NNNN.yaml entries with surface: training for CI-enforced
-      config gates. Identify contract gaps and top 3 highest-priority
-      fixes. Produce verdict: Pass (zero critical/high, all math gates
-      pass), Conditional (medium findings or 1-2 gates warn), Fail
-      (critical/high findings or any gate refuses).
+      config gates. Preserve the normalized Finding schema, identify contract
+      gaps, and separate recommendation from phase-aware readiness. Produce
+      verdicts from evidence-backed states without reclassifying findings.
 
   - id: lora-training/convergence-check
     name: "Compute training-readiness convergence metric"

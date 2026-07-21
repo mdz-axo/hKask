@@ -29,6 +29,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 use crate::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge};
+use crate::text_cursor;
 use crate::window::{Window, WindowId, WindowKind};
 
 /// The interaction mode for the chat window.
@@ -348,6 +349,9 @@ impl ChatWindow {
 
     /// Send the current input as a user message.
     fn send_input(&mut self) {
+        if self.pending_request.is_some() {
+            return;
+        }
         let input = std::mem::take(&mut self.input);
         self.cursor_pos = 0;
 
@@ -433,33 +437,23 @@ impl Window for ChatWindow {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     return false;
                 }
-                self.input.insert(self.cursor_pos, c);
-                self.cursor_pos += 1;
+                text_cursor::insert(&mut self.input, &mut self.cursor_pos, c);
                 true
             }
             KeyCode::Backspace => {
-                if self.cursor_pos > 0 {
-                    self.cursor_pos -= 1;
-                    self.input.remove(self.cursor_pos);
-                }
+                text_cursor::backspace(&mut self.input, &mut self.cursor_pos);
                 true
             }
             KeyCode::Delete => {
-                if self.cursor_pos < self.input.len() {
-                    self.input.remove(self.cursor_pos);
-                }
+                text_cursor::delete(&mut self.input, self.cursor_pos);
                 true
             }
             KeyCode::Left => {
-                if self.cursor_pos > 0 {
-                    self.cursor_pos -= 1;
-                }
+                text_cursor::move_left(&self.input, &mut self.cursor_pos);
                 true
             }
             KeyCode::Right => {
-                if self.cursor_pos < self.input.len() {
-                    self.cursor_pos += 1;
-                }
+                text_cursor::move_right(&self.input, &mut self.cursor_pos);
                 true
             }
             KeyCode::Home => {
@@ -678,16 +672,14 @@ impl ChatWindow {
         }
 
         if is_focused && !self.input.is_empty() {
-            let before = &self.input[..self.cursor_pos.min(self.input.len())];
+            let (before, at, after) = text_cursor::parts(&self.input, self.cursor_pos);
             final_spans.push(Span::styled(before.to_string(), input_style));
 
-            if self.cursor_pos < self.input.len() {
-                let at = self.input.chars().nth(self.cursor_pos).unwrap_or(' ');
+            if let Some(at) = at {
                 final_spans.push(Span::styled(
                     at.to_string(),
                     Style::default().fg(Color::Black).bg(Color::Cyan),
                 ));
-                let after = &self.input[self.cursor_pos + 1..];
                 if !after.is_empty() {
                     final_spans.push(Span::styled(after.to_string(), input_style));
                 }

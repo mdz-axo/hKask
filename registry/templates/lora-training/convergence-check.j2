@@ -48,7 +48,7 @@ thinking_budget = "full"
 
 INPUT: unresolved_findings = {{ unresolved_findings }} (current evidence)
 INPUT: gate_results = {{ gate_results }} (map of gate_id → {state, phase, evidence}; state is pass/warn/fail/refuse/deferred/planned/not_evaluated/not_applicable)
-INPUT: current_phase = {{ current_phase }} (one of preflight/runtime/post_training; mandatory)
+INPUT: current_phase = {{ current_phase }} (one of preflight/runtime/post_training; mandatory; preflight aggregates static_config and harness gate phases)
 INPUT: qlora_mode = {{ qlora_mode | default(false) }} (if true, G-Q1..G-Q6 may apply)
 INPUT: corda_mode = {{ corda_mode | default(false) }} (if true, G-F2 may apply)
 INPUT: existing_regressions = {{ existing_regressions }} (actual surface: training entries)
@@ -62,9 +62,11 @@ EVIDENCE AND APPLICABILITY RULES (P8):
 - Every gate result uses exactly one state: `pass`, `warn`, `fail`,
   `refuse`, `deferred`, `planned`, `not_evaluated`, or
   `not_applicable`. Reject unknown states as blockers.
-- A gate is applicable now only when its declared phase equals
-  `current_phase` and its state is not `not_applicable`. A future- or
-  past-phase gate is excluded from the current metric denominator.
+- Phase mapping is explicit: when `current_phase=preflight`, gates declared
+  as `static_config` or `harness` are applicable; `runtime` and
+  `post_training` remain future phases. For `runtime` and `post_training`,
+  the declared gate phase must equal `current_phase`. A future- or past-phase
+  gate is excluded from the current metric denominator.
 - QLoRA gates are `not_applicable` when `qlora_mode=false`; G-F2 is
   `not_applicable` when `corda_mode=false`. Exclude them rather than
   crediting them as passes.
@@ -115,9 +117,9 @@ CONVERGENCE CHECK (required PDCA regulation, P9):
 PHASE-AWARE READINESS OUTPUTS:
 - `preflight_ready` is true only when the preflight phase is current and
   converged from its applicable evidence.
-- `runtime_contracts_pending` is true only when preflight is ready and
-  supplied runtime-phase gates contain `planned`, `deferred`, or
-  `not_evaluated`; these future gates do not affect the preflight metric
+- `runtime_contracts_pending` is true whenever supplied runtime-phase gates
+  contain `planned`, `deferred`, or `not_evaluated`, regardless of current
+  preflight readiness. These future gates do not affect the preflight metric
   and are not counted as passes.
 - `post_training_verified` is true only when post_training is current,
   converged, and every applicable post-training gate is evidence-backed

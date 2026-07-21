@@ -144,6 +144,7 @@ pub trait McpTabbedWindow: Window {
                 state.input.pop();
                 None
             }
+            KeyCode::Enter if state.pending_request.is_some() => None,
             KeyCode::Enter => {
                 let text = state.take_input();
                 if text.is_empty() {
