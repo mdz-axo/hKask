@@ -39,13 +39,12 @@ The `StorageContext` in `hkask-services-context` exposes 6 stores in the main `k
 | **HMem (episodic + semantic)** | memory.db | `hkask-storage-hmem` | High (every tool call, inference result, recall) | Agent experiences and consolidated knowledge |
 | **SqliteRegistry** | kask.db | `hkask-templates` | Low (admin deploys skills) | Template/skill registrations and versions |
 | **SqliteGoalRepository** | kask.db | `hkask-storage` | Low (user creates/modifies goals) | Goal definitions, state transitions, criteria |
-| **AgentRegistryStore** | kask.db | `hkask-storage` | Low (pod registration) | Agent WebIDs, capabilities, metadata |
-| **UserStore** | kask.db | `hkask-storage` | Very low (sign-up, profile changes) | Human users, replicant identities, OAuth mappings, sessions |
+| **UserStore** | kask.db | `hkask-storage` | Very low (sign-up, profile changes) | Human users, userpod identities, OAuth mappings, sessions |
 | **SovereigntyBoundaryStore** | kask.db | `hkask-storage` | Very low (consent grant/revoke) | Affirmative consent boundaries (P2) |
 | **WalletStore** | kask.db | `hkask-storage` | Medium (rJoule credits/debits) | Agent-local rJoule balances, API keys, transaction history |
 | **EmbeddingStore** | memory.db | `hkask-storage` | Medium (semantic consolidation) | Vector embeddings for semantic recall |
-| **Agent files** | agents/{name}/ (filesystem) | — | Low-medium (agent creates artifacts) | adapters/, gallery/, documents/, library/, sessions/, portfolios/, artifacts/ |
-| **Style/Kanban/Training DBs** | agents/{name}/*.db | — | Low (configuration, tracking) | style profiles, kata kanban state, training data |
+| **UserPod files** | userpods/{name}/ (filesystem) | — | Low-medium (userpod creates artifacts) | adapters/, gallery/, documents/, library/, sessions/, portfolios/, artifacts/ |
+| **Style/Kanban/Training DBs** | userpods/{name}/*.db | — | Low (configuration, tracking) | style profiles, kata kanban state, training data |
 
 ### 1.3 Per-Store Sync Strategy
 
@@ -62,14 +61,14 @@ HMem is the only high-write store and the best fit for CRDTs. `HMemStore` entrie
 
 **Sync transport:** Matrix room per pod group. Each `HMem` operation (store, recall, decay) serializes as a Matrix event. Pods replay the event DAG to rebuild their local `HMemStore`.
 
-#### Tier 2: Event Log Replication — Registry, Goals, Agents
+#### Tier 2: Event Log Replication — Registry, Goals, Userpods
 
 These stores have low write rates and simple data. Last-write-wins is acceptable — there's no "wrong" merge for a template version bump or a goal state transition. Each write produces a Matrix event. Pods replay events in order on startup and subscribe to new events during runtime. No merge logic needed — ordered replay with timestamp-based conflict resolution.
 
 **Per-store considerations:**
 - **SqliteRegistry:** Template deploys are idempotent (same skill + version → no-op). Events carry the full template manifest.
 - **SqliteGoalRepository:** Goal state transitions are serialized by the Curator (one Curator pod at a time via leader election). No concurrent writes to the same goal.
-- **AgentRegistryStore:** Agent registrations are per-pod-id unique. No conflict possible (different pods register different agents).
+- **UserStore:** Userpod registrations are per-user unique. No conflict possible (different users register different userpods).
 
 #### Tier 3: Single-Writer with Read Replicas — Users, Sovereignty
 

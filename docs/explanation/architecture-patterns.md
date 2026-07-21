@@ -1409,14 +1409,6 @@ classDiagram
             source: Option~BoxErr~
             message: String
         }
-        class AgentRegistry {
-            source: Option~BoxErr~
-            message: String
-        }
-        class AgentRegistryStore {
-            source: Option~BoxErr~
-            message: String
-        }
     }
 
     namespace consent {

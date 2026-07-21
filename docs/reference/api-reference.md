@@ -39,8 +39,7 @@ ID types, nu-event, and visibility types for hKask.
 | Module | Description |
 |--------|-------------|
 | `agent` | Agent kind and persona constraint types |
-| `agent_paths` | Filesystem path conventions for agent storage |
-| `agent_registry` | Agent registration records: `AgentDefinition`, `Charter`, `Contact`, `RegisteredAgent`, `Responsibility`, `Right`, `ScheduledTask`, `UserProfile` |
+| `agent_paths` | Filesystem path conventions for userpod storage |
 | `cns` | CNS span types (`CnsSpan`) and circuit state (`CircuitState`) |
 | `crypto` | Cryptographic primitives including `Ed25519PublicKey` |
 | `curation` | Sovereignty boundary types: `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState` |
@@ -129,7 +128,7 @@ ID types, nu-event, and visibility types for hKask.
 
 `DatabaseErrorKind` — Recovery-path discrimination: `Connection`, `Query`, `Constraint`, `Migration`, `Other`.
 
-**Re-exports at Crate Root:** `AgentKind`, `PersonaConstraints`, `AgentDefinition`, `Charter`, `Contact`, `RegisteredAgent`, `Responsibility`, `Right`, `ScheduledTask`, `UserProfile`, `CircuitState`, `Ed25519PublicKey`, `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState`, `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity`, `InfrastructureError`, `McpErrorKind`, `NuEvent`, `NuEventSink`, `GoalState`, all 17 ID type aliases, `WebID`, `LoopId`, `ActionDecision`, `ActionType`, `BudgetOption`, `Deviation`, `DeviationDirection`, `ExperienceClassification`, `ImpactReport`, `LoopAction`, `LoopActionParams`, `LoopQuality`, `RegulationData`, `Signal`, `SignalMetric`, `TriggerOrigin`, `ObservableSpan`, `SkillPolarity`, `LLMParameters`, `TemplateType`, `TimedWord`, `TranscriptBundle`, `TranscriptSegment`, `Confidence`, `Dimension`, `Visibility`.
+**Re-exports at Crate Root:** `AgentKind`, `PersonaConstraints`, `CircuitState`, `Ed25519PublicKey`, `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState`, `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity`, `InfrastructureError`, `McpErrorKind`, `NuEvent`, `NuEventSink`, `GoalState`, all 17 ID type aliases, `WebID`, `LoopId`, `ActionDecision`, `ActionType`, `BudgetOption`, `Deviation`, `DeviationDirection`, `ExperienceClassification`, `ImpactReport`, `LoopAction`, `LoopActionParams`, `LoopQuality`, `RegulationData`, `Signal`, `SignalMetric`, `TriggerOrigin`, `ObservableSpan`, `SkillPolarity`, `LLMParameters`, `TemplateType`, `TimedWord`, `TranscriptBundle`, `TranscriptSegment`, `Confidence`, `Dimension`, `Visibility`.
 
 **Feature Flags:** `sql` — enables `sql_impls` module and `From<rusqlite::Error> for InfrastructureError`.
 
@@ -143,16 +142,15 @@ SQLite + SQLCipher storage for hKask.
 
 | Module | Purpose |
 |--------|---------|
-| `agent_registry` | `AgentRegistryStore` — agent identity and registration records |
 | `embeddings` | `EmbeddingStore` — vector embeddings with similarity search |
 | `goals` | `SqliteGoalRepository` — OCAP-gated goal records with quarantine |
 | `nu_event_store` | `NuEventStore` — weighted event log with `DecayConfig` |
-| `user_store` | User identity and authentication records |
+| `user_store` | User identity, authentication, and userpod records |
 | `wallet` | `WalletStore` — wallet data persistence |
 
 **Re-exports from hkask-storage-core:** `Database`, `DatabaseError`, `open_database`, `open_or_repair`, `check_passphrase`, `define_driver_store` (macro), `impl_from_db_error` (macro), `sanitize_path`.
 
-**Key Types:** `HMemStore` (episodic memory store, `HMemError`), `NuEventStore` (weighted event log), `EmbeddingStore` / `StoredEmbedding` / `SimilarityResult` / `EmbeddingError`, `ConsentStore` / `StoredConsentRecord` / `ConsentStoreError`, `EscalationQueue` / `EscalationEntry` / `EscalationBatch` / `EscalationStats` / `EscalationStatus` / `EscalationError`, `GalleryStore` / `GalleryRecord` / `ImageRecord` / `TagRecord` / `GalleryMode` / `GalleryStoreError`, `KataHistoryStore` / `KataHistoryEntry` / `KataHistoryError`, `SovereigntyBoundaryStore` / `SovereigntyBoundaryEntry` / `SovereigntyStoreError`, `BackupArchive` / `BackupMeta` / `MigrationReceipt` / `ArchiveError`, `AgentRegistryStore` / `AgentRegistryError`, `SqliteGoalRepository` / `QuarantinedGoal` / `GoalRepositoryError`, `TokenRegistryStore`, `WalletStore`.
+**Key Types:** `HMemStore` (episodic memory store, `HMemError`), `NuEventStore` (weighted event log), `EmbeddingStore` / `StoredEmbedding` / `SimilarityResult` / `EmbeddingError`, `ConsentStore` / `StoredConsentRecord` / `ConsentStoreError`, `EscalationQueue` / `EscalationEntry` / `EscalationBatch` / `EscalationStats` / `EscalationStatus` / `EscalationError`, `GalleryStore` / `GalleryRecord` / `ImageRecord` / `TagRecord` / `GalleryMode` / `GalleryStoreError`, `KataHistoryStore` / `KataHistoryEntry` / `KataHistoryError`, `SovereigntyBoundaryStore` / `SovereigntyBoundaryEntry` / `SovereigntyStoreError`, `BackupArchive` / `BackupMeta` / `MigrationReceipt` / `ArchiveError`, `SqliteGoalRepository` / `QuarantinedGoal` / `GoalRepositoryError`, `TokenRegistryStore`, `WalletStore`.
 
 **Feature Flags:** None. Core dependency.
 
@@ -423,7 +421,7 @@ Agent pods, ACP, and bot/replicant management for hKask.
 
 `EpisodicStoragePort` / `SemanticStoragePort` (traits) — Port traits for memory storage operations.
 
-**Re-exports at Crate Root:** `AgentDefinition`, `Charter`, `A2AAgent`, `A2AError`, `A2AMessage`, `A2ARuntime`, `ConsentError`, `ConsentManager`, `CuratorContext`, `CurationLoop`, `CuratorSync`, `SemanticIndex`, `CuratorAgent`, `CoreError`, `MemoryError`, `InferenceLoop`, `LoopSystem`, `ActivePods`, `AgentMode`, `AgentPersona`, `PodDeployment`, `PodFactory`, `PodID`, `PodKind`, `PodRegistry`, `EpisodicStoragePort`, `RecallRequest`, `RecalledEpisode`, `RecalledSemantic`, `SemanticStoragePort`, `StorageRequest`, `AllowAllConsent`, `DenyAllConsent`, `SovereigntyChecker`, `SovereigntyConsent`, `VoiceDesign`.
+**Re-exports at Crate Root:** `A2AAgent`, `A2AError`, `A2AMessage`, `A2ARuntime`, `ConsentError`, `ConsentManager`, `CuratorContext`, `CurationLoop`, `CuratorSync`, `SemanticIndex`, `CuratorAgent`, `CoreError`, `MemoryError`, `InferenceLoop`, `LoopSystem`, `ActivePods`, `AgentMode`, `AgentPersona`, `PodDeployment`, `PodFactory`, `PodID`, `PodKind`, `PodRegistry`, `EpisodicStoragePort`, `RecallRequest`, `RecalledEpisode`, `RecalledSemantic`, `SemanticStoragePort`, `StorageRequest`, `AllowAllConsent`, `DenyAllConsent`, `SovereigntyChecker`, `SovereigntyConsent`, `VoiceDesign`.
 
 **Feature Flags:** None. Core dependency.
 
@@ -642,11 +640,10 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 | `inference_port` | `InferencePort`, `InferenceStreamChunk` |
 | `inference_types` | `InferenceResult`, `InferenceError`, `InferenceUsage`, `ChatToolDefinition`, `ChatToolFunction`, `StructuredToolCall`, `TokenProb`, `TokenProbability`, `compute_confidence()` |
 | `registry` | `RegistryEntry`, `RegistryError`, `RegistryIndex` (trait), `Skill`, `SkillRegistryIndex` (trait), `SkillZone` |
-| `registry_port` | `RegistryPort` trait |
 | `tool` | `ToolPort`, `ToolPortError`, `ToolInfo` |
 | `wallet_budget_port` | `WalletBudgetPort`, `WalletBudgetError` |
 
-**Key Public Traits (17 total):**
+**Key Public Traits (16 total):**
 
 | # | Trait | Module | Purpose |
 |---|-------|--------|---------|
@@ -664,9 +661,8 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 | 12 | `StepExecutor` | `pipeline_runner` | Pipeline step execution: `execute(step)` |
 | 13 | `SkillRegistryIndex` | `registry` | Skill registry: `register_skill()`, `get_skill()`, `list_skills()`, `list_skills_by_visibility()`, `skills_by_domain()`, `skills_referencing_template()`, `remove_skill()`, `list_skills_visible_to()` |
 | 14 | `RegistryIndex` | `registry` | Registry index: `list()`, `list_with_capabilities()` |
-| 15 | `RegistryPort` | `registry_port` | Registry persistence: `initialize_schema()`, `list()`, `insert()` |
-| 16 | `ToolPort` | `tool` | Tool governance: `invoke()` (requires `DelegationToken`), `discover_tools()`, `get_tool_info()` |
-| 17 | `WalletBudgetPort` | `wallet_budget_port` | Wallet-backed energy: `gas_to_rjoules()`, `get_encumbrance()`, `emit_key_alert()`, affordability check |
+| 15 | `ToolPort` | `tool` | Tool governance: `invoke()` (requires `DelegationToken`), `discover_tools()`, `get_tool_info()` |
+| 16 | `WalletBudgetPort` | `wallet_budget_port` | Wallet-backed energy: `gas_to_rjoules()`, `get_encumbrance()`, `emit_key_alert()`, affordability check |
 
 **Key Public Types:** `InferenceStreamChunk`, `ToolInfo`, `ToolPortError` (`CapabilityDenied`, `EnergyBudgetExceeded`, `NotFound`, `InvocationFailed`), `ConsolidationRequest` / `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `DecayConfig`, `FederationMessage`, `FederatedTriple`, `EmbeddingGenerationError`, `StoredEmbedding`.
 

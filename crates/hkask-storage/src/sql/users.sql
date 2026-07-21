@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS human_users (
     oauth_display_name TEXT
 );
 
--- Replicant identities (user logs in AS a replicant)
+-- UserPod identities (user logs in AS a userpod)
 -- Note: email/phone stored ONLY in human_users to avoid duplication
 CREATE TABLE IF NOT EXISTS userpod_identities (
     userpod_name TEXT PRIMARY KEY,
@@ -33,7 +33,6 @@ CREATE TABLE IF NOT EXISTS userpod_identities (
     first_name_enc BLOB NOT NULL,
     last_name_enc BLOB NOT NULL,
     persona_yaml TEXT,
-    is_primary INTEGER DEFAULT 0,
     created_at INTEGER NOT NULL,
     last_login INTEGER,
     FOREIGN KEY (user_id) REFERENCES human_users(user_id)
