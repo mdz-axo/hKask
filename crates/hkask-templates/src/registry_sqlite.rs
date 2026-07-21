@@ -554,18 +554,30 @@ impl SqliteRegistry {
         zone_str: String,
         namespace: Option<String>,
     ) -> Option<Skill> {
-        Some(Skill {
-            id,
-            domain: TemplateType::parse_str(&domain_str).unwrap_or(TemplateType::FlowDef),
-            word_act,
-            flow_def,
-            know_act,
-            polarity: polarity_str.and_then(|s| SkillPolarity::parse_str(&s)),
-            content_hash,
-            visibility: Visibility::parse_str(&visibility_str).unwrap_or(Visibility::Private),
-            zone: SkillZone::parse_str(&zone_str).unwrap_or(SkillZone::Private),
-            namespace,
-        })
+        let domain = TemplateType::parse_str(&domain_str).unwrap_or(TemplateType::FlowDef);
+        let mut skill = Skill::new(&id, domain);
+        if let Some(wa) = word_act {
+            skill = skill.with_word_act(&wa);
+        }
+        if let Some(fd) = flow_def {
+            skill = skill.with_flow_def(&fd);
+        }
+        if let Some(ka) = know_act {
+            skill = skill.with_know_act(&ka);
+        }
+        if let Some(p) = polarity_str.and_then(|s| SkillPolarity::parse_str(&s)) {
+            skill = skill.with_polarity(p);
+        }
+        if let Some(ch) = content_hash {
+            skill = skill.with_content_hash(ch);
+        }
+        skill = skill
+            .with_visibility(Visibility::parse_str(&visibility_str).unwrap_or(Visibility::Private));
+        skill = skill.with_zone(SkillZone::parse_str(&zone_str).unwrap_or(SkillZone::Private));
+        if let Some(ns) = namespace {
+            skill = skill.with_namespace(ns);
+        }
+        Some(skill)
     }
 
     /// Get a skill by ID (owned query, no OCAP check).

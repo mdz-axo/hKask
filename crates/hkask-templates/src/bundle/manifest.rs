@@ -20,6 +20,7 @@ use hkask_types::Visibility;
 
 /// A skill reference within a bundle
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BundleSkill {
     pub id: String,
     pub polarity: SkillPolarity,
@@ -30,6 +31,7 @@ pub struct BundleSkill {
 
 /// A single step in a bundle's cascade
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BundleManifestStep {
     pub ordinal: u32,
     pub action: String,
@@ -85,6 +87,7 @@ impl BundleManifestStep {
 
 /// Composed bundle of skills with declared conflicts, complementarities, and cascade steps.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
 pub struct BundleManifest {
     pub id: String,
     pub name: String,

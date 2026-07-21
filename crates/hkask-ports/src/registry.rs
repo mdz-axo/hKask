@@ -97,6 +97,7 @@ impl SkillZone {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[non_exhaustive]
 pub struct Skill {
     pub id: String,
     pub domain: TemplateType,

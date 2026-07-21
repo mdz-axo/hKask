@@ -135,7 +135,7 @@ impl SkillLoader {
                     Ok(skill) => {
                         // P9: CNS span — skill activation
                         tracing::info!(
-                            target: "cns.skill",
+                            target: "cns.skill.lifecycle",
                             operation = "skill_activated",
                             skill_id = %skill.id,
                             domain = %skill.domain,
@@ -167,7 +167,7 @@ impl SkillLoader {
 
         // P9: CNS span — skills loaded summary
         tracing::info!(
-            target: "cns.skill",
+            target: "cns.skill.lifecycle",
             operation = "skills_loaded",
             loaded = result.loaded.len(),
             warnings = result.warnings.len(),
@@ -260,7 +260,7 @@ impl SkillLoader {
         let (registry_present, template_count, broken_paths) =
             self.validate_registry_integrity(&registry_manifest);
         tracing::info!(
-            target: "cns.skill",
+            target: "cns.skill.lifecycle",
             operation = "registry_validated",
             skill_id = %id,
             registry_present = registry_present,
@@ -315,7 +315,7 @@ impl SkillLoader {
                 // File exists but unreadable — emit a CNS span and default.
                 // (Non-blocking: the skill still loads, but the drift is visible.)
                 tracing::warn!(
-                    target: "cns.skill",
+                    target: "cns.skill.lifecycle",
                     operation = "manifest_unreadable",
                     skill_id = %id,
                     "registry manifest exists but is unreadable — defaulting to KnowAct"
@@ -329,7 +329,7 @@ impl SkillLoader {
             Err(e) => {
                 // F-03: malformed manifest is a real error, not a silent default.
                 tracing::warn!(
-                    target: "cns.skill",
+                    target: "cns.skill.lifecycle",
                     operation = "manifest_unparseable",
                     skill_id = %id,
                     error = %e,

@@ -95,7 +95,7 @@ pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> 
     skills.sort_by(|a, b| a.name.cmp(&b.name));
     // P9: CNS span
     tracing::info!(
-        target: "cns.skill",
+        target: "cns.skill.lifecycle",
         operation = "skills_discovered",
         zone_dir = %zone_dir.display(),
         count = skills.len(),
@@ -262,7 +262,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
 
     // P9: CNS span
     tracing::info!(
-        target: "cns.skill",
+        target: "cns.skill.lifecycle",
         operation = "skill_published",
         name = %name,
         namespaced_name = %namespaced_name,

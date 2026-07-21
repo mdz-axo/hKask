@@ -235,8 +235,38 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.userpod.registered",
     // ── Semantic ──
     "cns.semantic.published",
-    // ── Kata / Skill / Keystore ──
-    "cns.skill",
+    // ── Skill (organized by subdomain) ──
+    // Lifecycle: skill discovery, loading, publishing
+    "cns.skill.lifecycle",
+    "cns.skill.lifecycle.skill_activated",
+    "cns.skill.lifecycle.skills_loaded",
+    "cns.skill.lifecycle.skills_discovered",
+    "cns.skill.lifecycle.skill_published",
+    // Registry: manifest validation
+    "cns.skill.registry",
+    "cns.skill.registry.registry_validated",
+    // Cascade: step execution
+    "cns.skill.cascade",
+    "cns.skill.cascade.step_executed",
+    "cns.skill.cascade.compute",
+    // Convergence: cascade outcomes
+    "cns.skill.convergence",
+    "cns.skill.convergence.converged",
+    "cns.skill.convergence.escalated",
+    // Budget: gas and rjoule limits
+    "cns.skill.budget",
+    "cns.skill.budget.gas_exhausted",
+    "cns.skill.budget.gas_alert",
+    "cns.skill.budget.rjoule_exhausted",
+    "cns.skill.budget.rjoule_alert",
+    // Frontmatter: SKILL.md parse errors (F-02 fix)
+    "cns.skill.frontmatter",
+    "cns.skill.frontmatter.missing",
+    // Manifest: registry manifest errors (F-03 fix)
+    "cns.skill.manifest",
+    "cns.skill.manifest.unparseable",
+    "cns.skill.manifest.absent",
+    "cns.skill.manifest.unreadable",
     // ── SLO ──
     "cns.slo.evaluated",
     // ── Sovereignty ──

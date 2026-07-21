@@ -53,6 +53,37 @@ impl From<NotFound> for TemplateError {
     }
 }
 
+impl TemplateError {
+    /// Stable error code for machine-readable consumption (mirrors Nika's
+    /// `nika_code()` pattern). Consumers can switch on this without
+    /// string-matching the Display output.
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::NotFound(_) => "HKASK-SKILL-001",
+            Self::Render(_) => "HKASK-SKILL-002",
+            Self::Manifest(_) => "HKASK-SKILL-003",
+            Self::Database(_) => "HKASK-SKILL-004",
+            Self::Inference(_) => "HKASK-SKILL-005",
+            Self::Mcp(_) => "HKASK-SKILL-006",
+            Self::Validation(_) => "HKASK-SKILL-007",
+            Self::PathTraversal(_) => "HKASK-SKILL-008",
+            Self::SandboxViolation(_) => "HKASK-SKILL-009",
+            Self::CapabilityDenied(_) => "HKASK-SKILL-010",
+            Self::SkillLoad { .. } => "HKASK-SKILL-011",
+            Self::Frontmatter { .. } => "HKASK-SKILL-012",
+        }
+    }
+
+    /// Whether this error is transient (retryable). Mirrors Nika's
+    /// `is_transient()` pattern. Database and inference errors are transient;
+    /// validation, not-found, and security errors are not.
+    #[must_use]
+    pub fn is_transient(&self) -> bool {
+        matches!(self, Self::Database(_) | Self::Inference(_) | Self::Mcp(_))
+    }
+}
+
 pub type Result<T> = std::result::Result<T, TemplateError>;
 
 /// One skill-system finding — a typed failure surfaced by skill loading or
