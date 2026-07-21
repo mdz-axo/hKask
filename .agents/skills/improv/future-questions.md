@@ -25,20 +25,20 @@ mds_categories: [composition, curation]
 - Can Freestyling sessions have an outer mode (e.g., "freestyle within Yes But constraints")?
 - Is there a composition algebra (commutative? associative?) or is it always ordered?
 
-**Experiment:** Run ensemble sessions with nested mode declarations; measure output coherence via `cns.improv.ensemble.coherence`.
+**Experiment:** Run ensemble sessions with nested mode declarations; measure output coherence via `reg.improv.ensemble.coherence`.
 
 ---
 
-## 2. CNS Metrics & Thresholds
+## 2. Regulation Metrics & Thresholds
 
-**Question:** What are the healthy ranges for improv CNS spans?
+**Question:** What are the healthy ranges for improv Regulation spans?
 
 **Current state:** Five spans registered in `CANONICAL_NAMESPACES`. No threshold values defined.
 
 **Open:**
-- `cns.improv.plussing.ratio` — What constructive ratio is "good"? 0.5? 0.7? Does it depend on conversation context?
-- `cns.improv.freestyle.coherence` — How do we measure emergent coherence without imposing a goal that contradicts freestyling's nature?
-- `cns.kata.improv.effectiveness` — What delta in automaticity score is significant? 0.1? 0.3?
+- `reg.improv.plussing.ratio` — What constructive ratio is "good"? 0.5? 0.7? Does it depend on conversation context?
+- `reg.improv.freestyle.coherence` — How do we measure emergent coherence without imposing a goal that contradicts freestyling's nature?
+- `reg.kata.improv.effectiveness` — What delta in automaticity score is significant? 0.1? 0.3?
 - At what threshold should an algedonic alert fire?
 
 **Experiment:** Run starter kata with and without Plussing; measure automaticity score delta. Run coaching kata with and without Yes But; measure PDCA cycle completion rate. Use these baselines to set initial thresholds.
@@ -81,12 +81,12 @@ mds_categories: [composition, curation]
 
 **Proposed experiments (each is an Improvement Kata cycle):**
 
-| Experiment | Independent Variable | Dependent Variable | CNS Span |
+| Experiment | Independent Variable | Dependent Variable | Regulation Span |
 |-----------|---------------------|-------------------|----------|
-| Starter Kata + Plussing | Plussing ON vs OFF in Observation Drill | Automaticity score after 5 sessions | `cns.kata.improv.effectiveness` |
-| Coaching Kata + Yes But | Yes But ON vs OFF in Q4 | Learner PDCA cycle completion rate | `cns.kata.improv.effectiveness` |
-| Ensemble + Freestyling | Freestyling session vs unstructured chat | Idea count, idea novelty, participant satisfaction | `cns.improv.ensemble.coherence` |
-| Dual-presence + Plussing | Plussing as default vs no mode | User-reported conversation quality | `cns.improv.plussing.ratio` |
+| Starter Kata + Plussing | Plussing ON vs OFF in Observation Drill | Automaticity score after 5 sessions | `reg.kata.improv.effectiveness` |
+| Coaching Kata + Yes But | Yes But ON vs OFF in Q4 | Learner PDCA cycle completion rate | `reg.kata.improv.effectiveness` |
+| Ensemble + Freestyling | Freestyling session vs unstructured chat | Idea count, idea novelty, participant satisfaction | `reg.improv.ensemble.coherence` |
+| Dual-presence + Plussing | Plussing as default vs no mode | User-reported conversation quality | `reg.improv.plussing.ratio` |
 
 **Meta-observation:** The improv skill is both the subject and the tool of its own validation — these experiments are themselves Improvement Kata cycles that can use improv modes during their execution.
 
@@ -116,7 +116,7 @@ mds_categories: [composition, curation]
 **Open:**
 - Does rapid mode switching confuse the conversation partner?
 - Should there be a "mode lock" for critical conversations (e.g., coaching kata sessions)?
-- What CNS span tracks mode transition frequency?
+- What Regulation span tracks mode transition frequency?
 
 ---
 
@@ -129,7 +129,7 @@ mds_categories: [composition, curation]
 **Open:**
 - Should freestyling sessions be persisted to episodic memory?
 - If persisted, can a session be resumed across REPL restarts?
-- What is the CNS span for session persistence?
+- What is the Regulation span for session persistence?
 
 ---
 

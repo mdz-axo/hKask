@@ -510,7 +510,7 @@ Sibling question to FUT-003. If FUT-003 resolves as "per-issuer," this question 
 **Status:** Open  
 **Opened:** 2026-06-07
 
-The canonical Regulation span registry (`crates/hkask-types/src/cns.rs`, `RegulationSpan`) uses `reg.cybernetics.*` for some spans, while `AGENTS.md` and code use `reg.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
+The canonical Regulation span registry (`crates/hkask-types/src/regulation.rs`, `RegulationSpan`) uses `reg.cybernetics.*` for some spans, while `AGENTS.md` and code use `reg.cli.*` for CLI-specific spans. This inconsistency should be resolved via an ADR before renaming spans in production code.
 
 ---
 
@@ -610,7 +610,7 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 | # | Item | Category | Status | Audit Ref |
 |---|------|----------|--------|----------|
 | R4 | MDS §9.1 self-application matrix labels | Observability, Persistence, Lifecycle, Curation | **Resolved** — matrix updated with :partial and :drift labels | Audit R4 |
-| R6 | Regulation span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference canonical Regulation span registry: `crates/hkask-types/src/cns.rs` (`RegulationSpan`) | Audit R6 |
+| R6 | Regulation span listing consolidation | Domain | **Resolved** — AGENTS.md and MDS.md §7.1-7.2 now cross-reference canonical Regulation span registry: `crates/hkask-types/src/regulation.rs` (`RegulationSpan`) | Audit R6 |
 | R8 | TemplateType vocabulary mapping | Composition | **Resolved** — as_spec_name() method added, mapping table documented in MDS.md §7.2 §3.3 | Audit R8 |
 | R13 | SpecDriftAlert not in Regulation loop | Observability | **Resolved** — DefaultSpecCurator dispatches SpecDriftAlert through Communication Loop to CurationLoop inbox | Audit R13 |
 
@@ -966,7 +966,7 @@ Axolotl and Unsloth are currently local-only; cloud dispatch returns `Unavailabl
 **Status:** Open
 **Opened:** 2026-06-16
 
-Regulation spans like `reg.training.sweep.iteration` and `reg.training.retrain.ab` are emitted via `tracing::info!` with string targets but not registered in `crates/hkask-types/src/cns.rs` `RegulationSpan` enum. They work for logging but cannot be subscribed to programmatically via Regulation variety tracking. Which of these spans meet the deletion test for programmatic observability?
+Regulation spans like `reg.training.sweep.iteration` and `reg.training.retrain.ab` are emitted via `tracing::info!` with string targets but not registered in `crates/hkask-types/src/regulation.rs` `RegulationSpan` enum. They work for logging but cannot be subscribed to programmatically via Regulation variety tracking. Which of these spans meet the deletion test for programmatic observability?
 
 ### ADT-001: Adapter format normalization ✅ RESOLVED
 

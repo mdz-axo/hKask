@@ -119,7 +119,7 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 
 ### 4.3 Regulation Span Registry
 
-`docs/reference/cns-spans.md` — Complete listing of all domain-specific ObservableSpan enums: AcpSpan, ClassifySpan, ContractSpan, InfraSpan, QaSpan, SeamSpan, SloSpan. Emission points, interpretation, algedonic thresholds.
+`docs/reference/regulation-spans.md` — Complete listing of all domain-specific ObservableSpan enums: AcpSpan, ClassifySpan, ContractSpan, InfraSpan, QaSpan, SeamSpan, SloSpan. Emission points, interpretation, algedonic thresholds.
 
 ### 4.4 Magna Carta Reference
 
@@ -231,7 +231,7 @@ docs/
 │   │   ├── meta.md
 │   │   ├── specialized.md
 │   │   └── templates.md
-│   ├── cns-spans.md
+│   ├── regulation-spans.md
 │   ├── magna-carta.md
 │   └── mcp-servers/
 │       └── README.md

@@ -1,18 +1,18 @@
 ---
 name: semantic-graph-audit
 visibility: public
-description: "Domain-agnostic semantic dependency graph analysis. Accepts any directed graph (code modules, crates, skills, ADRs, CNS spans, decision trees, data flows), classifies edges by constraint force, detects cycles/redundancies/gaps/orphans, and evaluates graph health through pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me lenses.
+description: "Domain-agnostic semantic dependency graph analysis. Accepts any directed graph (code modules, crates, skills, ADRs, Regulation spans, decision trees, data flows), classifies edges by constraint force, detects cycles/redundancies/gaps/orphans, and evaluates graph health through pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me lenses.
 "
 ---
 
 # Semantic Graph Audit
 
-Domain-agnostic semantic dependency graph analysis. Accepts any directed graph (code modules, crates, skills, ADRs, CNS spans, decision trees, data flows), classifies edges by constraint force, detects cycles/redundancies/gaps/orphans, and evaluates graph health through pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me lenses.
+Domain-agnostic semantic dependency graph analysis. Accepts any directed graph (code modules, crates, skills, ADRs, Regulation spans, decision trees, data flows), classifies edges by constraint force, detects cycles/redundancies/gaps/orphans, and evaluates graph health through pragmatic-semantics, pragmatic-cybernetics, essentialist, and grill-me lenses.
 
 
 ## When to Use
 
-- When you need to analyze the health and viability of any directed dependency graph, including code modules, crates, skills, ADRs, CNS spans, decision trees, or data flows.
+- When you need to analyze the health and viability of any directed dependency graph, including code modules, crates, skills, ADRs, Regulation spans, decision trees, or data flows.
 - When you need to classify the binding strength of graph edges using the pragmatic-semantics constraint hierarchy (Prohibition, Guardrail, Guideline, Evidence, Hypothesis).
 - When you need to evaluate graph behavior through cybernetic, essentialist, Socratic (grill-me), and semantic coherence lenses.
 - When you need to detect structural pathologies like cycles, redundancies, gaps, orphans, and fan-in/out anomalies.

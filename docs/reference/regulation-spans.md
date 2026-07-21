@@ -55,7 +55,7 @@ Namespaces form a tree rooted at `cns`. The namespace prefix maps to a `SpanCate
 
 ### 3.1 RegulationSpan — Core Regulation Spans
 
-**File:** `crates/hkask-types/src/cns.rs`
+**File:** `crates/hkask-types/src/regulation.rs`
 
 Core spans used across 2+ crates. This is the foundational enum implementing `ObservableSpan`.
 
@@ -171,7 +171,7 @@ All namespaced under `reg.federation.*`. Federation span strings must match `CAN
 
 14 variants covering wallet lifecycle: `Balance`, `Deposit`, `DepositShielded`, `Withdrawal`, `Conversion`, `KeyIssued`, `KeyRevoked`, `KeyExpired`, `KeyExhausted`, `ChainError`, `Created`, `Draw`, `Spend`, `Exhausted`.
 
-All namespaced under `reg.wallet.*`. Emitted through `crates/hkask-wallet/src/manager/cns.rs` which bridges wallet operations to the Regulation event sink.
+All namespaced under `reg.wallet.*`. Emitted through `crates/hkask-wallet/src/manager/reg.rs` which bridges wallet operations to the Regulation event sink.
 
 ### 3.11 ApiRequestSpan — API Metering
 
@@ -272,7 +272,7 @@ kask cns alerts
 kask cns variety
 
 # Subscribe to live events for specific spans
-kask cns subscribe --agent curator --spans reg.tool.web_search,cns.inference
+kask cns subscribe --agent curator --spans reg.tool.web_search,reg.inference
 ```
 
 ### Programmatic

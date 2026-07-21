@@ -64,7 +64,7 @@ description: "4-step Improvement Kata templates for scientific capability develo
 1. Measure whether the four-step improvement kata has produced a coherent, testable PDCA plan.
 2. Check each step's quality (direction, current condition, target condition, experiment).
 3. Check cross-step coherence (current↔target gap, experiment alignment, feedback timing).
-4. Check CNS grounding if CNS counters are available in context.
+4. Check Regulation grounding if Regulation counters are available in context.
 5. Start at 1.0, subtract for each satisfied check, and clamp to [0, 1].
 6. Return JSON only with `convergence_metric`, `convergence_method`, `metric_decomposition`, `rationale`, and `blockers`.
 

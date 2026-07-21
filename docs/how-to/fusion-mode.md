@@ -427,7 +427,7 @@ Fusion emits tracing spans at `target: "reg.inference"`:
 - `P-I Phase 1 complete — strategy synthesized` — plan-implement phase boundary
 - `Panel model resolution failed` / `Panel model generation failed` — per-panelist failures (warnings, not fatal unless all fail)
 
-Filter with `RUST_LOG=cns.inference=info` to watch fusion in action.
+Filter with `RUST_LOG=reg.inference=info` to watch fusion in action.
 
 ---
 

@@ -36,7 +36,7 @@ A QA script manifest is a state machine expressed in YAML. Steps can:
 - Send passages to LLM classifiers and branch on confidence levels (`classify`)
 - Loop with retry until a condition is met or max iterations exhausted (`loop`)
 
-The manifest controls: gas budgets, CNS observability spans, and cost tracking.
+The manifest controls: gas budgets, Regulation observability spans, and cost tracking.
 
 ## Registry Templates
 
@@ -86,7 +86,7 @@ These YAML fields are parsed by the runner but not used — they persist
 in manifests for future integration but have no runtime effect:
 - `retries` on any step
 - `description` on `run_command`, `loop`, `mcp_tool` steps
-- `cns` section (emit_spans, alert) — CNS emission is built into the runner
+- `cns` section (emit_spans, alert) — Regulation emission is built into the runner
 - `error_handling` section
 - `gas.alert_threshold` — only `cap` and `hard_limit` are enforced
 - `rjoule` section — reserved for future gas/rJoule integration
@@ -128,12 +128,12 @@ gas:
 
 Gas costs per step: `run_command` = 100, `classify` = 500, `loop` iteration = 100, `mcp_tool` = 200.
 
-### CNS Spans
+### Regulation Spans
 
-CNS spans are emitted automatically by the runner — no manifest configuration needed.
-- `cns.qa.repair_attempted` on script start
-- `cns.qa.repair_verified` on successful completion
-- `cns.qa.repair_exhausted` on failure or error
+Regulation spans are emitted automatically by the runner — no manifest configuration needed.
+- `reg.qa.repair_attempted` on script start
+- `reg.qa.repair_verified` on successful completion
+- `reg.qa.repair_exhausted` on failure or error
 
 ### Existing Classifier Configs
 

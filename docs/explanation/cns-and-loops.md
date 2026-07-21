@@ -883,7 +883,7 @@ status: VERIFIED
 |------|---------|--------|-------|-------------|
 | 2b | `SloManager` + `SloDataPoint` + `SloDataProvider` | new slo crate | ~1000 | Depends only on `LedgerObserver` port |
 | 2c | `SeamWatcher` + `SeamDrift` + `SeamSummary` + `SeamTypes` | new seam crate | ~900 | Fully independent — observability |
-| 2d | Span types (`AcpSpan`, `ClassifySpan`, `ContractSpan`, `InfraSpan`, `QaSpan`, `SloSpan`, `SeamSpan`) | new cns-spans crate | ~800 | Depends on `hkask-types::event` |
+| 2d | Span types (`AcpSpan`, `ClassifySpan`, `ContractSpan`, `InfraSpan`, `QaSpan`, `SloSpan`, `SeamSpan`) | new regulation-spans crate | ~800 | Depends on `hkask-types::event` |
 | 2e | Energy/gas (`GasBudget`, `GasCost`, `GasBudgetManager`, `GasReport`, `DynamicGasTable`) | new energy crate | ~1800 | Depends on `hkask-types` |
 | 2f | Estimators (`CalibratedEnergyEstimator`, `CompositeEnergyEstimator`, `TableEnergyEstimator`, `InferenceEstimator`) | new energy-estimators crate | ~1300 | Depends on energy crate |
 
@@ -913,7 +913,7 @@ flowchart TD
     A[CyberneticsLoop::act\nSelects RegulatoryAction\nApplies corrective action]
     R[GovernedTool / GovernedInference\nExecutes action through\nOCAP membrane]
     O[Observe outcome\nImpactReport generated\nLoopMetrics assessed]
-    E[Emit Regulation span\ncns.regulation.* RegulationRecord persisted\nAlgedonic alert if critical]
+    E[Emit Regulation span\nreg.regulation.* RegulationRecord persisted\nAlgedonic alert if critical]
     STORE[(RegulationArchive)]
     CAL[SetPointCalibrator\nQueries regulation events\nAdjusts thresholds within bounds]
     CUR[CurationLoop\nReads algedonic events\nContract violations included]

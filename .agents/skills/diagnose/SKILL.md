@@ -1,13 +1,13 @@
 ---
 name: diagnose
 visibility: public
-description: "Disciplined diagnosis loop for hard bugs and performance regressions. Cybernetic debugging: build feedback loop → reproduce → hypothesise → instrument → fix → regression-test. Aligned with CNS sense→orient→decide→act."
+description: "Disciplined diagnosis loop for hard bugs and performance regressions. Cybernetic debugging: build feedback loop → reproduce → hypothesise → instrument → fix → regression-test. Aligned with Regulation sense→orient→decide→act."
 ---
 
 
 # Diagnose
 
-Disciplined diagnosis loop for hard bugs and performance regressions. Cybernetic debugging: build feedback loop → reproduce → hypothesise → instrument → fix → regression-test. Aligned with CNS sense→orient→decide→act.
+Disciplined diagnosis loop for hard bugs and performance regressions. Cybernetic debugging: build feedback loop → reproduce → hypothesise → instrument → fix → regression-test. Aligned with Regulation sense→orient→decide→act.
 
 ## When to Use
 

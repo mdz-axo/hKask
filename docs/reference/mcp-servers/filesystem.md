@@ -180,6 +180,6 @@ kask mcp start filesystem
 ## Cross-links
 
 - [MCP Server Registry](README.md) — catalog of all 15 built-in servers
-- [Regulation Span Registry](../cns-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`
+- [Regulation Span Registry](../regulation-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — MCP dispatch sequence
 - [Diagram Index](../../DIAGRAMS_INDEX.md) — DIAG-RF-003 registration

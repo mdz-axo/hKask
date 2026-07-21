@@ -3,15 +3,15 @@ name: runtime-posture-monitor
 visibility: public
 description: >
   Runtime security posture monitoring skill for hKask (v0.31.0). Observes
-  runtime telemetry (hkask.* performative spans, cns.guard.* violations,
-  cns.regulation events) to detect runtime threats: API endpoint abuse,
+  runtime telemetry (hkask.* performative spans, reg.guard.* violations,
+  reg.regulation events) to detect runtime threats: API endpoint abuse,
   bot traffic, LLM usage anomalies, and runtime dependency behavior
   anomalies. Distinct from supply-chain-sentinel (static manifest audit,
   P4 manifest boundary) — this skill observes runtime behavior (P4
   runtime boundary). Anchored to MITRE CWE (CWE-1357, CWE-829, CWE-200),
   OWASP LLM Top 10 (LLM06, LLM07), MITRE ATLAS (AML.TA0010). Consumes
   security/regressions/; proposes RR-NNNN.yaml entries with surface:
-  runtime. Emits cns.runtime.* spans (P9 — all registered in
+  runtime. Emits reg.runtime.* spans (P9 — all registered in
   CANONICAL_NAMESPACES). Decomposed into 4 phases matching bug-hunt,
   kali-audit, and supply-chain-sentinel pipeline. Minimal (P5): answers
   all 5W1H; single skill, no bundle; complements supply-chain-sentinel
@@ -21,10 +21,10 @@ description: >
 
 # Runtime Posture Monitor
 
-{# goal: Observe runtime telemetry (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed userpod host (P4 runtime boundary). Classify runtime threats (endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly). Map to MITRE CWE-1357/CWE-829/CWE-200, OWASP LLM06/LLM07, ATLAS AML.TA0010. Emit cns.regulation and cns.guard.violation for downstream action. Propose concrete RR-NNNN.yaml entries (surface: runtime, status: pending, concrete grep pattern against span target). Emit cns.runtime.* spans (P9). Compute convergence metric from real runtime evidence only. No synthetic signals; no external endpoint scanning; userpod_host mandatory (P12). #}
+{# goal: Observe runtime telemetry (hkask.* performative spans, reg.guard.* violations, reg.regulation events) within deployed userpod host (P4 runtime boundary). Classify runtime threats (endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly). Map to MITRE CWE-1357/CWE-829/CWE-200, OWASP LLM06/LLM07, ATLAS AML.TA0010. Emit reg.regulation and reg.guard.violation for downstream action. Propose concrete RR-NNNN.yaml entries (surface: runtime, status: pending, concrete grep pattern against span target). Emit reg.runtime.* spans (P9). Compute convergence metric from real runtime evidence only. No synthetic signals; no external endpoint scanning; userpod_host mandatory (P12). #}
 
-Runtime security posture monitoring. Observes hKask's own CNS telemetry
-(`hkask.*` performative spans, `cns.guard.*` violations, `cns.regulation`
+Runtime security posture monitoring. Observes hKask's own Regulation telemetry
+(`hkask.*` performative spans, `reg.guard.*` violations, `reg.regulation`
 events) as concrete evidence. Maps runtime threats to MITRE CWE / OWASP
 LLM / MITRE ATLAS taxonomy. Proposes CI-enforced regressions
 (`surface: runtime`). Tracks defense-layer firing coverage (6 runtime
@@ -35,8 +35,8 @@ posture convergence metric.
 ## When to Use
 
 - Monitoring a deployed userpod host for runtime security anomalies.
-- Investigating runtime defense-layer firing patterns (`cns.guard.*`
-  violations increasing? `cns.regulation.action_blocked` not keeping
+- Investigating runtime defense-layer firing patterns (`reg.guard.*`
+  violations increasing? `reg.regulation.action_blocked` not keeping
   pace?).
 - Verifying that static defense layers (checked by `kali-audit`) actually
   fire at runtime.
@@ -52,12 +52,12 @@ posture convergence metric.
   observation window / continuous monitoring (not audit cycle); Why =
   P3.1 safe container requires runtime blocking (Aikido/Zen firewall
   model); How = discover signals → observe → classify → regulate →
-  report → propose regression → emit CNS span → compute convergence.
+  report → propose regression → emit Regulation span → compute convergence.
   All 6 present — passes gate.
 - **P5.1 Registry canonical:** Registry (`manifest.yaml` + `.j2`) is
   source of truth. SKILL.md derived from it.
 - **P5.3 Minimalist test:** No external package download; no OS-level
-  endpoint scanning; observes hKask's own CNS telemetry only (P4 runtime
+  endpoint scanning; observes hKask's own Regulation telemetry only (P4 runtime
   boundary — distinct from `supply-chain-sentinel`'s manifest boundary).
 - **P5.4 Dual-axis:** Each finding has state identity (span target +
   timestamp) and process identity (`classify-threat` flow).
@@ -66,12 +66,12 @@ posture convergence metric.
 - **P8 Semantic grounding:** Every claim: span target, timestamp, signal
   value, baseline reference, evidence snippet, source citation (MITRE
   CWE URL, OWASP LLM reference, ATLAS reference, hkask-guard docs,
-  hkask-cns docs). No fabricated CVEs or synthetic span observations.
-- **P9 CNS regulation:** Emits `cns.runtime.select`, `cns.runtime.classify`,
-  `cns.runtime.regulate`, `cns.runtime.convergence` spans. All four are
+  hkask-regulation docs). No fabricated CVEs or synthetic span observations.
+- **P9 Regulation regulation:** Emits `reg.runtime.select`, `reg.runtime.classify`,
+  `reg.runtime.regulate`, `reg.runtime.convergence` spans. All four are
   registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
-  and emitted unconditionally. Also emits `cns.regulation` and
-  `cns.guard.violation` for downstream consumption (both registered).
+  and emitted unconditionally. Also emits `reg.regulation` and
+  `reg.guard.violation` for downstream consumption (both registered).
 - **P10 Bot/userpod taxonomy:** `visibility: public` — transparent
   runtime monitoring.
 - **P11 Visibility:** Regression proposals default `status: pending`
@@ -79,14 +79,14 @@ posture convergence metric.
 - **P12 Authenticated host mandate:** Every action includes `userpod_host`.
 - **P3.1 Safety floor:** Runtime threat detection protects the Generative
   Space container — runtime compromise is destructive to the space itself.
-- **P4 OCAP boundaries:** Observes only hKask's own CNS telemetry; no
+- **P4 OCAP boundaries:** Observes only hKask's own Regulation telemetry; no
   external endpoint scanning; no OS-level process inspection without
   explicit consent (P2).
 
 ## Instructions
 
 > **Tool dependency:** this skill reads runtime telemetry via the
-> `hkask-mcp-cns` MCP server. Use the `cns_query_spans` tool to query CNS
+> `hkask-mcp-cns` MCP server. Use the `cns_query_spans` tool to query Regulation
 > span history by namespace prefix (e.g. `namespace="cns.guard"`,
 > `namespace="cns.regulation"`, `namespace="hkask"`) within a time window,
 > and `cns_span_stats` to aggregate counts by span_category. Both tools
@@ -98,12 +98,12 @@ posture convergence metric.
 ### runtime-posture-monitor/select-signal
 
 1. Discover runtime signal sources in the deployed userpod host:
-   `hkask.*` performative spans, `cns.guard.*` violation spans
-   (`cns.guard.input`, `cns.guard.output`, `cns.guard.canary`,
-   `cns.guard.runtime_policy`), `cns.regulation` events
-   (`cns.regulation.action_blocked`, `cns.regulation.action_substituted`,
-   `cns.regulation.plateau_detected`), `cns.tool.*` invocations,
-   `cns.inference` calls.
+   `hkask.*` performative spans, `reg.guard.*` violation spans
+   (`reg.guard.input`, `reg.guard.output`, `reg.guard.canary`,
+   `reg.guard.runtime_policy`), `reg.regulation` events
+   (`reg.regulation.action_blocked`, `reg.regulation.action_substituted`,
+   `reg.regulation.plateau_detected`), `reg.tool.*` invocations,
+   `reg.inference` calls.
 2. If zero signal sources found, return empty `signal_sources` (do NOT
    invent signals) and recommend `signal: guard` or `signal: regulation`
    based on deployed components.
@@ -111,15 +111,15 @@ posture convergence metric.
    List `existing_regressions` (skipping `enforced` duplicates when
    proposing new entries).
 4. Verify defense layers to check (runtime firing, not static presence):
-   `input_filtering` (`cns.guard.input` firing), `output_filtering`
-   (`cns.guard.output` firing), `canary_detection` (`cns.guard.canary`
-   firing), `runtime_policy` (`cns.guard.runtime_policy` firing),
-   `regulation_loop` (`cns.regulation` events observed),
-   `action_distribution_monitoring` (`cns.regulation.loop_quality`
+   `input_filtering` (`reg.guard.input` firing), `output_filtering`
+   (`reg.guard.output` firing), `canary_detection` (`reg.guard.canary`
+   firing), `runtime_policy` (`reg.guard.runtime_policy` firing),
+   `regulation_loop` (`reg.regulation` events observed),
+   `action_distribution_monitoring` (`reg.regulation.loop_quality`
    observed).
 5. Return JSON: `{signal, signal_sources: [...], signal_types: [...],
    defense_layers: [...], existing_regressions: [...], userpod_host}`.
-6. Emit `cns.runtime.select` CNS span (P9) with discovered signal sources,
+6. Emit `reg.runtime.select` Regulation span (P9) with discovered signal sources,
    signal selection, regression count, defense layers, host identity,
    latency metric.
 
@@ -127,13 +127,13 @@ posture convergence metric.
 
 1. Observe each signal source in `signal_sources` within the observation
    window. Record span target, timestamp, signal value, baseline reference.
-2. For `cns.guard.*` signals: count violations per scanner. Note violation
+2. For `reg.guard.*` signals: count violations per scanner. Note violation
    frequency vs baseline.
-3. For `cns.regulation.*` signals: count regulation actions. Note whether
+3. For `reg.regulation.*` signals: count regulation actions. Note whether
    actions are increasing (system struggling) or decreasing (stable).
-4. For `cns.tool.*` signals: count tool invocations per tool type. Note
+4. For `reg.tool.*` signals: count tool invocations per tool type. Note
    invocation rate, error rate, unusual tool call chains.
-5. For `cns.inference` signals: count LLM inference calls. Note inference
+5. For `reg.inference` signals: count LLM inference calls. Note inference
    rate, token consumption, usage spikes.
 6. Apply pragmatic-cybernetics (embedded in instructions — like `bug-hunt`
    `oracle` phase):
@@ -160,15 +160,15 @@ posture convergence metric.
    `defense_layers_firing`, `defense_layers_silent`, `evidence_snippet`
    (quoted span target + timestamp + value), `source_citation` (MITRE
    CWE reference URL, OWASP LLM reference, ATLAS reference, hkask-guard
-   docs, hkask-cns docs).
-10. Emit `cns.runtime.classify` CNS span per classified threat
-    (`target: "cns.runtime.classify"`, message: `"CNS"`, operation:
+   docs, hkask-regulation docs).
+10. Emit `reg.runtime.classify` Regulation span per classified threat
+    (`target: "cns.runtime.classify"`, message: `"Regulation"`, operation:
     `"classify_threat"`, threat_type, signal_target, severity,
     userpod_host, latency_ms).
 
 CONSTRAINT — Evidence integrity (P8):
 - No synthetic span observations. Every `evidence_snippet` must be
-  verifiable by querying the CNS span history for the cited target and
+  verifiable by querying the Regulation span history for the cited target and
   timestamp.
 - No synthetic CVE numbers. Only reference MITRE CWE taxonomy categories:
   CWE-1357 (Reliance on Component Not Updateable — runtime dependency
@@ -177,7 +177,7 @@ CONSTRAINT — Evidence integrity (P8):
   exposure). These are taxonomy mappings, not vulnerability claims.
 - Source citations must reference concrete URLs or documents actually
   consulted: MITRE CWE definitions, OWASP LLM Top 10 2025, MITRE ATLAS,
-  hkask-guard pipeline docs, hkask-cns cybernetics loop docs.
+  hkask-guard pipeline docs, hkask-regulation cybernetics loop docs.
 - Every finding must include `userpod_host` identity (P12) — no
   anonymous runtime scanning.
 - When referencing `security/regressions/`, read actual YAML files; do
@@ -202,10 +202,10 @@ CONSTRAINT — Evidence integrity (P8):
    `defense_layers_silent`, `remediation_recommendation`,
    `regulation_action_emitted`, `guard_violation_emitted`, `userpod_host`.
 3. For each critical/high threat:
-   a. Emit `cns.regulation` event (feeds CyberneticsLoop for regulation
+   a. Emit `reg.regulation` event (feeds CyberneticsLoop for regulation
       action selection).
    b. If blocking warranted (critical severity, defense-layer bypass),
-      emit `cns.guard.violation` (triggers defensive blocking).
+      emit `reg.guard.violation` (triggers defensive blocking).
 4. Propose regression entry for findings with severity >= medium (only
    when evidence is concrete). Use exact YAML format from
    `security/regressions/README.md`: `surface: runtime`, `cwe: CWE-XXX`,
@@ -219,7 +219,7 @@ CONSTRAINT — Evidence integrity (P8):
    - Pass: zero critical/high threats, >= 5 defense layers firing.
    - Conditional: medium threats present or 3-4 defense layers firing.
    - Fail: critical/high threats present or < 3 defense layers firing.
-7. Emit `cns.runtime.regulate` CNS span with threats count by severity,
+7. Emit `reg.runtime.regulate` Regulation span with threats count by severity,
    defense layers firing/silent, proposed regression count, regulation
    events emitted, guard violations emitted, verdict, userpod host,
    latency metric.
@@ -247,28 +247,28 @@ CONSTRAINT — Evidence integrity (P8):
 5. Return JSON: `{convergence_metric, dimensions, rationale, blockers,
    defense_layers_firing, defense_layers_silent, existing_regressions,
    proposed_regressions, cns_span_emitted: true}`.
-6. Emit `cns.runtime.convergence` CNS span (registered in
+6. Emit `reg.runtime.convergence` Regulation span (registered in
    `CANONICAL_NAMESPACES` — emitted unconditionally).
 
 ## Registry Templates
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `select-signal.j2` | KnowAct | Discover runtime signal sources; read regression library; emit `cns.runtime.select` span. |
-| `classify-threat.j2` | KnowAct | Observe runtime signals; classify threats; apply pragmatic-cybernetics; emit `cns.runtime.classify` spans. |
-| `emit-regulation.j2` | KnowAct | Synthesize threats with CWE/OWASP/ATLAS taxonomy; emit `cns.regulation` and `cns.guard.violation`; propose `RR-NNNN.yaml` entries (`surface: runtime`); emit `cns.runtime.regulate` span. |
-| `convergence-check.j2` | KnowAct | Compute runtime-posture-specific convergence metric (defense-layer firing coverage + regression growth + residual risk). Emit `cns.runtime.convergence` span. |
+| `select-signal.j2` | KnowAct | Discover runtime signal sources; read regression library; emit `reg.runtime.select` span. |
+| `classify-threat.j2` | KnowAct | Observe runtime signals; classify threats; apply pragmatic-cybernetics; emit `reg.runtime.classify` spans. |
+| `emit-regulation.j2` | KnowAct | Synthesize threats with CWE/OWASP/ATLAS taxonomy; emit `reg.regulation` and `reg.guard.violation`; propose `RR-NNNN.yaml` entries (`surface: runtime`); emit `reg.runtime.regulate` span. |
+| `convergence-check.j2` | KnowAct | Compute runtime-posture-specific convergence metric (defense-layer firing coverage + regression growth + residual risk). Emit `reg.runtime.convergence` span. |
 
 ## Defense-Layer Catalog (Runtime Specific)
 
 | Layer | Name | Evidence Source | Source Citation |
 |-------|------|-----------------|-----------------|
-| 1 | Input filtering (runtime firing) | `cns.guard.input` span emission count | `hkask-guard` pipeline |
-| 2 | Output filtering (runtime firing) | `cns.guard.output` span emission count | `hkask-guard` pipeline |
-| 3 | Canary token detection (runtime firing) | `cns.guard.canary` span emission count | `hkask-guard` pipeline |
-| 4 | Runtime policy enforcement | `cns.guard.runtime_policy` span emission count | `hkask-templates` executor |
-| 5 | Regulation loop active | `cns.regulation` span emission count | `hkask-cns` cybernetics loop |
-| 6 | Action distribution monitoring | `cns.regulation.loop_quality` span | `hkask-cns` regulation policy |
+| 1 | Input filtering (runtime firing) | `reg.guard.input` span emission count | `hkask-guard` pipeline |
+| 2 | Output filtering (runtime firing) | `reg.guard.output` span emission count | `hkask-guard` pipeline |
+| 3 | Canary token detection (runtime firing) | `reg.guard.canary` span emission count | `hkask-guard` pipeline |
+| 4 | Runtime policy enforcement | `reg.guard.runtime_policy` span emission count | `hkask-templates` executor |
+| 5 | Regulation loop active | `reg.regulation` span emission count | `hkask-regulation` cybernetics loop |
+| 6 | Action distribution monitoring | `reg.regulation.loop_quality` span | `hkask-regulation` regulation policy |
 
 New layers can be added as real runtime patterns justify them (P7) — not
 speculatively. This catalog is distinct from `kali-audit`'s 8-layer static
@@ -296,7 +296,7 @@ catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
   convergence). Uses same pragmatic-cybernetics and pragmatic-semantics
   reasoning embedded in instructions.
 - **`runtime-posture-monitor` does NOT replace any of these:** It fills
-  the runtime observation gap. No existing skill observes hKask's own CNS
+  the runtime observation gap. No existing skill observes hKask's own Regulation
   telemetry for runtime security posture.
 
 ## Constraints (Concrete — Not Aspirational)
@@ -312,7 +312,7 @@ catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
   with `surface: runtime`, concrete `pattern` (grep regex against span
   target or signal value), `status: pending`, `cwe: CWE-XXX`,
   `owasp_llm_2025: LLMXX`, `atlas_tactic: AML.TAXXXX`.
-- No synthetic span observations; query CNS span history before quoting.
+- No synthetic span observations; query Regulation span history before quoting.
 - No synthetic CVE references; only MITRE CWE / OWASP LLM / ATLAS taxonomy
   categories as mappings, not vulnerability claims.
 - No fabricated runtime signals; only observe spans actually emitted by
@@ -321,9 +321,9 @@ catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
   (P5.1).
 - Do NOT invent span targets not emitted by the running system.
 - Do NOT claim external endpoint scanning or OS-level process inspection
-  capability — CNS telemetry observation only (P4 boundary enforcement).
+  capability — Regulation telemetry observation only (P4 boundary enforcement).
 - Every scan action includes `userpod_host` identity (P12).
-- Every security-sensitive runtime operation emits `cns.runtime.*` span.
+- Every security-sensitive runtime operation emits `reg.runtime.*` span.
   All four namespaces are registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`) and emitted unconditionally.
 - Apply pragmatic-cybernetics feedback loop analysis: signal polarity,
@@ -340,23 +340,23 @@ catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
 - Source citations must reference concrete sources: MITRE CWE definitions
   (mitre.org), OWASP LLM Top 10 2025 (owasp.org), MITRE ATLAS
   (atlas.mitre.org), `security/regressions/README.md`, hkask-guard docs,
-  hkask-cns docs.
+  hkask-regulation docs.
 - If signal discovery finds zero runtime signals, return empty
   `signal_sources` and recommend `signal: guard` or `signal: regulation`
   based on deployed components — do NOT invent signals.
 - Before proposing any regression entry, verify span target was actually
-  emitted and evidence snippet can be quoted from CNS span history.
+  emitted and evidence snippet can be quoted from Regulation span history.
 - This skill does NOT scan OS-level endpoints or download external
-  packages. It observes hKask's own CNS telemetry within the deployed
-  userpod host (P4 OCAP enforcement perimeter — runtime CNS boundary).
+  packages. It observes hKask's own Regulation telemetry within the deployed
+  userpod host (P4 OCAP enforcement perimeter — runtime Regulation boundary).
 - Propose `surface: runtime` regression entries only; do NOT reuse
   `surface: code`, `surface: template`, `surface: mcp`, `surface: config`,
   or `surface: supply-chain` — runtime threats have distinct defense-layer
   catalog (6 firing layers) distinct from `kali-audit`'s 8-layer static
   catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
 - Convergence metric must reflect actual runtime coverage, not aspirational:
-  defense layers only count as firing when actual `cns.guard.*` or
-  `cns.regulation.*` span emissions confirm them.
+  defense layers only count as firing when actual `reg.guard.*` or
+  `reg.regulation.*` span emissions confirm them.
 
 ## Source References and Taxonomy Anchors
 
@@ -371,10 +371,10 @@ This skill is anchored to concrete, verifiable taxonomy sources (P8):
   Source: `owasp.org/www-project-top-10-for-large-language-model-applications/`.
 - **MITRE ATLAS:** AML.TA0010 (Exfiltration — runtime data exfiltration
   detection). Source: `atlas.mitre.org`.
-- **`hkask-guard` pipeline:** `cns.guard.*` span sources (runtime evidence).
+- **`hkask-guard` pipeline:** `reg.guard.*` span sources (runtime evidence).
   Source: `crates/hkask-guard/src/pipeline.rs`.
-- **`hkask-cns` cybernetics loop:** `cns.regulation` span sink (downstream
-  regulation action). Source: `crates/hkask-cns/src/cybernetics_loop.rs`.
+- **`hkask-regulation` cybernetics loop:** `reg.regulation` span sink (downstream
+  regulation action). Source: `crates/hkask-regulation/src/cybernetics_loop.rs`.
 - **`security/regressions/README.md`:** Regression YAML format and ratchet
   lifecycle. Source: local project standard — authoritative.
 - **Aikido Security** (`aikido.dev`): ASPM, auto-triage, runtime blocking

@@ -263,7 +263,7 @@ hkask-regulation/src/
 
 ### Regulation Spans
 
-The `RegulationSpan` enum (`crates/hkask-types/src/cns.rs`) defines the canonical Regulation span registry with 7 core variants (reduced from 72+ per ADR-048). The 133 `CANONICAL_NAMESPACES` entries in `crates/hkask-types/src/event.rs` provide hierarchical domain namespaces that subsystem spans target. Exhaustive test in `cns_span_tests` verifies Display → FromStr round-trip for all variants.
+The `RegulationSpan` enum (`crates/hkask-types/src/regulation.rs`) defines the canonical Regulation span registry with 7 core variants (reduced from 72+ per ADR-048). The 133 `CANONICAL_NAMESPACES` entries in `crates/hkask-types/src/event.rs` provide hierarchical domain namespaces that subsystem spans target. Exhaustive test in `cns_span_tests` verifies Display → FromStr round-trip for all variants.
 
 Key deployment-related spans added in v0.31.0:
 

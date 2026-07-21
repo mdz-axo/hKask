@@ -31,7 +31,7 @@ flowchart TD
     HowTo --> HowToGuides["8 guides<br/>install, skills, pods, training..."]
 
     Reference --> RefAPI["api-reference.md<br/>54 crates catalogued"]
-    Reference --> RefCNS["cns-spans.md<br/>Span registry"]
+    Reference --> RefCNS["regulation-spans.md<br/>Span registry"]
     Reference --> RefMC["magna-carta.md<br/>P1-P4 principles"]
     Reference --> RefMCP["mcp-servers/<br/>15 MCP servers"]
     Reference --> RefSkills["skills/<br/>46 skills registry"]

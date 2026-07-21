@@ -15,7 +15,7 @@ Goal specification and verification. Extracts structured goals from user intent,
 - When you need to verify goal completion via executed command results (exit codes, stdout pattern matching)
 - When the primary verification system is unavailable and a lightweight fallback judgment is needed
 - When you need to compute a normalized convergence metric to assess whether a PDCA cycle has stabilized
-- When a goal needs to be activated for CNS span tracking and execution context preparation
+- When a goal needs to be activated for Regulation span tracking and execution context preparation
 - When a judge verdict needs to be routed to a resolution action (complete, continue, or escalate to human)
 
 ## Instructions
@@ -34,7 +34,7 @@ Goal specification and verification. Extracts structured goals from user intent,
 ### Goal Activation (goal-activate.j2)
 
 1. Activate a structured goal for tracking.
-2. Emit the CNS create span and record activation.
+2. Emit the Regulation create span and record activation.
 3. Return activation status, span emission flag, and a derived goal ID.
 
 ### Goal Judge — Semantic (judge.j2)
@@ -70,12 +70,12 @@ Goal specification and verification. Extracts structured goals from user intent,
 ### Goal Resolution (goal-resolve.j2)
 
 1. Resolve the goal based on the judge's verdict.
-2. If verdict is `done` and confidence ≥ 0.7, mark complete and emit `cns.goal.complete`.
-3. If verdict is `done` but confidence < 0.7, escalate to human and emit `cns.goal.alert.escalate`.
-4. If verdict is `continue`, continue the loop and emit `cns.goal.transition`.
-5. If verdict is `blocked`, escalate to human and emit `cns.goal.block`.
+2. If verdict is `done` and confidence ≥ 0.7, mark complete and emit `reg.goal.complete`.
+3. If verdict is `done` but confidence < 0.7, escalate to human and emit `reg.goal.alert.escalate`.
+4. If verdict is `continue`, continue the loop and emit `reg.goal.transition`.
+5. If verdict is `blocked`, escalate to human and emit `reg.goal.block`.
 6. Any verdict with confidence < 0.7 escalates to human — low confidence may still be wrong.
-7. Emit the appropriate CNS spans for the chosen resolution.
+7. Emit the appropriate Regulation spans for the chosen resolution.
 
 ## Registry Templates
 
@@ -87,7 +87,7 @@ Goal specification and verification. Extracts structured goals from user intent,
 | `judge_simple.j2` | `KnowAct` | Fallback goal verification with minimal evaluation. Produces a continue verdict and default confidence for lightweight judgment. |
 | `goal-convergence-check.j2` | `KnowAct` | Compute normalized convergence metric for goal-analysis PDCA cycles. |
 
-> **Note:** Two additional template files exist in the crate but are not listed in the manifest's `templates` array: `goal-activate.j2` (KnowAct — emit CNS span for goal activation) and `goal-resolve.j2` (KnowAct — route goal verdict to resolution action). Their instructions are included above but they lack manifest-level registration. See warnings.
+> **Note:** Two additional template files exist in the crate but are not listed in the manifest's `templates` array: `goal-activate.j2` (KnowAct — emit Regulation span for goal activation) and `goal-resolve.j2` (KnowAct — route goal verdict to resolution action). Their instructions are included above but they lack manifest-level registration. See warnings.
 
 ## Constraints
 

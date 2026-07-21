@@ -58,7 +58,7 @@ When convergence is not reached, the parent invokes `self-critique-revision-iter
 1. Critiques the current output against quality criteria (same `critique.j2` template).
 2. Revises based on critique points (same `revise.j2` template).
 3. Validates: compares quality improvement against the convergence threshold (default 0.15). If improvement < threshold, the process has converged.
-4. Emits CNS feedback for variety monitoring.
+4. Emits Regulation feedback for variety monitoring.
 
 Max 3 iterations. Escalates to Curator if not converged after max iterations.
 

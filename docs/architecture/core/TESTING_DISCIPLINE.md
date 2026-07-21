@@ -236,7 +236,7 @@ Invariants at crate boundaries detect **semantic drift** — when a type changes
 
 ### 6.2 P8 — Semantic Grounding
 
-Every test verifies an IS claim about system behavior. The Regulation span registry (`RegulationSpan` in `crates/hkask-types/src/cns.rs`) defines the canonical observability namespace. Test output is traceable to span types.
+Every test verifies an IS claim about system behavior. The Regulation span registry (`RegulationSpan` in `crates/hkask-types/src/regulation.rs`) defines the canonical observability namespace. Test output is traceable to span types.
 
 ### 6.3 P9 — Homeostatic Self-Regulation
 
@@ -462,7 +462,7 @@ Without `DI_API_KEY`, classify steps gracefully degrade through `classifier_unav
 |-----------|----------|----------------|
 | QA script runner | `crates/hkask-test-harness/src/qa_script.rs` | Manifest parsing, step execution, gas, Regulation |
 | CLI subcommand | `crates/hkask-cli/src/commands/qa.rs` | `kask qa run --script`, `kask qa list` |
-| Regulation QA spans | `crates/hkask-types/src/cns.rs` | 4 `RegulationSpan` variants |
+| Regulation QA spans | `crates/hkask-types/src/regulation.rs` | 4 `RegulationSpan` variants |
 | Classifier config | `registry/classify/qa-triage.yaml` | Canonical classifier triage prompt (HKASK_CLASSIFIER_MODEL) |
 | QA manifests | `registry/manifests/qa-*.yaml` | 9 manifests (4 executable, 5 planned) |
 

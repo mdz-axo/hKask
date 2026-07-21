@@ -494,7 +494,7 @@ kask cns subscribe --agent curator --spans reg.federation
 kask cns subscribe --agent curator --spans reg.communication
 
 # Guard violation spans
-kask cns subscribe --agent curator --spans reg.guard.input,cns.guard.output
+kask cns subscribe --agent curator --spans reg.guard.input,reg.guard.output
 ```
 
 ### Live Event Subscription
@@ -502,7 +502,7 @@ kask cns subscribe --agent curator --spans reg.guard.input,cns.guard.output
 Subscribe to live Regulation events for specific span namespaces:
 
 ```bash
-kask cns subscribe --agent curator --spans reg.tool.web_search,cns.inference
+kask cns subscribe --agent curator --spans reg.tool.web_search,reg.inference
 ```
 
 Output:
@@ -537,7 +537,7 @@ Regulation Event Subscription
 | `reg.slo.evaluated` | SLO metric evaluation | SLO breach → Critical if SLO severity is Critical |
 | `reg.federation.*` | Federation link lifecycle | Yes — link degradation |
 
-For the full span catalog, see `docs/reference/cns-spans.md` (100+ entries across 11 domain enum types).
+For the full span catalog, see `docs/reference/regulation-spans.md` (100+ entries across 11 domain enum types).
 
 ---
 
@@ -588,6 +588,6 @@ let alerts = rt.alerts().await;   // Vec<RuntimeAlert>
 ## Related
 
 - [Magna Carta Reference](../reference/magna-carta.md) — Full principle text, enforcement traces, failure modes
-- [Regulation Span Registry](../reference/cns-spans.md) — Full span taxonomy (100+ entries)
+- [Regulation Span Registry](../reference/regulation-spans.md) — Full span taxonomy (100+ entries)
 - [Install and Configure hKask](install-and-configure.md) — Content guard configuration and `reg.guard.*` spans
 - [Agents and Pods](agents-and-pods.md) — Pod status and capability inspection

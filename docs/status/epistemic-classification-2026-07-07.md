@@ -50,7 +50,7 @@ Per pragmatic-semantics discipline, every statement is classified:
 | L13-14 | "Skill — PDCA FlowDef with convergence threshold + energy budget + loop action" | IS-DEC | DIRECT: verified against `hkask-regulation::types::loops`. The RegulatoryAction system supports PDCA cycles with convergence thresholds. Matches code. |
 | L14 | "Template — One-shot prompt execution, no registry manifest" | IS-DEC | DIRECT: matches `hkask-templates` behavior. Templates execute once, return output. Confirmed. |
 | L15 | "Bundle — Composition orchestrator, delegates to sub-skills (non-PDCA)" | IS-DEC | DIRECT: matches `hkask-templates::bundle` module. Bundles compose but are not PDCA loops themselves. Confirmed. |
-| L116 | "crates/hkask-types/src/cns.rs — Regulation span registry" | IS-DEC | ⚠️ SPEC-DRIFT: `RegulationSpan` was decomposed into domain-specific `ObservableSpan` enums in commit `407820c6` (2026-07-06). The file `crates/hkask-types/src/cns.rs` may exist but its role as a "Regulation span registry" has changed. INFERRED — need to verify current contents. |
+| L116 | "crates/hkask-types/src/regulation.rs — Regulation span registry" | IS-DEC | ⚠️ SPEC-DRIFT: `RegulationSpan` was decomposed into domain-specific `ObservableSpan` enums in commit `407820c6` (2026-07-06). The file `crates/hkask-types/src/regulation.rs` may exist but its role as a "Regulation span registry" has changed. INFERRED — need to verify current contents. |
 
 ### 2.2 Prescriptive Claims (OUGHT)
 
@@ -140,7 +140,7 @@ Per pragmatic-semantics discipline, every statement is classified:
 | # | Document | Claim | Code Reality | Criticality | Fix |
 |---|----------|-------|-------------|-------------|-----|
 | 1 | `AGENTS.md` L9 | "39 Skills" | 38 on disk | **MEDIUM** | Recount and update. If kata bundle counts as a skill, clarify the counting methodology. |
-| 2 | `AGENTS.md` L116 | "crates/hkask-types/src/cns.rs — Regulation span registry" | RegulationSpan decomposed into domain-specific ObservableSpans | **MEDIUM** | Update reference to point to `crates/hkask-types/src/observable_span.rs` or the new span files. |
+| 2 | `AGENTS.md` L116 | "crates/hkask-types/src/regulation.rs — Regulation span registry" | RegulationSpan decomposed into domain-specific ObservableSpans | **MEDIUM** | Update reference to point to `crates/hkask-types/src/observable_span.rs` or the new span files. |
 | 3 | `README.md` L45 | "39 skills" | 38 on disk | **MEDIUM** | Sync with AGENTS.md count. |
 | 4 | `FUNCTIONAL_SPECIFICATION.md` §1.5 | Links to MDS-agent-service.md | File doesn't exist (absorbed into MDS.md) | **HIGH** | Fix broken link. |
 | 5 | `magna-carta.md` | Body: v0.28.0, Header: v0.31.0 | Current version is v0.31.0 | **LOW** | Update body text to match header. |

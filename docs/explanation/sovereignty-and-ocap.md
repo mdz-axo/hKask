@@ -402,7 +402,7 @@ sequenceDiagram
 
         Store-->>CM: Ok(())
         CM-->>Caller: Ok(()) — consent granted
-        Note over CM: Regulation log:<br/>cns.sovereignty<br/>operation=consent_granted
+        Note over CM: Regulation log:<br/>reg.sovereignty<br/>operation=consent_granted
     end
 
     %% ── revoke_consent() flow ──
@@ -418,7 +418,7 @@ sequenceDiagram
             CM->>Store: persist(record)
             Store-->>CM: Ok(())
             CM-->>Caller: Ok(()) — consent revoked
-            Note over CM: Regulation log:<br/>cns.sovereignty<br/>operation=consent_revoked
+            Note over CM: Regulation log:<br/>reg.sovereignty<br/>operation=consent_revoked
         else record not found
             CM-->>Caller: Err(ConsentError::ConsentNotFound)
         end
@@ -472,7 +472,7 @@ The `SovereigntyConsent` trait impl translates storage errors into `false`, enfo
 States and transitions for content safety guard violations. Aligned with
 OWASP LLM Top 10 risk categories (LLM01, LLM02, LLM04, LLM06).
 
-Related: `crates/hkask-guard/src/pipeline.rs`, `crates/hkask-types/src/cns.rs`
+Related: `crates/hkask-guard/src/pipeline.rs`, `crates/hkask-types/src/regulation.rs`
 
 ```mermaid
 stateDiagram-v2

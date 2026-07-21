@@ -146,7 +146,7 @@ The userpod's role is Socratic facilitator — helping the user and Curator expl
 
 | Mode | Application | Example |
 |------|------------|---------|
-| **Plussing** | UserPod builds on user's question and Curator's system context. "I like the energy budget analysis. What if we also consider the per-tool breakdown?" | User asks about system health → Curator reports CNS data → UserPod plusses both contributions |
+| **Plussing** | UserPod builds on user's question and Curator's system context. "I like the energy budget analysis. What if we also consider the per-tool breakdown?" | User asks about system health → Curator reports Regulation data → UserPod plusses both contributions |
 | **Freestyling** | User says "explore options for X" → UserPod and Curator freestyle rapid alternatives. No evaluation during flow. | "Give me 5 ways to reduce inference latency" → rapid responses from both |
 | **Riffing** | UserPod takes a thread (e.g., "the kata system needs redesign") and explores it solo, then returns with structured observations. | UserPod: "Let me riff on the kata redesign for a moment..." → solo exploration → returns with analysis |
 | **Yes-And** | Default collaborative mode. UserPod accepts Curator's system report and adds facilitator perspective. Curator accepts user's question and adds relevant data. | Every normal turn in the dual-presence loop |

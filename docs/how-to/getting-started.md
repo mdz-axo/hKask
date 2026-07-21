@@ -199,7 +199,7 @@ Each span has a namespace (`reg.tool.reserved`, `reg.inference.completed`, `reg.
 ## 11. Next Steps
 
 - **How-To Guides:** [Create an agent pod](../how-to/agents-and-pods.md), [Design a skill](../how-to/skills-and-composition.md), [Bootstrap an MCP server](../how-to/skills-and-composition.md)
-- **Reference:** [Crate API reference](../reference/api-reference.md), [Skill registry](../reference/skills/README.md), [Regulation span registry](../reference/cns-spans.md)
+- **Reference:** [Crate API reference](../reference/api-reference.md), [Skill registry](../reference/skills/README.md), [Regulation span registry](../reference/regulation-spans.md)
 - **Explanation:** [Regulation homeostatic loop](../explanation/cns-and-loops.md), [Hexagonal ports](../explanation/architecture-patterns.md), [OCAP dispatch](../explanation/sovereignty-and-ocap.md)
 
 ---

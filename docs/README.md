@@ -48,7 +48,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | Document | Description |
 |----------|-------------|
 | [`api-reference.md`](reference/api-reference.md) | API reference for hKask crates (includes 9 inlined CodeGraph + TUI diagrams) |
-| [`cns-spans.md`](reference/cns-spans.md) | Regulation span catalog and namespaces |
+| [`regulation-spans.md`](reference/regulation-spans.md) | Regulation span catalog and namespaces |
 | [`magna-carta.md`](reference/magna-carta.md) | Magna Carta — 4 inviolable sovereignty principles |
 | [`mcp-servers/README.md`](reference/mcp-servers/README.md) | MCP server reference — 15 built-in servers (includes Companies MCP server) |
 | [`skills/README.md`](reference/skills/README.md) | Skills registry — manifests and metadata |

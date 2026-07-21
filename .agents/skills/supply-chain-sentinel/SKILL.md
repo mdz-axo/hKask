@@ -10,7 +10,7 @@ description: >
   Chain taxonomy, OSC&R framework (Open Software Supply Chain Attack
   Reference — `github.com/pbom-dev/OSCAR`).
   Consumes security/regressions/; proposes RR-NNNN.yaml entries with
-  surface: supply-chain. Emits cns.supply_chain.* spans (P9). Decomposed
+  surface: supply-chain. Emits reg.supply_chain.* spans (P9). Decomposed
   into 4 phases matching bug-hunt and kali-audit pipeline.
   Minimal (P5): answers all 5W1H; single skill, no bundle; complements
   kali-audit (deeper supply-chain focus) and adversarial-red-team (LLM
@@ -19,7 +19,7 @@ description: >
 
 # Supply-Chain Sentinel
 
-{# goal: Audit dependency manifest declarations (Cargo.toml, deny.toml, lockfiles) within user workspace boundaries (P4 OCAP). Verify version pinning, registry trust, license compatibility, SBOM visibility. Map findings to MITRE CWE-1104/CWE-829/CWE-1357, OWASP Supply Chain, OSC&R taxonomy. Propose concrete RR-NNNN.yaml entries (surface: supply-chain, status: pending, concrete grep pattern against manifest content). Emit cns.supply_chain.* spans (P9). Compute convergence metric from real manifest evidence only. No synthetic CVE claims; no external dependency download; userpod_host mandatory (P12). #}
+{# goal: Audit dependency manifest declarations (Cargo.toml, deny.toml, lockfiles) within user workspace boundaries (P4 OCAP). Verify version pinning, registry trust, license compatibility, SBOM visibility. Map findings to MITRE CWE-1104/CWE-829/CWE-1357, OWASP Supply Chain, OSC&R taxonomy. Propose concrete RR-NNNN.yaml entries (surface: supply-chain, status: pending, concrete grep pattern against manifest content). Emit reg.supply_chain.* spans (P9). Compute convergence metric from real manifest evidence only. No synthetic CVE claims; no external dependency download; userpod_host mandatory (P12). #}
 
 Dependency and software supply chain audit. Reads workspace manifest files (manifest-level dependency tree only — no external package download, P4 boundary enforcement).
 (`Cargo.toml`, `deny.toml`, lockfiles) as concrete evidence. Maps findings
@@ -34,7 +34,7 @@ computes a supply-chain convergence metric.
 - Investigating manifest-level supply chain signals (`deny.toml` gaps,
 unpinned versions, missing lockfile tracking).
 - Verifying defense-layer presence for supply chain (P9 observable via
-`cns.supply_chain.*` spans).
+`reg.supply_chain.*` spans).
 - Proposing `security/regressions/` entries backed by manifest evidence.
 - Computing supply-chain-specific convergence across audit cycles.
 
@@ -45,7 +45,7 @@ unpinned versions, missing lockfile tracking).
   file / registry URL; When = scan cycle / manifest version; Why = P3.1
   safe container / P1 user sovereignty over dependencies / P4 explicit
   dependency boundaries; How = discover → read → verify → classify →
-  report → propose regression → emit CNS span → compute convergence. All 6
+  report → propose regression → emit Regulation span → compute convergence. All 6
   present — passes gate.
 - **P5.1 Registry canonical:** Registry (`manifest.yaml` + `.j2`) is source
   of truth. SKILL.md derived from it.
@@ -59,8 +59,8 @@ unpinned versions, missing lockfile tracking).
   dependency name+version, evidence snippet, source citation (MITRE CWE
   URL, deny.toml spec, crates.io advisory format, OWASP Supply Chain,
   OSC&R framework URL). No fabricated CVEs or synthetic quotes.
-- **P9 CNS regulation:** Emits `cns.supply_chain.select`, `cns.supply_chain.probe`,
-  `cns.supply_chain.report`, `cns.supply_chain.convergence` spans. All four
+- **P9 Regulation regulation:** Emits `reg.supply_chain.select`, `reg.supply_chain.probe`,
+  `reg.supply_chain.report`, `reg.supply_chain.convergence` spans. All four
   are registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
   and emitted unconditionally.
 - **P10 Bot/userpod taxonomy:** `visibility: public` — transparent audit.
@@ -92,7 +92,7 @@ unpinned versions, missing lockfile tracking).
    `sbom_presence` (manifest or lockfile tracks dependency metadata).
 5. Return JSON: `{surface, manifest_paths: [...], registry_sources: [...],
    defense_layers: [...], existing_regressions: [...], userpod_host}`.
-6. Emit `cns.supply_chain.select` CNS span (P9) with discovered files,
+6. Emit `reg.supply_chain.select` Regulation span (P9) with discovered files,
    surface selection, regression count, defense layers, host identity,
    latency metric.
 
@@ -141,8 +141,8 @@ unpinned versions, missing lockfile tracking).
    `source_citation` (MITRE CWE reference URL, deny.toml spec reference,
    crates.io advisory format, OWASP Supply Chain reference, OSC&R
    framework URL).
-9. Emit `cns.supply_chain.probe` CNS span per dependency entry probed
-   (`target: "cns.supply_chain.probe"`, message: `"CNS"`, operation:
+9. Emit `reg.supply_chain.probe` Regulation span per dependency entry probed
+   (`target: "cns.supply_chain.probe"`, message: `"Regulation"`, operation:
    `"probe_dependency"`, dependency, manifest_path, registry, version_pinned,
    registry_trusted, userpod_host, latency_ms).
 10. Apply pragmatic-cybernetics feedback loop analysis: dependency update
@@ -207,7 +207,7 @@ CONSTRAINT — Evidence integrity (P8):
    - Pass: zero critical/high findings, >= 3 defense layers present.
    - Conditional: medium findings present or 2 defense layers missing.
    - Fail: critical/high findings present or < 2 defense layers present.
-6. Emit `cns.supply_chain.report` CNS span with findings count by
+6. Emit `reg.supply_chain.report` Regulation span with findings count by
    severity, defense layers present/missing, proposed regression count,
    userpod host, verdict, latency metric.
 
@@ -234,17 +234,17 @@ CONSTRAINT — Evidence integrity (P8):
 5. Return JSON: `{convergence_metric, dimensions, rationale, blockers,
    defense_layers_present, defense_layers_missing, existing_regressions,
    proposed_regressions}`.
-6. Emit `cns.supply_chain.convergence` CNS span (registered in
+6. Emit `reg.supply_chain.convergence` Regulation span (registered in
    `CANONICAL_NAMESPACES` — `crates/hkask-types/src/event.rs`).
 
 ## Registry Templates
 
 | Template | Type | Purpose |
 |----------|------|----------|
-| `select-surface.j2` | KnowAct | Discover manifest surfaces; read regression library; emit `cns.supply_chain.select` span. |
-| `probe.j2` | KnowAct | Read manifest evidence; verify dependency specs; apply pragmatic-cybernetics; emit `cns.supply_chain.probe` spans. |
-| `report.j2` | KnowAct | Synthesize findings with CWE/OWASP/OSC&R taxonomy; propose `RR-NNNN.yaml` entries (`surface: supply-chain`); emit `cns.supply_chain.report` span. |
-| `convergence-check.j2` | KnowAct | Compute supply-chain-specific convergence metric (defense-layer coverage + regression growth + residual risk). Emit `cns.supply_chain.convergence` span. |
+| `select-surface.j2` | KnowAct | Discover manifest surfaces; read regression library; emit `reg.supply_chain.select` span. |
+| `probe.j2` | KnowAct | Read manifest evidence; verify dependency specs; apply pragmatic-cybernetics; emit `reg.supply_chain.probe` spans. |
+| `report.j2` | KnowAct | Synthesize findings with CWE/OWASP/OSC&R taxonomy; propose `RR-NNNN.yaml` entries (`surface: supply-chain`); emit `reg.supply_chain.report` span. |
+| `convergence-check.j2` | KnowAct | Compute supply-chain-specific convergence metric (defense-layer coverage + regression growth + residual risk). Emit `reg.supply_chain.convergence` span. |
 
 ## Defense-Layer Catalog (Supply Chain Specific)
 
@@ -289,7 +289,7 @@ not speculatively.
   shallow depth) and external dependency scanners (Snyk SCA, Semgrep SSC,
   Trivy) by providing a native hKask audit mechanism: manifest reading,
   taxonomy mapping (MITRE CWE / OWASP / OSC&R), regression proposal
-  (`surface: supply-chain`), CNS span emission (`cns.supply_chain.*`),
+  (`surface: supply-chain`), Regulation span emission (`reg.supply_chain.*`),
   and convergence tracking — all within user sovereignty (P1), consent
   (P2), generative space (P3), OCAP boundaries (P4), essentialism (P5),
   userpod space (P6), evolutionary architecture (P7), semantic grounding
@@ -321,7 +321,7 @@ not speculatively.
 - Do NOT claim external package download or container scan capability —
   manifest analysis only (P4 boundary enforcement).
 - Every scan action includes `userpod_host` identity (P12).
-- Every security-sensitive dependency operation emits `cns.supply_chain.*`
+- Every security-sensitive dependency operation emits `reg.supply_chain.*`
   span. All four namespaces (`select`, `probe`, `report`, `convergence`)
   are registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
 - Apply pragmatic-cybernetics feedback loop analysis: dependency update

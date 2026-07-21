@@ -45,11 +45,11 @@ The eight primary infrastructure boundaries are documented in detail below. The 
 
 **`ToolPort`** (`crates/hkask-ports/src/tool.rs`) — The governance membrane for MCP tool invocation. Unlike `InferencePort`, this port has an authentication asymmetry: `discover_tools()` and `get_tool_info()` are intentionally unauthenticated — tool schemas are public metadata — but `invoke()` requires a `DelegationToken`. OCAP enforcement applies at the actuator boundary, not the sensor boundary. The concrete implementor is `McpDispatcher` in `hkask-mcp`. The error type, `ToolPortError`, encodes the governance envelope directly: `CapabilityDenied` (OCAP rejection), `EnergyBudgetExceeded` (gas depletion), `NotFound`, and `InvocationFailed`.
 
-**`CircuitBreakerPort`** (`crates/hkask-ports/src/cns.rs`) — The circuit breaker boundary for the Cybernetics membrane. A minimal trait — `allow_request()`, `record_success()`, `record_failure()`, `state()` — that allows the Inference loop to use circuit breaking without depending on `hkask-regulation`. The concrete implementor is `CircuitBreaker` in `hkask-regulation`. When the Regulation detects elevated error rates above the `error_rate_max` set-point (default: 30%), it opens the circuit and the inference loop stops sending requests.
+**`CircuitBreakerPort`** (`crates/hkask-ports/src/regulation.rs`) — The circuit breaker boundary for the Cybernetics membrane. A minimal trait — `allow_request()`, `record_success()`, `record_failure()`, `state()` — that allows the Inference loop to use circuit breaking without depending on `hkask-regulation`. The concrete implementor is `CircuitBreaker` in `hkask-regulation`. When the Regulation detects elevated error rates above the `error_rate_max` set-point (default: 30%), it opens the circuit and the inference loop stops sending requests.
 
-**`LedgerStoragePort`** (`crates/hkask-ports/src/cns.rs`) — Storage abstraction for Regulation event queries. While `CircuitBreakerPort` is the actuator boundary, `LedgerStoragePort` is the memory boundary — it abstracts the `RegulationArchive` behind a trait so the cybernetic regulation layer (`GasReport`, `CalibratedEnergyEstimator`, `WalletGasCalibrator`) can be tested without a real SQLite database. It provides `query_algedonic()` for alert retrospectives, `replay_weighted()` for temporal decay-weighted event replay, and `persist_cursor()`/`load_cursor()` for crash recovery.
+**`LedgerStoragePort`** (`crates/hkask-ports/src/regulation.rs`) — Storage abstraction for Regulation event queries. While `CircuitBreakerPort` is the actuator boundary, `LedgerStoragePort` is the memory boundary — it abstracts the `RegulationArchive` behind a trait so the cybernetic regulation layer (`GasReport`, `CalibratedEnergyEstimator`, `WalletGasCalibrator`) can be tested without a real SQLite database. It provides `query_algedonic()` for alert retrospectives, `replay_weighted()` for temporal decay-weighted event replay, and `persist_cursor()`/`load_cursor()` for crash recovery.
 
-**`LedgerObserver`** (`crates/hkask-ports/src/cns.rs`) — The subscriber interface for Regulation events. Observers declare an `interest_mask()` of `SpanNamespace` values they care about, then receive `on_event()`, `on_depletion()`, and `on_backpressure()` callbacks. The concrete implementor in `hkask-inference` uses this to react to throttle and circuit-break signals.
+**`LedgerObserver`** (`crates/hkask-ports/src/regulation.rs`) — The subscriber interface for Regulation events. Observers declare an `interest_mask()` of `SpanNamespace` values they care about, then receive `on_event()`, `on_depletion()`, and `on_backpressure()` callbacks. The concrete implementor in `hkask-inference` uses this to react to throttle and circuit-break signals.
 
 **`ConsentPort`** (`crates/hkask-ports/src/consent_port.rs`) — Decouples agent pods from the concrete `ConsentStore` in `hkask-storage`. A CRUD trait for consent records — `initialize_schema()`, `store()`, `list_active()` — that ensures the Affirmative Consent (P2) verification layer can be tested independently of the database schema.
 
@@ -370,7 +370,7 @@ The Viable System Model (VSM), developed by Stafford Beer, is a cybernetic frame
 
 System 1 in VSM is the collection of autonomous operational units that do the actual work. In hKask, these are the agent pods — each a `PodDeployment` at `crates/hkask-agents/src/pod/deployment.rs:47` — and their bound MCP servers, held in `PerPodToolBinding`. Each pod is autonomous: it owns its storage (`PerPodStorage` — a dedicated SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`), its Regulation runtime (`PerPodRegulationLedger` — variety counters scoped to the pod), and its tool bindings.
 
-MCP servers provide the operational capabilities: web search, condenser, media, memory, wallet, codegraph, and others — 15 tool subsystems tracked in `RegulationSpan::Tool { subsystem }` at `crates/hkask-types/src/cns.rs:111`. Each pod's variety is measured independently via `PerPodRegulationLedger`, enabling per-pod regulation.
+MCP servers provide the operational capabilities: web search, condenser, media, memory, wallet, codegraph, and others — 15 tool subsystems tracked in `RegulationSpan::Tool { subsystem }` at `crates/hkask-types/src/regulation.rs:111`. Each pod's variety is measured independently via `PerPodRegulationLedger`, enabling per-pod regulation.
 
 #### S2: Coordination — Regulation Set Points and SLOs
 
@@ -720,7 +720,7 @@ the infrastructure for calibration.
 
 ```bash
 # 1. Run a representative execution of the skill with Regulation span logging enabled
-kask run <skill-name> --cns-spans
+kask run <skill-name> --regulation-spans
 
 # 2. Extract the actual gas and rjoule consumption from Regulation spans
 kask cns alerts
@@ -1289,8 +1289,8 @@ status: VERIFIED
 | `InferencePort` | `crates/hkask-ports/src/inference_port.rs` |
 | `ToolPort` | `crates/hkask-ports/src/tool.rs` |
 | `CircuitBreakerPort` | `crates/hkask-ports/src/lib.rs` |
-| `LedgerObserver` | `crates/hkask-ports/src/cns.rs` |
-| `LedgerStoragePort` | `crates/hkask-ports/src/cns.rs` |
+| `LedgerObserver` | `crates/hkask-ports/src/regulation.rs` |
+| `LedgerStoragePort` | `crates/hkask-ports/src/regulation.rs` |
 | `ConsentPort` | `crates/hkask-ports/src/consent_port.rs` |
 | `FederationDispatch` | `crates/hkask-ports/src/federation.rs` |
 | `EmbeddingPort` | `crates/hkask-ports/src/embedding_port.rs` |
@@ -1754,8 +1754,8 @@ flowchart TD
     Loop -->|yes| StepDispatch{"step.action?"}
 
     %% ── abort / escalate (terminal exits) ──
-    StepDispatch -->|"abort"| Converged(["exit: converged<br/>cns.skill.converged"])
-    StepDispatch -->|"escalate"| Escalated(["exit: escalated<br/>cns.skill.escalated"])
+    StepDispatch -->|"abort"| Converged(["exit: converged<br/>reg.skill.converged"])
+    StepDispatch -->|"escalate"| Escalated(["exit: escalated<br/>reg.skill.escalated"])
 
     %% ── choice (branching) ──
     StepDispatch -->|"choice"| EvalChoice[evaluate_choice()<br/>parse condition → target ordinal]
@@ -1791,9 +1791,9 @@ flowchart TD
 
     %% ── convergence & budget checks ──
     DeductGas --> GasCheck{"gas_hard_limit &<br/>gas_used ≥ gas_cap?"}
-    GasCheck -->|yes| GasExhausted(["exit: maxed_out<br/>cns.skill.gas_exhausted"])
+    GasCheck -->|yes| GasExhausted(["exit: maxed_out<br/>reg.skill.gas_exhausted"])
     GasCheck -->|no| RJCheck{"rjoule_hard_limit &<br/>rjoule_used ≥ rjoule_cap?"}
-    RJCheck -->|yes| RJExhausted(["exit: maxed_out<br/>cns.skill.rjoule_exhausted"])
+    RJCheck -->|yes| RJExhausted(["exit: maxed_out<br/>reg.skill.rjoule_exhausted"])
     RJCheck -->|no| NextStep[step_idx += 1<br/>advance to next step]
 
     DeductGasExec --> GasCheck
@@ -1906,7 +1906,7 @@ flowchart TD
     P1 --> AM
     P2 --> AM
     AM --> GO{Guard Output Scan}
-    GO -->|"secrets stripped\ncns.guard.violation"| AM
+    GO -->|"secrets stripped\nreg.guard.violation"| AM
     GO -->|clean| SM
 
     subgraph "Never Disableable"

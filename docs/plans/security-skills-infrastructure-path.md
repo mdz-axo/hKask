@@ -37,7 +37,7 @@ tool for querying Regulation span history. The existing infrastructure has:
 - `RegulationArchive` (`crates/hkask-storage/src/regulation_store.rs`) — stores
   events in SQLite, has `query_algedonic()` but NO general-purpose
   `query_by_target()` or `query_by_namespace()`.
-- `LedgerStoragePort` trait (`crates/hkask-ports/src/cns.rs`) — defines
+- `LedgerStoragePort` trait (`crates/hkask-ports/src/regulation.rs`) — defines
   `query_algedonic()` and `replay_weighted()` but NO general query method.
 - No MCP server for Regulation span queries (existing MCP servers: codegraph,
   communication, companies, condenser, curator, docproc, filesystem,

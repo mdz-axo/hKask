@@ -469,14 +469,14 @@ Type a prompt injection attempt. The guard blocks it before the model sees it. T
 Guard violations emit Regulation spans. Subscribe to guard spans:
 
 ```bash
-kask cns subscribe --agent curator --spans reg.guard.input,cns.guard.output
+kask cns subscribe --agent curator --spans reg.guard.input,reg.guard.output
 ```
 
 Expected span output:
 
 ```
-cns.guard.input: content_guard_input_refused — violation_count=1, scanners=["ban_substrings"]
-cns.guard.output: content_guard_output_violation — violation_count=1, scanners=["secrets"]
+reg.guard.input: content_guard_input_refused — violation_count=1, scanners=["ban_substrings"]
+reg.guard.output: content_guard_output_violation — violation_count=1, scanners=["secrets"]
 ```
 
 Guard violations are logged at `warn!` level. They do not trigger algedonic alerts by default. To monitor guard violations, watch Regulation spans or include `reg.guard.*` spans in your monitoring dashboard.

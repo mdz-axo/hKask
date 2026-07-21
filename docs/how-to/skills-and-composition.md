@@ -1057,7 +1057,7 @@ stateDiagram-v2
 ## Regulation Span Diagram
 
 ```
-cns.prompt.kata.improvement
+reg.prompt.kata.improvement
 ├── [pre-cycle]  kata_type="improvement", bot=<learner>
 ├── [per-step]   step=<ordinal>, action=<action>, bot=<learner>
 ├── [per-step]   step=<ordinal>, passed_check=<bool>

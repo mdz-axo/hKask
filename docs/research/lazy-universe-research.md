@@ -243,7 +243,7 @@ space. Compression is the computational echo of least action — the condenser
 seeks minimal representation. The deletion test is the architectural echo —
 modules earn existence by demonstrating that their removal would increase
 system action. Regulation spans (reg.condenser.compression_ratio, reg.evolution.energy_delta,
-cns.architecture.module_depth) serve as sensors for the governing dynamic.
+reg.architecture.module_depth) serve as sensors for the governing dynamic.
 
 Enforces: P3 (Generative Space — stubs limit generativity). Cross-cuts P7
 (evolutionary architecture — systems evolve toward lower-action configurations

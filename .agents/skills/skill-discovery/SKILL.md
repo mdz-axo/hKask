@@ -36,7 +36,7 @@ Find, evaluate, and install skills for hKask. Registry crate (manifest.yaml + *.
 1. Evaluate the candidate skill against format, quality, and safety criteria.
 2. Validate the format by checking for YAML frontmatter, a valid name, a specific description, and the absence of deprecated markers.
 3. Assess instruction quality to ensure steps are imperative, concrete, actionable, bounded in scope, and have clear trigger conditions.
-4. Check Magna Carta compliance and system constraints, including user sovereignty (P1), affirmative consent (P2), generative space (P3), clear boundaries (P4), headless compliance, CNS span validity, and crate path validity.
+4. Check Magna Carta compliance and system constraints, including user sovereignty (P1), affirmative consent (P2), generative space (P3), clear boundaries (P4), headless compliance, Regulation span validity, and crate path validity.
 5. Score each check from 0 to 2, where 0 is fail, 1 is partial, and 2 is pass.
 6. Respond with a JSON object containing `format_validation`, `quality_evaluation`, `safety_evaluation`, `overall_score`, and `recommendation`.
 7. Score every check without omitting any.
@@ -58,7 +58,7 @@ Find, evaluate, and install skills for hKask. Registry crate (manifest.yaml + *.
 | Template | Type | Purpose |
 |----------|------|---------|
 | `skill-discovery-detect-gap.j2` | KnowAct | Detect capability gaps in the registry corpus. Analyze task patterns against existing registry crate descriptions and template_type coverage. Classify gaps (coverage, feature, automation, governance) and prioritize by impact.  |
-| `skill-discovery-evaluate.j2` | KnowAct | Evaluate a candidate registry crate against format, quality, and safety criteria. Check manifest structure, .j2 frontmatter validity, Magna Carta compliance, and CNS span validity. Produce scored recommendation.  |
+| `skill-discovery-evaluate.j2` | KnowAct | Evaluate a candidate registry crate against format, quality, and safety criteria. Check manifest structure, .j2 frontmatter validity, Magna Carta compliance, and Regulation span validity. Produce scored recommendation.  |
 | `skill-discovery-convergence-check.j2` | KnowAct | Compute a normalized convergence metric for discovery iterations. Synthesizes gap detection + candidate evaluation into `convergence_metric` in [0,1], where 0 means the capability gap is sufficiently resolved.  |
 
 ## Constraints

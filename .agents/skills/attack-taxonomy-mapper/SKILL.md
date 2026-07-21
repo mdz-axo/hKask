@@ -9,7 +9,7 @@ description: >
   typosquatting, malicious commit injection, build pipeline compromise,
   unmaintained component, unverified registry). Adds an optional,
   backward-compatible `taxonomy_mapping` field to existing `surface:
-  supply-chain` regression YAML entries. Emits cns.taxonomy.* spans (P9 —
+  supply-chain` regression YAML entries. Emits reg.taxonomy.* spans (P9 —
   all registered in CANONICAL_NAMESPACES). P8 evidence-backed: every
   mapping includes concrete evidence (finding reference, CWE category,
   OSC&R tactic + technique). P12 userpod_host mandatory. Decomposed into
@@ -22,7 +22,7 @@ description: >
 
 # Attack Taxonomy Mapper
 
-{# goal: Consume findings from supply-chain-sentinel and kali-audit (P4 — consumes workspace findings, no external download). Map each finding to OSC&R attack taxonomy (verified against github.com/pbom-dev/OSCAR matrix.json). Propose backward-compatible taxonomy_mapping field additions to existing surface: supply-chain regression entries (status: pending, concrete OSC&R tactic + technique). Emit cns.taxonomy.* spans (P9). Compute convergence metric from real mapping evidence only. No synthetic findings; no invented OSC&R tactics/techniques; userpod_host mandatory (P12). #}
+{# goal: Consume findings from supply-chain-sentinel and kali-audit (P4 — consumes workspace findings, no external download). Map each finding to OSC&R attack taxonomy (verified against github.com/pbom-dev/OSCAR matrix.json). Propose backward-compatible taxonomy_mapping field additions to existing surface: supply-chain regression entries (status: pending, concrete OSC&R tactic + technique). Emit reg.taxonomy.* spans (P9). Compute convergence metric from real mapping evidence only. No synthetic findings; no invented OSC&R tactics/techniques; userpod_host mandatory (P12). #}
 
 Attack taxonomy mapping. Consumes findings from `supply-chain-sentinel`
 (CWE-mapped manifest evidence) and `kali-audit` (OWASP/ATLAS-mapped
@@ -58,7 +58,7 @@ NOT numeric IDs.
   chain threats (like MITRE ATLAS for LLM); P8 semantic grounding
   (findings need taxonomy context for severity and remediation priority);
   How = discover findings → read evidence → map to OSC&R → taxonomize →
-  propose taxonomy_mapping field → emit CNS span → compute convergence.
+  propose taxonomy_mapping field → emit Regulation span → compute convergence.
   All 6 present — passes gate.
 - **P5.1 Registry canonical:** Registry (`manifest.yaml` + `.j2`) is
   source of truth. SKILL.md derived from it.
@@ -74,8 +74,8 @@ NOT numeric IDs.
   citation (`github.com/pbom-dev/OSCAR`, MITRE CWE,
   supply-chain-sentinel SKILL.md, kali-audit SKILL.md). No fabricated
   findings or invented OSC&R tactics/techniques.
-- **P9 CNS regulation:** Emits `cns.taxonomy.select`, `cns.taxonomy.map`,
-  `cns.taxonomy.report`, `cns.taxonomy.convergence` spans. All four are
+- **P9 Regulation regulation:** Emits `reg.taxonomy.select`, `reg.taxonomy.map`,
+  `reg.taxonomy.report`, `reg.taxonomy.convergence` spans. All four are
   registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`)
   and emitted unconditionally.
 - **P10 Bot/userpod taxonomy:** `visibility: public` — transparent
@@ -105,7 +105,7 @@ NOT numeric IDs.
    mappings when proposing new ones).
 4. Return JSON: `{source, findings_to_map: [...], existing_taxonomy_mappings:
    [...], evidence_sources: [...], userpod_host}`.
-5. Emit `cns.taxonomy.select` CNS span (P9) with discovered evidence
+5. Emit `reg.taxonomy.select` Regulation span (P9) with discovered evidence
    sources, findings to map, existing mapping count, host identity,
    latency metric.
 
@@ -147,8 +147,8 @@ NOT numeric IDs.
    (confirmed/probable/possible), `alternative_mappings`,
    `defense_layer_mapped`, `provenance`, `epistemic_mode`,
    `userpod_host`.
-7. Emit `cns.taxonomy.map` CNS span per mapping (`target:
-   "cns.taxonomy.map"`, message: `"CNS"`, operation: `"map_taxonomy"`,
+7. Emit `reg.taxonomy.map` Regulation span per mapping (`target:
+   "cns.taxonomy.map"`, message: `"Regulation"`, operation: `"map_taxonomy"`,
    finding_reference, osc_r_tactic, osc_r_technique,
    mapping_confidence, userpod_host, latency_ms).
 
@@ -194,7 +194,7 @@ CONSTRAINT — Evidence integrity (P8):
    - Pass: all findings mapped, >= 4 OSC&R categories covered.
    - Conditional: some findings unmapped, 2-3 OSC&R categories covered.
    - Fail: majority unmapped, < 2 OSC&R categories covered.
-6. Emit `cns.taxonomy.report` CNS span with mappings count by OSC&R
+6. Emit `reg.taxonomy.report` Regulation span with mappings count by OSC&R
    category, proposed taxonomy_mapping count, pattern signatures count,
    verdict, userpod_host, latency.
 
@@ -214,17 +214,17 @@ CONSTRAINT — Evidence integrity (P8):
 5. Return JSON: `{convergence_metric, dimensions, rationale, blockers,
    oscr_categories_covered, oscr_categories_missing, existing_taxonomy_mappings,
    proposed_taxonomy_mappings, cns_span_emitted: true}`.
-6. Emit `cns.taxonomy.convergence` CNS span (registered in
+6. Emit `reg.taxonomy.convergence` Regulation span (registered in
    `CANONICAL_NAMESPACES` — emitted unconditionally).
 
 ## Registry Templates
 
 | Template | Type | Purpose |
 |----------|------|---------|
-| `select-evidence.j2` | KnowAct | Discover evidence sources; read regression library for existing taxonomy_mappings; emit `cns.taxonomy.select` span. |
-| `map-taxonomy.j2` | KnowAct | Map findings to OSC&R taxonomy via CWE disambiguation; apply pragmatic-cybernetics; emit `cns.taxonomy.map` spans. |
-| `taxonomize.j2` | KnowAct | Classify mappings by OSC&R tactic; produce pattern signatures; propose backward-compatible `taxonomy_mapping` field; emit `cns.taxonomy.report` span. |
-| `convergence-check.j2` | KnowAct | Compute taxonomy coverage convergence metric (OSC&R tactic coverage + mapping growth). Emit `cns.taxonomy.convergence` span. |
+| `select-evidence.j2` | KnowAct | Discover evidence sources; read regression library for existing taxonomy_mappings; emit `reg.taxonomy.select` span. |
+| `map-taxonomy.j2` | KnowAct | Map findings to OSC&R taxonomy via CWE disambiguation; apply pragmatic-cybernetics; emit `reg.taxonomy.map` spans. |
+| `taxonomize.j2` | KnowAct | Classify mappings by OSC&R tactic; produce pattern signatures; propose backward-compatible `taxonomy_mapping` field; emit `reg.taxonomy.report` span. |
+| `convergence-check.j2` | KnowAct | Compute taxonomy coverage convergence metric (OSC&R tactic coverage + mapping growth). Emit `reg.taxonomy.convergence` span. |
 
 ## OSC&R Taxonomy Reference (VERIFIED against github.com/pbom-dev/OSCAR)
 
@@ -321,7 +321,7 @@ CWE catalog.
 - Do NOT claim taxonomy coverage that hasn't been verified through actual
   finding mapping.
 - Every mapping action includes `userpod_host` identity (P12).
-- Every taxonomy mapping operation emits `cns.taxonomy.*` span. All four
+- Every taxonomy mapping operation emits `reg.taxonomy.*` span. All four
   namespaces are registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`) and emitted unconditionally.
 - Apply pragmatic-cybernetics feedback loop analysis: mapping polarity,

@@ -1,13 +1,13 @@
 ---
 name: pragmatic-cybernetics
 visibility: public
-description: "Cybernetic reasoning framework for hKask's CNS. VSM mapping, feedback loop analysis (5 properties), variety engineering (Ashby's Law), Good Regulator check, and spec drift as cybernetic signal.
+description: "Cybernetic reasoning framework for hKask's Regulation. VSM mapping, feedback loop analysis (5 properties), variety engineering (Ashby's Law), Good Regulator check, and spec drift as cybernetic signal.
 "
 ---
 
 # Pragmatic Cybernetics
 
-Cybernetic reasoning framework for hKask's CNS. VSM mapping, feedback loop analysis (5 properties), variety engineering (Ashby's Law), Good Regulator check, and spec drift as cybernetic signal.
+Cybernetic reasoning framework for hKask's Regulation. VSM mapping, feedback loop analysis (5 properties), variety engineering (Ashby's Law), Good Regulator check, and spec drift as cybernetic signal.
 
 
 ## When to Use
@@ -35,7 +35,7 @@ Cybernetic reasoning framework for hKask's CNS. VSM mapping, feedback loop analy
 3. Compare regulator variety against system variety and quantify the deficit if regulator variety is insufficient.
 4. Propose attenuation strategies to reduce system variety for each identified deficit.
 5. Propose amplification strategies to increase regulator variety for each identified deficit.
-6. Reference concrete hKask mechanisms (CNS spans, crates, data structures, or configuration parameters) for all recommendations.
+6. Reference concrete hKask mechanisms (Regulation spans, crates, data structures, or configuration parameters) for all recommendations.
 
 ### cybernetics-vsm-map
 

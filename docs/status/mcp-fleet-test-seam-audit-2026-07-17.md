@@ -84,7 +84,7 @@ The command string is not confined to `project_root`; only `cwd` is. This is **c
 A search for consumers of the operation verbs (`file.read`, `file.written`, `file.deleted`, `command.completed`, `command.failed`, `path.rejected`) found matches only in:
 
 - the filesystem server itself (`emit_cns` call sites and the doc comment),
-- `crates/hkask-types/src/cns.rs` and `event.rs` (the `ToolSubsystem::Filesystem` enum + canonical namespace registration).
+- `crates/hkask-types/src/regulation.rs` and `event.rs` (the `ToolSubsystem::Filesystem` enum + canonical namespace registration).
 
 No code path reads the operation verb for regulation. The two emission paths are:
 
@@ -133,4 +133,4 @@ No in-repo consumer breaks. External agent clients read these fields flexibly. R
 
 - [Filesystem Server Reference](../reference/mcp-servers/filesystem.md) — sandbox model, security model notes, DIAG-RF-003
 - [MCP Server Registry](../reference/mcp-servers/README.md) — 15 servers, common patterns, testing standard
-- [Regulation Span Registry](../reference/cns-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`
+- [Regulation Span Registry](../reference/regulation-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`

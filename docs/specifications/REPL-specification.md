@@ -660,7 +660,7 @@ After each turn, `cns_display::update_cns_and_display()` executes:
 3. **LoopScheduler Tick:**
    - Runs `LoopScheduler::tick()` — sense→compare→compute→act cycle
    - `CyberneticsLoop` reads Regulation variety + gas budgets → produces regulatory actions
-   - Regulatory actions are logged via tracing (visible with `RUST_LOG=cns.cybernetics=debug`)
+   - Regulatory actions are logged via tracing (visible with `RUST_LOG=reg.cybernetics=debug`)
 
 ## 15. Welcome Banner
 

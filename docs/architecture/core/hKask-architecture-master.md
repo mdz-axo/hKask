@@ -119,7 +119,7 @@ Sensor (MCP dispatch, Regulation spans) → Model (VarietyTracker, ν-event stor
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
 - **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`.
-- **94 canonical Regulation span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/cns.rs` for the authoritative registry.
+- **94 canonical Regulation span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/regulation.rs` for the authoritative registry.
 - **Good Regulator contract enforced.** Regulation variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 - **Regulation is policy-driven.** `RegulationPolicy` consolidates `(metric, deviation) → (actions, thresholds)` into a pure-data type. Each `RegulationRule` defines a substitution ladder, stage/block thresholds, and stagnation detection — replacing the former scattered `classify_decision` and `default_substitution_ladder` free functions.
 - **Sensor providers are pluggable (Fermi Extractor pattern).** `Sensor` trait decouples metric sensing from the regulation loop. `SensorRegistry` holds providers; `CyberneticsLoop::sense()` walks them. Current providers: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`.
@@ -1135,12 +1135,12 @@ Transitions: `Backlog → InProgress` (Q4), `InProgress → Review` (Q5), `Revie
 #### Regulation Span Trace
 
 ```
-cns.kata.coaching.q1 → reg.tool.kanban (task created)
-cns.kata.coaching.q4 → reg.tool.kanban (Backlog → InProgress)
-cns.kata.coaching.q5 → reg.tool.kanban (InProgress → Review)
+reg.kata.coaching.q1 → reg.tool.kanban (task created)
+reg.kata.coaching.q4 → reg.tool.kanban (Backlog → InProgress)
+reg.kata.coaching.q5 → reg.tool.kanban (InProgress → Review)
                    → reg.tool.kanban (TaskVerified)
                    → reg.tool.kanban (Review → Done or InProgress)
-cns.kata.improv.effectiveness → variety_feedback → Regulation homeostatic loop
+reg.kata.improv.effectiveness → variety_feedback → Regulation homeostatic loop
 ```
 
 #### Error Recovery
@@ -1971,7 +1971,7 @@ graph TD
     subgraph hKask["hKask Core"]
         DAEMON[Daemon<br/>periodic health task<br/>every 60s]
         MCP[hkask-mcp-communication<br/>SyncService]
-        Regulation[Cybernetics Loop<br/>cns.communication.matrix.*]
+        Regulation[Cybernetics Loop<br/>reg.communication.matrix.*]
         CURATOR[Curator]
     end
     
@@ -2500,7 +2500,7 @@ graph TD
             AGENTS[Agent Pods<br/>Bots + UserPods]
             KEYSTORE[hkask-keystore<br/>AES-256-GCM + OS keychain]
             EPISODIC[Episodic Memory<br/>SQLCipher]
-            Regulation[Cybernetics Loop<br/>cns.communication.matrix.* spans]
+            Regulation[Cybernetics Loop<br/>reg.communication.matrix.* spans]
         end
     end
     
@@ -4441,7 +4441,7 @@ kask cns federation thresholds
 | `FUNCTIONAL_SPECIFICATION.md` | Contract anchoring (§5), Regulation span registry (§9.1) |
 | `crates/hkask-types/src/curator.rs` | `CuratorHandle`, `CuratorDirective`, `CurationThresholdConfig` |
 | `crates/hkask-types/src/curation.rs` | `OcapTokenKind` (extend with `Federation`) |
-| `crates/hkask-types/src/cns.rs` | `RegulationSpan` (extend with 18 federation spans) |
+| `crates/hkask-types/src/regulation.rs` | `RegulationSpan` (extend with 18 federation spans) |
 | `crates/hkask-types/src/loops/mod.rs` | `LoopId` (6 variants) |
 | `crates/hkask-agents/src/curator/semantic_index.rs` | `SemanticIndex` — model for federation index |
 | `crates/hkask-agents/src/curator/semantic_sync.rs` | `CuratorSync` — model for `FederationSync` polling loop |

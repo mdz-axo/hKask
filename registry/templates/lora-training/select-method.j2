@@ -90,26 +90,92 @@ RECOMMENDATION RECORD (compose fields; never replace the whole record):
 - conflicts: []
 
 GATE PRECEDENCE AND REFINEMENT:
-1. Explicit operator requirements and `inference_constraint` are authoritative
+1. G0 (adapter purpose) establishes what kind of adapter is being produced.
+   This constrains all subsequent gates — rank ranges, target modules, and
+   harness selection all depend on the adapter purpose. G0 runs first.
+2. Explicit operator requirements and `inference_constraint` are authoritative
    constraints. Later gates cannot silently replace them.
-2. G1 constrains compatible adapter forms; it does not select memory mode,
+3. G1 constrains compatible adapter forms; it does not select memory mode,
    scaling, initializer, or preservation.
-3. G2 refines `base_mode` from memory-pressure evidence. It may recommend
+4. G2 refines `base_mode` from memory-pressure evidence. It may recommend
    quantization or mark the field undetermined; it cannot claim OOM certainty
    from `model_size_b × 2` alone because training memory also depends on dtype,
    optimizer state, activations, sequence length, batch size, checkpointing,
    sharding, and implementation overhead.
-4. G3 refines `rank_range` and may add full fine-tuning as an alternative for
-   heavy task distance. It does not replace adapter form or operator intent.
-5. G4 refines `adapter_form` and/or `initializer` only when compatible with
+5. G3 refines `rank_range` based on task distance AND adapter purpose. The
+   purpose determines the baseline rank range; task distance refines within it.
+6. G4 refines `adapter_form` and/or `initializer` only when compatible with
    prior constraints. Incompatible choices become alternatives or conflicts.
-6. G5 refines `preservation` and may refine `initializer` to CorDA-KP when
+7. G5 refines `preservation` and may refine `initializer` to CorDA-KP when
    compatible. Knowledge preservation takes precedence over a default
    initializer, but not over an explicit operator requirement; unresolved
    collisions are reported as conflicts.
-7. Scaling is derived last, and only when rank evidence supports the choice.
-8. A later gate may refine an `undetermined` or default field, but must not
+8. G6 (harness capability) selects a harness based on the training approach
+   determined by G0-G5. The harness must be able to efficiently process the
+   declared dataset and produce the adapter type implied by G0.
+9. Scaling is derived last, and only when rank evidence supports the choice.
+10. A later gate may refine an `undetermined` or default field, but must not
    overwrite a non-default field without recording the prior value and reason.
+
+PDCA ITERATION LOOP:
+The select-method phase is the first turn of a PDCA loop. After audit-config
+and convergence-check, the operator may revise inputs and re-invoke
+select-method. Each iteration refines the recommendation:
+- Plan: select-method produces a recommendation from declared evidence.
+- Do: the operator accepts/overrides/rejects; audit-config evaluates the
+  accepted config against the 17 gates.
+- Check: convergence-check computes readiness; contract gaps are recorded.
+- Act: if not converged, the operator revises inputs (e.g., adjust rank,
+  switch harness, add evidence) and re-invokes select-method.
+The loop converges when the convergence metric ≤ 0.10 and no hard blockers
+remain. Each iteration's recommendation is advisory — the operator's accepted
+configuration is authoritative.
+
+G0. adapter_purpose? (runs first; constrains all subsequent gates)
+    - If adapter_purpose is declared (not undetermined): preserve it. It
+      determines the adapter type being produced and constrains G3 (rank),
+      G4 (initializer), and G6 (harness/trainer selection).
+    - If adapter_purpose is undetermined but dataset_format_hint is declared:
+      infer the purpose from the dataset format:
+      - chatml → instruction (default SFT purpose)
+      - preference_dpo/preference_kto/preference_orpo → preference
+      - raw_text → instruction (continued pretraining style)
+      [Citation: TRL dataset formats — huggingface.co/docs/trl/main/en/dataset_formats]
+    - If adapter_purpose is undetermined and dataset_format_hint is undetermined:
+      infer from task_distance and trainer_preference:
+      - trainer_preference=dpo/kto/orpo → preference
+      - trainer_preference=reward → reward_model
+      - trainer_preference=grpo → reasoning (GRPO produces reasoning adapters)
+      - task_distance=heavy + trainer_preference=undetermined → reasoning
+      - task_distance=light/moderate + trainer_preference=undetermined → instruction
+    - adapter_purpose determines baseline rank and target module strategy:
+      - instruction: rank 8-32, target_modules=attention (q/k/v/o) or all_linear
+        [Citation: LoRA paper §4.3; QLoRA paper §5 — r=64 for instruction tuning;
+         Biderman et al. arXiv:2405.09673 — LoRA matches full FT on IFT at high rank]
+      - reasoning: rank 32-128, target_modules=all_linear (q/k/v/o + gate/up/down)
+        [Citation: Biderman et al. arXiv:2405.09673 — full FT produces high-rank
+         updates (10-100× typical LoRA rank); Razin et al. arXiv:2410.21228 —
+         structured forgetting at low rank; Raschka 2025 — LoRA rank 16 sweet
+         spot for reasoning + RL, but higher rank for SFT reasoning]
+      - vision: rank 16-64, target_modules=all_linear in LLM decoder only
+        (exclude vision encoder modules to avoid catastrophic forgetting)
+        [Citation: DoRA arXiv:2402.09353 — DoRA outperforms LoRA on VLMs;
+         LLaVA/BLIP-2 practice — LoRA on LLM decoder, not vision encoder]
+      - preference: rank 16-64, target_modules=all_linear
+        [Citation: DPO arXiv:2305.18290; KTO arXiv:2402.01306;
+         ORPO arXiv:2403.07691 — preference optimization benefits from
+         full linear layer coverage]
+      - reward_model: rank 16-64, target_modules=all_linear
+        [Citation: TRL RewardTrainer — huggingface.co/docs/trl/main/en/reward_trainer]
+    - adapter_purpose also determines the learning-forgetting tradeoff posture:
+      - instruction/reasoning: learning > forgetting (adapt to new domain)
+      - preference: balanced (adapt while preserving instruction-following)
+      - vision: forgetting < learning (preserve language capabilities)
+      [Citation: Biderman et al. arXiv:2405.09673 — LoRA learns less and
+       forgets less; rank is the knob trading learning for forgetting]
+    - If adapter_purpose conflicts with trainer_preference (e.g.,
+      adapter_purpose=instruction but trainer_preference=dpo), record as a
+      conflict for operator resolution.
 
 G1. inference_constraint?
     - must-merge → constrain adapter_form to a merge-compatible LoRA-family
@@ -140,18 +206,25 @@ G2. memory_budget_gb vs model_size_b?
     - Never emit `will_oom`, `fits`, or equivalent certainty from these two
       scalar inputs alone.
 
-G3. task_distance?
-    - light (style, format, vocabulary) → rank_range={"min": 8, "max": 16}
+G3. task_distance? (refines rank_range within the baseline established by G0)
+    - G0 established a baseline rank range from adapter_purpose. G3 refines
+      within that baseline based on task distance:
+    - light (style, format, vocabulary) → use the low end of the G0 baseline
       [Citation: LoRA paper §4.3 — very small r recovers most of full
        fine-tune quality on GPT-3 175B]
-    - moderate (new domain knowledge) → rank_range={"min": 32, "max": 64}
+    - moderate (new domain knowledge) → use the middle of the G0 baseline
       [Citation: QLoRA paper §5 — r=64 used for instruction tuning]
-    - heavy (new reasoning, new language) → rank_range={"min": 64,
-      "max": 128}; add full_finetune as an alternative requiring operator
-      evaluation rather than replacing the adapter recommendation.
+    - heavy (new reasoning, new language) → use the high end of the G0 baseline;
+      add full_finetune as an alternative requiring operator evaluation rather
+      than replacing the adapter recommendation.
       [Citation: Razin et al. arXiv:2410.21228 — LoRA differs from full
-       fine-tuning; structured forgetting can occur at low rank]
+       fine-tuning; structured forgetting can occur at low rank;
+       Biderman et al. arXiv:2405.09673 — high rank (r=256) can match full FT
+       on IFT but not CPT, especially for code]
     - Exact rank remains undetermined until selected by the operator/config.
+    - If G0 baseline and task_distance disagree (e.g., G0=instruction with
+      rank 8-32 but task_distance=heavy), use the wider range and note the
+      tension as a constraint.
 
 G4. quality_vs_cost?
     - cost-sensitive → retain the lowest-complexity compatible recommendation;

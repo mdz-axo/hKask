@@ -290,7 +290,7 @@ Curation: Merge | Revise | Defer | Discard
 - **Category:** Lifecycle
 - **Text:** When a capability is invoked, I want a Regulation span emitted, so I can monitor system behavior.
 - **Criteria:**
-  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see canonical Regulation span registry: `crates/hkask-types/src/cns.rs` (`RegulationSpan`))
+  - [x] 22 span namespaces (15 canonical + 7 hierarchical; see canonical Regulation span registry: `crates/hkask-types/src/regulation.rs` (`RegulationSpan`))
   - [x] `RegulationRecord` with phase (Sense/Compute/Compare/Act; legacy aliases: Observe\u2192Sense, Regulate\u2192Compute, Outcome\u2192Act)
   - [x] `RegulationSink` trait for emission
 - **Implementation:** `hkask-types::event::Span`, `hkask-regulation::runtime::RegulationLedger`

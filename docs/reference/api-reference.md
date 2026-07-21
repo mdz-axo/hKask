@@ -1313,7 +1313,7 @@ Terminal UI workspace for hKask — multi-window agent interface.
 
 ## Cross-References
 
-- [Regulation Span Registry](cns-spans.md) — Domain-specific `ObservableSpan` enums, emission points, algedonic thresholds
+- [Regulation Span Registry](regulation-spans.md) — Domain-specific `ObservableSpan` enums, emission points, algedonic thresholds
 - [Magna Carta Reference](magna-carta.md) — P1-P4 with prohibition levels and enforcement traces
 - [MCP Server Reference](mcp-servers/README.md) — All 15 MCP servers with tool tables and capability tiers
 - [Skill Registry Index](skills/README.md) — All 46 skills + 2 templates + 1 bundle with FlowDef parameters
