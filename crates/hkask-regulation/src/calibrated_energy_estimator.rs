@@ -191,7 +191,7 @@ impl CalibratedEnergyEstimator {
     }
 
     fn default_actor() -> WebID {
-        WebID::from_persona_with_namespace(b"calibrated-energy-estimator", "cns-surface")
+        WebID::from_persona_with_namespace(b"calibrated-energy-estimator", "reg-surface")
     }
 
     /// Spawn a background task that calls `calibrate()` at the given interval.

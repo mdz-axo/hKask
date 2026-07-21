@@ -14,7 +14,7 @@ crate:
     regression YAML entries. Emits cns.taxonomy.* spans (P9 — all
     registered in CANONICAL_NAMESPACES). P8 evidence-backed: every
     mapping includes concrete evidence (finding reference, CWE category,
-    OSC&R tactic + technique). P12 replicant_host
+    OSC&R tactic + technique). P12 userpod_host
     mandatory. Decomposed into 4 phases matching bug-hunt and
     supply-chain-sentinel pipeline. Minimal (P5): answers all 5W1H;
     single skill, no bundle; complements supply-chain-sentinel (adds

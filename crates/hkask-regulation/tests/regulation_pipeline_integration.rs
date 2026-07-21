@@ -43,7 +43,7 @@ fn regulation_test_set_points() -> SetPoints {
 
 /// Create a loop with the regulation-test set-points and a low, non-replenishing budget.
 async fn loop_with_depleted_budget() -> (Arc<RwLock<RegulationLedger>>, CyberneticsLoop, WebID) {
-    let cns = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
+    let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
     let sp = regulation_test_set_points();
     let loop_instance = CyberneticsLoop::with_set_points(Arc::clone(&cns), sp);
 
@@ -220,7 +220,7 @@ async fn regulatory_plateau_fires_after_ineffective_cycles() {
 /// simulating a severe worsening of the energy ratio.
 #[tokio::test]
 async fn action_decision_block_fires_on_severe_worsening() {
-    let cns = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
+    let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
     let loop_instance =
         CyberneticsLoop::with_set_points(Arc::clone(&cns), regulation_test_set_points());
 
@@ -330,7 +330,7 @@ async fn action_decision_block_fires_on_severe_worsening() {
 /// produces deviations, actions, and meaningful loop-quality telemetry.
 #[tokio::test]
 async fn full_pipeline_produces_meaningful_quality_after_ticks() {
-    let cns = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
+    let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
     let loop_instance = CyberneticsLoop::with_set_points(
         Arc::clone(&cns),
         SetPoints {
@@ -471,7 +471,7 @@ async fn loop_quality_reflects_regulation_activity() {
 #[tokio::test]
 async fn full_cybernetic_cycle_exercises_all_phases() {
     // ── Phase 0: Setup ──────────────────────────────────────────────────
-    let cns = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
+    let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
     let loop_instance = CyberneticsLoop::with_set_points(
         Arc::clone(&cns),
         SetPoints {

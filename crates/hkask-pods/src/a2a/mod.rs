@@ -467,12 +467,6 @@ impl A2ARuntime {
         Ok(count)
     }
 
-    #[allow(dead_code)]
-    pub(crate) async fn is_registered(&self, webid: &WebID) -> bool {
-        let state = self.state.read().await;
-        state.agents.contains_key(webid)
-    }
-
     pub(crate) async fn send_message(&self, message: A2AMessage) -> Result<String, A2AError> {
         let from = message.from_webid().copied();
         let to = match &message {
@@ -625,7 +619,7 @@ mod tests {
         assert_eq!(token.delegated_to, webid);
         assert_eq!(token.resource, DelegationResource::Tool);
         assert!(token.verify());
-        assert!(a2a.is_registered(&webid).await);
+        assert!(a2a.state.read().await.agents.contains_key(&webid));
     }
 
     /// expect: "Agent interactions are gated by OCAP boundaries"
@@ -648,8 +642,6 @@ mod tests {
             other => panic!("Expected AgentAlreadyRegistered, got: {:?}", other),
         }
     }
-
-
 
     /// expect: "Agent interactions are gated by OCAP boundaries"
     #[tokio::test]
@@ -684,7 +676,6 @@ mod tests {
         let state = a2a.state.read().await;
         assert!(state.revoked_tokens.contains(&token_id));
     }
-
 
     // ── ACP List Agents ─────────────────────────────────────────────────────
 

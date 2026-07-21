@@ -1,4 +1,4 @@
-{# goal: Recommend a composable PEFT configuration via deterministic 5-gate refinement (inference constraint, memory evidence, task distance, quality/cost trade-off, knowledge preservation) within user workspace boundaries (P4 OCAP). Preserve operator authority: the skill recommends; the operator accepts, overrides, or rejects; the runtime enforces established hard contracts. Distinguish recommendation from readiness. Emit only values derivable from declared inputs and mark the rest undetermined. Emit cns.lora.select span (P9). No actual training execution; replicant_host mandatory (P12). AutoPEFT (arXiv:2301.12132) is the rejected alternative — multi-objective BO over hundreds of training runs is infeasible per training job. #}
+{# goal: Recommend a composable PEFT configuration via deterministic 5-gate refinement (inference constraint, memory evidence, task distance, quality/cost trade-off, knowledge preservation) within user workspace boundaries (P4 OCAP). Preserve operator authority: the skill recommends; the operator accepts, overrides, or rejects; the runtime enforces established hard contracts. Distinguish recommendation from readiness. Emit only values derivable from declared inputs and mark the rest undetermined. Emit cns.lora.select span (P9). No actual training execution; userpod_host mandatory (P12). AutoPEFT (arXiv:2301.12132) is the rejected alternative — multi-objective BO over hundreds of training runs is infeasible per training job. #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -17,7 +17,7 @@ contract:
     task_distance: string
     quality_vs_cost: string
     knowledge_preservation_required: boolean
-    replicant_host: string
+    userpod_host: string
   output:
     recommendation: object
     readiness: object
@@ -52,7 +52,7 @@ INPUT: inference_constraint = {{ inference_constraint | default("either-ok") }} 
 INPUT: task_distance = {{ task_distance | default("moderate") }} (light | moderate | heavy)
 INPUT: quality_vs_cost = {{ quality_vs_cost | default("default") }} (cost-sensitive | quality-critical | default)
 INPUT: knowledge_preservation_required = {{ knowledge_preservation_required | default(false) }} (bool)
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous training config)
+INPUT: userpod_host = {{ userpod_host | default("REQUIRED") }} (P12 — no anonymous training config)
 
 AUTHORITY CONTRACT (P1, P3, P4, P12):
 - This skill emits an advisory recommendation from declared evidence.
@@ -290,7 +290,7 @@ OUTPUT (JSON; emit only derivable values and explicit undetermined states):
     "operator": "accepts_overrides_or_rejects",
     "runtime": "enforces_established_hard_contracts"
   },
-  "replicant_host": <string>
+  "userpod_host": <string>
 }
 
 DO NOT EMIT WITHOUT CONCRETE INPUT EVIDENCE:
@@ -304,7 +304,7 @@ CNS SPAN EMISSION (P9 — every recommendation action):
 - `cns.lora.select` span: target `"cns.lora.select"`, message `"CNS"`,
   operation `"recommend_method"`, gate_inputs: {...}, recommendation,
   readiness_status, operator_disposition (`pending` until supplied),
-  justification_citations, replicant_host, latency_ms.
+  justification_citations, userpod_host, latency_ms.
 - Namespace registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
@@ -312,7 +312,7 @@ CONSTRAINTS (P1-P12, P5 minimalism, P8 evidence integrity, P12 host):
 - No synthetic config values. Every refinement must cite a concrete source.
 - No actual training execution (P4 boundary — recommendation only).
 - No model download; read only declared workspace config paths.
-- Every recommendation includes `replicant_host` identity (P12).
+- Every recommendation includes `userpod_host` identity (P12).
 - Registry (`manifest.yaml` + `.j2`) is authoritative over SKILL.md (P5.1).
 - Do NOT use AutoPEFT-style search (arXiv:2301.12132) — multi-objective
   BO over hundreds of training runs is infeasible per training job.
@@ -390,6 +390,6 @@ OCAP BOUNDARY (P4): Read only declared workspace config paths; no ambient
 model download or network calls without explicit consent (P2).
 CNS REGULATION (P9): Emit `cns.lora.select` unconditionally; namespace is
 registered in `CANONICAL_NAMESPACES`.
-REPLICANT HOST (P12): `replicant_host` is mandatory in every output.
+REPLICANT HOST (P12): `userpod_host` is mandatory in every output.
 SAFETY FLOOR (P3.1): Recommendation exposes uncertainty; audit and runtime
 establish readiness and enforce hard contracts.

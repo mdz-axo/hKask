@@ -54,7 +54,7 @@ pub(super) async fn build_loops(
 
     // Cybernetics loop
     let set_points = load_set_points();
-    let cybernetics_loop = CyberneticsLoop::with_set_points(Arc::clone(&f.cns_runtime), set_points)
+    let cybernetics_loop = CyberneticsLoop::with_set_points(Arc::clone(&f.ledger_runtime), set_points)
         .with_event_sink(Arc::clone(&f.cns_event_sink))
         .with_alerts_channel(f.curation_inbox_tx.clone())
         .with_curator_directive_channel(curator_directive_rx)
@@ -122,7 +122,7 @@ pub(super) async fn build_loops(
     let episodic_memory = Arc::new(
         EpisodicMemory::new(h_mem_store)
             .with_memory_life_days(memory_life_days)
-            .with_cns(Arc::clone(&f.cns_event_sink)),
+            .with_ledger(Arc::clone(&f.cns_event_sink)),
     );
     let storage_budget = episodic_memory.storage_budget();
     let episodic_loop =
@@ -132,7 +132,7 @@ pub(super) async fn build_loops(
     let h_mem_store2 = HMemStore::from_driver(Arc::clone(&mem_driver));
     let embedding_store = EmbeddingStore::from_driver(Arc::clone(&mem_driver), 1024);
     let semantic_memory = Arc::new(
-        SemanticMemory::new(h_mem_store2, embedding_store).with_cns(Arc::clone(&f.cns_event_sink)),
+        SemanticMemory::new(h_mem_store2, embedding_store).with_ledger(Arc::clone(&f.cns_event_sink)),
     );
     let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     loop_system.register_loop(Arc::new(semantic_loop)).await;
@@ -148,7 +148,7 @@ pub(super) async fn build_loops(
     let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
 
     // Curation loop
-    let cns_for_curator: Arc<RegulationLedger> = Arc::new(f.cns_runtime.read().await.clone());
+    let cns_for_curator: Arc<RegulationLedger> = Arc::new(f.ledger_runtime.read().await.clone());
     let a2a_runtime = Arc::new(hkask_pods::A2ARuntime::new(&config.a2a_secret));
     let curator_context = Arc::new(
         CuratorContext::with_nu_event_store(

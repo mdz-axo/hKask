@@ -18,7 +18,7 @@ pub struct KataManifest {
     pub practices: Vec<PracticeRoutine>,
     #[serde(default)]
     pub error_handling: ErrorHandling,
-    pub cns: KataCnsConfig,
+    pub ledger: KataCnsConfig,
     #[serde(default)]
     pub outcomes: Vec<Outcome>,
     #[serde(default)]

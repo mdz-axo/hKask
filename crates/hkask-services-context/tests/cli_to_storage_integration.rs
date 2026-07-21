@@ -63,7 +63,7 @@ async fn service_builds_with_in_memory_config() {
     // Memory ports are accessible via build_per_agent_memory(db, cns_sink)
 
     // CNS runtime should be accessible
-    let cns = svc.cns().runtime.read().await;
+    let ledger = svc.ledger().runtime.read().await;
     // Domains may be empty at startup — that's valid
     drop(cns);
 
@@ -71,7 +71,7 @@ async fn service_builds_with_in_memory_config() {
     let _goal_repo = svc.storage().goals.clone();
 
     let _user_store = svc.storage().users.clone();
-    let _event_sink = svc.cns().events.clone();
+    let _event_sink = svc.ledger().events.clone();
     let _sovereignty = svc.governance().consent.clone();
 }
 
@@ -149,7 +149,7 @@ async fn cross_store_consent_visible_to_cns_events() {
 
     // The CNS event sink shares the same database as the consent store.
     // Verify the event sink is functional on the shared connection.
-    let event_sink = svc.cns().events.clone();
+    let event_sink = svc.ledger().events.clone();
     let test_event = hkask_types::event::RegulationRecord::new(
         webid,
         hkask_types::event::Span::new(
@@ -176,7 +176,7 @@ async fn service_energy_estimator_calibrates_from_events() {
     let server = "hkask-mcp-media";
 
     // Before calibration, default cost applies.
-    let estimator = svc.cns().energy.clone();
+    let estimator = svc.ledger().energy.clone();
     let before = estimator.estimate_cost(server, "search", &serde_json::json!({}));
     assert_eq!(before, 100);
 
@@ -194,7 +194,7 @@ async fn service_energy_estimator_calibrates_from_events() {
         }),
         0,
     );
-    svc.cns()
+    svc.ledger()
         .events
         .persist(&event)
         .expect("persist settled gas event");

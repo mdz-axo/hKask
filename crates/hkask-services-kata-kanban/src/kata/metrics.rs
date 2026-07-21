@@ -104,25 +104,25 @@ impl KataEngine {
         })
     }
 
-    pub(super) async fn increment_cns_variety(&self, domain: &str, state_name: &str) {
-        if let Some(ref cns) = self.cns_runtime {
-            cns.read().await.increment_variety(domain, state_name).await;
+    pub(super) async fn increment_ledger_variety(&self, domain: &str, state_name: &str) {
+        if let Some(ref ledger) = self.ledger_runtime {
+            ledger.read().await.increment_variety(domain, state_name).await;
         }
     }
 
     pub(super) async fn check_cns_alerts(&self, manifest: &KataManifest, kata_type: &str) {
-        let Some(ref cns) = self.cns_runtime else {
+        let Some(ref ledger) = self.ledger_runtime else {
             return;
         };
-        let alert = cns
+        let alert = ledger
             .read()
             .await
-            .check_variety(&manifest.cns.span_namespace)
+            .check_variety(&manifest.ledger.span_namespace)
             .await;
         if let Some(a) = alert {
             tracing::warn!(
                 target: "reg.kata",
-                namespace = %manifest.cns.span_namespace,
+                namespace = %manifest.ledger.span_namespace,
                 kata_type = %kata_type,
                 severity = ?a.severity,
                 deficit = a.deficit,

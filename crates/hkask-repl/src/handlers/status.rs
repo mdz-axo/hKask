@@ -29,8 +29,8 @@ pub fn handle_status(
         gas_bar, gas_remaining, gas_cap, gas_pct
     );
     // Check CNS health
-    let cns_runtime = state.service_context.cns().runtime.clone();
-    let cns_health = rt.block_on(cns_runtime.read());
+    let ledger_runtime = state.service_context.ledger().runtime.clone();
+    let cns_health = rt.block_on(ledger_runtime.read());
     let cns_status = match rt.block_on(async { cns_health.health().await }) {
         health if health.critical_count > 0 => {
             format!(
@@ -74,7 +74,7 @@ pub fn handle_status(
         }
     }
     // Show LoopScheduler registered loops
-    let loops = state.service_context.cns().loops.clone();
+    let loops = state.service_context.ledger().loops.clone();
     let loop_count = rt.block_on(loops.registered_count());
     let loop_ids = rt.block_on(loops.registered_loop_ids());
     let ids_str = loop_ids

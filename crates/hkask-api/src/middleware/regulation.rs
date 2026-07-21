@@ -10,7 +10,7 @@ use std::time::Instant;
 ///
 /// expect: "API endpoints enforce OCAP boundaries"
 /// pre:  req is an incoming HTTP request
-/// post: cns.api request span emitted with method + path
+/// post: reg.api.request span emitted with method + path
 /// post: cns.api response span emitted with status + latency_ms
 pub async fn cns_middleware(req: Request<Body>, next: Next) -> Response {
     let method = req.method().to_string();

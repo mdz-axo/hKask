@@ -1,4 +1,4 @@
-{# goal: Read runtime signal evidence (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed replicant host (P4 runtime boundary). Classify signals into threat patterns: endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.runtime.classify spans (P9 — namespace registered). No synthetic signals; replicant_host mandatory (P12). Evidence-backed only (P8). #}
+{# goal: Read runtime signal evidence (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed replicant host (P4 runtime boundary). Classify signals into threat patterns: endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.runtime.classify spans (P9 — namespace registered). No synthetic signals; userpod_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads runtime signals discovered in select-signal phase #}
 {# For each signal, checks: frequency vs baseline, pattern signatures,
   defense-layer firing, regulation action triggered, action distribution shift #}
@@ -14,7 +14,7 @@
 INPUT: signal_sources = {{ signal_sources }}
 INPUT: signal = {{ signal }}
 INPUT: existing_regressions = {{ existing_regressions | default([]) }}
-INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory; if undefined, raise error: replicant_host is required for all runtime scanning)
+INPUT: userpod_host = {{ userpod_host }} (P12 — mandatory; if undefined, raise error: userpod_host is required for all runtime scanning)
 
 CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, or runtime telemetry reader):
 1. For each signal source listed in `signal_sources`, observe the span emission
@@ -76,7 +76,7 @@ CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, o
 CNS SPAN EMISSION (P9 — every classified runtime threat):
 - `cns.runtime.classify` per classified threat (target: `"cns.runtime.classify"`,
   message: `"CNS"`, operation: `"classify_threat"`, threat_type: `...`,
-  signal_target: `...`, severity: `...`, replicant_host: `...`, latency_ms: ...).
+  signal_target: `...`, severity: `...`, userpod_host: `...`, latency_ms: ...).
 - The span namespace is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
@@ -122,4 +122,4 @@ JSON object with fields:
 `signal_sources` (list with observation counts), `threats_found` (structured
 array — only evidence-backed), `defense_layers_firing` (list),
 `defense_layers_silent` (list), `baseline_references` (list with source),
-`replicant_host`, `source_citations`.
+`userpod_host`, `source_citations`.

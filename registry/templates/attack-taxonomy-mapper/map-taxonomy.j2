@@ -1,4 +1,4 @@
-{# goal: Read finding evidence (from supply-chain-sentinel and kali-audit) within workspace (P4). Map each finding to OSC&R tactic + technique (verified against github.com/pbom-dev/OSCAR matrix.json). Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.taxonomy.map spans (P9 — namespace registered). No synthetic findings; replicant_host mandatory (P12). Evidence-backed only (P8). #}
+{# goal: Read finding evidence (from supply-chain-sentinel and kali-audit) within workspace (P4). Map each finding to OSC&R tactic + technique (verified against github.com/pbom-dev/OSCAR matrix.json). Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.taxonomy.map spans (P9 — namespace registered). No synthetic findings; userpod_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads findings discovered in select-evidence phase #}
 {# For each finding, maps to OSC&R tactic + technique #}
 {# Applies pragmatic-cybernetics: feedback loop (defense layer for attack pattern?),
@@ -13,7 +13,7 @@
 INPUT: findings_to_map = {{ findings_to_map }}
 INPUT: source = {{ source }}
 INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings | default([]) }}
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous mapping)
+INPUT: userpod_host = {{ userpod_host | default("REQUIRED") }} (P12 — no anonymous mapping)
 
 MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel or kali-audit):
 1. Read each finding listed in `findings_to_map`. Extract: finding reference
@@ -95,13 +95,13 @@ MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel o
     ContainerSecurity), `mapping_confidence` (confirmed/probable/possible),
     `alternative_mappings` (list if ambiguous), `defense_layer_mapped`
     (which supply-chain-sentinel defense layer addresses this OSC&R
-    technique), `provenance`, `epistemic_mode`, `replicant_host`.
+    technique), `provenance`, `epistemic_mode`, `userpod_host`.
 
 CNS SPAN EMISSION (P9 — every taxonomy mapping):
 - `cns.taxonomy.map` per finding mapped (target: `"cns.taxonomy.map"`,
   message: `"CNS"`, operation: `"map_taxonomy"`, finding_reference: `...`,
   osc_r_tactic: `...`, osc_r_technique: `...`, mapping_confidence: `...`,
-  replicant_host: `...`, latency_ms: ...).
+  userpod_host: `...`, latency_ms: ...).
 - The span namespace is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
@@ -150,5 +150,5 @@ OUTPUT FORMAT:
 JSON object with fields:
 `findings_to_map` (list with mapping status), `mappings` (structured array
 — only evidence-backed), `mapping_confidence_summary` (confirmed/probable/
-possible counts), `defense_layer_coverage` (list), `replicant_host`,
+possible counts), `defense_layer_coverage` (list), `userpod_host`,
 `source_citations`.

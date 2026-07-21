@@ -196,7 +196,7 @@ pub struct ReplGasGovernor {
 impl ReplGasGovernor {
     pub fn from_state(state: &super::ReplState, rt: &tokio::runtime::Handle) -> Self {
         Self {
-            cybernetics_loop: state.service_context.cns().cybernetics.clone(),
+            cybernetics_loop: state.service_context.ledger().cybernetics.clone(),
             inference_loop: state
                 .service_context
                 .inference_loop()

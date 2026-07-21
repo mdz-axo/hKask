@@ -26,13 +26,13 @@ impl RegulationLoop for MetacognitionLoop {
     async fn sense(&self) -> Vec<Signal> {
         info!(target: MC_TARGET, "Starting metacognition sense phase");
 
-        let cns_health = self.context.cns().health().await;
+        let cns_health = self.context.ledger().health().await;
         let cns_health_str = format_health_status(&cns_health);
 
-        let variety_counters = self.context.cns().variety().await;
-        let all_alerts = self.context.cns().alerts().await;
-        let critical_alerts = self.context.cns().critical_alerts().await;
-        let reg_health = self.context.cns().regulation_health().await;
+        let variety_counters = self.context.ledger().variety().await;
+        let all_alerts = self.context.ledger().alerts().await;
+        let critical_alerts = self.context.ledger().critical_alerts().await;
+        let reg_health = self.context.ledger().regulation_health().await;
 
         // Compute total variety deficit (same logic as evaluate_and_adapt)
         let mut total_variety_deficit = 0u64;

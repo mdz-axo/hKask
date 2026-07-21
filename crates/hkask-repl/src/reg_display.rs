@@ -15,8 +15,8 @@ use hkask_services_context::AgentService;
 /// CNS variety counters are updated by the service layer via CNS spans.
 pub(super) fn update_cns_and_display(ctx: &AgentService, rt: &tokio::runtime::Handle) {
     // Check for CNS algedonic alerts (read-only observation)
-    let cns_runtime = ctx.cns().runtime.clone();
-    let alerts = rt.block_on(async { cns_runtime.read().await.critical_alerts().await });
+    let ledger_runtime = ctx.ledger().runtime.clone();
+    let alerts = rt.block_on(async { ledger_runtime.read().await.critical_alerts().await });
     if !alerts.is_empty() {
         for alert in &alerts {
             println!(
@@ -32,6 +32,6 @@ pub(super) fn update_cns_and_display(ctx: &AgentService, rt: &tokio::runtime::Ha
     // (Throttle, AdjustEnergyBudget, Escalate, Calibrate) visible
     // through tracing output (cns.cybernetics target).
     rt.block_on(async {
-        ctx.cns().loops.tick().await;
+        ctx.ledger().loops.tick().await;
     });
 }

@@ -79,8 +79,8 @@ pub(crate) fn create_window(
     let bridge = ctx.repl_bridge.clone();
 
     match kind {
-        WindowKind::Terminal => Box::new(TerminalWindow::new(id, bridge)),
-        WindowKind::Editor => Box::new(EditorWindow::new(id, bridge)),
+        WindowKind::Terminal => Box::new(TerminalWindow::new(id)),
+        WindowKind::Editor => Box::new(EditorWindow::new(id)),
 
         WindowKind::Wallet => {
             mk_bridge!(

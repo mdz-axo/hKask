@@ -134,8 +134,8 @@ impl ApiState {
 
         // Extract wallet service before moving ctx into Arc
         let wallet_service = ctx.infra().wallet.clone();
-        // CNS event sink for API metering spans (cns.api.request).
-        let event_sink = ctx.cns().events.clone();
+        // CNS event sink for API metering spans (reg.api.request).
+        let event_sink = ctx.ledger().events.clone();
         // Build API key auth service if wallet store and wallet service are available
         let api_key_auth_service = match (ctx.storage().wallet.clone(), wallet_service.clone()) {
             (Some(store), Some(svc)) => {
@@ -184,7 +184,7 @@ impl ApiState {
     /// post: all registered loops begin tick cycles
     /// post: returns Ok(()) on success, Err(InfrastructureError) on failure
     pub async fn start_loops(&self) {
-        let loops = &self.agent_service.cns().loops;
+        let loops = &self.agent_service.ledger().loops;
         tracing::info!(
             target: "hkask.api",
             loops = ?loops.registered_loop_ids().await,
@@ -196,7 +196,7 @@ impl ApiState {
     /// Signal the loop system to shut down.
     pub fn shutdown_loops(&self) {
         tracing::info!(target: "hkask.api", "Shutting down loop system");
-        let loops = &self.agent_service.cns().loops;
+        let loops = &self.agent_service.ledger().loops;
         loops.shutdown();
     }
 }

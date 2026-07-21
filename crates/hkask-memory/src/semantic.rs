@@ -111,7 +111,7 @@ impl SemanticMemory {
         let embedding_store = EmbeddingStore::from_driver(driver, dim);
         Ok(Self::new(h_mem_store, embedding_store))
     }
-    pub fn with_cns(mut self, sink: Arc<dyn RegulationSink>) -> Self {
+    pub fn with_ledger(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }

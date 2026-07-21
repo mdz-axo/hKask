@@ -7,7 +7,7 @@ INPUT: items_removed = {{ items_removed | default(0) }} (items deleted/merged/in
 INPUT: total_items = {{ total_items | default(0) }} (total items evaluated)
 INPUT: items_not_removed = {{ items_not_removed | default(0) }} (items that survived all 3 gates)
 INPUT: previous_metric = {{ previous_metric | default(1.0) }}
-INPUT: replicant_host = {{ replicant_host }} (P12)
+INPUT: userpod_host = {{ userpod_host }} (P12)
 
 COMPUTE METRIC (weighted — evidence-based only, P8, P5):
 - Gate failures weight: 0.60
@@ -31,12 +31,12 @@ CNS SPAN (P9):
 - `cns.skill` is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
   Emit span unconditionally:
   (`target: "cns.skill"`, message: `"CNS"`, operation: `"essentialist_convergence_check"`,
-  metric, previous_metric, improvement_pct, blockers: [...], replicant_host, latency_ms).
+  metric, previous_metric, improvement_pct, blockers: [...], userpod_host, latency_ms).
 
 OUTPUT FORMAT (JSON):
 `{convergence_metric, previous_metric, improvement_pct, converged: bool,
 blockers: [...], gates_failed, gates_passed, items_removed, total_items,
-items_not_removed, replicant_host, cns_span_emitted: true}`.
+items_not_removed, userpod_host, cns_span_emitted: true}`.
 
 5W1H GATE (P5 — minimal): Who = replicant host; What = convergence metric;
 Where = essentialist audit cycle; When = after 3-gate evaluation; Why = P9
@@ -55,7 +55,7 @@ OCAP BOUNDARY (P4): Metric computed from essentialist gate results only;
 no external scanning.
 CNS REGULATION (P9): Span emitted unconditionally — namespace registered
 in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
-REPLICANT HOST (P12): `replicant_host` mandatory.
+REPLICANT HOST (P12): `userpod_host` mandatory.
 VISIBILITY (P11): Metric output public; no hidden essentialist posture.
 SAFETY FLOOR (P3.1): Essentialist convergence protects Generative Space —
 unconverged metric indicates unnecessary complexity remains.

@@ -225,7 +225,7 @@ fn request_variants_serialize_to_correct_shape() {
     .unwrap();
     assert_eq!(health["type"], "curator_health_query");
 
-    let cns = serde_json::to_value(DaemonRequest::CnsStatusQuery {
+    let ledger = serde_json::to_value(DaemonRequest::CnsStatusQuery {
         userpod: "alice".into(),
         domain: Some("tool".into()),
     })

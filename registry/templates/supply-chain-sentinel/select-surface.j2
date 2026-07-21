@@ -26,7 +26,7 @@ Convergence baseline: {{ convergence_metric | default(1.0) }}
 
 ACTION: Emit `cns.supply_chain.select` span (P9, P12) with discovered file paths, selected surface, and regression count.
 ACTION: Read `security/regressions/` for entries with `surface: supply-chain` and `status: enforced`.
-ACTION: Return JSON: `{surface, manifest_paths: [...], registry_sources: [...], defense_layers: [...], existing_regressions: [...], replicant_host}`.
+ACTION: Return JSON: `{surface, manifest_paths: [...], registry_sources: [...], defense_layers: [...], existing_regressions: [...], userpod_host}`.
 CONSTRAINT: Do NOT fabricate manifest files. Only list paths that exist via available file tools.
 CONSTRAINT: Each discovered path must include concrete file system evidence (line count not required for selection phase).
 CONSTRAINT: Use `public` visibility; no hidden dependency checks (P3, P4).
@@ -37,7 +37,7 @@ CONSTRAINT: Every dependency finding proposal must cite file path, manifest line
 CONSTRAINT: If target_surface is 'auto', scan workspace root for Cargo.toml, package.json, requirements.txt, deny.toml, go.sum. Prioritize cargo (Rust project) since hKask uses `Cargo.toml`.
 CONSTRAINT: Read actual manifest content (not synthetic) before proposing any regression entry.
 CONSTRAINT: For dependency version pinning evidence, check `Cargo.toml` for exact versions (not `*` or `>=` without upper bound); for deny.toml, check `advisory` and `license` sections.
-CONSTRAINT: Every finding must include `replicant_host` identity (P12) — no anonymous dependency scanning.
+CONSTRAINT: Every finding must include `userpod_host` identity (P12) — no anonymous dependency scanning.
 CONSTRAINT: Apply pragmatic-cybernetics (like `bug-hunt` probe phase): trace dependency update polarity (does version bump increase or decrease risk?), check variety (are alternative packages available?), perform Good Regulator check (is version pinning enforcing stability?).
 CONSTRAINT: If `security/regressions/` contains `surface: supply-chain` entries, read them as input and skip proposing duplicates.
 CONSTRAINT: Propose `surface: supply-chain` regression format: `id: RR-XXXX`, `surface: supply-chain`, `cwe: CWE-XXX`, `owasp: ...`, `discovered_in: <manifest_path>`, `status: pending` (human must flip to `enforced`).

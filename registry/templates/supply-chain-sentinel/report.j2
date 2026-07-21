@@ -6,7 +6,7 @@
 INPUT: findings = {{ findings }} (structured array from probe phase)
 INPUT: defense_layers = {{ defense_layers }}
 INPUT: existing_regressions = {{ existing_regressions }}
-INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory)
+INPUT: userpod_host = {{ userpod_host }} (P12 — mandatory)
 
 SYNTHESIS ACTIONS:
 1. Group findings by severity: critical, high, medium, low.
@@ -29,11 +29,11 @@ SYNTHESIS ACTIONS:
    and defense-layer presence.
 6. Every finding entry must include `evidence_snippet` (quoted manifest line),
    `manifest_path`, `line`, `dependency`, `version_spec`, `cwe_reference`,
-   `taxonomy_mapping`, `remediation_recommendation`, `replicant_host`.
+   `taxonomy_mapping`, `remediation_recommendation`, `userpod_host`.
 
 CNS SPAN (P9): Emit `cns.supply_chain.report` with findings count by
 severity, defense layers present/missing, proposed regression count,
-verdict, replicant_host, latency.
+verdict, userpod_host, latency.
 
 CONSTRAINTS (same as probe — P5 minimalism, P8 evidence integrity, P12 host):
 - No synthetic manifest quotes — every snippet verifiable from manifest_path.
@@ -48,7 +48,7 @@ JSON object with fields:
 `findings` (grouped array with evidence, severity, taxonomy mapping, fix
 recommendation), `defense_layers_present`, `defense_layers_missing`,
 `proposed_regressions` (YAML-format array for human review), `verdict`,
-`replicant_host`, `source_citations`, `cns_span_reference`.
+`userpod_host`, `source_citations`, `cns_span_reference`.
 
 5W1H GATE CHECK (P5): Who = dependency maintainer / replicant host; What =
 findings synthesis; Where = workspace manifest paths; When = scan cycle;
@@ -71,7 +71,7 @@ OCAP BOUNDARY (P4): Audit reads only declared workspace manifest paths;
 no external dependency download; dependency must be explicitly declared.
 CNS REGULATION (P9): `cns.supply_chain.report` emitted; notes gap if not
 registered in `CANONICAL_NAMESPACES`.
-REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
+REPLICANT HOST (P12): `userpod_host` mandatory in all outputs.
 VISIBILITY (P11): Regression proposals `status: pending` — public
 transparency, not hidden control.
 SAFETY FLOOR (P3.1): Supply chain findings protect Generative Space

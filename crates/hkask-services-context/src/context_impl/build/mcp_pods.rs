@@ -60,7 +60,7 @@ pub(super) async fn build_mcp_and_pods(
         Arc::clone(&energy_estimator) as Arc<dyn EnergyEstimator>;
 
     // Wire ToolStats into the CyberneticsLoop for reliability sensor.
-    let tool_stats = f.cns_runtime.read().await.tool_stats().await;
+    let tool_stats = f.ledger_runtime.read().await.tool_stats().await;
     l.cybernetics_loop
         .write()
         .await
@@ -143,7 +143,7 @@ pub(super) async fn build_mcp_and_pods(
     let daemon_handler = Arc::new(hkask_services_runtime::ServiceDaemonHandler::new(
         Arc::clone(&pod_manager),
         Arc::clone(&f.user_store),
-        Some(Arc::clone(&f.cns_runtime)),
+        Some(Arc::clone(&f.ledger_runtime)),
         l.inference_port.clone(),
     ));
     if !config.in_memory {

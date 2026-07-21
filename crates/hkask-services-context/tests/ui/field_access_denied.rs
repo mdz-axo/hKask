@@ -14,7 +14,7 @@ fn main() {
     // ctx.registry             // ERROR: field `registry` of struct `AgentService` is private
     // ctx.mcp_runtime          // ERROR: field `mcp_runtime` of struct `AgentService` is private
     // ctx.mcp_dispatcher       // ERROR: private
-    // ctx.cns_runtime          // ERROR: private
+    // ctx.ledger_runtime          // ERROR: private
     // ctx.cns                  // ERROR: private
     // ctx.cybernetics_loop     // ERROR: private
     // ctx.loop_system          // ERROR: private

@@ -48,8 +48,8 @@ impl ChatService {
     #[must_use = "result must be used"]
     pub async fn run_curator_metacognition(ctx: &AgentService) -> Result<String, ServiceError> {
         let queue = Arc::clone(&ctx.governance().escalations);
-        let cns_lock = &ctx.cns().runtime;
-        let cns = Arc::new(cns_lock.read().await.clone());
+        let cns_lock = &ctx.ledger().runtime;
+        let ledger = Arc::new(cns_lock.read().await.clone());
 
         let agents_ctx = Arc::new(hkask_pods::CuratorContext::new(
             CuratorHandle::system(),
@@ -312,7 +312,7 @@ impl ChatService {
             }),
             0,
         );
-        let _ = ctx.cns().events.persist(&request_event);
+        let _ = ctx.ledger().events.persist(&request_event);
 
         let result = tokio::time::timeout(
             Duration::from_secs(120),
@@ -354,7 +354,7 @@ impl ChatService {
             0,
         )
         .with_parent(request_event.id);
-        let _ = ctx.cns().events.persist(&response_event);
+        let _ = ctx.ledger().events.persist(&response_event);
 
         // Store the exchange
         let memory_span = Span::new(
@@ -373,7 +373,7 @@ impl ChatService {
             }),
             0,
         );
-        let _ = ctx.cns().events.persist(&memory_event);
+        let _ = ctx.ledger().events.persist(&memory_event);
 
         // \[NORMATIVE\] Sovereignty gate (H3/P2): only persist the exchange to
         // episodic (sovereign) memory when the owner has granted consent.

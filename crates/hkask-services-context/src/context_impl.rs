@@ -109,7 +109,7 @@ pub struct AgentService {
 
     /// CNS context — variety sensing, cybernetic regulation,
     /// loop orchestration, event audit trail, energy estimation.
-    cns: regulation::RegulationContext,
+    ledger: regulation::RegulationContext,
 
     /// Storage context — registry, goals, agents, users,
     /// sovereignty boundaries, wallet store.
@@ -173,8 +173,8 @@ impl AgentService {
 
     /// CNS context — variety sensing, cybernetic regulation,
     /// loop orchestration, events, and energy estimation.
-    pub fn cns(&self) -> &regulation::RegulationContext {
-        &self.cns
+    pub fn ledger(&self) -> &regulation::RegulationContext {
+        &self.ledger
     }
 
     /// Storage context — registry, goals, specs, agents,
@@ -242,7 +242,7 @@ impl AgentService {
         let ts1 = HMemStore::from_driver(Arc::clone(&mem_driver));
         let mut episodic_memory = EpisodicMemory::new(ts1);
         if let Some(ref sink) = cns_event_sink {
-            episodic_memory = episodic_memory.with_cns(Arc::clone(sink));
+            episodic_memory = episodic_memory.with_ledger(Arc::clone(sink));
         }
         let episodic_memory = Arc::new(episodic_memory);
         let ts2 = HMemStore::from_driver(mem_driver);
@@ -254,7 +254,7 @@ impl AgentService {
         );
         let mut semantic_memory = SemanticMemory::new(ts2, emb);
         if let Some(ref sink) = cns_event_sink {
-            semantic_memory = semantic_memory.with_cns(Arc::clone(sink));
+            semantic_memory = semantic_memory.with_ledger(Arc::clone(sink));
         }
         let semantic_memory = Arc::new(semantic_memory);
 
@@ -346,7 +346,7 @@ impl AgentService {
             },
         )?;
 
-        let per_agent_memory = Self::build_per_agent_memory(db, Some(Arc::clone(&self.cns.events)));
+        let per_agent_memory = Self::build_per_agent_memory(db, Some(Arc::clone(&self.ledger.events)));
         per_agent_memory
             .consolidation_service
             .consolidate(&target_webid, request)
@@ -445,7 +445,7 @@ impl AgentService {
         )?;
         Ok(Self::build_per_agent_memory(
             db,
-            Some(Arc::clone(&self.cns.events)),
+            Some(Arc::clone(&self.ledger.events)),
         ))
     }
 }

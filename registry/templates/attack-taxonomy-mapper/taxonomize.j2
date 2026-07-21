@@ -6,7 +6,7 @@
 INPUT: mappings = {{ mappings }} (structured array from map-taxonomy phase)
 INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings }}
 INPUT: defense_layer_coverage = {{ defense_layer_coverage }}
-INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory)
+INPUT: userpod_host = {{ userpod_host }} (P12 — mandatory)
 
 SYNTHESIS ACTIONS:
 1. Group mappings by OSC&R tactic: Initial Access, Resource Development,
@@ -66,11 +66,11 @@ SYNTHESIS ACTIONS:
    `osc_r_technique` (verified name), `osc_r_categories` (verified tags),
    `mapping_confidence`, `defense_layer_mapped`, `pattern_signature`
    (concrete grep pattern for detecting similar attacks),
-   `remediation_recommendation`, `replicant_host`.
+   `remediation_recommendation`, `userpod_host`.
 
 CNS SPAN (P9): Emit `cns.taxonomy.report` with mappings count by OSC&R
    category, proposed taxonomy_mapping field count, pattern signatures
-   count, verdict, replicant_host, latency.
+   count, verdict, userpod_host, latency.
 
 CONSTRAINTS (same as map-taxonomy — P5 minimalism, P8 evidence integrity, P12 host):
 - No synthetic findings — only map findings from `supply-chain-sentinel`
@@ -95,7 +95,7 @@ JSON object with fields:
 fix recommendation), `proposed_taxonomy_mappings` (YAML-format array
 for human review), `pattern_signatures` (concrete grep patterns per
 OSC&R technique), `taxonomy_coverage_gaps` (OSC&R tactics with no
-mapped findings), `verdict`, `replicant_host`, `source_citations`,
+mapped findings), `verdict`, `userpod_host`, `source_citations`,
 `cns_span_reference`.
 
 5W1H GATE CHECK (P5): Who = supply chain attacker / threat actor taxonomy;
@@ -124,7 +124,7 @@ OCAP BOUNDARY (P4): Mapping consumes existing workspace findings only;
 no external taxonomy download; no external package download.
 CNS REGULATION (P9): `cns.taxonomy.report` emitted unconditionally
 (namespace registered in `CANONICAL_NAMESPACES`).
-REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
+REPLICANT HOST (P12): `userpod_host` mandatory in all outputs.
 VISIBILITY (P11): `taxonomy_mapping` proposals `status: pending` —
 public transparency, not hidden control.
 SAFETY FLOOR (P3.1): Structured supply chain taxonomy protects the

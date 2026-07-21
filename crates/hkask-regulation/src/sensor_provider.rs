@@ -300,25 +300,25 @@ impl Sensor for EnergyBudgetSensor {
 ///
 /// Data source: `RegulationLedger`. Produces a single aggregate signal.
 pub struct VarietySensor {
-    cns: Arc<tokio::sync::RwLock<super::runtime::RegulationLedger>>,
+    ledger: Arc<tokio::sync::RwLock<super::runtime::RegulationLedger>>,
     set_point: f64,
 }
 
 impl VarietySensor {
     /// expect: "The system provides pluggable metric sensing for the cybernetic regulation loop"
     pub fn new(
-        cns: Arc<tokio::sync::RwLock<super::runtime::RegulationLedger>>,
+        ledger: Arc<tokio::sync::RwLock<super::runtime::RegulationLedger>>,
         set_point: f64,
     ) -> Self {
-        Self { cns, set_point }
+        Self { ledger, set_point }
     }
 }
 
 #[async_trait::async_trait]
 impl Sensor for VarietySensor {
     async fn sense(&self) -> Option<Signal> {
-        let cns = self.cns.read().await;
-        let health = cns.health().await;
+        let ledger = self.ledger.read().await;
+        let health = ledger.health().await;
         Some(Signal::new(
             LoopId::Cybernetics, // placeholder — registry backfills
             SignalMetric::VarietyDeficit,

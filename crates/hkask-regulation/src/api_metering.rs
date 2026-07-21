@@ -6,7 +6,7 @@
 //! - Rate-limited vs allocation-exhausted: separate span fields, not separate span types.
 //! - `endpoint_weight` table: hardcoded initially (configurable later).
 //!
-//! # Span: cns.api.request
+//! # Span: reg.api.request
 //! Every API call with `Authorization: Bearer hk_...` opens a span tracking:
 //! `key_id, endpoint, scope_matched, gas_consumed, allocation_remaining, rate_limit_status`
 
@@ -440,9 +440,9 @@ impl Default for ApiMeter {
     }
 }
 
-// ── CNS span: cns.api.request ────────────────────────────────────────────────
+// ── CNS span: reg.api.request ────────────────────────────────────────────────
 
-/// Observation data for a `cns.api.request` span.
+/// Observation data for a `reg.api.request` span.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ApiRequestSpan {
     pub key_id: String,
@@ -480,7 +480,7 @@ impl ApiRequestSpan {
         }
     }
 
-    /// Emit this span as a `cns.api.request` ν-event through the sink.
+    /// Emit this span as a `reg.api.request` ν-event through the sink.
     ///
     /// Degrades gracefully: on namespace miss or persistence failure, logs a
     /// warning and continues (the request is not blocked by observability).
@@ -499,7 +499,7 @@ impl ApiRequestSpan {
             tracing::warn!(
                 target: "hkask.api_metering",
                 error = %e,
-                "Failed to persist cns.api.request event — continuing"
+                "Failed to persist reg.api.request event — continuing"
             );
         }
     }

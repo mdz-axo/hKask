@@ -7,11 +7,11 @@ use tokio::sync::RwLock;
 
 pub(crate) fn spawn_seam_drift_check(
     seam_watcher: &Arc<RwLock<Option<SeamWatcher>>>,
-    cns_runtime: &Arc<RwLock<RegulationLedger>>,
+    ledger_runtime: &Arc<RwLock<RegulationLedger>>,
     event_sink: &Arc<dyn RegulationSink>,
 ) {
     let watcher_lock = Arc::clone(seam_watcher);
-    let cns = Arc::clone(cns_runtime);
+    let ledger = Arc::clone(ledger_runtime);
     let sink = Arc::clone(event_sink);
 
     let interval_secs: u64 = std::env::var("HKASK_SEAM_CHECK_INTERVAL_SECS")

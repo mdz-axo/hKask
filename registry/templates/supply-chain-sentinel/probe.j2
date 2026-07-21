@@ -1,4 +1,4 @@
-{# goal: Read manifest evidence (Cargo.toml, deny.toml, lockfiles) within workspace (P4). Verify version specs, registry URLs, license refs, lockfile tracking. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.supply_chain.probe spans (P9). No synthetic CVE claims; replicant_host mandatory (P12). Evidence-backed only (P8). #}
+{# goal: Read manifest evidence (Cargo.toml, deny.toml, lockfiles) within workspace (P4). Verify version specs, registry URLs, license refs, lockfile tracking. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.supply_chain.probe spans (P9). No synthetic CVE claims; userpod_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads manifest files discovered in select-surface phase #}
 {# For each dependency entry, checks: version pinning, registry trust signal,
   unmaintained indicators (if available in manifest metadata/comment),
@@ -16,7 +16,7 @@
 INPUT: manifest_paths = {{ manifest_paths }}
 INPUT: surface = {{ surface }}
 INPUT: existing_regressions = {{ existing_regressions | default([]) }}
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — no anonymous scanning)
+INPUT: userpod_host = {{ userpod_host | default("REQUIRED") }} (P12 — no anonymous scanning)
 
 PROBE ACTIONS (concrete — must use file:read, code:search, terminal, or registry inspection):
 1. Read each manifest file listed in `manifest_paths`.
@@ -42,7 +42,7 @@ PROBE ACTIONS (concrete — must use file:read, code:search, terminal, or regist
    `dependency`, `version_spec`, `source_line`, `manifest_path`, `registry`, `version_pinned` (bool), `registry_trusted` (bool), `license_conflict` (bool | evidence), `unmaintained_indicator` (bool | evidence), `transitive_mentioned` (bool | lockfile_reference), `severity` (critical/high/medium/low — justified by evidence), `provenance` (Direct/Inference/Assessment), `epistemic_mode`, `defense_layers_present` (list), `defense_layers_missing` (list), `evidence_snippet` (quoted manifest line + file path), `source_citation` (docs reference: MITRE CWE-1104, cargo-deny docs, deny.toml spec, crates.io advisory format, OWASP Supply Chain reference, OSC&R taxonomy URL if applicable).
 
 CNS SPAN EMISSION (P9 — every security-sensitive dependency operation):
-- `cns.supply_chain.probe` per manifest read (target: `"cns.supply_chain.probe"`, message: `"CNS"`, operation: `"probe_dependency"`, dependency: `...`, manifest_path: `...`, registry: `...`, replicant_host: `...`, latency_ms: ...).
+- `cns.supply_chain.probe` per manifest read (target: `"cns.supply_chain.probe"`, message: `"CNS"`, operation: `"probe_dependency"`, dependency: `...`, manifest_path: `...`, registry: `...`, userpod_host: `...`, latency_ms: ...).
 - The span namespace is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
 CONSTRAINT — Evidence integrity (P8 — semantic grounding):

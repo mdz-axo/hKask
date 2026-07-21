@@ -102,8 +102,8 @@ impl AgentServiceWiring {
             self.foundation.curation_inbox_tx.clone(),
         );
 
-        let cns = regulation::RegulationContext::new(
-            Arc::clone(&self.foundation.cns_runtime),
+        let ledger = regulation::RegulationContext::new(
+            Arc::clone(&self.foundation.ledger_runtime),
             Arc::clone(&self.loops.cybernetics_loop),
             Arc::clone(&self.loops.loop_system),
             Arc::clone(&self.foundation.cns_event_sink) as Arc<dyn RegulationSink>,

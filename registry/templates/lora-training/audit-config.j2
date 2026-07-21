@@ -1,4 +1,4 @@
-{# goal: Audit declared LoRA/QLoRA training artifacts phase-by-phase without executing training. Preserve the operator-selected method, distinguish recommendations from readiness, emit normalized evidence-backed findings and cns.lora.audit spans (P9), and require replicant_host (P12). #}
+{# goal: Audit declared LoRA/QLoRA training artifacts phase-by-phase without executing training. Preserve the operator-selected method, distinguish recommendations from readiness, emit normalized evidence-backed findings and cns.lora.audit spans (P9), and require userpod_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -13,7 +13,7 @@ contract:
     config_paths: array
     selected_method: string
     existing_regressions: array
-    replicant_host: string
+    userpod_host: string
   output:
     findings: array
     gate_results: object
@@ -37,7 +37,7 @@ thinking_budget = "full"
 INPUT: config_paths = {{ config_paths | default([]) }}
 INPUT: selected_method = {{ selected_method }} (operator-selected; do not replace)
 INPUT: existing_regressions = {{ existing_regressions | default([]) }}
-INPUT: replicant_host = {{ replicant_host | default("REQUIRED") }} (P12 — mandatory)
+INPUT: userpod_host = {{ userpod_host | default("REQUIRED") }} (P12 — mandatory)
 
 AUTHORITATIVE AUDIT MODEL
 
@@ -232,7 +232,7 @@ shapes for passes, observations, or deficiencies:
   PEFT and arXiv citations.
 - `recommendation`: advisory next action or null; never overwrites
   `selected_method`.
-- `replicant_host`: mandatory authenticated host identity.
+- `userpod_host`: mandatory authenticated host identity.
 
 A gate result uses the same semantics and contains:
 `gate_id`, `phase`, `state`, `readiness_impact`, `finding_ids`, and
@@ -265,7 +265,7 @@ CNS SPAN EMISSION (P9)
 Emit `cns.lora.audit` for every gate represented in `gate_results`: target
 `"cns.lora.audit"`, message `"CNS"`, operation `"audit_gate"`, gate_id,
 phase, state, readiness_impact, evidence_kind, selected_method,
-replicant_host, latency_ms. The namespace remains registered in
+userpod_host, latency_ms. The namespace remains registered in
 `CANONICAL_NAMESPACES`. Emit no anonymous action.
 
 OCAP BOUNDARY (P4)
@@ -277,10 +277,10 @@ evidence assessments only.
 OUTPUT FORMAT
 JSON object with `config_paths`, `parameters_extracted`, `selected_method`,
 `method_recommendations`, `findings` (the normalized schema unchanged),
-`gate_results`, `readiness_state`, `replicant_host`, `source_citations`, and
+`gate_results`, `readiness_state`, `userpod_host`, `source_citations`, and
 `cns_span_reference`.
 
-5W1H GATE CHECK (P5): Who = operator / replicant_host; What = phase-aware
+5W1H GATE CHECK (P5): Who = operator / userpod_host; What = phase-aware
 training contract audit; Where = declared workspace paths; When = static,
 harness, runtime-evidence, and post-training-evidence phases; Why = safe,
 observable, sovereign training decisions; How = inspect declared artifacts,

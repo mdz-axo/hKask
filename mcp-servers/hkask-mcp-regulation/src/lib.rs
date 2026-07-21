@@ -28,7 +28,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-const SERVER_NAME: &str = "hkask-mcp-cns";
+const SERVER_NAME: &str = "hkask-mcp-regulation";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 hkask_mcp::mcp_server!(

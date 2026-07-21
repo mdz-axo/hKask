@@ -1,4 +1,4 @@
-{# goal: Compute a phase-aware, normalized training-readiness convergence metric [0,1] from current evidence only. Preserve required PDCA convergence, distinguish preflight readiness from pending runtime contracts and post-training verification, emit cns.lora.convergence (P9), and require replicant_host (P12). #}
+{# goal: Compute a phase-aware, normalized training-readiness convergence metric [0,1] from current evidence only. Preserve required PDCA convergence, distinguish preflight readiness from pending runtime contracts and post-training verification, emit cns.lora.convergence (P9), and require userpod_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -18,7 +18,7 @@ contract:
     existing_regressions: array
     proposed_regressions: array
     previous_metric: number
-    replicant_host: string
+    userpod_host: string
   output:
     convergence_metric: number
     converged: boolean
@@ -54,7 +54,7 @@ INPUT: corda_mode = {{ corda_mode | default(false) }} (if true, G-F2 may apply)
 INPUT: existing_regressions = {{ existing_regressions }} (actual surface: training entries)
 INPUT: proposed_regressions = {{ proposed_regressions }} (actual proposals from this cycle)
 INPUT: previous_metric = {{ previous_metric | default(none) }} (optional evidence from the immediately preceding comparable phase)
-INPUT: replicant_host = {{ replicant_host }} (mandatory, P12)
+INPUT: userpod_host = {{ userpod_host }} (mandatory, P12)
 
 EVIDENCE AND APPLICABILITY RULES (P8):
 - Use only supplied findings and gate results with concrete evidence. Do
@@ -103,7 +103,7 @@ COMPUTE CURRENT-PHASE METRIC (weighted risk, P5, P8):
 CONVERGENCE CHECK (required PDCA regulation, P9):
 - Hard blockers are unresolved critical/high findings; any applicable
   `fail`, `refuse`, `deferred`, `planned`, or `not_evaluated` gate;
-  unknown states; and missing mandatory phase/evidence/replicant_host.
+  unknown states; and missing mandatory phase/evidence/userpod_host.
 - `converged = true` when convergence_metric ≤ 0.10 and no hard blocker
   exists. A stable metric under the threshold remains converged; ongoing
   5% improvement is not required.
@@ -134,7 +134,7 @@ CNS SPAN (P9):
   target `cns.lora.convergence`, message `CNS`, operation
   `convergence_check`, current_phase, convergence_metric,
   previous_metric, improvement_pct, converged, readiness booleans,
-  blockers, applicable normalized weights, replicant_host, and latency_ms.
+  blockers, applicable normalized weights, userpod_host, and latency_ms.
 
 OUTPUT FORMAT (JSON):
 `{current_phase, convergence_metric, previous_metric, improvement_pct,
@@ -143,7 +143,7 @@ post_training_verified, blockers, gate_results_summary: {states,
 applicable_gates, excluded_gates, family_risks, normalized_weights},
 existing_regressions_count, proposed_regressions_count,
 unresolved_critical, unresolved_high, qlora_mode, corda_mode,
-replicant_host, cns_span_emitted: true}`.
+userpod_host, cns_span_emitted: true}`.
 
 5W1H GATE (P5): Who = mandatory replicant host; What = phase-aware
 convergence; Where = current audit/training workspace; When = declared
@@ -161,7 +161,7 @@ convergence rather than forced metric churn.
 OCAP BOUNDARY (P4): Workspace evidence only; no training execution,
 model download, or network call without explicit consent (P2).
 CNS REGULATION (P9): Emit the registered span unconditionally.
-REPLICANT HOST (P12): `replicant_host` is mandatory.
+REPLICANT HOST (P12): `userpod_host` is mandatory.
 VISIBILITY (P11): Public output; no hidden training posture.
 SAFETY FLOOR (P3.1): Unconverged current-phase risk remains visible.
 SEMANTIC GROUNDING (P8): Every blocker cites supplied evidence or the

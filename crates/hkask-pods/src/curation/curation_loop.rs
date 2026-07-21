@@ -380,12 +380,12 @@ impl RegulationLoop for CurationLoop {
                 }
                 Err(e) => {
                     tracing::warn!(target: CUR_TARGET, error = %e, "Failed to query RegulationRecord store, falling back to live CNS reads");
-                    self.context.cns().critical_alerts().await.len() as u64
+                    self.context.ledger().critical_alerts().await.len() as u64
                 }
             }
         } else {
             // No RegulationRecord store configured: fall back to live CNS reads
-            self.context.cns().critical_alerts().await.len() as u64
+            self.context.ledger().critical_alerts().await.len() as u64
         };
 
         let pending_escalations = self

@@ -730,27 +730,6 @@ fn levenshtein_distance(a: &str, b: &str) -> usize {
     prev_row[a_len]
 }
 
-/// Compute semantic similarity via embeddings (moved from semantic.rs).
-#[allow(dead_code)]
-pub(crate) async fn enrich_with_semantic(
-    text_a: &str,
-    text_b: &str,
-    router: &hkask_inference::EmbeddingRouter,
-    model: &str,
-) -> Option<f32> {
-    if text_a.trim().is_empty() || text_b.trim().is_empty() {
-        return None;
-    }
-    let embeddings = router
-        .embed_sentences(model, &[text_a, text_b])
-        .await
-        .ok()?;
-    if embeddings.len() < 2 {
-        return None;
-    }
-    Some(crate::cosine_similarity(&embeddings[0], &embeddings[1]))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

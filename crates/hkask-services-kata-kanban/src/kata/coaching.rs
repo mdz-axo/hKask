@@ -34,10 +34,10 @@ impl KataEngine {
                 continue;
             }
 
-            if manifest.cns.emit_spans {
+            if manifest.ledger.emit_spans {
                 tracing::info!(
                     target: "reg.kata",
-                    namespace = %manifest.cns.span_namespace,
+                    namespace = %manifest.ledger.span_namespace,
                     question = q.number,
                     bot = %state.learner_bot,
                     has_ik_state = ik_context.is_some(),
@@ -122,11 +122,11 @@ impl KataEngine {
                 timestamp: now_rfc3339(),
             });
 
-            if let Some(ref obs) = self.cns_observer {
-                obs(&manifest.cns.span_namespace, q.number, "coaching_question");
+            if let Some(ref obs) = self.ledger_observer {
+                obs(&manifest.ledger.span_namespace, q.number, "coaching_question");
             }
 
-            self.increment_cns_variety(&manifest.cns.span_namespace, "kata.practices.completed")
+            self.increment_ledger_variety(&manifest.ledger.span_namespace, "kata.practices.completed")
                 .await;
         }
 

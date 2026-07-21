@@ -47,7 +47,7 @@ questions:
   - number: 1
     question: "What is your target condition?"
     description: "Target"
-cns:
+ledger:
   emit_spans: false
   span_namespace: "test.kata"
   variety_monitoring: false
@@ -74,7 +74,7 @@ questions:
   - number: 3
     question: "Q3?"
     description: "D3"
-cns:
+ledger:
   emit_spans: false
   span_namespace: "test.kata"
   variety_monitoring: false
@@ -96,7 +96,7 @@ steps:
     action: "understand_direction"
     description: "Understand the direction"
     gas_cap: 2000
-cns:
+ledger:
   emit_spans: false
   span_namespace: "test.kata"
   variety_monitoring: false

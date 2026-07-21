@@ -194,10 +194,6 @@ pub fn within_tolerance(forecast: f64, actual: f64, tolerance: f64) -> bool {
     ((actual - forecast) / forecast).abs() <= tolerance
 }
 
-#[allow(dead_code)]
-/// Valid forecast horizons.
-pub const FORECAST_HORIZONS: &[&str] = &["3mo", "6mo", "1yr", "2yr", "3yr"];
-
 #[cfg(test)]
 mod tests {
     use super::*;

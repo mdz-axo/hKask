@@ -15,7 +15,7 @@ use tokio::sync::{RwLock, mpsc};
 /// CuratorContext — aggregates the runtime references the Curator needs.
 pub struct CuratorContext {
     handle: CuratorHandle,
-    cns: Arc<RegulationLedger>,
+    ledger: Arc<RegulationLedger>,
     /// Direct channel for issuing CuratorDirectives to Cybernetics.
     /// None when running standalone (e.g., CLI metacognition) where no
     /// CyberneticsLoop receiver exists.
@@ -55,7 +55,7 @@ impl CuratorContext {
     ///       port, and no manifest executor.
     pub fn new(
         handle: CuratorHandle,
-        cns: Arc<RegulationLedger>,
+        ledger: Arc<RegulationLedger>,
         curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
         escalation_port: Arc<dyn EscalationPort>,
     ) -> Self {
@@ -82,7 +82,7 @@ impl CuratorContext {
     ///       A2A port, and no manifest executor.
     pub fn with_nu_event_store(
         handle: CuratorHandle,
-        cns: Arc<RegulationLedger>,
+        ledger: Arc<RegulationLedger>,
         curator_directive_tx: Option<mpsc::UnboundedSender<CuratorDirective>>,
         escalation_port: Arc<dyn EscalationPort>,
         nu_event_store: Arc<dyn LedgerStoragePort>,
@@ -149,8 +149,8 @@ impl CuratorContext {
     }
 
     /// Access the CNS runtime for health checks and variety queries.
-    pub(crate) fn cns(&self) -> &Arc<RegulationLedger> {
-        &self.cns
+    pub(crate) fn ledger(&self) -> &Arc<RegulationLedger> {
+        &self.ledger
     }
 
     /// Drain pending communication events for processing.

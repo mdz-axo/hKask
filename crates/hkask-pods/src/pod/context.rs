@@ -61,7 +61,7 @@ pub struct PodContext {
     sovereignty_checker: SovereigntyChecker,
     /// Per-pod CNS runtime — used to emit `cns.semantic.published` events
     /// on semantic writes. Cloned from PodDeployment (RegulationLedger is Arc-wrapped).
-    cns: PerPodLedger,
+    ledger: PerPodLedger,
     /// CuratorPod's SemanticIndex — available on non-Curator pods for
     /// merged-lens semantic recall. `None` if no CuratorPod is active.
     curator_index: Option<Arc<std::sync::RwLock<SemanticIndex>>>,
@@ -86,7 +86,7 @@ impl PodContext {
 
             capability_checker: Arc::clone(&deployment.capability_checker),
             sovereignty_checker: deployment.sovereignty_checker.clone(),
-            cns: deployment.cns.clone(),
+            ledger: deployment.cns.clone(),
             curator_index: None,
         })
     }
@@ -95,8 +95,8 @@ impl PodContext {
     ///
     /// expect: "The system provides bounded agent pod context with capability-gated resource access"
     /// post: returns a shared reference to the pod's CNS runtime
-    pub fn cns(&self) -> &PerPodLedger {
-        &self.cns
+    pub fn ledger(&self) -> &PerPodLedger {
+        &self.ledger
     }
 
     /// Wire this context to a CuratorPod's SemanticIndex for merged-lens
@@ -352,7 +352,7 @@ impl PodContext {
             .map_err(AgentPodError::from)?;
 
         // Step 3: Emit CNS event to trigger Curator sense loop.
-        let cns = self.cns.inner().clone();
+        let ledger = self.ledger.inner().clone();
         let entity = entity.to_string();
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => {

@@ -191,7 +191,7 @@ impl WalletGasCalibrator {
     }
 
     fn default_actor() -> WebID {
-        WebID::from_persona_with_namespace(b"wallet-gas-calibrator", "cns-surface")
+        WebID::from_persona_with_namespace(b"wallet-gas-calibrator", "reg-surface")
     }
 
     /// Spawn a background task that calls `calibrate()` at the given interval.

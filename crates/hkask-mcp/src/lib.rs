@@ -37,7 +37,7 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
     ("filesystem", "hkask-mcp-filesystem"),
     ("codegraph", "hkask-mcp-codegraph"),
     ("scenarios", "hkask-mcp-scenarios"),
-    ("cns", "hkask-mcp-cns"),
+    ("regulation", "hkask-mcp-regulation"),
 ];
 
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};

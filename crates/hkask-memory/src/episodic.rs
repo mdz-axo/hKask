@@ -73,7 +73,7 @@ impl EpisodicMemory {
             event_sink: None,
         }
     }
-    pub fn with_cns(mut self, sink: Arc<dyn RegulationSink>) -> Self {
+    pub fn with_ledger(mut self, sink: Arc<dyn RegulationSink>) -> Self {
         self.event_sink = Some(sink);
         self
     }

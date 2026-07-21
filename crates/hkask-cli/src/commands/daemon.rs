@@ -89,9 +89,9 @@ async fn run_daemon() -> Result<(), CliError> {
     };
 
     // Start the loop system
-    ctx.cns().loops.start().await;
+    ctx.ledger().loops.start().await;
 
-    let loop_ids = ctx.cns().loops.registered_loop_ids().await;
+    let loop_ids = ctx.ledger().loops.registered_loop_ids().await;
     tracing::info!(target: "hkask.daemon", loops_num = loop_ids.len(), "Loop system started");
 
     // Bind daemon socket
@@ -128,7 +128,7 @@ async fn run_daemon() -> Result<(), CliError> {
         }
     }
 
-    ctx.cns().loops.shutdown();
+    ctx.ledger().loops.shutdown();
     println!("Daemon shut down.");
     Ok(())
 }

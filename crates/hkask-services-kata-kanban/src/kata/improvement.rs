@@ -32,10 +32,10 @@ impl KataEngine {
                 continue;
             }
 
-            if manifest.cns.emit_spans {
+            if manifest.ledger.emit_spans {
                 tracing::info!(
                     target: "reg.kata",
-                    namespace = %manifest.cns.span_namespace,
+                    namespace = %manifest.ledger.span_namespace,
                     step = step.ordinal,
                     action = %step.action,
                     bot = %state.learner_bot,
@@ -54,10 +54,10 @@ impl KataEngine {
             let output = self.execute_step(manifest, step, state).await?;
 
             let check_result = self.check_step_output(step, &output);
-            if manifest.cns.emit_spans {
+            if manifest.ledger.emit_spans {
                 tracing::info!(
                     target: "reg.kata",
-                    namespace = %manifest.cns.span_namespace,
+                    namespace = %manifest.ledger.span_namespace,
                     step = step.ordinal,
                     passed_check = check_result,
                     "REG"
@@ -87,21 +87,21 @@ impl KataEngine {
                 timestamp: now_rfc3339(),
             });
 
-            if manifest.cns.emit_spans {
+            if manifest.ledger.emit_spans {
                 tracing::info!(
                     target: "reg.kata",
-                    namespace = %manifest.cns.span_namespace,
+                    namespace = %manifest.ledger.span_namespace,
                     step = step.ordinal,
                     gas = state.gas_consumed,
                     "REG"
                 );
             }
 
-            if let Some(ref obs) = self.cns_observer {
-                obs(&manifest.cns.span_namespace, step.ordinal, &step.action);
+            if let Some(ref obs) = self.ledger_observer {
+                obs(&manifest.ledger.span_namespace, step.ordinal, &step.action);
             }
 
-            self.increment_cns_variety(&manifest.cns.span_namespace, "kata.practices.completed")
+            self.increment_ledger_variety(&manifest.ledger.span_namespace, "kata.practices.completed")
                 .await;
         }
 

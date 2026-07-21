@@ -8,7 +8,7 @@ INPUT: defense_layers_missing = {{ defense_layers_missing }}
 INPUT: existing_regressions = {{ existing_regressions }} (count of surface: supply-chain entries)
 INPUT: proposed_regressions = {{ proposed_regressions }} (count from current cycle)
 INPUT: previous_metric = {{ previous_metric | default(1.0) }}
-INPUT: replicant_host = {{ replicant_host }} (P12)
+INPUT: userpod_host = {{ userpod_host }} (P12)
 
 COMPUTE METRIC (weighted — evidence-based only, P8, P5):
 - Critical + high unresolved findings weight: 0.40
@@ -45,13 +45,13 @@ CNS SPAN (P9):
   (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
   (`target: "cns.supply_chain.convergence"`, message: `"CNS"`,
   operation: `"convergence_check"`, metric, previous_metric, improvement_pct,
-  blockers: [...], replicant_host, latency_ms).
+  blockers: [...], userpod_host, latency_ms).
 
 OUTPUT FORMAT (JSON):
 `{convergence_metric, previous_metric, improvement_pct, converged: bool,
 blockers: [...], defense_layers_present, defense_layers_missing,
 existing_regressions_count, proposed_regressions_count, unresolved_critical,
-unresolved_high, taxonomy_coverage, residual_dependency_risk, replicant_host,
+unresolved_high, taxonomy_coverage, residual_dependency_risk, userpod_host,
 cns_span_emitted: true}`.
 
 5W1H GATE (P5 — minimal): Who = replicant host; What = convergence metric;
@@ -73,7 +73,7 @@ OCAP BOUNDARY (P4): Metric computed from workspace manifest evidence only;
 no external dependency download; no ambient dependency scanning.
 CNS REGULATION (P9): Span emitted unconditionally — namespace registered
 in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
-REPLICANT HOST (P12): `replicant_host` mandatory.
+REPLICANT HOST (P12): `userpod_host` mandatory.
 VISIBILITY (P11): Metric output public; no hidden security posture.
 SAFETY FLOOR (P3.1): Supply chain convergence protects Generative Space —
 unconverged metric indicates container risk.
@@ -119,5 +119,5 @@ cycle if persistence is enabled by user). If no previous cycle, assumes
 CNS SPAN EMITTED: `cns.supply_chain.convergence` is registered, so the
 span is always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict
-OUTPUT FORMAT (JSON): {convergence_metric, previous_metric, improvement_pct, converged: bool, blockers: [...], defense_layers_present, defense_layers_missing, existing_regressions_count, proposed_regressions_count, unresolved_critical, unresolved_high, taxonomy_coverage, residual_dependency_risk, replicant_host, cns_span_emitted: true}
+OUTPUT FORMAT (JSON): {convergence_metric, previous_metric, improvement_pct, converged: bool, blockers: [...], defense_layers_present, defense_layers_missing, existing_regressions_count, proposed_regressions_count, unresolved_critical, unresolved_high, taxonomy_coverage, residual_dependency_risk, userpod_host, cns_span_emitted: true}
 

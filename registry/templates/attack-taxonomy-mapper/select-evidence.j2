@@ -25,7 +25,7 @@ Convergence baseline: {{ convergence_metric | default(1.0) }}
 
 ACTION: Emit `cns.taxonomy.select` span (P9, P12) with discovered evidence sources, findings to map, and existing mapping count.
 ACTION: Read `security/regressions/` for entries with `surface: supply-chain` and any existing `taxonomy_mapping` field.
-ACTION: Return JSON: `{source, findings_to_map: [...], existing_taxonomy_mappings: [...], evidence_sources: [...], replicant_host}`.
+ACTION: Return JSON: `{source, findings_to_map: [...], existing_taxonomy_mappings: [...], evidence_sources: [...], userpod_host}`.
 CONSTRAINT: Do NOT fabricate findings. Only list findings actually produced by `supply-chain-sentinel` or `kali-audit`.
 CONSTRAINT: Each discovered finding must include concrete reference (regression ID, manifest path, finding source skill).
 CONSTRAINT: Use `public` visibility; no hidden taxonomy mappings (P3, P4).
@@ -37,7 +37,7 @@ CONSTRAINT: Reference concrete taxonomy: OSC&R framework (Open Software Supply C
 CONSTRAINT: Every taxonomy mapping must cite finding reference, CWE category, OSC&R tactic + technique — not summary description alone.
 CONSTRAINT: If target_source is 'auto', discover all `surface: supply-chain` regression entries and any `supply-chain-sentinel` findings output. Prioritize entries without existing `taxonomy_mapping` field.
 CONSTRAINT: Read actual regression YAML files (not synthetic) before proposing any taxonomy mapping.
-CONSTRAINT: Every output must include `replicant_host` identity (P12) — no anonymous taxonomy mapping.
+CONSTRAINT: Every output must include `userpod_host` identity (P12) — no anonymous taxonomy mapping.
 CONSTRAINT: Apply pragmatic-cybernetics (like `bug-hunt` probe phase): trace mapping polarity (does the OSC&R technique indicate increasing or decreasing risk?), check variety (are there alternative OSC&R techniques for the same finding?), perform Good Regulator check (is the defense layer mapped to the correct OSC&R technique?).
 CONSTRAINT: If `security/regressions/` contains entries with `taxonomy_mapping` field, read them as input and skip proposing duplicates.
 CONSTRAINT: Propose `taxonomy_mapping` field format (backward-compatible optional field):

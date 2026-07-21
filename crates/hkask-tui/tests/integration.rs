@@ -327,13 +327,13 @@ fn configuration_renders() {
 
 #[test]
 fn terminal_renders() {
-    let w = TerminalWindow::new(window_id(), bridge());
+    let w = TerminalWindow::new(window_id());
     render_smoke(&w, 80, 24);
 }
 
 #[test]
 fn editor_renders() {
-    let w = EditorWindow::new(window_id(), bridge());
+    let w = EditorWindow::new(window_id());
     render_smoke(&w, 80, 24);
 }
 
@@ -391,8 +391,8 @@ fn all_windows_render_at_multiple_sizes() {
         Box::new(CompaniesWindow::new(window_id(), b.clone())),
         Box::new(MatrixWindow::new(window_id(), b.clone())),
         Box::new(ConfigurationWindow::new(window_id(), b.clone())),
-        Box::new(TerminalWindow::new(window_id(), b.clone())),
-        Box::new(EditorWindow::new(window_id(), b.clone())),
+        Box::new(TerminalWindow::new(window_id())),
+        Box::new(EditorWindow::new(window_id())),
         Box::new(TrainingWindow::new(window_id(), b.clone())),
         Box::new(MediaWindow::new(window_id(), b.clone())),
         Box::new(SkillsWindow::new(window_id(), b.clone())),
@@ -447,7 +447,7 @@ fn memory_sections_cycle() {
 
 #[test]
 fn terminal_input_roundtrip() {
-    let mut w = TerminalWindow::new(window_id(), bridge());
+    let mut w = TerminalWindow::new(window_id());
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     render_smoke(&w, 80, 24);
     assert!(w.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE)));
@@ -461,7 +461,7 @@ fn terminal_input_roundtrip() {
 
 #[test]
 fn editor_text_operations() {
-    let mut w = EditorWindow::new(window_id(), bridge());
+    let mut w = EditorWindow::new(window_id());
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     render_smoke(&w, 80, 24);
     assert!(w.handle_key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE)));
@@ -484,8 +484,8 @@ fn text_windows_handle_multibyte_cursor_operations() {
     ];
     let b = bridge();
     let mut chat = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
-    let mut terminal = TerminalWindow::new(window_id(), b.clone());
-    let mut editor = EditorWindow::new(window_id(), b);
+    let mut terminal = TerminalWindow::new(window_id());
+    let mut editor = EditorWindow::new(window_id());
 
     for key in keys {
         let event = KeyEvent::new(key, KeyModifiers::NONE);
@@ -671,7 +671,7 @@ fn kanban_snapshot_shows_board() {
 
 #[test]
 fn terminal_snapshot_shows_prompt() {
-    let w = TerminalWindow::new(window_id(), bridge());
+    let w = TerminalWindow::new(window_id());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
     assert!(
@@ -682,7 +682,7 @@ fn terminal_snapshot_shows_prompt() {
 
 #[test]
 fn editor_snapshot_renders() {
-    let w = EditorWindow::new(window_id(), bridge());
+    let w = EditorWindow::new(window_id());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
     assert!(!text.is_empty(), "Editor should render content");

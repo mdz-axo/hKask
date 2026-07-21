@@ -14,7 +14,7 @@ pub(super) struct Foundation {
     pub goal_repo: Arc<SqliteGoalRepository>,
     pub sovereignty_boundary_store: SovereigntyBoundaryStore,
     pub user_store: Arc<std::sync::Mutex<UserStore>>,
-    pub cns_runtime: Arc<RwLock<RegulationLedger>>,
+    pub ledger_runtime: Arc<RwLock<RegulationLedger>>,
     pub seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
     pub cns_event_sink: Arc<dyn RegulationSink>,
     /// Abstracted event store for gas report queries and calibration.
@@ -101,20 +101,20 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
     }
 
     // CNS runtime
-    let cns_runtime = Arc::new(RwLock::new(RegulationLedger::with_threshold(
+    let ledger_runtime = Arc::new(RwLock::new(RegulationLedger::with_threshold(
         config.cns_threshold,
     )));
 
     // Reset variety counters for fresh session — prevents stale deficit
     // values from prior sessions from triggering false algedonic alerts.
     {
-        let cns = cns_runtime.read().await;
+        let ledger = ledger_runtime.read().await;
         cns.reset_variety().await;
     }
 
     // Seam watcher — non-fatal if inventory unavailable.
     let seam_watcher: Arc<RwLock<Option<SeamWatcher>>> = {
-        let cns = cns_runtime.read().await;
+        let ledger = ledger_runtime.read().await;
         if let Some(watcher) = SeamWatcher::load() {
             watcher.register_domains(&cns).await;
             let summary = watcher.summary();
@@ -136,7 +136,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
     };
 
     // Spawn periodic seam drift check (background watcher).
-    seam_monitor::spawn_seam_drift_check(&seam_watcher, &cns_runtime, &cns_event_sink);
+    seam_monitor::spawn_seam_drift_check(&seam_watcher, &ledger_runtime, &cns_event_sink);
 
     Ok(Foundation {
         db,
@@ -147,7 +147,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         goal_repo,
         sovereignty_boundary_store,
         user_store,
-        cns_runtime,
+        ledger_runtime,
         seam_watcher,
         cns_event_sink: cns_event_sink.clone(),
         gas_event_store,

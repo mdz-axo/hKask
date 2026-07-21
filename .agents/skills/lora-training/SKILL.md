@@ -44,7 +44,7 @@ This skill does not train, load, initialize, merge, or evaluate models.
 - Read only declared workspace paths. Do not download models, call remote
   services without explicit consent, or execute initialization, forward,
   backward, merge, training, or evaluation.
-- Require `replicant_host` for every action and emit the corresponding registered
+- Require `userpod_host` for every action and emit the corresponding registered
   `cns.lora.*` span.
 
 ## Instructions
@@ -119,14 +119,14 @@ Every finding has exactly these fields:
 - `epistemic_mode`: `declarative | probabilistic | subjunctive`
 - `citation`
 - `recommendation`
-- `replicant_host`
+- `userpod_host`
 
 Do not create alternate finding shapes. A recommendation never overwrites
 `selected_method`, and unavailable evidence never becomes an observed violation.
 
 ### `lora-training/report`
 
-1. Validate `replicant_host` and consume normalized findings without adding,
+1. Validate `userpod_host` and consume normalized findings without adding,
    removing, renaming, repairing, or reclassifying fields.
 2. Present complete findings unchanged; grouped views may organize them by phase,
    state, or severity only.
@@ -179,7 +179,7 @@ Do not create alternate finding shapes. A recommendation never overwrites
 - The registry manifest and these four `.j2` templates are authoritative over
   this companion.
 - All four templates are public. No hidden training controls or parameters.
-- Preserve operator sovereignty and authenticated `replicant_host` identity.
+- Preserve operator sovereignty and authenticated `userpod_host` identity.
 - Emit only values, findings, states, citations, and measurements supported by
   declared evidence. Do not invent defaults, snippets, line numbers, benchmark
   results, training outcomes, or regression counts.

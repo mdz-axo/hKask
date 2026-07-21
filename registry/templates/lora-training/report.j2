@@ -1,4 +1,4 @@
-{# goal: Report phase-aware training findings without changing their schema or classification. Preserve the operator-selected method, separate recommendations from readiness, propose evidence-backed regressions, emit cns.lora.report (P9), and require replicant_host (P12). #}
+{# goal: Report phase-aware training findings without changing their schema or classification. Preserve the operator-selected method, separate recommendations from readiness, propose evidence-backed regressions, emit cns.lora.report (P9), and require userpod_host (P12). #}
 [inference]
 template_type: KnowAct
 lexicon_terms:
@@ -13,7 +13,7 @@ contract:
     findings: array
     gate_results: object
     existing_regressions: array
-    replicant_host: string
+    userpod_host: string
   output:
     findings_grouped: array
     proposed_regressions: array
@@ -37,7 +37,7 @@ thinking_budget = "full"
 INPUT: findings = {{ findings }} (normalized array from audit-config)
 INPUT: gate_results = {{ gate_results }}
 INPUT: existing_regressions = {{ existing_regressions }}
-INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory)
+INPUT: userpod_host = {{ userpod_host }} (P12 — mandatory)
 
 AUTHORITATIVE INPUT CONTRACT
 
@@ -61,7 +61,7 @@ finding unchanged with exactly this schema:
 - `epistemic_mode`
 - `citation`: array
 - `recommendation`
-- `replicant_host`
+- `userpod_host`
 
 Do not add, remove, rename, reinterpret, upgrade, downgrade, or reclassify any
 finding field. In particular:
@@ -75,8 +75,8 @@ finding field. In particular:
 REPORT ACTIONS
 
 1. Validate losslessly:
-   - Reject report synthesis if `replicant_host` is absent or if a finding's
-     `replicant_host` conflicts with it; preserve P12 identity.
+   - Reject report synthesis if `userpod_host` is absent or if a finding's
+     `userpod_host` conflicts with it; preserve P12 identity.
    - Record malformed finding inputs as `input_contract_errors` outside the
      findings array. Do not repair or reclassify them.
 2. Present `findings` unchanged. `findings_grouped` may contain views grouped
@@ -180,7 +180,7 @@ EVIDENCE INTEGRITY
 CNS SPAN (P9)
 Emit `cns.lora.report` with exact counts by phase, state, severity, and
 `evidence_kind`; proposed regression count; selected_method; readiness
-verdict; contract-gap count; replicant_host; latency_ms. Namespace remains
+verdict; contract-gap count; userpod_host; latency_ms. Namespace remains
 registered in `CANONICAL_NAMESPACES`. Emit no anonymous action.
 
 OCAP BOUNDARY (P4)
@@ -202,11 +202,11 @@ JSON object with:
 - `contract_gaps`: requirement/evidence gaps without finding reclassification
 - `proposed_regressions`: pending human-review entries
 - `input_contract_errors`
-- `replicant_host`
+- `userpod_host`
 - `source_citations`
 - `cns_span_reference`
 
-5W1H GATE CHECK (P5): Who = operator / replicant_host; What = lossless
+5W1H GATE CHECK (P5): Who = operator / userpod_host; What = lossless
 phase-aware audit report; Where = supplied audit artifacts; When = after
 configuration/harness audit and whenever runtime/post-training evidence is
 supplied; Why = transparent readiness without fabricated execution; How =

@@ -1,4 +1,4 @@
-//! hkask-mcp-cns — binary entrypoint.
+//! hkask-mcp-regulation — binary entrypoint.
 //!
 //! Thin wrapper around the CNS server library.
 

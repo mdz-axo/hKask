@@ -51,7 +51,7 @@ pub struct PodDeployment {
     /// Dedicated database. The file IS the pod. No shared store.
     pub storage: PerPodStorage,
     /// Dedicated CNS runtime. Variety counters scoped to this pod.
-    pub cns: PerPodLedger,
+    pub ledger: PerPodLedger,
     /// Capability checker for OCAP verification
     pub capability_checker: Arc<CapabilityChecker>,
     /// Sovereignty checker wired to consent port
@@ -259,7 +259,7 @@ impl PodFactory {
         let (storage, memory_adapter) = self.create_pod_storage(pod_id, name, webid, pod_kind)?;
 
         // 3. Initialize per-pod CNS runtime
-        let cns = PerPodLedger::scoped(pod_id);
+        let ledger = PerPodLedger::scoped(pod_id);
 
         let sovereignty_checker = pod.sovereignty_checker.clone();
 

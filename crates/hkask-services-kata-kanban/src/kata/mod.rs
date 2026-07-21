@@ -83,7 +83,7 @@ pub struct KataEngine {
     /// Receives (kata_type, learner_bot) and returns Ok(()) if consented.
     consent_check: Option<ConsentCheckFn>,
     /// Optional CNS observer — called after each step with (namespace, step_ordinal, action).
-    cns_observer: Option<LedgerObserverFn>,
+    ledger_observer: Option<LedgerObserverFn>,
     /// Kata practice history for habit tracking and automaticity scoring.
     history: Option<KataHistory>,
     /// Optional SQLite-backed kata history store for concurrent, queryable persistence.
@@ -93,7 +93,7 @@ pub struct KataEngine {
     metric_collector: Option<MetricCollectorFn>,
     /// Optional CNS runtime for variety counter increments and algedonic alert checks.
     /// When present, replaces tracing-only spans with actual CNS state mutations.
-    cns_runtime: Option<Arc<RwLock<RegulationLedger>>>,
+    ledger_runtime: Option<Arc<RwLock<RegulationLedger>>>,
     /// Optional task-scoped gas accountant. When present, each inference
     /// call deducts its token cost from the bound kanban task's budget.
     task_gas_accountant: Option<TaskGasAccountantFn>,
@@ -109,11 +109,11 @@ impl KataEngine {
             inference,
             registry,
             consent_check: None,
-            cns_observer: None,
+            ledger_observer: None,
             history: None,
             history_store: None,
             metric_collector: None,
-            cns_runtime: None,
+            ledger_runtime: None,
             task_gas_accountant: None,
         }
     }
@@ -152,13 +152,13 @@ impl KataEngine {
     ///
     /// `[P5]` Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  observer must be a valid Fn(&str, u32, &str)
-    /// post: returns self with cns_observer set; observer is called after each kata step
+    /// post: returns self with ledger_observer set; observer is called after each kata step
     #[must_use]
-    pub fn with_cns<F>(mut self, observer: F) -> Self
+    pub fn with_ledger<F>(mut self, observer: F) -> Self
     where
         F: Fn(&str, u32, &str) + Send + Sync + 'static,
     {
-        self.cns_observer = Some(Arc::new(observer));
+        self.ledger_observer = Some(Arc::new(observer));
         self
     }
 
@@ -209,10 +209,10 @@ impl KataEngine {
     ///
     /// `[P5]` Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
     /// pre:  cns must be a valid `Arc<RwLock<RegulationLedger>>`
-    /// post: returns self with cns_runtime set; kata cycles will increment variety and check alerts
+    /// post: returns self with ledger_runtime set; kata cycles will increment variety and check alerts
     #[must_use]
-    pub fn with_cns_runtime(mut self, cns: Arc<RwLock<RegulationLedger>>) -> Self {
-        self.cns_runtime = Some(cns);
+    pub fn with_ledger_runtime(mut self, ledger: Arc<RwLock<RegulationLedger>>) -> Self {
+        self.ledger_runtime = Some(ledger);
         self
     }
 
@@ -312,11 +312,11 @@ impl KataEngine {
                 ..Default::default()
             };
 
-            if manifest.cns.emit_spans {
+            if manifest.ledger.emit_spans {
                 // P9: CNS span
                 tracing::info!(
                     target: "reg.kata",
-                    namespace = %manifest.cns.span_namespace,
+                    namespace = %manifest.ledger.span_namespace,
                     kata_type = "bundle",
                     bot = %learner_bot,
                     "REG"
@@ -343,7 +343,7 @@ impl KataEngine {
         // P9: CNS span
         tracing::info!(
             target: "reg.kata",
-            namespace = %manifest.cns.span_namespace,
+            namespace = %manifest.ledger.span_namespace,
             selected = %selected,
             manifest = %kata_manifest_name,
             bot = %learner_bot,
@@ -390,10 +390,10 @@ impl KataEngine {
                 self.capture_before_metrics(manifest, learner_bot, &mut state);
 
                 // P9: CNS span
-                if manifest.cns.emit_spans {
+                if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
-                        namespace = %manifest.cns.span_namespace,
+                        namespace = %manifest.ledger.span_namespace,
                         kata_type = "improvement",
                         bot = %learner_bot,
                         "REG"
@@ -411,10 +411,10 @@ impl KataEngine {
                 self.check_cns_alerts(manifest, "improvement").await;
 
                 // P9: CNS span
-                if manifest.cns.emit_spans {
+                if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
-                        namespace = %manifest.cns.span_namespace,
+                        namespace = %manifest.ledger.span_namespace,
                         steps = result.steps_completed,
                         gas = result.gas_consumed,
                         has_signal = result.improvement_signal.is_some(),
@@ -429,10 +429,10 @@ impl KataEngine {
                     check("coaching", learner_bot)?;
                 }
                 // P9: CNS span
-                if manifest.cns.emit_spans {
+                if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
-                        namespace = %manifest.cns.span_namespace,
+                        namespace = %manifest.ledger.span_namespace,
                         kata_type = "coaching",
                         bot = %learner_bot,
                         "REG"
@@ -445,10 +445,10 @@ impl KataEngine {
                 self.check_cns_alerts(manifest, "coaching").await;
 
                 // P9: CNS span
-                if manifest.cns.emit_spans {
+                if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
-                        namespace = %manifest.cns.span_namespace,
+                        namespace = %manifest.ledger.span_namespace,
                         questions = result.steps_completed,
                         gas = result.gas_consumed,
                         "REG"
@@ -466,10 +466,10 @@ impl KataEngine {
                     .unwrap_or(0.0);
 
                 // P9: CNS span
-                if manifest.cns.emit_spans {
+                if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
-                        namespace = %manifest.cns.span_namespace,
+                        namespace = %manifest.ledger.span_namespace,
                         kata_type = "starter",
                         bot = %learner_bot,
                         automaticity_before = auto_before,
@@ -489,14 +489,14 @@ impl KataEngine {
 
                 // CNS automaticity measurement: track habit formation progress
                 if auto_after > 0.0 {
-                    self.increment_cns_variety(
-                        &manifest.cns.span_namespace,
+                    self.increment_ledger_variety(
+                        &manifest.ledger.span_namespace,
                         "kata.automaticity.score",
                     )
                     .await;
                     if auto_after > 0.5 {
-                        self.increment_cns_variety(
-                            &manifest.cns.span_namespace,
+                        self.increment_ledger_variety(
+                            &manifest.ledger.span_namespace,
                             "kata.habit.formation",
                         )
                         .await;
@@ -507,10 +507,10 @@ impl KataEngine {
                 self.check_cns_alerts(manifest, "starter").await;
 
                 // P9: CNS span
-                if manifest.cns.emit_spans {
+                if manifest.ledger.emit_spans {
                     tracing::info!(
                         target: "reg.kata",
-                        namespace = %manifest.cns.span_namespace,
+                        namespace = %manifest.ledger.span_namespace,
                         practices = result.steps_completed,
                         automaticity_after = auto_after,
                         automaticity_delta = result.automaticity_delta,

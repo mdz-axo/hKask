@@ -9,7 +9,7 @@ INPUT: threats = {{ threats }} (structured array from classify-threat phase)
 INPUT: defense_layers_firing = {{ defense_layers_firing }}
 INPUT: defense_layers_silent = {{ defense_layers_silent }}
 INPUT: existing_regressions = {{ existing_regressions }}
-INPUT: replicant_host = {{ replicant_host }} (P12 — mandatory)
+INPUT: userpod_host = {{ userpod_host }} (P12 — mandatory)
 
 SYNTHESIS ACTIONS:
 1. Group threats by severity: critical, high, medium, low.
@@ -18,12 +18,12 @@ SYNTHESIS ACTIONS:
    regulation action and regression entry.
 3. For each critical/high threat:
    a. Emit `cns.regulation` event (target: `"cns.regulation"`, operation:
-      `"runtime_threat_detected"`, threat_type, severity, replicant_host).
+      `"runtime_threat_detected"`, threat_type, severity, userpod_host).
       This feeds the CyberneticsLoop for regulation action selection.
    b. If blocking is warranted (critical severity, defense-layer bypass
       detected), emit `cns.guard.violation` (target: `"cns.guard.violation"`,
       operation: `"runtime_block"`, threat_type, signal_target,
-      replicant_host). This triggers defensive blocking.
+      userpod_host). This triggers defensive blocking.
 4. Each regression proposal must use exact format from
    `security/regressions/README.md`: `id: RR-XXXX` (human assigns final
    number — this skill proposes the entry for review), `title`, `surface:
@@ -47,11 +47,11 @@ SYNTHESIS ACTIONS:
    timestamp + signal value), `signal_target`, `timestamp`, `baseline_value`,
    `deviation_pct`, `cwe_reference`, `owasp_reference`, `atlas_reference`,
    `taxonomy_mapping`, `remediation_recommendation`, `regulation_action_emitted`
-   (bool), `guard_violation_emitted` (bool), `replicant_host`.
+   (bool), `guard_violation_emitted` (bool), `userpod_host`.
 
 CNS SPAN (P9): Emit `cns.runtime.regulate` with threats count by severity,
 defense layers firing/silent, proposed regression count, regulation events
-emitted, guard violations emitted, verdict, replicant_host, latency.
+emitted, guard violations emitted, verdict, userpod_host, latency.
 
 DOWNSTREAM CNS SPANS (P9 — already registered):
 - `cns.regulation` — emit per critical/high threat (feeds CyberneticsLoop).
@@ -72,7 +72,7 @@ JSON object with fields:
 recommendation, regulation/guard span emission status), `defense_layers_firing`,
 `defense_layers_silent`, `proposed_regressions` (YAML-format array for human
 review), `regulation_events_emitted` (count), `guard_violations_emitted`
-(count), `verdict`, `replicant_host`, `source_citations`, `cns_span_reference`.
+(count), `verdict`, `userpod_host`, `source_citations`, `cns_span_reference`.
 
 5W1H GATE CHECK (P5): Who = running application / replicant host; What =
 threat synthesis + regulation action; Where = deployed runtime environment;
@@ -100,7 +100,7 @@ external endpoint scanning; no OS-level process inspection.
 CNS REGULATION (P9): `cns.runtime.regulate` emitted unconditionally
 (namespace registered). `cns.regulation` and `cns.guard.violation` emitted
 for downstream consumption (both registered).
-REPLICANT HOST (P12): `replicant_host` mandatory in all outputs.
+REPLICANT HOST (P12): `userpod_host` mandatory in all outputs.
 VISIBILITY (P11): Regression proposals `status: pending` — public
 transparency, not hidden control.
 SAFETY FLOOR (P3.1): Runtime threat detection protects the Generative Space

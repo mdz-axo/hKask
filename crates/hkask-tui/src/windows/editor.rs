@@ -2,8 +2,6 @@
 //!
 //! Provides line-based navigation, insert/delete, and basic editing.
 
-use std::sync::Arc;
-
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -11,14 +9,11 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
-use crate::repl_bridge::ReplBridge;
 use crate::text_cursor;
 use crate::window::{Window, WindowId, WindowKind};
 
 pub struct EditorWindow {
     id: WindowId,
-    #[allow(dead_code)]
-    bridge: Arc<dyn ReplBridge>,
     lines: Vec<String>,
     cursor_line: usize,
     cursor_col: usize,
@@ -28,10 +23,9 @@ pub struct EditorWindow {
 }
 
 impl EditorWindow {
-    pub fn new(id: WindowId, bridge: Arc<dyn ReplBridge>) -> Self {
+    pub fn new(id: WindowId) -> Self {
         Self {
             id,
-            bridge,
             lines: vec![String::new()],
             cursor_line: 0,
             cursor_col: 0,

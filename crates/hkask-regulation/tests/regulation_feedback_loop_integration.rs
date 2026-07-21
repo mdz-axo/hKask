@@ -14,7 +14,7 @@ use hkask_types::event::{CyclePhase, Span, SpanNamespace};
 
 #[test]
 fn cns_detects_perturbation() {
-    let cns = MockRegulationLedger::new();
+    let ledger = MockRegulationLedger::new();
     assert!(cns.is_homeostatic(), "CNS should start homeostatic");
 
     let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
@@ -31,7 +31,7 @@ fn cns_detects_perturbation() {
 
 #[test]
 fn cns_restores_homeostasis_after_time() {
-    let cns = MockRegulationLedger::new();
+    let ledger = MockRegulationLedger::new();
 
     // Perturb the system
     let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
@@ -55,7 +55,7 @@ fn cns_restores_homeostasis_after_time() {
 
 #[test]
 fn cns_throttles_tool_on_budget_exceeded() {
-    let cns = MockRegulationLedger::with_state(MockCnsState::perturbed("tool-x"));
+    let ledger = MockRegulationLedger::with_state(MockCnsState::perturbed("tool-x"));
 
     assert!(!cns.is_homeostatic());
     assert_eq!(cns.tool_state("tool-x"), MockToolState::Throttled);
@@ -64,7 +64,7 @@ fn cns_throttles_tool_on_budget_exceeded() {
 
 #[test]
 fn cns_tracks_variety_by_domain() {
-    let cns = MockRegulationLedger::new();
+    let ledger = MockRegulationLedger::new();
 
     cns.record_variety("reg.tool");
     cns.record_variety("reg.tool");
@@ -77,7 +77,7 @@ fn cns_tracks_variety_by_domain() {
 
 #[test]
 fn cns_multiple_perturbations_accumulate_signals() {
-    let cns = MockRegulationLedger::new();
+    let ledger = MockRegulationLedger::new();
 
     let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
     cns.inject(test_event(span, CyclePhase::Sense, None));

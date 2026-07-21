@@ -104,7 +104,7 @@ pub struct BundleManifest {
     pub rjoule: RjouleConfig,
     pub error_handling: ErrorHandlingConfig,
     pub ocap: OcapConfig,
-    pub cns: BundleCnsConfig,
+    pub ledger: BundleCnsConfig,
     pub audit: BundleAuditConfig,
     #[serde(default)]
     pub functional_role: Option<String>,

@@ -95,29 +95,6 @@ struct MirrorTransfer {
     token_id: Option<String>,
 }
 
-// These types are defined for future use (account balance queries).
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct MirrorAccountResponse {
-    account: String,
-    balance: Option<MirrorBalance>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct MirrorBalance {
-    balance: u64,
-    tokens: Option<Vec<MirrorTokenBalance>>,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Deserialize)]
-struct MirrorTokenBalance {
-    #[serde(rename = "token_id")]
-    token_id: String,
-    balance: u64,
-}
-
 /// Hedera chain port — HTS USDC on Hedera via mirror node REST API + gRPC.
 ///
 /// # Ownership
@@ -652,7 +629,10 @@ mod integration_tests {
     }
 
     impl RegulationSink for CaptureSink {
-        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
+        fn persist(
+            &self,
+            event: &RegulationRecord,
+        ) -> Result<(), hkask_types::InfrastructureError> {
             *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
             Ok(())
         }

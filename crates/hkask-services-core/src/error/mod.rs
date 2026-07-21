@@ -715,12 +715,12 @@ mod tests {
     fn mcp_tool_preserves_identity() {
         let e = ServiceError::McpTool {
             kind: hkask_types::McpErrorKind::RateLimited,
-            server: "mcp-cns".into(),
+            server: "mcp-regulation".into(),
             tool: "sense".into(),
             message: "rate limit hit".into(),
         };
         assert_eq!(e.domain(), DomainKind::Mcp);
-        assert!(e.to_string().contains("mcp-cns"));
+        assert!(e.to_string().contains("mcp-regulation"));
         assert!(e.to_string().contains("sense"));
         assert!(e.to_string().contains("rate_limited"));
     }

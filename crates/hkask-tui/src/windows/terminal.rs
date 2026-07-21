@@ -18,14 +18,11 @@ use ratatui::style::{Color, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crate::repl_bridge::ReplBridge;
 use crate::text_cursor;
 use crate::window::{Window, WindowId, WindowKind};
 
 pub struct TerminalWindow {
     id: WindowId,
-    #[allow(dead_code)]
-    bridge: Arc<dyn ReplBridge>,
     input: String,
     cursor_pos: usize,
     output: Arc<Mutex<Vec<String>>>,
@@ -40,7 +37,7 @@ pub struct TerminalWindow {
 }
 
 impl TerminalWindow {
-    pub fn new(id: WindowId, bridge: Arc<dyn ReplBridge>) -> Self {
+    pub fn new(id: WindowId) -> Self {
         let output = Arc::new(Mutex::new(Vec::new()));
         let (tx, rx) = mpsc::channel();
         let (master, pty_writer) = match spawn_shell(output.clone(), tx) {

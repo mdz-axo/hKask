@@ -26,10 +26,10 @@ impl KataEngine {
             let streak = history.current_streak(&state.learner_bot, &today);
             let needs_intervention = history.needs_habit_intervention(&state.learner_bot, &today);
 
-            if manifest.cns.emit_spans {
+            if manifest.ledger.emit_spans {
                 tracing::info!(
                     target: "reg.kata",
-                    namespace = %manifest.cns.span_namespace,
+                    namespace = %manifest.ledger.span_namespace,
                     bot = %state.learner_bot,
                     automaticity = auto,
                     streak_days = streak,
@@ -41,7 +41,7 @@ impl KataEngine {
             if needs_intervention {
                 tracing::warn!(
                     target: "reg.kata",
-                    namespace = %manifest.cns.span_namespace,
+                    namespace = %manifest.ledger.span_namespace,
                     bot = %state.learner_bot,
                     days_since_last = history.days_since_last(&state.learner_bot, &today),
                     "REG"
@@ -76,17 +76,17 @@ impl KataEngine {
                 timestamp: now_rfc3339(),
             });
 
-            if manifest.cns.emit_spans {
+            if manifest.ledger.emit_spans {
                 tracing::info!(
                     target: "reg.kata",
-                    namespace = %manifest.cns.span_namespace,
+                    namespace = %manifest.ledger.span_namespace,
                     practice = %practice.name,
                     bot = %state.learner_bot,
                     "REG"
                 );
             }
 
-            self.increment_cns_variety(&manifest.cns.span_namespace, "kata.practices.completed")
+            self.increment_ledger_variety(&manifest.ledger.span_namespace, "kata.practices.completed")
                 .await;
         }
 

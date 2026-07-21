@@ -21,7 +21,7 @@ description: >
 
 # Runtime Posture Monitor
 
-{# goal: Observe runtime telemetry (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed replicant host (P4 runtime boundary). Classify runtime threats (endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly). Map to MITRE CWE-1357/CWE-829/CWE-200, OWASP LLM06/LLM07, ATLAS AML.TA0010. Emit cns.regulation and cns.guard.violation for downstream action. Propose concrete RR-NNNN.yaml entries (surface: runtime, status: pending, concrete grep pattern against span target). Emit cns.runtime.* spans (P9). Compute convergence metric from real runtime evidence only. No synthetic signals; no external endpoint scanning; replicant_host mandatory (P12). #}
+{# goal: Observe runtime telemetry (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed replicant host (P4 runtime boundary). Classify runtime threats (endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly). Map to MITRE CWE-1357/CWE-829/CWE-200, OWASP LLM06/LLM07, ATLAS AML.TA0010. Emit cns.regulation and cns.guard.violation for downstream action. Propose concrete RR-NNNN.yaml entries (surface: runtime, status: pending, concrete grep pattern against span target). Emit cns.runtime.* spans (P9). Compute convergence metric from real runtime evidence only. No synthetic signals; no external endpoint scanning; userpod_host mandatory (P12). #}
 
 Runtime security posture monitoring. Observes hKask's own CNS telemetry
 (`hkask.*` performative spans, `cns.guard.*` violations, `cns.regulation`
@@ -76,7 +76,7 @@ posture convergence metric.
   runtime monitoring.
 - **P11 Visibility:** Regression proposals default `status: pending`
   (human-curated ratchet, per `security/regressions/README.md`).
-- **P12 Replicant host mandate:** Every action includes `replicant_host`.
+- **P12 Replicant host mandate:** Every action includes `userpod_host`.
 - **P3.1 Safety floor:** Runtime threat detection protects the Generative
   Space container — runtime compromise is destructive to the space itself.
 - **P4 OCAP boundaries:** Observes only hKask's own CNS telemetry; no
@@ -118,7 +118,7 @@ posture convergence metric.
    `action_distribution_monitoring` (`cns.regulation.loop_quality`
    observed).
 5. Return JSON: `{signal, signal_sources: [...], signal_types: [...],
-   defense_layers: [...], existing_regressions: [...], replicant_host}`.
+   defense_layers: [...], existing_regressions: [...], userpod_host}`.
 6. Emit `cns.runtime.select` CNS span (P9) with discovered signal sources,
    signal selection, regression count, defense layers, host identity,
    latency metric.
@@ -164,7 +164,7 @@ posture convergence metric.
 10. Emit `cns.runtime.classify` CNS span per classified threat
     (`target: "cns.runtime.classify"`, message: `"CNS"`, operation:
     `"classify_threat"`, threat_type, signal_target, severity,
-    replicant_host, latency_ms).
+    userpod_host, latency_ms).
 
 CONSTRAINT — Evidence integrity (P8):
 - No synthetic span observations. Every `evidence_snippet` must be
@@ -178,7 +178,7 @@ CONSTRAINT — Evidence integrity (P8):
 - Source citations must reference concrete URLs or documents actually
   consulted: MITRE CWE definitions, OWASP LLM Top 10 2025, MITRE ATLAS,
   hkask-guard pipeline docs, hkask-cns cybernetics loop docs.
-- Every finding must include `replicant_host` identity (P12) — no
+- Every finding must include `userpod_host` identity (P12) — no
   anonymous runtime scanning.
 - When referencing `security/regressions/`, read actual YAML files; do
   not invent regression entries.
@@ -200,7 +200,7 @@ CONSTRAINT — Evidence integrity (P8):
    `evidence_snippet`, `severity`, `cwe_reference`, `owasp_reference`,
    `atlas_reference`, `taxonomy_mapping`, `defense_layers_firing`,
    `defense_layers_silent`, `remediation_recommendation`,
-   `regulation_action_emitted`, `guard_violation_emitted`, `replicant_host`.
+   `regulation_action_emitted`, `guard_violation_emitted`, `userpod_host`.
 3. For each critical/high threat:
    a. Emit `cns.regulation` event (feeds CyberneticsLoop for regulation
       action selection).
@@ -322,7 +322,7 @@ catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
 - Do NOT invent span targets not emitted by the running system.
 - Do NOT claim external endpoint scanning or OS-level process inspection
   capability — CNS telemetry observation only (P4 boundary enforcement).
-- Every scan action includes `replicant_host` identity (P12).
+- Every scan action includes `userpod_host` identity (P12).
 - Every security-sensitive runtime operation emits `cns.runtime.*` span.
   All four namespaces are registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`) and emitted unconditionally.

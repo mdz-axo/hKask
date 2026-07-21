@@ -388,7 +388,7 @@ pub(super) fn init_repl_state(
             .with_energy_budget(repl_settings.gas_cap, repl_settings.gas_cap)
             .with_model(initial_model_str),
     );
-    rt.block_on(ctx.cns().loops.register_loop(inference_loop.clone()));
+    rt.block_on(ctx.ledger().loops.register_loop(inference_loop.clone()));
     ctx.set_inference_loop(inference_loop);
 
     // ── Phase 7: UserPod Env ─────────────────────────────────────────────
@@ -466,8 +466,8 @@ pub(super) fn init_repl_state(
 
     // ── Phase 10: Energy Budget + Well + Wallet ────────────────────────────
     rt.block_on(async {
-        let _ = ctx.cns().cybernetics.read().await.load_budgets().await;
-        let cl = ctx.cns().cybernetics.clone();
+        let _ = ctx.ledger().cybernetics.read().await.load_budgets().await;
+        let cl = ctx.ledger().cybernetics.clone();
         let cyber = cl.read().await;
 
         cyber

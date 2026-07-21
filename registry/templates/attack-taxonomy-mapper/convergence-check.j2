@@ -9,7 +9,7 @@ INPUT: oscr_techniques_covered = {{ oscr_techniques_covered }}
 INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings }} (count of regression entries with taxonomy_mapping field)
 INPUT: proposed_taxonomy_mappings = {{ proposed_taxonomy_mappings }} (count from current cycle)
 INPUT: previous_metric = {{ previous_metric | default(1.0) }}
-INPUT: replicant_host = {{ replicant_host }} (P12)
+INPUT: userpod_host = {{ userpod_host }} (P12)
 
 COMPUTE METRIC (weighted — evidence-based only, P8, P5):
 - Unmapped findings (critical/high) weight: 0.45
@@ -47,7 +47,7 @@ CNS SPAN (P9):
   (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
   (`target: "cns.taxonomy.convergence"`, message: `"CNS"`,
   operation: `"convergence_check"`, metric, previous_metric, improvement_pct,
-  blockers: [...], replicant_host, latency_ms).
+  blockers: [...], userpod_host, latency_ms).
 
 OUTPUT FORMAT (JSON):
 `{convergence_metric, previous_metric, improvement_pct, converged: bool,
@@ -55,7 +55,7 @@ blockers: [...], oscr_tactics_covered, oscr_tactics_missing,
 oscr_techniques_covered,
 existing_taxonomy_mappings_count, proposed_taxonomy_mappings_count,
 unmapped_critical, unmapped_high, taxonomy_coverage, residual_unmapped_risk,
-replicant_host, cns_span_emitted: true}`.
+userpod_host, cns_span_emitted: true}`.
 
 5W1H GATE (P5 — minimal): Who = replicant host; What = convergence metric;
 Where = audit cycle / workspace; When = scan cycle; Why = P9 observable
@@ -77,7 +77,7 @@ OCAP BOUNDARY (P4): Metric computed from workspace finding evidence only;
 no external taxonomy download; no external package download.
 CNS REGULATION (P9): Span emitted unconditionally — namespace registered
 in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
-REPLICANT HOST (P12): `replicant_host` mandatory.
+REPLICANT HOST (P12): `userpod_host` mandatory.
 VISIBILITY (P11): Metric output public; no hidden taxonomy coverage.
 SAFETY FLOOR (P3.1): Taxonomy convergence protects Generative Space —
 unconverged metric indicates unstructured attack pattern awareness.

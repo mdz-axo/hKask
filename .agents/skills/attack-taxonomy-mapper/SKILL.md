@@ -12,7 +12,7 @@ description: >
   supply-chain` regression YAML entries. Emits cns.taxonomy.* spans (P9 —
   all registered in CANONICAL_NAMESPACES). P8 evidence-backed: every
   mapping includes concrete evidence (finding reference, CWE category,
-  OSC&R tactic + technique). P12 replicant_host mandatory. Decomposed into
+  OSC&R tactic + technique). P12 userpod_host mandatory. Decomposed into
   4 phases matching bug-hunt and supply-chain-sentinel pipeline. Minimal
   (P5): answers all 5W1H; single skill, no bundle; complements
   supply-chain-sentinel (adds taxonomy layer) and adversarial-red-team
@@ -22,7 +22,7 @@ description: >
 
 # Attack Taxonomy Mapper
 
-{# goal: Consume findings from supply-chain-sentinel and kali-audit (P4 — consumes workspace findings, no external download). Map each finding to OSC&R attack taxonomy (verified against github.com/pbom-dev/OSCAR matrix.json). Propose backward-compatible taxonomy_mapping field additions to existing surface: supply-chain regression entries (status: pending, concrete OSC&R tactic + technique). Emit cns.taxonomy.* spans (P9). Compute convergence metric from real mapping evidence only. No synthetic findings; no invented OSC&R tactics/techniques; replicant_host mandatory (P12). #}
+{# goal: Consume findings from supply-chain-sentinel and kali-audit (P4 — consumes workspace findings, no external download). Map each finding to OSC&R attack taxonomy (verified against github.com/pbom-dev/OSCAR matrix.json). Propose backward-compatible taxonomy_mapping field additions to existing surface: supply-chain regression entries (status: pending, concrete OSC&R tactic + technique). Emit cns.taxonomy.* spans (P9). Compute convergence metric from real mapping evidence only. No synthetic findings; no invented OSC&R tactics/techniques; userpod_host mandatory (P12). #}
 
 Attack taxonomy mapping. Consumes findings from `supply-chain-sentinel`
 (CWE-mapped manifest evidence) and `kali-audit` (OWASP/ATLAS-mapped
@@ -82,7 +82,7 @@ NOT numeric IDs.
   taxonomy mapping.
 - **P11 Visibility:** `taxonomy_mapping` field proposals default `status:
   pending` (human-curated ratchet, per `security/regressions/README.md`).
-- **P12 Replicant host mandate:** Every action includes `replicant_host`.
+- **P12 Replicant host mandate:** Every action includes `userpod_host`.
 - **P3.1 Safety floor:** Structured supply chain taxonomy protects the
   Generative Space container — unstructured findings leave attack patterns
   ambiguous.
@@ -104,7 +104,7 @@ NOT numeric IDs.
    `existing_taxonomy_mappings` (skipping entries that already have
    mappings when proposing new ones).
 4. Return JSON: `{source, findings_to_map: [...], existing_taxonomy_mappings:
-   [...], evidence_sources: [...], replicant_host}`.
+   [...], evidence_sources: [...], userpod_host}`.
 5. Emit `cns.taxonomy.select` CNS span (P9) with discovered evidence
    sources, findings to map, existing mapping count, host identity,
    latency metric.
@@ -146,11 +146,11 @@ NOT numeric IDs.
    `osc_r_categories` (verified tags), `mapping_confidence`
    (confirmed/probable/possible), `alternative_mappings`,
    `defense_layer_mapped`, `provenance`, `epistemic_mode`,
-   `replicant_host`.
+   `userpod_host`.
 7. Emit `cns.taxonomy.map` CNS span per mapping (`target:
    "cns.taxonomy.map"`, message: `"CNS"`, operation: `"map_taxonomy"`,
    finding_reference, osc_r_tactic, osc_r_technique,
-   mapping_confidence, replicant_host, latency_ms).
+   mapping_confidence, userpod_host, latency_ms).
 
 CONSTRAINT — Evidence integrity (P8):
 - No synthetic findings. Every `evidence_snippet` must be verifiable by
@@ -163,7 +163,7 @@ CONSTRAINT — Evidence integrity (P8):
 - Source citations must reference concrete URLs or documents actually
   consulted: OSC&R framework (`github.com/pbom-dev/OSCAR`), MITRE CWE
   definitions, supply-chain-sentinel SKILL.md, kali-audit SKILL.md.
-- Every mapping must include `replicant_host` identity (P12) — no
+- Every mapping must include `userpod_host` identity (P12) — no
   anonymous taxonomy mapping.
 - This skill complements `supply-chain-sentinel` (adds taxonomy layer to
   its findings) and `kali-audit` (parallel taxonomy discipline). State
@@ -196,7 +196,7 @@ CONSTRAINT — Evidence integrity (P8):
    - Fail: majority unmapped, < 2 OSC&R categories covered.
 6. Emit `cns.taxonomy.report` CNS span with mappings count by OSC&R
    category, proposed taxonomy_mapping count, pattern signatures count,
-   verdict, replicant_host, latency.
+   verdict, userpod_host, latency.
 
 ### attack-taxonomy-mapper/convergence-check
 
@@ -320,7 +320,7 @@ CWE catalog.
 - Do NOT invent OSC&R tactic or technique names not in the OSC&R framework (verified at `github.com/pbom-dev/OSCAR` `matrix.json`).
 - Do NOT claim taxonomy coverage that hasn't been verified through actual
   finding mapping.
-- Every mapping action includes `replicant_host` identity (P12).
+- Every mapping action includes `userpod_host` identity (P12).
 - Every taxonomy mapping operation emits `cns.taxonomy.*` span. All four
   namespaces are registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`) and emitted unconditionally.

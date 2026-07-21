@@ -19,7 +19,7 @@ description: >
 
 # Supply-Chain Sentinel
 
-{# goal: Audit dependency manifest declarations (Cargo.toml, deny.toml, lockfiles) within user workspace boundaries (P4 OCAP). Verify version pinning, registry trust, license compatibility, SBOM visibility. Map findings to MITRE CWE-1104/CWE-829/CWE-1357, OWASP Supply Chain, OSC&R taxonomy. Propose concrete RR-NNNN.yaml entries (surface: supply-chain, status: pending, concrete grep pattern against manifest content). Emit cns.supply_chain.* spans (P9). Compute convergence metric from real manifest evidence only. No synthetic CVE claims; no external dependency download; replicant_host mandatory (P12). #}
+{# goal: Audit dependency manifest declarations (Cargo.toml, deny.toml, lockfiles) within user workspace boundaries (P4 OCAP). Verify version pinning, registry trust, license compatibility, SBOM visibility. Map findings to MITRE CWE-1104/CWE-829/CWE-1357, OWASP Supply Chain, OSC&R taxonomy. Propose concrete RR-NNNN.yaml entries (surface: supply-chain, status: pending, concrete grep pattern against manifest content). Emit cns.supply_chain.* spans (P9). Compute convergence metric from real manifest evidence only. No synthetic CVE claims; no external dependency download; userpod_host mandatory (P12). #}
 
 Dependency and software supply chain audit. Reads workspace manifest files (manifest-level dependency tree only — no external package download, P4 boundary enforcement).
 (`Cargo.toml`, `deny.toml`, lockfiles) as concrete evidence. Maps findings
@@ -66,7 +66,7 @@ unpinned versions, missing lockfile tracking).
 - **P10 Bot/replicant taxonomy:** `visibility: public` — transparent audit.
 - **P11 Visibility:** Regression proposals default `status: pending`
   (human-curated ratchet, per `security/regressions/README.md`).
-- **P12 Replicant host mandate:** Every action includes `replicant_host`.
+- **P12 Replicant host mandate:** Every action includes `userpod_host`.
 - **P3.1 Safety floor:** Supply chain integrity protects the Generative
   Space container.
 - **P4 OCAP boundaries:** Reads only declared workspace manifest paths;
@@ -91,7 +91,7 @@ unpinned versions, missing lockfile tracking).
    arbitrary git/path), `license_compatibility` (`deny.toml` reference),
    `sbom_presence` (manifest or lockfile tracks dependency metadata).
 5. Return JSON: `{surface, manifest_paths: [...], registry_sources: [...],
-   defense_layers: [...], existing_regressions: [...], replicant_host}`.
+   defense_layers: [...], existing_regressions: [...], userpod_host}`.
 6. Emit `cns.supply_chain.select` CNS span (P9) with discovered files,
    surface selection, regression count, defense layers, host identity,
    latency metric.
@@ -144,7 +144,7 @@ unpinned versions, missing lockfile tracking).
 9. Emit `cns.supply_chain.probe` CNS span per dependency entry probed
    (`target: "cns.supply_chain.probe"`, message: `"CNS"`, operation:
    `"probe_dependency"`, dependency, manifest_path, registry, version_pinned,
-   registry_trusted, replicant_host, latency_ms).
+   registry_trusted, userpod_host, latency_ms).
 10. Apply pragmatic-cybernetics feedback loop analysis: dependency update
     polarity (newer version = lower/higher risk based on pinning?), variety
     of alternatives (alternative crate/package available?), Good Regulator
@@ -163,7 +163,7 @@ CONSTRAINT — Evidence integrity (P8):
   consulted: MITRE CWE definitions, deny.toml specification, crates.io
   advisory database docs, OWASP Supply Chain security reference, OSC&R
   framework (`github.com/pbom-dev/OSCAR`), cargo-deny documentation.
-- Every finding must include `replicant_host` identity (P12) — no anonymous
+- Every finding must include `userpod_host` identity (P12) — no anonymous
   dependency scanning.
 - When referencing `security/regressions/`, read actual YAML files; do not
   invent regression entries. Only propose new entries when concrete
@@ -190,7 +190,7 @@ CONSTRAINT — Evidence integrity (P8):
    `taxonomy_mapping` (OWASP Supply Chain / OSC&R), `defense_layers_present`,
    `defense_layers_missing`, `remediation_recommendation` (citing concrete
    fix pattern: pin exact version, add deny.toml advisory/license entry,
-   add lockfile tracking, verify registry URL), `replicant_host`.
+   add lockfile tracking, verify registry URL), `userpod_host`.
 3. Propose regression entry for findings with severity >= medium (only
    when evidence is concrete — no synthetic findings). Use exact YAML
    format from `security/regressions/README.md`:
@@ -320,7 +320,7 @@ not speculatively.
 - Do NOT invent dependency entries not present in manifest.
 - Do NOT claim external package download or container scan capability —
   manifest analysis only (P4 boundary enforcement).
-- Every scan action includes `replicant_host` identity (P12).
+- Every scan action includes `userpod_host` identity (P12).
 - Every security-sensitive dependency operation emits `cns.supply_chain.*`
   span. All four namespaces (`select`, `probe`, `report`, `convergence`)
   are registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).

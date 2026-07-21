@@ -572,12 +572,12 @@ mod tests {
         // Use a standalone runtime for the test — check_drift needs RegulationLedger
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = RegulationLedger::with_threshold(100);
+            let ledger = RegulationLedger::with_threshold(100);
             // Register domain first so expected_variety is set
-            watcher.register_domains(&cns).await;
+            watcher.register_domains(&ledger).await;
             // Now check drift — this increments variety and triggers algedonic check
             watcher
-                .check_drift(&cns, &crate::runtime::NoopEventSink)
+                .check_drift(&ledger, &crate::runtime::NoopEventSink)
                 .await
         });
 
@@ -603,10 +603,10 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = RegulationLedger::with_threshold(100);
-            watcher.register_domains(&cns).await;
+            let ledger = RegulationLedger::with_threshold(100);
+            watcher.register_domains(&ledger).await;
             watcher
-                .check_drift(&cns, &crate::runtime::NoopEventSink)
+                .check_drift(&ledger, &crate::runtime::NoopEventSink)
                 .await
         });
 
@@ -631,10 +631,10 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = RegulationLedger::with_threshold(100);
-            watcher.register_domains(&cns).await;
+            let ledger = RegulationLedger::with_threshold(100);
+            watcher.register_domains(&ledger).await;
             watcher
-                .check_drift(&cns, &crate::runtime::NoopEventSink)
+                .check_drift(&ledger, &crate::runtime::NoopEventSink)
                 .await
         });
 
@@ -653,10 +653,10 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = RegulationLedger::with_threshold(100);
-            watcher.register_domains(&cns).await;
+            let ledger = RegulationLedger::with_threshold(100);
+            watcher.register_domains(&ledger).await;
             watcher
-                .check_drift(&cns, &crate::runtime::NoopEventSink)
+                .check_drift(&ledger, &crate::runtime::NoopEventSink)
                 .await
         });
 
@@ -683,10 +683,10 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = RegulationLedger::with_threshold(100);
-            watcher.register_domains(&cns).await;
+            let ledger = RegulationLedger::with_threshold(100);
+            watcher.register_domains(&ledger).await;
             watcher
-                .check_drift(&cns, &crate::runtime::NoopEventSink)
+                .check_drift(&ledger, &crate::runtime::NoopEventSink)
                 .await
         });
 
@@ -712,10 +712,10 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         let drifts = rt.block_on(async {
-            let cns = RegulationLedger::with_threshold(100);
-            watcher.register_domains(&cns).await;
+            let ledger = RegulationLedger::with_threshold(100);
+            watcher.register_domains(&ledger).await;
             watcher
-                .check_drift(&cns, &crate::runtime::NoopEventSink)
+                .check_drift(&ledger, &crate::runtime::NoopEventSink)
                 .await
         });
 
@@ -787,18 +787,18 @@ mod tests {
 
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let cns = RegulationLedger::with_threshold(100);
-            watcher.register_domains(&cns).await;
+            let ledger = RegulationLedger::with_threshold(100);
+            watcher.register_domains(&ledger).await;
 
             // Before check_drift, variety for seam domain should be 0
-            let before = cns.variety_for_domain("seam:test-crate").await;
+            let before = ledger.variety_for_domain("seam:test-crate").await;
             assert_eq!(before, 0, "Variety should be 0 before first check");
 
             // After check_drift, variety should be >0 (incremented)
             let _drifts = watcher
-                .check_drift(&cns, &crate::runtime::NoopEventSink)
+                .check_drift(&ledger, &crate::runtime::NoopEventSink)
                 .await;
-            let after = cns.variety_for_domain("seam:test-crate").await;
+            let after = ledger.variety_for_domain("seam:test-crate").await;
             assert!(
                 after > 0,
                 "Variety must be incremented after check_drift — afferent signal closed"

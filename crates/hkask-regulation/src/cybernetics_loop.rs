@@ -84,7 +84,7 @@ struct CalibratedThresholds {
 /// Episodic, Semantic) and may signal the Curation Loop via algedonic
 /// alerts. It may NOT regulate the Curation Loop.
 pub struct CyberneticsLoop {
-    cns: Arc<RwLock<RegulationLedger>>,
+    ledger: Arc<RwLock<RegulationLedger>>,
     gas_budget_manager: Arc<RwLock<GasBudgetManager>>,
     well_manager: Arc<RwLock<WellManager>>,
     wallet_manager: Option<Arc<WalletManager>>,
@@ -130,16 +130,16 @@ impl CyberneticsLoop {
     /// Create a new CyberneticsLoop with default set-points.
     ///
     /// expect: "The system provides configurable cybernetic self-regulation"
-    pub fn new(cns: Arc<RwLock<RegulationLedger>>) -> Self {
-        Self::build(cns, SetPoints::default())
+    pub fn new(ledger: Arc<RwLock<RegulationLedger>>) -> Self {
+        Self::build(ledger, SetPoints::default())
     }
 
     /// Create a new CyberneticsLoop with custom set-points.
     ///
     /// expect: "The system provides configurable cybernetic self-regulation"
     /// post: returns Self with custom SetPoints applied at construction
-    pub fn with_set_points(cns: Arc<RwLock<RegulationLedger>>, set_points: SetPoints) -> Self {
-        Self::build(cns, set_points)
+    pub fn with_set_points(ledger: Arc<RwLock<RegulationLedger>>, set_points: SetPoints) -> Self {
+        Self::build(ledger, set_points)
     }
 
     fn build(cns: Arc<RwLock<RegulationLedger>>, set_points: SetPoints) -> Self {
@@ -592,7 +592,7 @@ impl CyberneticsLoop {
     ///
     /// expect: "The system provides observability into CNS regulation state"
     pub async fn record_outcome(&self, domain: &str, success: bool, error_kind: Option<&str>) {
-        self.cns
+        self.ledger
             .read()
             .await
             .record_outcome(domain, success, error_kind)
@@ -787,7 +787,7 @@ impl CyberneticsLoop {
     }
 
     async fn apply_calibrate_threshold(&self, domain: &str, new_threshold: u64) {
-        let cns = self.cns.read().await;
+        let ledger = self.ledger.read().await;
         cns.calibrate_threshold(domain, new_threshold).await;
         drop(cns);
         tracing::info!(
@@ -1087,7 +1087,7 @@ impl RegulationLoop for CyberneticsLoop {
             .iter()
             .any(|a| a.parameters.reason == "energy_budget_low");
         if has_energy_depletion {
-            let cns = self.cns.read().await;
+            let ledger = self.ledger.read().await;
             let worst_ratio = actions
                 .iter()
                 .filter_map(|a| a.parameters.data.remaining_ratio())
@@ -1190,7 +1190,7 @@ impl RegulationLoop for CyberneticsLoop {
             .await
             .all_agent_statuses()
             .await;
-        let cns = self.cns.read().await;
+        let ledger = self.ledger.read().await;
         let health = cns.health().await;
         let current_deficit = health.overall_deficit as f64;
         drop(cns);
@@ -1371,7 +1371,7 @@ impl RegulationLoop for CyberneticsLoop {
 
         // SLO evaluation — runs every tick when provider is wired.
         if let Some(ref provider) = self.slo_provider {
-            let cns = self.cns.read().await;
+            let ledger = self.ledger.read().await;
             let _ = cns.evaluate_and_escalate_slos(provider.as_ref()).await;
             drop(cns);
         }
@@ -1449,7 +1449,7 @@ impl RegulationLoop for CyberneticsLoop {
                 .iter()
                 .filter(|r| r.decision == ActionDecision::Block)
                 .count() as u64;
-            let cns = self.cns.read().await;
+            let ledger = self.ledger.read().await;
             let cumulative = cns.regulation_health().await.effectiveness();
             cns.record_regulation_cycle(RegulationCycleEntry {
                 timestamp: chrono::Utc::now(),
@@ -1519,7 +1519,7 @@ impl RegulationLoop for CyberneticsLoop {
                 }
             };
             if should_check {
-                let cns = self.cns.read().await;
+                let ledger = self.ledger.read().await;
                 let mut watcher = watcher.lock().await;
                 if let Some(ref sink) = self.event_sink {
                     let drifts = watcher.check_drift(&cns, sink.as_ref()).await;
@@ -1912,7 +1912,7 @@ mod tests {
 
     #[tokio::test]
     async fn new_loop_starts_with_default_quality() {
-        let cns = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
+        let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
         let loop_instance = CyberneticsLoop::new(cns);
         let q = loop_instance.loop_quality().await;
         assert_eq!(q.delay_ms, 0);
@@ -1922,7 +1922,7 @@ mod tests {
 
     #[tokio::test]
     async fn tick_updates_loop_quality() {
-        let cns = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
+        let ledger = Arc::new(RwLock::new(RegulationLedger::with_threshold(100)));
         let loop_instance = CyberneticsLoop::new(cns);
         loop_instance.tick().await;
         let q = loop_instance.loop_quality().await;

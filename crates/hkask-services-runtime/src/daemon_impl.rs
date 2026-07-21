@@ -48,7 +48,7 @@ pub struct ServiceDaemonHandler {
     pod_manager: Arc<ActivePods>,
     user_store: Arc<std::sync::Mutex<UserStore>>,
     /// CNS runtime for health and variety queries (None if unavailable)
-    cns_runtime: Option<Arc<RwLock<RegulationLedger>>>,
+    ledger_runtime: Option<Arc<RwLock<RegulationLedger>>>,
     /// Inference port for narrative generation (None if inference unavailable)
     inference_port: Option<Arc<dyn InferencePort>>,
     /// Per-userpod counter of stored experiences (triggers narrative generation)
@@ -63,15 +63,15 @@ impl ServiceDaemonHandler {
     pub fn new(
         pod_manager: Arc<ActivePods>,
         user_store: Arc<std::sync::Mutex<UserStore>>,
-        cns_runtime: Option<Arc<RwLock<RegulationLedger>>>,
+        ledger_runtime: Option<Arc<RwLock<RegulationLedger>>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
-        tracing::info!(target: "hkask.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_inference = inference_port.is_some(), "REG");
+        tracing::info!(target: "hkask.daemon", operation = "new_handler", has_cns = ledger_runtime.is_some(), has_inference = inference_port.is_some(), "REG");
 
         Self {
             pod_manager,
             user_store,
-            cns_runtime,
+            ledger_runtime,
             inference_port,
             experience_counts: Mutex::new(HashMap::new()),
         }
@@ -270,14 +270,14 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn curator_health(&self, _userpod: &str) -> serde_json::Value {
-        let Some(ref cns_lock) = self.cns_runtime else {
+        let Some(ref cns_lock) = self.ledger_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
                 "cns_health": "unknown",
                 "note": "CNS runtime not available"
             });
         };
-        let cns = cns_lock.read().await;
+        let ledger = cns_lock.read().await;
         let alerts = cns.alerts().await;
         let critical = alerts.iter().filter(|a| a.is_critical()).count();
         let total = alerts.len();
@@ -298,13 +298,13 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn cns_status(&self, _userpod: &str, domain: Option<&str>) -> serde_json::Value {
-        let Some(ref cns_lock) = self.cns_runtime else {
+        let Some(ref cns_lock) = self.ledger_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
                 "note": "CNS runtime not available"
             });
         };
-        let cns = cns_lock.read().await;
+        let ledger = cns_lock.read().await;
         let variety = cns.variety().await;
         let domains: Vec<serde_json::Value> = variety
             .iter()
