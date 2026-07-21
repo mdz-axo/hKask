@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through Replicas→Chat.
 
 use crate::bridges::ReplicaDataBridge;
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -54,7 +55,9 @@ impl Window for ReplicaWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "replica", f, area),
+            McpTab::Chat => {
+                McpTabbedWindow::default_render_chat_tab(&self.chat_state, "replica", f, area)
+            }
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -91,46 +94,29 @@ impl Window for ReplicaWindow {
     }
 }
 
-impl McpTabbedWindow for ReplicaWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "replica"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "replica", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![headers::section("Replica ([ ] Chat/Data)"), Line::from("")];
-        let rep_data: Vec<(String, usize, String)> = self
-            .replica
-            .as_ref()
-            .map(|r| {
-                r.list_replicas()
-                    .iter()
-                    .map(|r2| (r2.author.clone(), r2.centroid_count, r2.status.clone()))
-                    .collect()
-            })
-            .unwrap_or_default();
-        if let Some(ref _r) = self.replica {
-            lines.push(Line::from(format!("  {} replica(s)", rep_data.len())));
-            for (author, centroid_count, status) in &rep_data {
-                lines.push(Line::from(vec![
-                    Span::raw("  • "),
-                    Span::styled(author, Style::default().fg(Color::Green)),
-                    Span::raw(format!("  {} centroids  [{}]", centroid_count, status)),
-                ]));
-            }
-        } else {
-            lines.push(Line::from("  Use `kask mcp start replica` to enable."));
+impl_mcp_tabbed!(ReplicaWindow, "replica", |this, f, area| {
+    let mut lines = vec![headers::section("Replica ([ ] Chat/Data)"), Line::from("")];
+    let rep_data: Vec<(String, usize, String)> = this
+        .replica
+        .as_ref()
+        .map(|r| {
+            r.list_replicas()
+                .iter()
+                .map(|r2| (r2.author.clone(), r2.centroid_count, r2.status.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
+    if let Some(ref _r) = this.replica {
+        lines.push(Line::from(format!("  {} replica(s)", rep_data.len())));
+        for (author, centroid_count, status) in &rep_data {
+            lines.push(Line::from(vec![
+                Span::raw("  • "),
+                Span::styled(author.clone(), Style::default().fg(Color::Green)),
+                Span::raw(format!("  {} centroids  [{}]", centroid_count, status)),
+            ]));
         }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+    } else {
+        lines.push(Line::from("  Use `kask mcp start replica` to enable."));
     }
-}
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});

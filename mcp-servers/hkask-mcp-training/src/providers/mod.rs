@@ -42,30 +42,31 @@ pub fn create_host(
             "Runpod API key not configured (set RUNPOD_API_KEY)".to_string(),
         ));
     }
-    // Template ID is optional when a Docker image is used directly. The
-    // default image (docker.io/mdzaxo/axolotl-lora-trainer:latest) is baked
-    // into RunpodHost::submit(), so neither RUNPOD_TEMPLATE_ID nor
-    // RUNPOD_DOCKER_IMAGE must be set explicitly for the canonical flow.
-    // We only refuse if BOTH are empty — meaning the operator provided no
-    // image source at all.
-    let has_image = std::env::var("RUNPOD_DOCKER_IMAGE")
-        .map(|v| !v.is_empty())
-        .unwrap_or(false);
-    if config.runpod_template_id.is_empty() && !has_image {
-        // Allow construction with neither set — RunpodHost::submit() defaults
-        // RUNPOD_DOCKER_IMAGE to the canonical axolotl-lora-trainer image.
-        // We log a warning rather than refusing, so the canonical flow works
-        // out of the box without requiring the operator to set either var.
+    // Template ID and Docker image are both optional individually — but at
+    // least one must be available so `RunpodHost::submit` can resolve an image
+    // source. The canonical flow uses the pre-built axolotl template
+    // (`DEFAULT_RUNPOD_TEMPLATE_ID`) plus its base image
+    // (`DEFAULT_RUNPOD_DOCKER_IMAGE`); both are baked into `RunpodHost` as
+    // constants, so construction succeeds out of the box without requiring
+    // the operator to set either var.
+    if config.runpod_template_id.is_empty() && config.runpod_docker_image.is_empty() {
         tracing::warn!(
             target: "hkask.training.runpod",
             "Neither RUNPOD_TEMPLATE_ID nor RUNPOD_DOCKER_IMAGE is set — \
-             RunpodHost::submit() will default to \
-             docker.io/mdzaxo/axolotl-lora-trainer:latest"
+             RunpodHost::submit() will default to the canonical axolotl \
+             template and base image"
         );
     }
     Ok(Box::new(RunpodHost::new(
-        config.runpod_api_key.clone(),
-        config.runpod_template_id.clone(),
+        runpod::RunpodHostInit {
+            api_key: config.runpod_api_key.clone(),
+            template_id: config.runpod_template_id.clone(),
+            gpu_type_id: config.runpod_gpu_type_id.clone(),
+            container_disk_gb: config.runpod_container_disk_gb,
+            min_memory_gb: config.runpod_min_memory_gb,
+            min_vcpu: config.runpod_min_vcpu_count,
+            docker_image: config.runpod_docker_image.clone(),
+        },
         harness,
     )))
 }
@@ -77,6 +78,14 @@ pub fn create_host(
 /// Selects the Runpod cloud host with API credentials. The harness is
 /// selected separately and injected into the host at construction time —
 /// this config only describes *where* compute runs.
+///
+/// Deployment settings (GPU type, disk, memory, vCPU, image) are resolved
+/// keychain-first via `CredentialRequirement` declarations — never from
+/// `.env`. They flow through `ServerContext.credentials` into this struct,
+/// then into `RunpodHost`, where `submit()` reads them as authoritative
+/// operator-accepted values. The model-size heuristic in `submit()` is a
+/// last-resort fallback for `gpu_type_id` only, used when the operator
+/// leaves it unset; it must never override an explicitly accepted value.
 #[derive(Debug, Clone)]
 pub struct TrainingHostConfig {
     /// Selected training host (always Runpod — kept for future extensibility).
@@ -85,6 +94,17 @@ pub struct TrainingHostConfig {
     pub runpod_api_key: String,
     /// Runpod GPU pod template ID with axolotl pre-installed.
     pub runpod_template_id: String,
+    /// Runpod GPU type ID (e.g. `"NVIDIA H100 80GB HBM3"`). Empty defers to
+    /// the model-size heuristic in `RunpodHost::submit`.
+    pub runpod_gpu_type_id: String,
+    /// Container disk in GB. `0` defers to the model-size heuristic.
+    pub runpod_container_disk_gb: u32,
+    /// Minimum pod memory in GB. `0` defers to the RunpodHost default.
+    pub runpod_min_memory_gb: u32,
+    /// Minimum vCPU count. `0` defers to the RunpodHost default.
+    pub runpod_min_vcpu_count: u32,
+    /// Docker image name. Empty defers to `DEFAULT_RUNPOD_DOCKER_IMAGE`.
+    pub runpod_docker_image: String,
 }
 
 impl Default for TrainingHostConfig {
@@ -93,6 +113,11 @@ impl Default for TrainingHostConfig {
             host: TrainingHostId::Runpod,
             runpod_api_key: String::new(),
             runpod_template_id: String::new(),
+            runpod_gpu_type_id: String::new(),
+            runpod_container_disk_gb: 0,
+            runpod_min_memory_gb: 0,
+            runpod_min_vcpu_count: 0,
+            runpod_docker_image: String::new(),
         }
     }
 }

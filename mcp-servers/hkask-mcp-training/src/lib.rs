@@ -1605,6 +1605,25 @@ pub async fn run(
                         .get("RUNPOD_TEMPLATE_ID")
                         .cloned()
                         .unwrap_or_default(),
+                    runpod_gpu_type_id: ctx
+                        .credentials
+                        .get("RUNPOD_GPU_TYPE_ID")
+                        .cloned()
+                        .unwrap_or_default(),
+                    runpod_container_disk_gb: parse_optional_u32(
+                        ctx.credentials.get("RUNPOD_CONTAINER_DISK_GB"),
+                    ),
+                    runpod_min_memory_gb: parse_optional_u32(
+                        ctx.credentials.get("RUNPOD_MIN_MEMORY_GB"),
+                    ),
+                    runpod_min_vcpu_count: parse_optional_u32(
+                        ctx.credentials.get("RUNPOD_MIN_VCPU_COUNT"),
+                    ),
+                    runpod_docker_image: ctx
+                        .credentials
+                        .get("RUNPOD_DOCKER_IMAGE")
+                        .cloned()
+                        .unwrap_or_default(),
                 };
                 let harness: Box<dyn HarnessAdapter> = Box::new(AxolotlHarness);
                 let host = create_host(&host_config, harness)
@@ -1642,6 +1661,26 @@ pub async fn run(
                 "RunPod template ID; defaults to the canonical Axolotl template when unset",
             ),
             hkask_mcp::CredentialRequirement::optional(
+                "RUNPOD_GPU_TYPE_ID",
+                "RunPod GPU type ID (e.g. \"NVIDIA H100 80GB HBM3\"). Authoritative when set; empty defers to the model-size heuristic",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "RUNPOD_CONTAINER_DISK_GB",
+                "Container disk in GB. Authoritative when set; 0/empty defers to the model-size heuristic",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "RUNPOD_MIN_MEMORY_GB",
+                "Minimum pod memory in GB. Authoritative when set; 0/empty defers to the default (24)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "RUNPOD_MIN_VCPU_COUNT",
+                "Minimum vCPU count. Authoritative when set; 0/empty defers to the default (8)",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
+                "RUNPOD_DOCKER_IMAGE",
+                "Docker image name. Authoritative when set; empty defers to the canonical Axolotl image",
+            ),
+            hkask_mcp::CredentialRequirement::optional(
                 "HKASK_TRAINING_DB",
                 "Path to per-agent training database for job/adapter/QA storage (defaults to agents/{replicant}/training.db)",
             ),
@@ -1653,4 +1692,22 @@ pub async fn run(
         std::collections::HashMap::new(),
     )
     .await
+}
+
+/// Parse an optional `u32` credential value.
+///
+/// Used for the Runpod deployment settings (`RUNPOD_CONTAINER_DISK_GB`,
+/// `RUNPOD_MIN_MEMORY_GB`, `RUNPOD_MIN_VCPU_COUNT`) that flow through
+/// `ServerContext.credentials` as strings. Returns `0` for `None`, empty
+/// string, or unparseable input — `RunpodHost::submit` treats `0` as
+/// "operator did not set this" and falls back to the documented default.
+///
+/// post: returns 0 iff the input is absent, empty, or not a valid u32
+fn parse_optional_u32(value: Option<&String>) -> u32 {
+    value
+        .map(String::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(0)
 }

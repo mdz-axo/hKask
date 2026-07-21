@@ -14,7 +14,9 @@
 //! Status queries use `pod(input: { podId })` and cancellation uses
 //! `podTerminate(input: { podId })` — both still present in the current API.
 //!
-//! Environment variables:
+//! Environment variables (resolved keychain-first via `CredentialRequirement`
+//! declarations in `hkask-mcp-training/src/lib.rs`, then flowed through
+//! `ServerContext.credentials` → `TrainingHostConfig` → `RunpodHost` fields):
 //! - `RUNPOD_API_KEY` — Runpod API key (required)
 //! - `RUNPOD_TEMPLATE_ID` — GPU pod template ID (optional; defaults to
 //!   `DEFAULT_RUNPOD_TEMPLATE_ID` = `f4wac8wrhz`, the `hkask-axolotl-config-from-env`
@@ -23,13 +25,19 @@
 //!   over template; defaults to `DEFAULT_RUNPOD_DOCKER_IMAGE` =
 //!   `winglian/axolotl-cloud:main-latest`)
 //! - `RUNPOD_GPU_TYPE_ID` — GPU type ID, e.g. "NVIDIA RTX 4090" or
-//!   "NVIDIA A100-SXM4-80GB" (default: "NVIDIA RTX 4090"). Note: the variable
-//!   is `RUNPOD_GPU_TYPE_ID`, not `RUNPOD_GPU_TYPE` — the latter is ignored.
-//! - `RUNPOD_CONTAINER_DISK_GB` — Container disk in GB (default: 50)
+//!   "NVIDIA A100-SXM4-80GB" (default: model-size heuristic). Note: the
+//!   variable is `RUNPOD_GPU_TYPE_ID`, not `RUNPOD_GPU_TYPE` — the latter is
+//!   ignored. When the operator sets this explicitly, it is authoritative and
+//!   the heuristic does not fire.
+//! - `RUNPOD_CONTAINER_DISK_GB` — Container disk in GB (default: model-size
+//!   heuristic; 50/100/200 by model class)
 //! - `RUNPOD_MIN_MEMORY_GB` — Minimum memory in GB (default: 24)
 //! - `RUNPOD_MIN_VCPU_COUNT` — Minimum vCPU count (default: 8)
 //! - `HKASK_DATASET_URL` — Remote-readable URL where the pod can download the dataset.
 //!   Submission fails before creating a pod when this value is empty.
+//!
+//! `.env` is deprecated for this server — deployment settings must come from
+//! the OS keychain (`kask keystore load`) or the explicit process environment.
 use crate::providers::harness::HarnessAdapter;
 use crate::providers::types::*;
 use serde_json::json;
@@ -37,13 +45,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-// ── Default pod template configuration ─────────────────────────────────────
+// ── Default pod template configuration ─────────────────────────────────
 //
 // These are the canonical defaults for hKask training pods. They are exposed
 // as module-level constants (not magic strings in submit()) so they can be
 // referenced, documented, and overridden together.
 //
-// Override via env vars:
+// Override via keychain/env (resolved keychain-first in lib.rs):
 //   RUNPOD_TEMPLATE_ID  — a RunPod template ID with axolotl pre-installed
 //   RUNPOD_DOCKER_IMAGE — a Docker image name (takes precedence over template)
 //
@@ -66,6 +74,30 @@ const DEFAULT_RUNPOD_TEMPLATE_ID: &str = "f4wac8wrhz";
 /// even when a template is used. This is the image the template is based on.
 const DEFAULT_RUNPOD_DOCKER_IMAGE: &str = "winglian/axolotl-cloud:main-latest";
 
+/// Bundled construction parameters for `RunpodHost::new`.
+///
+/// Mirrors the `PodDeploySpec` pattern: keeps `RunpodHost::new` under clippy's
+/// argument-count limit while making the operator-accepted deployment settings
+/// (GPU type, disk, memory, vCPU, image) explicit and self-documenting. All
+/// fields are resolved keychain-first in `lib.rs` and flowed through
+/// `TrainingHostConfig` → `create_host` → here.
+pub struct RunpodHostInit {
+    pub api_key: String,
+    pub template_id: String,
+    /// Operator-accepted GPU type ID (e.g. `"NVIDIA H100 80GB HBM3"`).
+    /// Empty defers to the model-size heuristic in `submit`.
+    pub gpu_type_id: String,
+    /// Operator-accepted container disk in GB. `0` defers to the heuristic.
+    pub container_disk_gb: u32,
+    /// Operator-accepted minimum memory in GB. `0` defers to the default.
+    pub min_memory_gb: u32,
+    /// Operator-accepted minimum vCPU count. `0` defers to the default.
+    pub min_vcpu: u32,
+    /// Operator-accepted Docker image. Empty defers to
+    /// `DEFAULT_RUNPOD_DOCKER_IMAGE`.
+    pub docker_image: String,
+}
+
 /// Runpod GPU cloud training host — dispatches training to GPU pods.
 ///
 /// Uses the Runpod GraphQL API to create GPU pods from a pre-built template
@@ -80,6 +112,18 @@ const DEFAULT_RUNPOD_DOCKER_IMAGE: &str = "winglian/axolotl-cloud:main-latest";
 pub struct RunpodHost {
     api_key: String,
     template_id: String,
+    /// Operator-accepted GPU type ID (e.g. `"NVIDIA H100 80GB HBM3"`).
+    /// Empty defers to the model-size heuristic in `submit`.
+    gpu_type_id: String,
+    /// Operator-accepted container disk in GB. `0` defers to the heuristic.
+    container_disk_gb: u32,
+    /// Operator-accepted minimum memory in GB. `0` defers to the default.
+    min_memory_gb: u32,
+    /// Operator-accepted minimum vCPU count. `0` defers to the default.
+    min_vcpu: u32,
+    /// Operator-accepted Docker image. Empty defers to
+    /// `DEFAULT_RUNPOD_DOCKER_IMAGE`.
+    docker_image: String,
     graphql_url: String,
     #[allow(dead_code)]
     harness: Box<dyn HarnessAdapter>,
@@ -100,7 +144,7 @@ fn map_pod_status(status: &str) -> TrainingJobStatus {
 }
 
 impl RunpodHost {
-    pub fn new(api_key: String, template_id: String, harness: Box<dyn HarnessAdapter>) -> Self {
+    pub fn new(init: RunpodHostInit, harness: Box<dyn HarnessAdapter>) -> Self {
         let pods_file = PathBuf::from(
             std::env::var("HKASK_PODS_FILE")
                 .unwrap_or_else(|_| "data/training-pods.json".to_string()),
@@ -116,8 +160,13 @@ impl RunpodHost {
             );
         }
         Self {
-            api_key,
-            template_id,
+            api_key: init.api_key,
+            template_id: init.template_id,
+            gpu_type_id: init.gpu_type_id,
+            container_disk_gb: init.container_disk_gb,
+            min_memory_gb: init.min_memory_gb,
+            min_vcpu: init.min_vcpu,
+            docker_image: init.docker_image,
             graphql_url: "https://api.runpod.io/graphql".to_string(),
             harness,
             client: reqwest::Client::new(),
@@ -408,13 +457,17 @@ struct PodDeploySpec<'a> {
 #[async_trait::async_trait]
 impl TrainingHost for RunpodHost {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
-        // GPU selection: if RUNPOD_GPU_TYPE_ID is set, use it. Otherwise,
-        // select based on model size — small models (≤14B) use RTX 4090,
-        // large models (20B–70B) use A100, very large (120B+) use H100.
-        // GPU type IDs must match RunPod's gpuTypes query exactly.
-        // This is a heuristic — the lora-training skill's G2 gate
-        // (memory budget vs model size) informs this choice.
-        let gpu_type_id = std::env::var("RUNPOD_GPU_TYPE_ID").unwrap_or_else(|_| {
+        // GPU selection: operator-accepted `RUNPOD_GPU_TYPE_ID` (resolved
+        // keychain-first into `self.gpu_type_id`) is authoritative when set.
+        // When unset, fall back to the model-size heuristic — small models
+        // (≤14B) use RTX 4090, large models (20B–70B) use A100, very large
+        // (120B+) use H100. GPU type IDs must match RunPod's gpuTypes query
+        // exactly. This heuristic is the lora-training skill's G2 gate
+        // (memory budget vs model size) — it informs, never overrides, an
+        // explicitly accepted operator value.
+        let gpu_type_id = if !self.gpu_type_id.is_empty() {
+            self.gpu_type_id.clone()
+        } else {
             let lower = job.base_model.to_lowercase();
             if ["70b", "72b", "120b", "405b"]
                 .iter()
@@ -429,35 +482,33 @@ impl TrainingHost for RunpodHost {
             } else {
                 "NVIDIA GeForce RTX 4090".to_string()
             }
-        });
-        // Container disk: larger models need more disk for weights + checkpoints.
-        let container_disk_gb: u32 = std::env::var("RUNPOD_CONTAINER_DISK_GB")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or_else(|| {
-                let lower = job.base_model.to_lowercase();
-                if ["70b", "72b", "120b", "405b"]
-                    .iter()
-                    .any(|p| lower.contains(p))
-                {
-                    200 // 70B model weights ~140GB + checkpoints
-                } else if ["13b", "14b", "20b", "30b"]
-                    .iter()
-                    .any(|p| lower.contains(p))
-                {
-                    100
-                } else {
-                    50
-                }
-            });
-        let min_memory_gb: u32 = std::env::var("RUNPOD_MIN_MEMORY_GB")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(24);
-        let min_vcpu: u32 = std::env::var("RUNPOD_MIN_VCPU_COUNT")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(8);
+        };
+        // Container disk: operator-accepted value is authoritative when set;
+        // otherwise larger models need more disk for weights + checkpoints.
+        let container_disk_gb: u32 = if self.container_disk_gb > 0 {
+            self.container_disk_gb
+        } else {
+            let lower = job.base_model.to_lowercase();
+            if ["70b", "72b", "120b", "405b"]
+                .iter()
+                .any(|p| lower.contains(p))
+            {
+                200 // 70B model weights ~140GB + checkpoints
+            } else if ["13b", "14b", "20b", "30b"]
+                .iter()
+                .any(|p| lower.contains(p))
+            {
+                100
+            } else {
+                50
+            }
+        };
+        let min_memory_gb: u32 = if self.min_memory_gb > 0 {
+            self.min_memory_gb
+        } else {
+            24
+        };
+        let min_vcpu: u32 = if self.min_vcpu > 0 { self.min_vcpu } else { 8 };
         let artifacts = job.artifacts.as_ref().ok_or_else(|| {
             ProviderError::DatasetError(
                 "RunPod requires a published Hugging Face artifact path before creating a billable pod"
@@ -465,21 +516,26 @@ impl TrainingHost for RunpodHost {
             )
         })?;
 
-        // Resolve the pod template and image. Defaults use the pre-built
-        // axolotl template (DEFAULT_RUNPOD_TEMPLATE_ID) which has axolotl +
-        // all deps pre-installed and reads config from HKASK_AXOLOTL_CONFIG.
-        // Override with RUNPOD_TEMPLATE_ID or RUNPOD_DOCKER_IMAGE.
+        // Resolve the pod template and image. The operator-accepted values
+        // (resolved keychain-first into `self.template_id` and
+        // `self.docker_image`) are authoritative when set. Defaults use the
+        // pre-built axolotl template (DEFAULT_RUNPOD_TEMPLATE_ID) which has
+        // axolotl + all deps pre-installed and reads config from
+        // HKASK_AXOLOTL_CONFIG, plus its base image
+        // (DEFAULT_RUNPOD_DOCKER_IMAGE).
         // See docs/how-to/runpod-lora-training-guide.md Lesson 10.
         let template_id = if !self.template_id.is_empty() {
             self.template_id.clone()
         } else {
-            std::env::var("RUNPOD_TEMPLATE_ID")
-                .unwrap_or_else(|_| DEFAULT_RUNPOD_TEMPLATE_ID.to_string())
+            DEFAULT_RUNPOD_TEMPLATE_ID.to_string()
         };
         // RunPod's podFindAndDeployOnDemand requires imageName to be non-empty
         // even when using a template. Default to the template's base image.
-        let docker_image = std::env::var("RUNPOD_DOCKER_IMAGE")
-            .unwrap_or_else(|_| DEFAULT_RUNPOD_DOCKER_IMAGE.to_string());
+        let docker_image = if !self.docker_image.is_empty() {
+            self.docker_image.clone()
+        } else {
+            DEFAULT_RUNPOD_DOCKER_IMAGE.to_string()
+        };
         if docker_image.is_empty() && template_id.is_empty() {
             return Err(ProviderError::InvalidConfig(
                 "Either RUNPOD_DOCKER_IMAGE or RUNPOD_TEMPLATE_ID must be set to create a RunPod pod"
@@ -875,8 +931,15 @@ mod tests {
 
     fn make_host(template_id: &str) -> RunpodHost {
         RunpodHost::new(
-            "test-key".to_string(),
-            template_id.to_string(),
+            RunpodHostInit {
+                api_key: "test-key".to_string(),
+                template_id: template_id.to_string(),
+                gpu_type_id: String::new(),
+                container_disk_gb: 0,
+                min_memory_gb: 0,
+                min_vcpu: 0,
+                docker_image: String::new(),
+            },
             Box::new(AxolotlHarness),
         )
     }

@@ -244,3 +244,60 @@ pub trait McpTabbedWindow: Window {
         f.render_widget(para, inner);
     }
 }
+
+/// Implement `McpTabbedWindow` for a window whose fields are named
+/// `active_tab: McpTab` and `chat_state: McpChatState`.
+///
+/// Generates the three identical getters plus `mcp_server_name` (from the
+/// literal `$mcp_name`) and `render_chat_tab` (delegating to
+/// `default_render_chat_tab`). The caller supplies a closure for
+/// `render_data_tab` that receives `(&self, &mut Frame, Rect)`.
+///
+/// # Why a macro, not trait defaults
+///
+/// `active_tab`/`set_active_tab`/`chat_state_mut` must read private fields
+/// (`self.active_tab`, `self.chat_state`) of each concrete window struct, so
+/// they cannot have trait-level default implementations. 11 windows share
+/// this exact pattern; the macro prevents drift and keeps the trait surface
+/// honest about which methods are actually window-specific.
+///
+/// # Example
+///
+/// ```ignore
+/// impl_mcp_tabbed!(ReplicaWindow, "replica", |this, f, area| {
+///     let mut lines = vec![headers::section("Replica ([ ] Chat/Data)"), Line::from("")];
+///     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+/// });
+/// ```
+#[macro_export]
+macro_rules! impl_mcp_tabbed {
+    (
+        $window:ty,
+        $mcp_name:literal,
+        |$this:ident, $f:ident, $area:ident| $body:block
+    ) => {
+        impl $crate::mcp_tabbed::McpTabbedWindow for $window {
+            fn active_tab(&self) -> $crate::mcp_tabbed::McpTab {
+                self.active_tab
+            }
+            fn set_active_tab(&mut self, tab: $crate::mcp_tabbed::McpTab) {
+                self.active_tab = tab;
+            }
+            fn chat_state_mut(&mut self) -> &mut $crate::mcp_tabbed::McpChatState {
+                &mut self.chat_state
+            }
+            fn mcp_server_name(&self) -> &str {
+                $mcp_name
+            }
+            fn render_chat_tab(&self, f: &mut ratatui::Frame, area: ratatui::layout::Rect) {
+                Self::default_render_chat_tab(&self.chat_state, $mcp_name, f, area);
+            }
+            fn render_data_tab(&self, f: &mut ratatui::Frame, area: ratatui::layout::Rect) {
+                let $this = self;
+                let $f = f;
+                let $area = area;
+                $body
+            }
+        }
+    };
+}

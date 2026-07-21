@@ -4525,7 +4525,6 @@ dependencies = [
  "base64",
  "blake3",
  "chrono",
- "dotenvy",
  "hf-hub",
  "hkask-adapter",
  "hkask-bridge-dublincore",
