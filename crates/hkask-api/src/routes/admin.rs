@@ -44,7 +44,7 @@ pub async fn create_invite(
         )
     })?;
     let replicant = user_store
-        .get_replicant_by_webid(&auth.webid)
+        .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::FORBIDDEN, format!("{e}")))?
         .ok_or((StatusCode::FORBIDDEN, "Replicant not found".into()))?;
     let invite = user_store.create_invite(&replicant.user_id).map_err(|e| {
@@ -81,7 +81,7 @@ pub async fn list_invites(
         )
     })?;
     let replicant = user_store
-        .get_replicant_by_webid(&auth.webid)
+        .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::FORBIDDEN, format!("{e}")))?
         .ok_or((StatusCode::FORBIDDEN, "Replicant not found".into()))?;
     let invites = user_store.list_invites(&replicant.user_id).map_err(|e| {
@@ -122,7 +122,7 @@ pub async fn revoke_invite(
         )
     })?;
     let replicant = user_store
-        .get_replicant_by_webid(&auth.webid)
+        .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::FORBIDDEN, format!("{e}")))?
         .ok_or((StatusCode::FORBIDDEN, "Replicant not found".into()))?;
     let invite = user_store

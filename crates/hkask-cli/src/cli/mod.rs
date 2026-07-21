@@ -101,7 +101,7 @@ pub enum Commands {
     /// Replicant identity management
     Replicant {
         #[command(subcommand)]
-        action: ReplicantAction,
+        action: UserPodAction,
     },
 
     /// Keystore management (OS keychain)

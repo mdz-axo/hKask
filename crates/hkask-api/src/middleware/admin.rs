@@ -35,7 +35,7 @@ pub async fn admin_middleware(
             .lock()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let replicant = store
-            .get_replicant_by_webid(&webid)
+            .get_userpod_by_webid(&webid)
             .map_err(|_| StatusCode::FORBIDDEN)?
             .ok_or(StatusCode::FORBIDDEN)?;
         let user = store

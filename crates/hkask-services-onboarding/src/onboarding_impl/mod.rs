@@ -21,7 +21,7 @@ pub use matrix::conduit_ensure_healthy;
 pub use matrix::conduit_health_check;
 
 /// Optional contact and voice configuration for a new replicant.
-/// Grouped to keep `register_replicant` argument count manageable.
+/// Grouped to keep `register_userpod` argument count manageable.
 #[derive(Default)]
 pub struct ReplicantContactConfig {
     pub phone_number: Option<String>,
@@ -206,7 +206,7 @@ impl OnboardingService {
     /// pre:  a2a must be initialized; store must be initialized; name and description must be non-empty
     /// post: replicant is registered in A2A with default capabilities and persisted to store; Err(A2A) on registration failure; Err(AgentRegistryStore) on persistence failure
     #[must_use = "result must be used"]
-    pub async fn register_replicant(
+    pub async fn register_userpod(
         a2a: &Arc<A2ARuntime>,
         store: &AgentRegistryStore,
         name: &str,

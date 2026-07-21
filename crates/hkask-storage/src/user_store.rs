@@ -26,7 +26,7 @@ pub enum UserStoreError {
     #[error("User not found: {0}")]
     NotFound(NotFound),
     #[error("Replicant name already registered: {0}")]
-    ReplicantNameTaken(String),
+    UserPodNameTaken(String),
     #[error("Invalid credentials")]
     InvalidCredentials,
     #[error("Encryption error: {0}")]
@@ -132,7 +132,7 @@ impl UserStore {
     /// \[P2\] Constraining: Affirmative Consent — passphrase requirements enforced
     /// pre:  userpod_name is non-empty, passphrase meets requirements
     /// post: replicant and user records created
-    pub fn register_replicant(
+    pub fn register_userpod(
         &self,
         userpod_name: String,
         email: String,
@@ -165,7 +165,7 @@ impl UserStore {
                 .optional()
                 .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
             if existing.is_some() {
-                return Err(UserStoreError::ReplicantNameTaken(userpod_name));
+                return Err(UserStoreError::UserPodNameTaken(userpod_name));
             }
             conn.execute(
                 "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, passphrase_set_at)
@@ -344,7 +344,7 @@ impl UserStore {
                     )))
                 })?;
                 let user = self.get_user(&uid)?;
-                let replicants = self.list_replicants(&uid)?;
+                let replicants = self.list_userpods(&uid)?;
                 let primary = replicants
                     .into_iter()
                     .find(|r| r.is_primary)
@@ -374,7 +374,7 @@ impl UserStore {
     /// expect: "The system provides durable storage for archival data"
     /// pre:  from_name exists; to_name does not exist
     /// post: userpod_identities.userpod_name updated
-    pub fn rename_replicant(&self, from_name: &str, to_name: &str) -> UserResult<()> {
+    pub fn rename_userpod(&self, from_name: &str, to_name: &str) -> UserResult<()> {
         let rows = self.driver.execute(
             "UPDATE userpod_identities SET userpod_name = ?1 WHERE userpod_name = ?2",
             &[
@@ -395,7 +395,7 @@ impl UserStore {
     /// expect: "The system provides durable storage for archival data"
     /// pre:  userpod_name exists
     /// post: userpod_identities row deleted; sessions deleted
-    pub fn delete_replicant(&self, userpod_name: &str) -> UserResult<()> {
+    pub fn delete_userpod(&self, userpod_name: &str) -> UserResult<()> {
         let rows = self.driver.execute(
             "DELETE FROM userpod_identities WHERE userpod_name = ?1",
             &[DbValue::Text(userpod_name.to_string())],
@@ -417,7 +417,7 @@ impl UserStore {
     /// expect: "The system provides durable storage for archival data"
     /// pre:  webid is a valid WebID
     /// post: returns Some(UserPod) if found, None otherwise
-    pub fn get_replicant_by_webid(
+    pub fn get_userpod_by_webid(
         &self,
         webid: &hkask_types::WebID,
     ) -> UserResult<Option<UserPod>> {
@@ -441,7 +441,7 @@ impl UserStore {
     /// post: returns Err if credentials invalid
     pub fn login(&self, userpod_name: &str, passphrase: &str) -> UserResult<UserSession> {
         let identity = self
-            .get_replicant(userpod_name)?
+            .get_userpod(userpod_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
                 entity_type: "replicant".to_string(),
                 id: userpod_name.to_string(),
@@ -491,7 +491,7 @@ impl UserStore {
         new_passphrase: &str,
     ) -> UserResult<()> {
         let identity = self
-            .get_replicant(userpod_name)?
+            .get_userpod(userpod_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
                 entity_type: "replicant".to_string(),
                 id: userpod_name.to_string(),
@@ -533,7 +533,7 @@ impl UserStore {
         max_age_days: i64,
     ) -> UserResult<Option<i64>> {
         let identity = self
-            .get_replicant(userpod_name)?
+            .get_userpod(userpod_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
                 entity_type: "replicant".to_string(),
                 id: userpod_name.to_string(),
@@ -601,7 +601,7 @@ impl UserStore {
     /// pre:  userpod_name is non-empty
     /// post: returns Some(identity) if found, None otherwise
     #[must_use = "result must be used"]
-    pub fn get_replicant(&self, userpod_name: &str) -> UserResult<Option<UserPod>> {
+    pub fn get_userpod(&self, userpod_name: &str) -> UserResult<Option<UserPod>> {
         let sql = format!(
             "SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE userpod_name = ?1"
         );
@@ -893,7 +893,7 @@ impl UserStore {
     /// pre:  user_id is valid
     /// post: returns Vec of replicants owned by user
     #[must_use = "result must be used"]
-    pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<UserPod>> {
+    pub fn list_userpods(&self, user_id: &UserID) -> UserResult<Vec<UserPod>> {
         let sql = format!(
             "SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC"
         );
@@ -917,7 +917,7 @@ impl UserStore {
     /// post: returns Some(WalletId) if set, None otherwise
     pub fn get_wallet_id(&self, userpod_name: &str) -> UserResult<Option<WalletId>> {
         let identity = self
-            .get_replicant(userpod_name)?
+            .get_userpod(userpod_name)?
             .ok_or(UserStoreError::NotFound(NotFound {
                 entity_type: "replicant".to_string(),
                 id: userpod_name.to_string(),

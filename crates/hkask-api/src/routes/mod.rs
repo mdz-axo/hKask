@@ -76,7 +76,7 @@ pub use git::{ArchiveRequest, ArchiveResponse, ResolveShaResponse};
 pub use goal::{CreateGoalRequest, GoalListResponse, GoalResponse, SetGoalStateRequest};
 pub use models::{ModelEntry, ModelListResponse, ModelSearchQuery};
 pub use pods::{CreatePodRequest, CreatePodResponse, ListPodsResponse, PodStatusResponse};
-pub use replicant::{RenameRequest, ReplicantInfo, ReplicantListResponse};
+pub use replicant::{RenameRequest, UserPodInfo, ReplicantListResponse};
 pub use settings::{SettingsResponse, UpdateSettingsRequest};
 pub use sovereignty::{AccessCheckResponse, SovereigntyConsentResponse, SovereigntyStatusResponse};
 pub use templates::TemplateResponse;

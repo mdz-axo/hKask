@@ -265,7 +265,7 @@ pub enum FederationAction {
 
 /// Replicant identity actions
 #[derive(Debug, Subcommand)]
-pub enum ReplicantAction {
+pub enum UserPodAction {
     Register {
         #[arg()]
         userpod_name: String,

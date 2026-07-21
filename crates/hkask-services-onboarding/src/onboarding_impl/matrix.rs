@@ -574,7 +574,7 @@ impl OnboardingService {
     /// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence.
     /// pre:  display_name must be non-empty; homeserver_url must be valid and reachable
     /// post: returns the full Matrix user ID on success; Err(Matrix) on registration failure
-    pub async fn register_replicant_matrix_account(
+    pub async fn register_userpod_matrix_account(
         display_name: &str,
         homeserver_url: &str,
     ) -> Result<String, ServiceError> {

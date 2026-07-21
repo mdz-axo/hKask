@@ -52,7 +52,7 @@ pub async fn run_onboarding() -> Result<OnboardingOutcome, OnboardingError> {
     if let Ok(config) = ServiceConfig::from_env()
         && let Ok(handle) = OnboardingService::init_registry(&config).await
     {
-        let replicants = list_replicants(&handle.store)?;
+        let replicants = list_userpods(&handle.store)?;
         if !replicants.is_empty() {
             let agent_name = if replicants.len() == 1 {
                 replicants[0].definition.name.clone()
@@ -188,7 +188,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     setup_provider().await?;
     let selected_model = select_model().await?;
 
-    OnboardingService::register_replicant(
+    OnboardingService::register_userpod(
         &handle.a2a,
         &handle.store,
         &name,
@@ -218,7 +218,7 @@ pub async fn run_add_replicant() -> Result<(), OnboardingError> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
     let matrix_info =
-        match OnboardingService::register_replicant_matrix_account(&display_name, &homeserver_url)
+        match OnboardingService::register_userpod_matrix_account(&display_name, &homeserver_url)
             .await
         {
             Ok(user_id) => Some(user_id),
@@ -680,7 +680,7 @@ async fn retry_pending_matrix(handle: &hkask_services_onboarding::RegistryHandle
             Ok(Some(p)) => p,
             _ => return,
         };
-    let replicants = match list_replicants(&handle.store) {
+    let replicants = match list_userpods(&handle.store) {
         Ok(r) if !r.is_empty() => r,
         _ => return,
     };
@@ -742,7 +742,7 @@ fn print_creation_summary(
 }
 
 /// List replicants from a store
-fn list_replicants(
+fn list_userpods(
     store: &hkask_storage::AgentRegistryStore,
 ) -> Result<Vec<RegisteredAgent>, OnboardingError> {
     store.list().map_err(|e| {
@@ -800,10 +800,10 @@ fn resolve_secrets_from_keychain(
 
 /// Register a replicant in the UserStore (human_users + userpod_identities).
 ///
-/// This is called after `OnboardingService::register_replicant` (which writes
+/// This is called after `OnboardingService::register_userpod` (which writes
 /// to AgentRegistryStore) to ensure the replicant also exists in the
 /// `userpod_identities` table. The daemon's `check_auth` queries this table
-/// via `UserStore::get_replicant` — without this registration, the daemon
+/// via `UserStore::get_userpod` — without this registration, the daemon
 /// returns `authenticated: false` even though the replicant exists in the
 /// agent registry.
 ///
@@ -825,7 +825,7 @@ pub(crate) fn register_in_user_store(
 
     // Check if the replicant already exists (idempotent).
     if store
-        .get_replicant(display_name)
+        .get_userpod(display_name)
         .map_err(UserStoreRegistrationError::GetReplicant)?
         .is_some()
     {
@@ -840,7 +840,7 @@ pub(crate) fn register_in_user_store(
     // Register the replicant in the UserStore. This creates both the
     // human_users and userpod_identities records.
     store
-        .register_replicant(
+        .register_userpod(
             display_name.to_string(),
             user_profile.email.clone(),
             None, // phone
@@ -855,15 +855,15 @@ pub(crate) fn register_in_user_store(
 /// Error type for UserStore registration during onboarding.
 ///
 /// Used by `register_in_user_store` to classify failures in the
-/// DB open → pool → get_replicant → register_replicant chain. Non-fatal —
+/// DB open → pool → get_userpod → register_userpod chain. Non-fatal —
 /// the caller logs a warning and continues (daemon auth may not work).
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum UserStoreRegistrationError {
     #[error("DB open: {0}")]
     DbOpen(#[source] hkask_storage::DatabaseError),
-    #[error("get_replicant: {0}")]
+    #[error("get_userpod: {0}")]
     GetReplicant(#[source] hkask_storage::UserStoreError),
-    #[error("register_replicant: {0}")]
+    #[error("register_userpod: {0}")]
     RegisterReplicant(#[source] hkask_storage::UserStoreError),
 }
 

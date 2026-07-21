@@ -92,7 +92,7 @@ impl DaemonHandler for ServiceDaemonHandler {
                     return (false, None);
                 }
             };
-            let exists = store.get_replicant(replicant).is_ok();
+            let exists = store.get_userpod(replicant).is_ok();
             if !exists {
                 tracing::warn!(target: "hkask.daemon", replicant = %replicant, "Replicant not found in user store");
                 return (false, None);

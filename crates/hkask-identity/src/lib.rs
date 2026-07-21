@@ -223,13 +223,13 @@ pub struct RegistrationRequest {
 /// Loop: Cybernetics
 ///
 /// Variants are grouped by shared recovery path:
-/// - `InvalidReplicantName` — \[NORMATIVE\] name must be 1–64 alphanumeric/hyphen/underscore chars (P6 — Space for UserPods).
+/// - `InvalidUserPodName` — \[NORMATIVE\] name must be 1–64 alphanumeric/hyphen/underscore chars (P6 — Space for UserPods).
 /// - `EmptyName` — required name field is missing
 /// - `InvalidContact` — email or phone format is wrong
 /// - `InvalidPassphrase` — passphrase doesn't meet requirements
 pub enum RegistrationError {
     #[error("Invalid replicant name: must be 1-64 chars, alphanumeric with hyphens/underscores")]
-    InvalidReplicantName,
+    InvalidUserPodName,
     #[error("Required name field is empty")]
     EmptyName,
     #[error("Invalid contact information format")]

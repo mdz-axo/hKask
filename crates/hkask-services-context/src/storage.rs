@@ -75,7 +75,7 @@ impl StorageContext {
             message: "User store lock poisoned".into(),
         })?;
         store
-            .get_replicant_by_webid(webid)
+            .get_userpod_by_webid(webid)
             .map_err(|e| ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
                 domain: DomainKind::Storage,

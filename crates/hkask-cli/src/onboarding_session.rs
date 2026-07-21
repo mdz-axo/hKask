@@ -213,7 +213,7 @@ impl OnboardingSession {
                 message: "Registry not initialized before replicant registration".into(),
             })
         })?;
-        OnboardingService::register_replicant(
+        OnboardingService::register_userpod(
             &handle.a2a,
             &handle.store,
             &self.userpod_name,

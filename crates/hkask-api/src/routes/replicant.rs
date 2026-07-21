@@ -11,7 +11,7 @@ use crate::ApiState;
 use crate::middleware::AuthContext;
 
 #[derive(Debug, Serialize, ToSchema)]
-pub struct ReplicantInfo {
+pub struct UserPodInfo {
     pub name: String,
     pub webid: String,
     pub created_at: i64,
@@ -20,7 +20,7 @@ pub struct ReplicantInfo {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct ReplicantListResponse {
-    pub replicants: Vec<ReplicantInfo>,
+    pub replicants: Vec<UserPodInfo>,
     pub active: String,
 }
 
@@ -39,7 +39,7 @@ pub struct RenameRequest {
         (status = 200, description = "List of replicants for the authenticated user", body = ReplicantListResponse),
     ),
 )]
-pub async fn list_replicants(
+pub async fn list_userpods(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<ReplicantListResponse>, (StatusCode, String)> {
@@ -51,15 +51,15 @@ pub async fn list_replicants(
         )
     })?;
     let session_replicant = store
-        .get_replicant_by_webid(&auth.webid)
+        .get_userpod_by_webid(&auth.webid)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
         .ok_or((StatusCode::NOT_FOUND, "Replicant not found".to_string()))?;
     let replicants = store
-        .list_replicants(&session_replicant.user_id)
+        .list_userpods(&session_replicant.user_id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?;
-    let list: Vec<ReplicantInfo> = replicants
+    let list: Vec<UserPodInfo> = replicants
         .into_iter()
-        .map(|r| ReplicantInfo {
+        .map(|r| UserPodInfo {
             name: r.userpod_name,
             webid: r.webid.to_string(),
             created_at: r.created_at,
@@ -88,7 +88,7 @@ pub async fn list_replicants(
         (status = 400, description = "Invalid request"),
     ),
 )]
-pub async fn rename_replicant(
+pub async fn rename_userpod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<RenameRequest>,
@@ -101,7 +101,7 @@ pub async fn rename_replicant(
         )
     })?;
     store
-        .rename_replicant(&req.from, &req.to)
+        .rename_userpod(&req.from, &req.to)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("{e}")))?;
     Ok(Json(
         serde_json::json!({"status": "renamed", "from": req.from, "to": req.to}),
@@ -121,7 +121,7 @@ pub async fn rename_replicant(
         (status = 400, description = "Invalid request"),
     ),
 )]
-pub async fn delete_replicant(
+pub async fn delete_userpod(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     axum::extract::Path(name): axum::extract::Path<String>,
@@ -134,7 +134,7 @@ pub async fn delete_replicant(
         )
     })?;
     store
-        .delete_replicant(&name)
+        .delete_userpod(&name)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("{e}")))?;
     Ok(Json(serde_json::json!({"status": "deleted", "name": name})))
 }
@@ -142,5 +142,5 @@ pub async fn delete_replicant(
 pub fn replicant_router() -> utoipa_axum::router::OpenApiRouter<ApiState> {
     use utoipa_axum::router::OpenApiRouter;
     use utoipa_axum::routes;
-    OpenApiRouter::new().routes(routes!(list_replicants, rename_replicant, delete_replicant))
+    OpenApiRouter::new().routes(routes!(list_userpods, rename_userpod, delete_userpod))
 }

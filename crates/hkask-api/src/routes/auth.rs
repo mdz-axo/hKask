@@ -705,7 +705,7 @@ pub async fn accept_invite(
         return Err((StatusCode::UNAUTHORIZED, "Session expired".into()));
     }
     let replicant = user_store
-        .get_replicant_by_webid(&session.webid)
+        .get_userpod_by_webid(&session.webid)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{e}")))?
         .ok_or((StatusCode::UNAUTHORIZED, "Replicant not found".into()))?;
     user_store

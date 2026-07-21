@@ -256,11 +256,11 @@ fn build_wallet(
             source: None,
             message: hkask_types::InfrastructureError::LockPoisoned.to_string(),
         })?;
-        if let Ok(Some(system_identity)) = user_guard.get_replicant(&config.agent_name) {
+        if let Ok(Some(system_identity)) = user_guard.get_userpod(&config.agent_name) {
             let user_id = system_identity.user_id;
             let replicants =
                 user_guard
-                    .list_replicants(&user_id)
+                    .list_userpods(&user_id)
                     .map_err(|e| ServiceError::Domain {
                         kind: ErrorKind::BadRequest,
                         domain: DomainKind::Storage,

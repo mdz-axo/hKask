@@ -54,7 +54,7 @@
 //! | adapters/   | directory      | hkask-mcp-training, hkask-adapter       | 🔧 dir exists, not wired |
 //! | portfolios/ | directory      | hkask-services-wallet (financial data)  | 🔧 dir exists, not wired |
 //! | artifacts/  | directory      | BundleService, StyleService, BotService | 🔧 dir exists, not wired |
-//! | agent.yaml  | YAML file      | onboarding (register_replicant) + ensure_agent_dirs fallback | ✅ created |
+//! | agent.yaml  | YAML file      | onboarding (register_userpod) + ensure_agent_dirs fallback | ✅ created |
 //!
 //! # Not agent-scoped (system-level, correct as-is)
 //!

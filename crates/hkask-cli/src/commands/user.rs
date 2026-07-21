@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use crate::cli::ReplicantAction;
+use crate::cli::UserPodAction;
 use crate::error::CliError;
 use hkask_identity::{RegistrationRequest, UserPod, UserSession};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
@@ -87,7 +87,7 @@ fn validate_registration(request: &RegistrationRequest) -> Result<(), ServiceErr
 
 /// pre:  store is a valid UserStore; userpod_name, first_name, last_name, email are non-empty; passphrase meets validation (8+ alphanumeric, mixed case)
 /// post: registers a new replicant identity in the store; returns UserPod on success or ServiceError on validation/store failure
-pub fn register_replicant_with_passphrase(
+pub fn register_userpod_with_passphrase(
     store: &Store,
     userpod_name: &str,
     first_name: &str,
@@ -109,7 +109,7 @@ pub fn register_replicant_with_passphrase(
     store
         .lock()
         .expect("CLI operation")
-        .register_replicant(
+        .register_userpod(
             request.userpod_name,
             request.email,
             request.phone,
@@ -146,14 +146,14 @@ pub fn login_with_passphrase(
 
 /// pre:  store is a valid UserStore; userpod_name is non-empty
 /// post: returns the UserPod if found, or ServiceError::UserNotFound if the replicant does not exist
-pub fn get_replicant(
+pub fn get_userpod(
     store: &Store,
     userpod_name: &str,
 ) -> Result<UserPod, ServiceError> {
     store
         .lock()
         .expect("CLI operation")
-        .get_replicant(userpod_name)
+        .get_userpod(userpod_name)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -170,14 +170,14 @@ pub fn get_replicant(
 
 /// pre:  store is a valid UserStore; user_id is a valid UserID
 /// post: returns all replicant identities belonging to the given user; empty vec if none
-pub fn get_replicants(
+pub fn get_userpods(
     store: &Store,
     user_id: &UserID,
 ) -> Result<Vec<UserPod>, ServiceError> {
     store
         .lock()
         .expect("CLI operation")
-        .list_replicants(user_id)
+        .list_userpods(user_id)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -236,7 +236,7 @@ pub fn revoke_session(store: &Store, session_id: &str) -> Result<UserSession, Se
 /// pre:  stdin is available for interactive input
 /// post: prompts user for replicant details and passphrase; registers on success, prints ✓; exits on validation failure
 /// Register a new replicant identity (interactive)
-pub fn register_replicant() {
+pub fn register_userpod() {
     use std::io::{self, Write};
     let mut name = String::new();
     let mut first = String::new();
@@ -271,7 +271,7 @@ pub fn register_replicant() {
             continue;
         }
         let store = build_store();
-        match register_replicant_with_passphrase(
+        match register_userpod_with_passphrase(
             &store,
             name.trim(),
             first.trim(),
@@ -298,7 +298,7 @@ pub fn register_replicant() {
 
 /// pre:  stdin is available; replicant must exist in store
 /// post: prompts for name and passphrase; prints session info on success or error message on failure
-pub fn login_replicant() {
+pub fn login_userpod() {
     use std::io::{self, Write};
     let mut name = String::new();
     print!("Replicant name: ");
@@ -308,7 +308,7 @@ pub fn login_replicant() {
     if let Ok(Some(identity)) = store
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .get_replicant(name.trim())
+        .get_userpod(name.trim())
     {
         print!("Enter passphrase: ");
         io_or_die(io::stdout().flush(), "flush stdout");
@@ -332,11 +332,11 @@ pub fn login_replicant() {
 
 /// pre:  store is a valid UserStore; userpod_name is non-empty and exists
 /// post: prints replicant details (name, user_id, created_at) to stdout; ServiceError if not found
-pub fn show_replicant(store: &Store, userpod_name: &str) -> Result<(), ServiceError> {
+pub fn show_userpod(store: &Store, userpod_name: &str) -> Result<(), ServiceError> {
     let identity = store
         .lock()
         .expect("CLI operation")
-        .get_replicant(userpod_name)
+        .get_userpod(userpod_name)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -357,12 +357,12 @@ pub fn show_replicant(store: &Store, userpod_name: &str) -> Result<(), ServiceEr
 
 /// pre:  store is a valid UserStore
 /// post: prints all replicants with name, user_id, and created_at; prints "No replicants registered." if empty
-pub fn list_replicants(store: &Store) -> Result<(), ServiceError> {
+pub fn list_userpods(store: &Store) -> Result<(), ServiceError> {
     let user_id = hkask_types::UserID::new();
     let replicants = store
         .lock()
         .expect("CLI operation")
-        .list_replicants(&user_id)
+        .list_userpods(&user_id)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -489,7 +489,7 @@ pub(crate) fn create_invite(
     let replicant = store
         .lock()
         .expect("CLI operation")
-        .get_replicant(admin_replicant)
+        .get_userpod(admin_replicant)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -567,7 +567,7 @@ pub fn revoke_invite(store: &Store, admin_replicant: &str, code: &str) -> Result
     let replicant = store
         .lock()
         .expect("CLI operation")
-        .get_replicant(admin_replicant)
+        .get_userpod(admin_replicant)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -594,38 +594,38 @@ pub fn revoke_invite(store: &Store, admin_replicant: &str, code: &str) -> Result
     Ok(())
 }
 
-/// pre:  action is a valid ReplicantAction variant
+/// pre:  action is a valid UserPodAction variant
 /// post: dispatches to the appropriate handler (register, login, show, list, sessions, logout, passphrase); prints results or errors
-pub fn run_replicant(rt: &tokio::runtime::Runtime, action: crate::cli::ReplicantAction) {
+pub fn run_replicant(rt: &tokio::runtime::Runtime, action: crate::cli::UserPodAction) {
     match action {
-        ReplicantAction::Register { .. } => register_replicant(),
-        ReplicantAction::Login { .. } => login_replicant(),
-        ReplicantAction::Show { userpod_name } => {
+        UserPodAction::Register { .. } => register_userpod(),
+        UserPodAction::Login { .. } => login_userpod(),
+        UserPodAction::Show { userpod_name } => {
             let store = build_store();
-            super::helpers::or_exit(show_replicant(&store, &userpod_name), "Show failed");
+            super::helpers::or_exit(show_userpod(&store, &userpod_name), "Show failed");
         }
-        ReplicantAction::List { .. } => {
+        UserPodAction::List { .. } => {
             let store = build_store();
-            super::helpers::or_exit(list_replicants(&store), "List failed");
+            super::helpers::or_exit(list_userpods(&store), "List failed");
         }
-        ReplicantAction::Sessions { userpod_name } => {
+        UserPodAction::Sessions { userpod_name } => {
             let store = build_store();
             super::helpers::or_exit(list_sessions(&store, &userpod_name), "Sessions failed");
         }
-        ReplicantAction::Logout { session_id } => {
+        UserPodAction::Logout { session_id } => {
             let store = build_store();
             super::helpers::or_exit(logout(&store, &session_id), "Logout failed");
         }
-        ReplicantAction::Passphrase { userpod_name } => {
+        UserPodAction::Passphrase { userpod_name } => {
             change_passphrase(&userpod_name);
         }
-        ReplicantAction::Rename { from, to } => {
+        UserPodAction::Rename { from, to } => {
             replicant_rename(rt, &from, &to);
         }
-        ReplicantAction::Delete { name } => {
+        UserPodAction::Delete { name } => {
             replicant_delete(rt, &name);
         }
-        ReplicantAction::Invite {
+        UserPodAction::Invite {
             by,
             invitee,
             invitees,
@@ -679,7 +679,7 @@ pub fn run_replicant(rt: &tokio::runtime::Runtime, action: crate::cli::Replicant
                 }
             }
         }
-        ReplicantAction::RevokeInvite { code, by } => {
+        UserPodAction::RevokeInvite { code, by } => {
             let store = build_store();
             super::helpers::or_exit(revoke_invite(&store, &by, &code), "Revoke failed");
         }
@@ -752,7 +752,7 @@ pub fn change_passphrase(userpod_name: &str) {
     if store
         .lock()
         .expect("CLI operation")
-        .get_replicant(userpod_name)
+        .get_userpod(userpod_name)
         .unwrap_or(None)
         .is_none()
     {
