@@ -1388,7 +1388,7 @@ impl TrainingServer {
     /// can compute coverage. Findings with `Refuse` severity indicate the config
     /// would silently degrade model quality or waste GPU time if submitted.
     #[tool(
-        description = "Validate training params against the lora-training skill's math-contract gates (G-M1 no-op-at-init, G-M2 merge equivalence, G-M3 scaling form, G-M4 rank budget, G-Q1 frozen base quantized, G-Q2 adapter dtype, G-Q4 no silent upcast, G-Q5 paged optimizer, G-H1 harness-method compatibility). Also validates dataset size (G-D1) if dataset_path is provided. Returns findings with severity (refuse/warn/info), gate ID, message, source citation, and remediation. Emits reg.lora.audit spans. This is the runtime enforcement point for the lora-training skill's audit-config phase."
+        description = "Validate training params against the lora-training skill's math-contract gates (G-M1 no-op-at-init, G-M2 merge equivalence, G-M3 scaling form, G-M4 rank budget, G-Q1 frozen base quantized, G-Q2 adapter dtype, G-Q4 no silent upcast, G-Q5 paged optimizer, G-H1 harness-method compatibility). Also validates dataset size (G-D1) if dataset_path is provided. When dataset_path is provided, also profiles the dataset (G-D0) and returns a DatasetProfile with format, sample count, content length statistics, token estimates, role distribution, multi-turn detection, vision data detection, and preference pair balance. Returns findings with severity (refuse/warn/info), gate ID, message, source citation, and remediation. Emits reg.lora.audit spans. This is the runtime enforcement point for the lora-training skill's audit-config phase."
     )]
     pub async fn training_validate_config(
         &self,

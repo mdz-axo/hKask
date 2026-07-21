@@ -322,15 +322,18 @@ impl DatasetPipeline {
     /// `dataset_path` is provided, and the resulting `DatasetProfile` is
     /// included in the tool's response for the skill to consume.
     pub fn profile(file_path: &std::path::Path) -> DatasetProfile {
-        let mut profile = DatasetProfile::default();
-
-        // Detect format.
-        profile.format = DatasetFormat::detect(file_path);
+        // Detect format first (avoids field_reassign_with_default clippy lint).
+        let format = DatasetFormat::detect(file_path);
 
         // Read the raw file content.
         let content = match std::fs::read_to_string(file_path) {
             Ok(c) => c,
-            Err(_) => return profile, // File read error — return empty profile.
+            Err(_) => {
+                return DatasetProfile {
+                    format,
+                    ..Default::default()
+                };
+            }
         };
 
         // Count non-empty lines (each line is one example in JSONL).

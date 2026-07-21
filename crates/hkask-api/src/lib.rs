@@ -227,7 +227,7 @@ pub fn create_router(state: ApiState) -> utoipa_axum::router::OpenApiRouter {
         .merge(routes::pods_router())
         .merge(routes::mcp_router())
         .merge(routes::userpod_router())
-        // TODO: .merge(routes::regulation_router())  // regulation route file needs creation
+        .merge(routes::regulation_router())
         .merge(routes::sovereignty_router())
         .merge(routes::chat_router())
         .merge(routes::models_router())
@@ -309,7 +309,7 @@ pub fn create_openapi() -> utoipa::openapi::OpenApi {
         )
         .route("/health", axum::routing::get(routes::health_check))
         .merge(routes::mcp_router())
-        // TODO: .merge(routes::regulation_router())  // regulation route file needs creation
+        .merge(routes::regulation_router())
         .merge(routes::sovereignty_router())
         .merge(routes::chat_router())
         .merge(routes::models_router())

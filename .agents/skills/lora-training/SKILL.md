@@ -80,6 +80,14 @@ This skill does not train, load, initialize, merge, or evaluate models.
    determines baseline rank ranges, target module strategies, and the
    learning-forgetting tradeoff posture. G0 runs first and constrains all
    subsequent gates.
+   G-D0 (dataset analysis) runs alongside G0. If `dataset_path` is declared,
+   the skill requests the runtime to profile the actual dataset file via
+   `training_validate_config`. The profile includes: format detection, sample
+   count, content length statistics, token estimates, role distribution,
+   multi-turn detection, vision data detection, and preference pair balance.
+   The profile feeds into G3 (rank refinement), G6 (harness selection), and
+   the adapter_purpose inference. If the profile is unavailable, the skill
+   falls back to `dataset_format_hint` and declared inputs.
 7. G6 (harness capability) selects a harness based on the training approach
    determined by G0-G5. The harness must be able to efficiently process the
    declared dataset and produce the adapter type implied by G0. If the operator
