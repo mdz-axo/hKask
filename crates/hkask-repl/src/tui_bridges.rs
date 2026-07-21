@@ -1133,3 +1133,97 @@ impl ScenariosDataBridge for TuiReplBridge {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── parse_mcp_json ──────────────────────────────────────────────────
+
+    #[test]
+    fn parse_mcp_json_passes_through_object() {
+        let input = serde_json::json!({"replicas": [{"author": "A", "count": 3}]});
+        let parsed = parse_mcp_json(&input).expect("object should parse");
+        assert_eq!(parsed["replicas"][0]["author"].as_str(), Some("A"));
+    }
+
+    #[test]
+    fn parse_mcp_json_decodes_json_string() {
+        // MCP tools may return a JSON-encoded string rather than a bare object.
+        let input = serde_json::Value::String(r#"{"replicas": [{"author": "B"}]}"#.to_string());
+        let parsed = parse_mcp_json(&input).expect("JSON string should decode");
+        assert_eq!(parsed["replicas"][0]["author"].as_str(), Some("B"));
+    }
+
+    #[test]
+    fn parse_mcp_json_returns_none_for_invalid_json_string() {
+        let input = serde_json::Value::String("not json{".to_string());
+        assert!(parse_mcp_json(&input).is_none());
+    }
+
+    #[test]
+    fn parse_mcp_json_passes_through_null() {
+        let input = serde_json::Value::Null;
+        let parsed = parse_mcp_json(&input).expect("null should pass through");
+        assert!(parsed.is_null());
+    }
+
+    #[test]
+    fn parse_mcp_json_passes_through_array() {
+        let input = serde_json::json!([{"symbol": "AAPL"}]);
+        let parsed = parse_mcp_json(&input).expect("array should pass through");
+        assert_eq!(parsed[0]["symbol"].as_str(), Some("AAPL"));
+    }
+
+    // ── extract_mcp_text ────────────────────────────────────────────────
+
+    #[test]
+    fn extract_mcp_text_returns_string() {
+        let input = serde_json::Value::String("hello world".to_string());
+        assert_eq!(extract_mcp_text(&input).as_deref(), Some("hello world"));
+    }
+
+    #[test]
+    fn extract_mcp_text_returns_none_for_non_string() {
+        assert!(extract_mcp_text(&serde_json::json!(42)).is_none());
+        assert!(extract_mcp_text(&serde_json::json!({"key": 1})).is_none());
+        assert!(extract_mcp_text(&serde_json::Value::Null).is_none());
+    }
+
+    // ── Adversarial: malformed JSON shapes ──────────────────────────────
+    //
+    // These tests verify that the parsing helpers handle the kinds of
+    // malformed responses that a buggy or evolving MCP server might return.
+    // The bridge methods chain `as_str()?` / `as_u64()?` which silently drop
+    // fields with wrong types — these tests document that behavior so it's
+    // visible when it changes.
+
+    #[test]
+    fn parse_mcp_json_handles_empty_string() {
+        let input = serde_json::Value::String(String::new());
+        // Empty string is not valid JSON, so parse_mcp_json returns None.
+        assert!(parse_mcp_json(&input).is_none());
+    }
+
+    #[test]
+    fn parse_mcp_json_handles_deeply_nested_string() {
+        // A JSON string containing a JSON string containing JSON — should
+        // only decode one level (the outer string → inner JSON object).
+        let inner = r#"{"key": "value"}"#;
+        let wrapped = serde_json::Value::String(format!("{inner:?}"));
+        let parsed = parse_mcp_json(&wrapped);
+        // The wrapped string is a JSON-encoded string literal, not a JSON object.
+        // parse_mcp_json will try to from_str it — it's valid JSON (a string),
+        // so it returns Some(Value::String(...)).
+        assert!(parsed.is_some());
+    }
+
+    #[test]
+    fn parse_mcp_json_preserves_numeric_precision() {
+        // f64 precision should be preserved through the parse cycle.
+        let input = serde_json::json!({"probability": 0.123456789});
+        let parsed = parse_mcp_json(&input).expect("should parse");
+        let prob = parsed["probability"].as_f64().expect("should be f64");
+        assert!((prob - 0.123456789).abs() < 1e-9);
+    }
+}
