@@ -798,11 +798,11 @@ fn resolve_secrets_from_keychain(
     })
 }
 
-/// Register a replicant in the UserStore (human_users + replicant_identities).
+/// Register a replicant in the UserStore (human_users + userpod_identities).
 ///
 /// This is called after `OnboardingService::register_replicant` (which writes
 /// to AgentRegistryStore) to ensure the replicant also exists in the
-/// `replicant_identities` table. The daemon's `check_auth` queries this table
+/// `userpod_identities` table. The daemon's `check_auth` queries this table
 /// via `UserStore::get_replicant` — without this registration, the daemon
 /// returns `authenticated: false` even though the replicant exists in the
 /// agent registry.
@@ -838,7 +838,7 @@ pub(crate) fn register_in_user_store(
     }
 
     // Register the replicant in the UserStore. This creates both the
-    // human_users and replicant_identities records.
+    // human_users and userpod_identities records.
     store
         .register_replicant(
             display_name.to_string(),

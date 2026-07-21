@@ -16,7 +16,7 @@ use std::str::FromStr;
 use thiserror::Error;
 use zeroize::Zeroizing;
 
-const REPLICANT_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, persona_yaml, is_primary, created_at, last_login";
+const USERPOD_COLUMNS: &str = "userpod_name, user_id, webid, wallet_id, first_name_enc, last_name_enc, persona_yaml, is_primary, created_at, last_login";
 const SESSION_COLUMNS: &str = "session_id, userpod_name, webid, user_id, session_key_salt, expires_at, last_active";
 
 #[derive(Error, Debug)]
@@ -158,7 +158,7 @@ impl UserStore {
         self.with_raw_conn(|conn| {
             let existing: Option<String> = conn
                 .query_row(
-                    "SELECT userpod_name FROM replicant_identities WHERE userpod_name = ?1",
+                    "SELECT userpod_name FROM userpod_identities WHERE userpod_name = ?1",
                     rusqlite::params![userpod_name],
                     |row| row.get(0),
                 )
@@ -184,7 +184,7 @@ impl UserStore {
             let identity =
                 UserPod::new(userpod_name, user_id, first_name_enc, last_name_enc, true);
             conn.execute(
-                "INSERT INTO replicant_identities
+                "INSERT INTO userpod_identities
                  (userpod_name, user_id, webid, first_name_enc, last_name_enc, is_primary, created_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 rusqlite::params![
@@ -226,7 +226,7 @@ impl UserStore {
                 ],
             )?;
             self.driver.execute(
-                "UPDATE replicant_identities SET last_login = ?1 WHERE userpod_name = ?2",
+                "UPDATE userpod_identities SET last_login = ?1 WHERE userpod_name = ?2",
                 &[
                     DbValue::Integer(now),
                     DbValue::Text(replicant.userpod_name.clone()),
@@ -255,7 +255,7 @@ impl UserStore {
             loop {
                 let exists: Option<String> = conn
                     .query_row(
-                        "SELECT userpod_name FROM replicant_identities WHERE userpod_name = ?1",
+                        "SELECT userpod_name FROM userpod_identities WHERE userpod_name = ?1",
                         rusqlite::params![userpod_name],
                         |row| row.get(0),
                     )
@@ -297,7 +297,7 @@ impl UserStore {
                 true,
             );
             conn.execute(
-                "INSERT INTO replicant_identities
+                "INSERT INTO userpod_identities
                  (userpod_name, user_id, webid, first_name_enc, last_name_enc, is_primary, created_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 rusqlite::params![
@@ -373,10 +373,10 @@ impl UserStore {
     ///
     /// expect: "The system provides durable storage for archival data"
     /// pre:  from_name exists; to_name does not exist
-    /// post: replicant_identities.userpod_name updated
+    /// post: userpod_identities.userpod_name updated
     pub fn rename_replicant(&self, from_name: &str, to_name: &str) -> UserResult<()> {
         let rows = self.driver.execute(
-            "UPDATE replicant_identities SET userpod_name = ?1 WHERE userpod_name = ?2",
+            "UPDATE userpod_identities SET userpod_name = ?1 WHERE userpod_name = ?2",
             &[
                 DbValue::Text(to_name.to_string()),
                 DbValue::Text(from_name.to_string()),
@@ -394,10 +394,10 @@ impl UserStore {
     ///
     /// expect: "The system provides durable storage for archival data"
     /// pre:  userpod_name exists
-    /// post: replicant_identities row deleted; sessions deleted
+    /// post: userpod_identities row deleted; sessions deleted
     pub fn delete_replicant(&self, userpod_name: &str) -> UserResult<()> {
         let rows = self.driver.execute(
-            "DELETE FROM replicant_identities WHERE userpod_name = ?1",
+            "DELETE FROM userpod_identities WHERE userpod_name = ?1",
             &[DbValue::Text(userpod_name.to_string())],
         )?;
         if rows == 0 {
@@ -422,7 +422,7 @@ impl UserStore {
         webid: &hkask_types::WebID,
     ) -> UserResult<Option<UserPod>> {
         let sql = format!(
-            "SELECT {REPLICANT_COLUMNS} FROM replicant_identities WHERE webid = ?1"
+            "SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE webid = ?1"
         );
         query_row(
             &*self.driver,
@@ -603,7 +603,7 @@ impl UserStore {
     #[must_use = "result must be used"]
     pub fn get_replicant(&self, userpod_name: &str) -> UserResult<Option<UserPod>> {
         let sql = format!(
-            "SELECT {REPLICANT_COLUMNS} FROM replicant_identities WHERE userpod_name = ?1"
+            "SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE userpod_name = ?1"
         );
         query_row(
             &*self.driver,
@@ -895,7 +895,7 @@ impl UserStore {
     #[must_use = "result must be used"]
     pub fn list_replicants(&self, user_id: &UserID) -> UserResult<Vec<UserPod>> {
         let sql = format!(
-            "SELECT {REPLICANT_COLUMNS} FROM replicant_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC"
+            "SELECT {USERPOD_COLUMNS} FROM userpod_identities WHERE user_id = ?1 ORDER BY is_primary DESC, created_at ASC"
         );
         query_map(
             &*self.driver,
@@ -933,7 +933,7 @@ impl UserStore {
     /// post: wallet_id stored for replicant
     pub fn set_wallet_id(&self, userpod_name: &str, wallet_id: WalletId) -> UserResult<()> {
         let rows = self.driver.execute(
-            "UPDATE replicant_identities SET wallet_id = ?1 WHERE userpod_name = ?2",
+            "UPDATE userpod_identities SET wallet_id = ?1 WHERE userpod_name = ?2",
             &[
                 DbValue::Text(wallet_id.to_string()),
                 DbValue::Text(userpod_name.to_string()),
@@ -1000,7 +1000,7 @@ impl UserStore {
     }
     fn update_last_login(&self, userpod_name: &str) -> UserResult<()> {
         self.driver.execute(
-            "UPDATE replicant_identities SET last_login = ?1 WHERE userpod_name = ?2",
+            "UPDATE userpod_identities SET last_login = ?1 WHERE userpod_name = ?2",
             &[
                 DbValue::Integer(chrono::Utc::now().timestamp()),
                 DbValue::Text(userpod_name.to_string()),

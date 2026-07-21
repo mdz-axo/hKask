@@ -233,7 +233,7 @@ impl OnboardingSession {
         // agent definition (A2A, YAML, capabilities); the UserStore tracks
         // the human user, replicant identity, and sessions. Without this,
         // the daemon returns authenticated:false because the replicant
-        // isn't in the replicant_identities table.
+        // isn't in the userpod_identities table.
         let passphrase = self.passphrase.as_deref().unwrap_or("");
         if !passphrase.is_empty() {
             let config = ServiceConfig::from_secrets(
