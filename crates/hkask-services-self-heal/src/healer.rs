@@ -137,7 +137,7 @@ impl SelfHealer {
                             ..
                         } => {
                             debug_log.attempt_count = attempt;
-                            debug_log.cns_spans.extend(attempt_log.cns_spans);
+                            debug_log.reg_spans.extend(attempt_log.reg_spans);
                             debug_log.modifications.extend(attempt_log.modifications);
                             debug_log.actions_taken.extend(attempt_log.actions_taken);
                             debug_log.suggestion = suggestion.clone();
@@ -173,7 +173,7 @@ impl SelfHealer {
 
     #[must_use]
     pub fn attempt(&self, error: &str, context: &HealContext) -> HealOutcome {
-        tracing::info!(target: "reg.heal.attempt", operation = %context.operation, error = %error, cns_span = %hkask_types::regulation::RegulationSpan::SelfHeal);
+        tracing::info!(target: "reg.heal.attempt", operation = %context.operation, error = %error, reg_span = %hkask_types::regulation::RegulationSpan::SelfHeal);
 
         // Stage 1: KnowAct classification
         if let Some((strategy_name, confidence)) = self.classify_error(error, context)
@@ -204,7 +204,7 @@ impl SelfHealer {
             requires_code_change: false,
             debug_log: MiniDebugLog {
                 attempt_count: 1,
-                cns_spans: vec!["reg.heal.unmatched".into()],
+                reg_spans: vec!["reg.heal.unmatched".into()],
                 suggestion: "Add strategy or template".into(),
                 ..Default::default()
             },
@@ -359,7 +359,7 @@ impl SelfHealer {
                 ),
                 debug_log: MiniDebugLog {
                     attempt_count: 1,
-                    cns_spans: vec!["reg.heal.strategy".into()],
+                    reg_spans: vec!["reg.heal.strategy".into()],
                     actions_taken: vec![DebugLogAction {
                         name: strategy.name.clone(),
                         output: e.to_string(),

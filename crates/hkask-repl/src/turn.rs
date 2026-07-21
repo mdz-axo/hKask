@@ -12,7 +12,7 @@ use hkask_services_chat::TokenUsage;
 use super::ReplState;
 use super::TalkMode;
 #[cfg(feature = "tui")]
-use super::cns_display;
+use super::reg_display;
 use super::deps::{TurnConfig, TurnDeps, TurnInput};
 use super::handlers::speak_response;
 
@@ -430,7 +430,7 @@ fn run_turn_with_state(
     let gas = super::deps::ReplGasGovernor::from_state(state, rt);
     let svc_ctx = &state.service_context;
     #[cfg(feature = "tui")]
-    let on_cns_update = || cns_display::update_cns_and_display(svc_ctx, rt);
+    let on_cns_update = || reg_display::update_cns_and_display(svc_ctx, rt);
     #[cfg(not(feature = "tui"))]
     let on_cns_update = || {};
     let mut threads = super::deps::ReplThreadMemory::new(&mut state.thread_registry);

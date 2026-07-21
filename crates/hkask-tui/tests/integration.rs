@@ -305,7 +305,7 @@ fn chat_renders() {
 }
 
 #[test]
-fn cns_monitor_renders() {
+fn reg_monitor_renders() {
     let w = CnsMonitorWindow::new(window_id(), bridge());
     render_smoke(&w, 80, 24);
 }
@@ -690,7 +690,7 @@ fn chat_windows_receive_only_their_owned_inference() {
 }
 
 #[test]
-fn cns_monitor_snapshot_shows_domains() {
+fn reg_monitor_snapshot_shows_domains() {
     let w = CnsMonitorWindow::new(window_id(), bridge());
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");

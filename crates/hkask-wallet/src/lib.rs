@@ -24,7 +24,7 @@
 //! - `hedera.rs` — `HederaPort` (feature-gated: "hedera")
 
 pub mod chain;
-pub mod cns_span;
+pub mod reg_span;
 pub mod issuer;
 pub mod manager;
 pub mod price_feed;

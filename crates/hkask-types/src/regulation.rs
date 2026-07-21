@@ -369,7 +369,7 @@ impl std::str::FromStr for RegulationSpan {
 }
 
 #[cfg(test)]
-mod cns_span_tests {
+mod reg_span_tests {
     use super::*;
     use std::str::FromStr;
 

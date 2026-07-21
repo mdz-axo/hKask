@@ -3,7 +3,7 @@
 //! Exposes two tools for reading CNS ν-event history from the persistent
 //! `RegulationArchive`:
 //! - `cns_query_spans` — query events by span_category prefix within a time window
-//! - `cns_span_stats`  — aggregate counts by span_category
+//! - `reg_span_stats`  — aggregate counts by span_category
 //!
 //! These tools are the runtime telemetry surface that the
 //! `runtime-posture-monitor` skill consumes to observe `cns.guard.*`,
@@ -65,7 +65,7 @@ fn default_limit() -> u64 {
     100
 }
 
-/// Request for `cns_span_stats`.
+/// Request for `reg_span_stats`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SpanStatsRequest {
     /// Canonical namespace prefix (e.g. "reg.guard", "reg.outcome", "hkask").
@@ -139,8 +139,8 @@ impl CnsServer {
     #[tool(
         description = "Aggregate CNS ν-event counts by exact span_category within a namespace prefix and time window. Returns a JSON object mapping each span_category to its count, ordered by count DESC."
     )]
-    pub async fn cns_span_stats(&self, Parameters(req): Parameters<SpanStatsRequest>) -> String {
-        execute_tool(self, "cns_span_stats", async {
+    pub async fn reg_span_stats(&self, Parameters(req): Parameters<SpanStatsRequest>) -> String {
+        execute_tool(self, "reg_span_stats", async {
             let namespace = req.namespace.trim();
             if namespace.is_empty() {
                 return Err(McpToolError::invalid_argument(

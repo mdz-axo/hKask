@@ -13,11 +13,9 @@ use std::time::Duration;
 use futures_util::Stream;
 use futures_util::StreamExt;
 
-use hkask_pods::curation::persona_filter;
 use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::DelegationAction;
 use hkask_ports::InferencePort;
-use hkask_types::PersonaConstraints;
 use hkask_types::regulation::RegulationSpan;
 
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
@@ -744,7 +742,6 @@ impl ChatService {
 
         // 5. Persona filter.
         let filtered =
-            Self::apply_persona_filter(&chat_response.text, req.persona_constraints.as_ref());
 
         Ok(TurnResult {
             text: filtered,

@@ -10,7 +10,7 @@
 mod builtin_servers;
 
 #[cfg(feature = "tui")]
-mod cns_display;
+mod reg_display;
 mod commands;
 pub mod deps;
 pub mod display;

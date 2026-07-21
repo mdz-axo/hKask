@@ -3,7 +3,7 @@
 //! Every test carries the full traceability chain:
 //! `UserFunctionalExpectation (expect:) → GoalPrinciple [P{N}] → ConstrainingPrinciple [P{N}] → REQ: → Test`
 //!
-//! Tested seam: `cns_query_spans` and `cns_span_stats` MCP tool methods
+//! Tested seam: `cns_query_spans` and `reg_span_stats` MCP tool methods
 //! invoked through the public `Parameters<T>` seam — the same surface an
 //! agent uses.
 
@@ -193,18 +193,18 @@ async fn cns_query_spans_applies_defaults() {
     );
 }
 
-// REQ: cns_span_stats returns an empty categories object when no events match (P5).
+// REQ: reg_span_stats returns an empty categories object when no events match (P5).
 // expect: a fresh server with no events returns total_events=0 and an empty
 // categories object.
 #[tokio::test]
-async fn cns_span_stats_returns_empty_object_when_no_events() {
+async fn reg_span_stats_returns_empty_object_when_no_events() {
     let server = test_server();
     let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.outcome",
         "since_hours": 1.0
     }))
     .expect("deserialize SpanStatsRequest");
-    let out = server.cns_span_stats(Parameters(req)).await;
+    let out = server.reg_span_stats(Parameters(req)).await;
     let content = parse_content(&out);
     assert_eq!(content["total_events"], 0, "expected total_events=0: {out}");
     assert!(
@@ -218,13 +218,13 @@ async fn cns_span_stats_returns_empty_object_when_no_events() {
     );
 }
 
-// REQ: cns_span_stats returns aggregated counts by span_category (P5).
+// REQ: reg_span_stats returns aggregated counts by span_category (P5).
 // expect: after inserting two cns.regulation events with different local paths
-// (both stored under span_category="regulation"), cns_span_stats with
+// (both stored under span_category="regulation"), reg_span_stats with
 // namespace="reg.outcome" returns total_events=2 and a categories object
 // mapping "regulation" to 2.
 #[tokio::test]
-async fn cns_span_stats_returns_aggregated_counts() {
+async fn reg_span_stats_returns_aggregated_counts() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
@@ -243,7 +243,7 @@ async fn cns_span_stats_returns_aggregated_counts() {
         "since_hours": 1.0
     }))
     .expect("deserialize SpanStatsRequest");
-    let out = server.cns_span_stats(Parameters(req)).await;
+    let out = server.reg_span_stats(Parameters(req)).await;
     let content = parse_content(&out);
     assert_eq!(content["total_events"], 2, "expected total_events=2: {out}");
     let categories = content["categories"]
@@ -260,32 +260,32 @@ async fn cns_span_stats_returns_aggregated_counts() {
     );
 }
 
-// REQ: cns_span_stats rejects an empty namespace with invalid_argument (P5).
+// REQ: reg_span_stats rejects an empty namespace with invalid_argument (P5).
 // expect: an empty namespace string returns kind=invalid_argument.
 #[tokio::test]
-async fn cns_span_stats_rejects_empty_namespace() {
+async fn reg_span_stats_rejects_empty_namespace() {
     let server = test_server();
     let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
         "namespace": "",
         "since_hours": 1.0
     }))
     .expect("deserialize SpanStatsRequest");
-    let out = server.cns_span_stats(Parameters(req)).await;
+    let out = server.reg_span_stats(Parameters(req)).await;
     let kind = error_kind(&out).expect("expected error kind for empty namespace");
     assert_eq!(kind, "invalid_argument", "got: {out}");
 }
 
-// REQ: cns_span_stats returns permission_denied when no store is attached (P5).
+// REQ: reg_span_stats returns permission_denied when no store is attached (P5).
 // expect: when the RegulationArchive is None, the tool returns kind=permission_denied.
 #[tokio::test]
-async fn cns_span_stats_returns_permission_denied_without_store() {
+async fn reg_span_stats_returns_permission_denied_without_store() {
     let server = test_server_no_store();
     let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard",
         "since_hours": 1.0
     }))
     .expect("deserialize SpanStatsRequest");
-    let out = server.cns_span_stats(Parameters(req)).await;
+    let out = server.reg_span_stats(Parameters(req)).await;
     let kind = error_kind(&out).expect("expected error kind for missing store");
     assert_eq!(kind, "permission_denied", "got: {out}");
 }

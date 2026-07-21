@@ -7,7 +7,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::cns_span::FederationSpan;
+use crate::reg_span::FederationSpan;
 use hkask_ports::federation::{
     FederationDelta, FederationMessage, FederationSyncPort, FederationTransport,
 };

@@ -413,7 +413,7 @@ fn map_tool_kind(tc: &hkask_ports::inference_types::StructuredToolCall) -> Strin
 fn cns_emit_acp(span: &str, userpod: &str, detail: &str) {
     info!(
         target: "hkask.acp",
-        cns_span = %span,
+        reg_span = %span,
         userpod = %userpod,
         detail = %detail,
         "REG"

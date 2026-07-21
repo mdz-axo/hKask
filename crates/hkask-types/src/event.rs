@@ -576,7 +576,7 @@ impl SpanNamespace {
     }
 }
 
-impl TryFrom<crate::cns::RegulationSpan> for SpanNamespace {
+impl TryFrom<crate::regulation::RegulationSpan> for SpanNamespace {
     type Error = &'static str;
 
     /// Convert a typed `RegulationSpan` to a `SpanNamespace`, validating against
@@ -586,7 +586,7 @@ impl TryFrom<crate::cns::RegulationSpan> for SpanNamespace {
     /// registry. This should not happen if `RegulationSpan::as_str()` is correct;
     /// if it does, the `RegulationSpan` variant needs to be added to
     /// `CANONICAL_NAMESPACES`.
-    fn try_from(span: crate::cns::RegulationSpan) -> Result<Self, Self::Error> {
+    fn try_from(span: crate::regulation::RegulationSpan) -> Result<Self, Self::Error> {
         Self::from_str_validated(span.as_str())
             .ok_or("RegulationSpan namespace not registered in CANONICAL_NAMESPACES")
     }

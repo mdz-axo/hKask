@@ -6,7 +6,7 @@
 //! coupled to wallet_seed and WalletStore — a separate module added no behavior
 //! beyond what inline functions provide.
 
-use crate::cns_span::WalletSpan;
+use crate::reg_span::WalletSpan;
 #[cfg(test)]
 use crate::types::EncumbranceStatus;
 use crate::types::{

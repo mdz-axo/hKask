@@ -21,7 +21,7 @@ use crate::routes::{
 };
 
 // Handler-local types needed in schemas
-use crate::routes::cns::CnsSubscribeParams;
+use crate::routes::regulation::CnsSubscribeParams;
 
 /// API documentation
 ///

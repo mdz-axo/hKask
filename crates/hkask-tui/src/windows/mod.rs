@@ -2,7 +2,7 @@
 
 pub mod backup;
 pub mod chat;
-pub mod cns_monitor;
+pub mod reg_monitor;
 pub mod companies;
 pub mod configuration;
 pub mod curator;
@@ -26,7 +26,7 @@ pub mod wallet;
 
 pub use backup::BackupWindow;
 pub use chat::ChatWindow;
-pub use cns_monitor::CnsMonitorWindow;
+pub use reg_monitor::CnsMonitorWindow;
 pub use companies::CompaniesWindow;
 pub use configuration::ConfigurationWindow;
 pub use curator::CuratorWindow;

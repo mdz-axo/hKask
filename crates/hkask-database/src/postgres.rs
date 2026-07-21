@@ -140,7 +140,7 @@ fn row_to_dbrow(row: &sqlx::postgres::PgRow) -> DbRow {
 impl DatabaseDriver for PostgresDriver {
     fn execute(&self, sql: &str, params: &[DbValue]) -> Result<usize, DbError> {
         let start = std::time::Instant::now();
-        let table = crate::cns::extract_table(sql);
+        let table = crate::regulation::extract_table(sql);
         let sql = translate_placeholders(sql);
         let pool = self.pool.clone();
         let args: Vec<Option<String>> = params.iter().map(to_param).collect();
@@ -154,8 +154,8 @@ impl DatabaseDriver for PostgresDriver {
         });
         let duration_us = start.elapsed().as_micros() as u64;
         match &result {
-            Ok(rows) => crate::cns::emit_storage_span("execute", table, duration_us, *rows, false),
-            Err(_) => crate::cns::emit_storage_span("execute", table, duration_us, 0, true),
+            Ok(rows) => crate::regulation::emit_storage_span("execute", table, duration_us, *rows, false),
+            Err(_) => crate::regulation::emit_storage_span("execute", table, duration_us, 0, true),
         }
         result
     }
@@ -171,27 +171,27 @@ impl DatabaseDriver for PostgresDriver {
 
     fn query(&self, sql: &str, params: &[DbValue]) -> Result<Vec<DbRow>, DbError> {
         let start = std::time::Instant::now();
-        let table = crate::cns::extract_table(sql);
+        let table = crate::regulation::extract_table(sql);
         let result = self.query_raw(sql, params);
         let duration_us = start.elapsed().as_micros() as u64;
         match &result {
             Ok(rows) => {
-                crate::cns::emit_storage_span("query", table, duration_us, rows.len(), false)
+                crate::regulation::emit_storage_span("query", table, duration_us, rows.len(), false)
             }
-            Err(_) => crate::cns::emit_storage_span("query", table, duration_us, 0, true),
+            Err(_) => crate::regulation::emit_storage_span("query", table, duration_us, 0, true),
         }
         result
     }
 
     fn query_optional(&self, sql: &str, params: &[DbValue]) -> Result<Option<DbRow>, DbError> {
         let start = std::time::Instant::now();
-        let table = crate::cns::extract_table(sql);
+        let table = crate::regulation::extract_table(sql);
         let result = self.query_raw(sql, params);
         let duration_us = start.elapsed().as_micros() as u64;
         match result {
             Ok(rows) => {
                 let row_count = rows.len();
-                crate::cns::emit_storage_span(
+                crate::regulation::emit_storage_span(
                     "query_optional",
                     table,
                     duration_us,
@@ -207,7 +207,7 @@ impl DatabaseDriver for PostgresDriver {
                 }
             }
             Err(e) => {
-                crate::cns::emit_storage_span("query_optional", table, duration_us, 0, true);
+                crate::regulation::emit_storage_span("query_optional", table, duration_us, 0, true);
                 Err(e)
             }
         }

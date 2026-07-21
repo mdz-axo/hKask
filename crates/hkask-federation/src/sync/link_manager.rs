@@ -9,7 +9,7 @@ use std::sync::Arc;
 use chrono::Utc;
 use tokio::sync::RwLock;
 
-use crate::cns_span::FederationSpan;
+use crate::reg_span::FederationSpan;
 use hkask_ports::federation::{FederationDispatchError, FederationMessage, FederationTransport};
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 

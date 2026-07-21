@@ -112,7 +112,7 @@ fn healable_exhausted_returns_error() {
 fn debug_log_serializes() {
     let log = MiniDebugLog {
         attempt_count: 3,
-        cns_spans: vec!["reg.heal.attempt".into()],
+        reg_spans: vec!["reg.heal.attempt".into()],
         modifications: vec!["Loaded .env".into()],
         actions_taken: vec![DebugLogAction {
             name: "x".into(),

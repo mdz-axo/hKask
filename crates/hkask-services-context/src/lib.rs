@@ -6,7 +6,7 @@
 #![allow(unused_crate_dependencies)]
 
 pub mod regulation;
-pub mod cns_store_slo_provider;
+pub mod reg_store_slo_provider;
 mod context_impl;
 pub mod governance;
 pub mod infra;

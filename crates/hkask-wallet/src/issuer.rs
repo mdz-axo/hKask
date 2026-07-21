@@ -9,7 +9,7 @@
 //! Each key carries embedded attenuation: spending limit, expiry, privacy mode.
 //! The Ed25519 signature proves it was issued by the wallet holder.
 
-use crate::cns_span::WalletSpan;
+use crate::reg_span::WalletSpan;
 use crate::types::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, PrivacyMode, RJoule, RateLimitConfig, WalletError,
 };

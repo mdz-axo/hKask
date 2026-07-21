@@ -160,7 +160,7 @@ impl DatabaseDriver for SqliteDriver {
 
     fn execute(&self, sql: &str, params: &[DbValue]) -> Result<usize, DbError> {
         let start = std::time::Instant::now();
-        let table = crate::cns::extract_table(sql);
+        let table = crate::regulation::extract_table(sql);
         let conn = self
             .pool
             .get()
@@ -173,8 +173,8 @@ impl DatabaseDriver for SqliteDriver {
             .map_err(|e| DbError::Database(e.to_string()));
         let duration_us = start.elapsed().as_micros() as u64;
         match &result {
-            Ok(rows) => crate::cns::emit_storage_span("execute", table, duration_us, *rows, false),
-            Err(_) => crate::cns::emit_storage_span("execute", table, duration_us, 0, true),
+            Ok(rows) => crate::regulation::emit_storage_span("execute", table, duration_us, *rows, false),
+            Err(_) => crate::regulation::emit_storage_span("execute", table, duration_us, 0, true),
         }
         result
     }
@@ -190,27 +190,27 @@ impl DatabaseDriver for SqliteDriver {
 
     fn query(&self, sql: &str, params: &[DbValue]) -> Result<Vec<DbRow>, DbError> {
         let start = std::time::Instant::now();
-        let table = crate::cns::extract_table(sql);
+        let table = crate::regulation::extract_table(sql);
         let result = self.query_raw(sql, params);
         let duration_us = start.elapsed().as_micros() as u64;
         match &result {
             Ok(rows) => {
-                crate::cns::emit_storage_span("query", table, duration_us, rows.len(), false)
+                crate::regulation::emit_storage_span("query", table, duration_us, rows.len(), false)
             }
-            Err(_) => crate::cns::emit_storage_span("query", table, duration_us, 0, true),
+            Err(_) => crate::regulation::emit_storage_span("query", table, duration_us, 0, true),
         }
         result
     }
 
     fn query_optional(&self, sql: &str, params: &[DbValue]) -> Result<Option<DbRow>, DbError> {
         let start = std::time::Instant::now();
-        let table = crate::cns::extract_table(sql);
+        let table = crate::regulation::extract_table(sql);
         let result = self.query_raw(sql, params);
         let duration_us = start.elapsed().as_micros() as u64;
         match result {
             Ok(mut rows) => {
                 let row_count = rows.len();
-                crate::cns::emit_storage_span(
+                crate::regulation::emit_storage_span(
                     "query_optional",
                     table,
                     duration_us,
@@ -229,7 +229,7 @@ impl DatabaseDriver for SqliteDriver {
                 }
             }
             Err(e) => {
-                crate::cns::emit_storage_span("query_optional", table, duration_us, 0, true);
+                crate::regulation::emit_storage_span("query_optional", table, duration_us, 0, true);
                 Err(e)
             }
         }

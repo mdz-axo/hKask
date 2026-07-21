@@ -57,7 +57,7 @@ impl KataEngine {
                 "duration_minutes": practice.duration_minutes,
                 "steps": practice.steps,
                 "success_criteria": practice.success_criteria,
-                "cns_spans": practice.cns_spans,
+                "reg_spans": practice.reg_spans,
                 "status": "executed",
                 "date": today,
             });

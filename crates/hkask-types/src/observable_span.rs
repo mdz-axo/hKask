@@ -171,7 +171,7 @@ mod tests {
     }
 
     #[test]
-    fn cns_span_implements_observable_span() {
+    fn reg_span_implements_observable_span() {
         use crate::regulation::RegulationSpan;
         let span = RegulationSpan::Inference;
         assert_eq!(span.as_str(), "reg.inference");

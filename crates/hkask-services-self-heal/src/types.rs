@@ -105,7 +105,7 @@ pub enum HealError {
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub(crate) struct MiniDebugLog {
     pub attempt_count: u32,
-    pub cns_spans: Vec<String>,
+    pub reg_spans: Vec<String>,
     pub modifications: Vec<String>,
     pub actions_taken: Vec<DebugLogAction>,
     pub suggestion: String,

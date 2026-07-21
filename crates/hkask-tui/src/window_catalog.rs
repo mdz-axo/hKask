@@ -12,7 +12,7 @@ use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge
 use crate::window::{Window, WindowId, WindowKind};
 use crate::windows::backup::BackupWindow;
 use crate::windows::chat::ChatWindow;
-use crate::windows::cns_monitor::CnsMonitorWindow;
+use crate::windows::reg_monitor::CnsMonitorWindow;
 use crate::windows::companies::CompaniesWindow;
 use crate::windows::configuration::ConfigurationWindow;
 use crate::windows::curator::CuratorWindow;

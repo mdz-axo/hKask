@@ -96,7 +96,7 @@ pub struct CoachQuestion {
     pub question: String,
     pub description: String,
     #[serde(default)]
-    pub cns_span: Option<String>,
+    pub reg_span: Option<String>,
     #[serde(default)]
     pub expected_output: Option<String>,
 }
@@ -111,7 +111,7 @@ pub struct PracticeRoutine {
     #[serde(default)]
     pub duration_minutes: Option<u32>,
     #[serde(default)]
-    pub cns_spans: Vec<String>,
+    pub reg_spans: Vec<String>,
     #[serde(default)]
     pub steps: Vec<String>,
     #[serde(default)]

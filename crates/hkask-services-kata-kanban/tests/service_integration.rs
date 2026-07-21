@@ -119,7 +119,7 @@ cns:
     // ── Kata prompt generation (MCP/REPL path) ─────────────────────────
 
     #[test]
-    fn kata_prompt_methods_emit_cns_spans() {
+    fn kata_prompt_methods_emit_reg_spans() {
         let svc = KanbanService::new(make_test_store());
         let owner = hkask_types::WebID::new();
         let board = svc
