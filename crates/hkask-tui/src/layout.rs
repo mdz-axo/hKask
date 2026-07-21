@@ -86,12 +86,12 @@ pub fn string_to_kind(s: &str) -> WindowKind {
 }
 
 /// Path to the layout file for a given agent.
-pub fn layout_path(agent_name: &str) -> PathBuf {
+pub fn layout_path(userpod_name: &str) -> PathBuf {
     let base = dirs::config_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("hkask")
         .join("agents")
-        .join(sanitize(agent_name));
+        .join(sanitize(userpod_name));
     base.join("tui_layout.json")
 }
 

@@ -1,7 +1,7 @@
 //! Consolidation authentication helpers — passphrase verification and rate limiting.
 //!
 //! The actual per-agent DB open + consolidation pipeline now lives in
-//! `hkask_services_context::AgentService::consolidate_agent_memory`, which is
+//! `hkask_services_context::AgentService::consolidate_userpod_memory`, which is
 //! the single OCAP-gated, consent-checked entry point. This module only keeps
 //! the helpers that surfaces (CLI/API) use as additional auth gates.
 //! # REQ: P2 (Affirmative Consent) — consolidation requires explicit consent.

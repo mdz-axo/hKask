@@ -121,16 +121,16 @@ pub fn resolve_user_webid() -> hkask_types::WebID {
 }
 
 /// Resolve an agent name from an optional argument or environment.
-pub fn resolve_agent_name(agent: Option<&str>) -> String {
-    if let Some(name) = agent {
+pub fn resolve_userpod_name(userpod: Option<&str>) -> String {
+    if let Some(name) = userpod {
         return name.to_string();
     }
     std::env::var("HKASK_MCP_HOST").unwrap_or_else(|_| "anonymous".to_string())
 }
 
 /// Resolve a WebID from an optional argument or derive from agent name.
-pub fn resolve_webid(agent: Option<&str>) -> hkask_types::WebID {
-    let name = resolve_agent_name(agent);
+pub fn resolve_webid(userpod: Option<&str>) -> hkask_types::WebID {
+    let name = resolve_userpod_name(userpod);
     hkask_types::WebID::from_persona_with_namespace(name.as_bytes(), "userpod")
 }
 

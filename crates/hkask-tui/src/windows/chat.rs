@@ -117,7 +117,7 @@ pub enum MessageSender {
 /// The chat window — conversation history + input.
 pub struct ChatWindow {
     id: WindowId,
-    agent_name: String,
+    userpod_name: String,
     model: String,
     /// Current interaction mode
     mode: TuiMode,
@@ -146,21 +146,21 @@ pub struct ChatWindow {
 }
 
 impl ChatWindow {
-    pub fn new(id: WindowId, agent_name: &str, model: &str, bridge: Arc<dyn ReplBridge>) -> Self {
+    pub fn new(id: WindowId, userpod_name: &str, model: &str, bridge: Arc<dyn ReplBridge>) -> Self {
         let mut messages = Vec::new();
         messages.push(TuiChatMessage {
             sender: MessageSender::Curator,
             content: format!(
                 "hKask v{} — Agent: {} | Model: {} | Type /help for commands",
                 env!("CARGO_PKG_VERSION"),
-                agent_name,
+                userpod_name,
                 model
             ),
         });
 
         Self {
             id,
-            agent_name: agent_name.to_string(),
+            userpod_name: userpod_name.to_string(),
             model: model.to_string(),
             mode: TuiMode::Chat,
             messages,
@@ -214,7 +214,7 @@ impl ChatWindow {
         md.push_str(&format!("# hKask Chat Export — {}\n\n", ts));
         md.push_str(&format!(
             "**Agent:** {} | **Model:** {}\n\n---\n\n",
-            self.agent_name, self.model
+            self.userpod_name, self.model
         ));
         for msg in &self.messages {
             match &msg.sender {
@@ -352,7 +352,7 @@ impl ChatWindow {
                     MessageSender::CnsAlert,
                     format!(
                         "Agent: {} | Model: {} | Gas: {}/{} ({:.0}%) | CNS alerts: {} | Context: {:.0}% | MCP: {}/{}",
-                        self.agent_name, self.bridge.model_name(),
+                        self.userpod_name, self.bridge.model_name(),
                         gas, cap, if cap > 0 { (gas as f64 / cap as f64) * 100.0 } else { 100.0 },
                         alerts, ctx * 100.0, mcp_loaded, mcp_total,
                     ),
@@ -425,7 +425,7 @@ impl ChatWindow {
                         MessageSender::CnsAlert,
                         format!(
                             "Current agent: {} (agent info unavailable in this host)",
-                            self.agent_name
+                            self.userpod_name
                         ),
                     ),
                 }
@@ -656,7 +656,7 @@ impl Window for ChatWindow {
                 } else {
                     let sender = match self.mode {
                         TuiMode::Curator => MessageSender::Curator,
-                        _ => MessageSender::Agent(self.agent_name.clone()),
+                        _ => MessageSender::Agent(self.userpod_name.clone()),
                     };
                     self.add_message(sender, result.text.clone());
                     if result.iterations > 1 {
@@ -754,7 +754,7 @@ impl ChatWindow {
             && !self.streaming_partial.is_empty()
         {
             let prefix = Span::styled(
-                format!("{} ▸ ", self.agent_name),
+                format!("{} ▸ ", self.userpod_name),
                 Style::default().fg(Color::Cyan).bold(),
             );
             for line in self.streaming_partial.lines() {

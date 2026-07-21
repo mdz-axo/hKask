@@ -176,7 +176,7 @@ pub fn handle_consolidate(
 
     match state
         .service_context
-        .consolidate_agent_memory(&state.current_agent, request)
+        .consolidate_userpod_memory(&state.current_agent, request)
     {
         Ok(outcome) => {
             println!();

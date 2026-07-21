@@ -18,12 +18,12 @@ use crate::error::ServiceErrorResponse;
 ///
 /// Requires the agents master passphrase for authorization (P4 OCAP) and P2
 /// affirmative consent for both `EpisodicMemory` and `SemanticMemory` on the
-/// target agent. The caller's authenticated WebID must match the target
+/// target userpod. The caller's authenticated WebID must match the target
 /// agent's derived WebID.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ConsolidateRequest {
     /// Agent name whose episodic memory to consolidate (e.g. `curator` or a userpod name)
-    pub agent_name: String,
+    pub userpod_name: String,
     /// Master passphrase for authorization. Database opening uses the service's
     /// canonical `HKASK_DB_PASSPHRASE`; authentication does not redefine it.
     pub passphrase: String,
@@ -71,7 +71,7 @@ pub fn consolidation_router() -> OpenApiRouter<crate::ApiState> {
     responses(
         (status = 200, description = "Consolidation complete", body = ConsolidateResponse),
         (status = 401, description = "Unauthorized — invalid passphrase"),
-        (status = 403, description = "Forbidden — caller not authorized for target agent or consent denied"),
+        (status = 403, description = "Forbidden — caller not authorized for target userpod or consent denied"),
         (status = 429, description = "Rate limited — try again later"),
         (status = 500, description = "Internal server error"),
     ),
@@ -85,8 +85,8 @@ pub(crate) async fn consolidate(
     // Prevent CPU DoS by enforcing a minimum interval between calls.
     consolidation_auth::check_rate_limit()?;
 
-    // Derive the target agent WebID from its name and authorize the caller.
-    let target_webid = WebID::for_agent_name(&req.agent_name);
+    // Derive the target userpod WebID from its name and authorize the caller.
+    let target_webid = WebID::for_userpod_name(&req.userpod_name);
     if auth.webid != target_webid {
         return Err(ServiceError::Domain {
             kind: ErrorKind::Forbidden,
@@ -110,7 +110,7 @@ pub(crate) async fn consolidate(
     // Route through AgentService: consent check + per-agent DB + consolidation
     let outcome = state
         .agent_service
-        .consolidate_agent_memory(&req.agent_name, consolidation_request)?;
+        .consolidate_userpod_memory(&req.userpod_name, consolidation_request)?;
 
     Ok(Json(ConsolidateResponse {
         consolidated_count: outcome.consolidated_count,

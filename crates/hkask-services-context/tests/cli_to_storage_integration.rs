@@ -239,14 +239,14 @@ async fn wallet_store_accessible() {
 /// Verifies the consent-denial path (ServiceError::Domain { domain: Consent, kind: Forbidden, .. }) and that
 /// the consent-granted path proceeds past the consent check to the DB-open stage.
 #[tokio::test]
-async fn consolidate_agent_memory_consent_checks() {
+async fn consolidate_userpod_memory_consent_checks() {
     let svc = build_test_service().await;
     let agent_name = "test-agent"; // matches ServiceConfig::in_memory()
-    let target_webid = hkask_types::WebID::for_agent_name(agent_name);
+    let target_webid = hkask_types::WebID::for_userpod_name(agent_name);
     let request = hkask_ports::ConsolidationRequest::default();
 
     // Part 1: consent denied — no consent granted yet
-    let result = svc.consolidate_agent_memory(agent_name, request.clone());
+    let result = svc.consolidate_userpod_memory(agent_name, request.clone());
     assert!(
         matches!(
             result,
@@ -278,7 +278,7 @@ async fn consolidate_agent_memory_consent_checks() {
         )
         .expect("grant semantic_memory consent");
 
-    let result = svc.consolidate_agent_memory(agent_name, request);
+    let result = svc.consolidate_userpod_memory(agent_name, request);
     assert!(
         matches!(
             result,

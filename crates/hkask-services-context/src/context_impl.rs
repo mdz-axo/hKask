@@ -291,17 +291,17 @@ impl AgentService {
     /// \[P4\] Constraining: Clear Boundaries — all consolidation flows through
     /// `AgentService`, preventing direct `Database::open` bypasses.
     ///
-    /// pre:  agent_name is non-empty; request is a valid ConsolidationRequest
+    /// pre:  userpod_name is non-empty; request is a valid ConsolidationRequest
     /// post: returns ConsolidationOutcome on success; Err(ConsentDenied) if either
     ///       memory category lacks consent; Err(Storage) on DB open failure;
     ///       Err(Consolidation) on pipeline failure
     #[must_use = "result must be used"]
-    pub fn consolidate_agent_memory(
+    pub fn consolidate_userpod_memory(
         &self,
-        agent_name: &str,
+        userpod_name: &str,
         request: ConsolidationRequest,
     ) -> Result<ConsolidationOutcome, ServiceError> {
-        let target_webid = WebID::for_agent_name(agent_name);
+        let target_webid = WebID::for_userpod_name(userpod_name);
 
         // P2: require explicit consent for both sovereign memory categories.
         let categories = [DataCategory::EpisodicMemory, DataCategory::SemanticMemory];
@@ -318,7 +318,7 @@ impl AgentService {
             .collect();
 
         if !missing.is_empty() {
-            let grant_help = if agent_name == "curator" {
+            let grant_help = if userpod_name == "curator" {
                 "Grant consent with: kask sovereignty grant --category <category> --agent curator"
                     .to_string()
             } else {
@@ -336,7 +336,7 @@ impl AgentService {
             });
         }
 
-        let db_path = hkask_types::agent_paths::userpod_memory_db(agent_name);
+        let db_path = hkask_types::agent_paths::userpod_memory_db(userpod_name);
         let db = Database::open(&db_path.to_string_lossy(), &self.config.db_passphrase).map_err(
             |e| ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
@@ -365,17 +365,17 @@ impl AgentService {
     /// This is the canonical read path for consolidation status — the REPL,
     /// TUI bridge, and CLI status display all route through this method.
     ///
-    /// pre:  agent_name is non-empty
+    /// pre:  userpod_name is non-empty
     /// post: returns (candidates, semantic_count, low_confidence) on success;
     ///       Err(Storage) on DB open failure
     #[must_use = "result must be used"]
     pub fn consolidation_status_for(
         &self,
-        agent_name: &str,
+        userpod_name: &str,
     ) -> Result<(usize, usize, usize), ServiceError> {
-        let target_webid = WebID::for_agent_name(agent_name);
+        let target_webid = WebID::for_userpod_name(userpod_name);
 
-        let db_path = hkask_types::agent_paths::userpod_memory_db(agent_name);
+        let db_path = hkask_types::agent_paths::userpod_memory_db(userpod_name);
         let db = Database::open(&db_path.to_string_lossy(), &self.config.db_passphrase).map_err(
             |e| ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
@@ -433,8 +433,8 @@ impl AgentService {
     /// agent's memory DB multiple times when a caller needs more than
     /// one component.
     #[must_use = "result must be used"]
-    pub fn per_agent_memory(&self, agent_name: &str) -> Result<PerAgentMemory, ServiceError> {
-        let db_path = hkask_types::agent_paths::userpod_memory_db(agent_name);
+    pub fn per_agent_memory(&self, userpod_name: &str) -> Result<PerAgentMemory, ServiceError> {
+        let db_path = hkask_types::agent_paths::userpod_memory_db(userpod_name);
         let db = Database::open(&db_path.to_string_lossy(), &self.config.db_passphrase).map_err(
             |e| ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
