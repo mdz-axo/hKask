@@ -519,12 +519,12 @@ fn parse_mcp_json(result: &serde_json::Value) -> Option<serde_json::Value> {
     }
 }
 
-/// Invoke an MCP tool, parse the JSON response, and apply a mapper to an
-/// array field. Collapses the repeated pattern:
+/// Invoke an MCP tool, parse the JSON response, and map each element of an
+/// array field into a `Vec<T>`. Collapses the repeated pattern:
 /// `invoke → match Ok/Err → parse_mcp_json → and_then(v["key"].as_array())
-/// → map(iter.filter_map(...).collect()) → unwrap_or_default()`.
+/// → map(iter.filter_map(mapper).collect()) → unwrap_or_default()`.
 ///
-/// Returns `default` on any failure (missing key, wrong type, MCP error).
+/// Returns an empty `Vec` on any failure (missing key, wrong type, MCP error).
 async fn mcp_array_map<T, F>(
     bridge: &TuiReplBridge,
     server: &str,
@@ -532,10 +532,8 @@ async fn mcp_array_map<T, F>(
     args: serde_json::Map<String, serde_json::Value>,
     array_key: &str,
     mapper: F,
-    default: T,
-) -> T
+) -> Vec<T>
 where
-    T: Default,
     F: Fn(&serde_json::Value) -> Option<T>,
 {
     match bridge.invoke_mcp_tool(server, tool, args).await {
@@ -544,16 +542,17 @@ where
             content
                 .as_ref()
                 .and_then(|v| v[array_key].as_array())
-                .and_then(|arr| arr.first().and_then(&mapper))
-                .unwrap_or(default)
+                .map(|arr| arr.iter().filter_map(&mapper).collect())
+                .unwrap_or_default()
         }
-        Err(_) => default,
+        Err(_) => Vec::new(),
     }
 }
 
-/// Invoke an MCP tool, parse the JSON response, and extract a text field.
+/// Invoke an MCP tool and extract a text response.
 ///
-/// For MCP tools that return a string (not JSON), use `mcp_text` instead.
+/// For MCP tools that return JSON, use `mcp_array_map` or call
+/// `invoke_mcp_tool` + `parse_mcp_json` directly.
 async fn mcp_text(
     bridge: &TuiReplBridge,
     server: &str,
@@ -607,38 +606,24 @@ impl MediaDataBridge for TuiReplBridge {
             let mut args = serde_json::Map::new();
             args.insert("query".into(), serde_json::Value::String(String::new()));
             args.insert("limit".into(), serde_json::Value::from(limit as u64));
-            match self.invoke_mcp_tool("media", "gallery_search", args).await {
-                Ok(ref result) => {
-                    let content = parse_mcp_json(result);
-                    content
-                        .as_ref()
-                        .and_then(|v| v["results"].as_array())
-                        .map(|results| {
-                            results
-                                .iter()
-                                .filter_map(|r| {
-                                    Some(ImageSummary {
-                                        index: r["image_index"].as_u64()? as usize,
-                                        path: r["image"].as_str()?.to_string(),
-                                        format: String::new(),
-                                        width: 0,
-                                        height: 0,
-                                        tags: r["matching_tags"]
-                                            .as_array()
-                                            .map(|a| {
-                                                a.iter()
-                                                    .filter_map(|t| t.as_str().map(String::from))
-                                                    .collect()
-                                            })
-                                            .unwrap_or_default(),
-                                    })
-                                })
+            mcp_array_map(self, "media", "gallery_search", args, "results", |r| {
+                Some(ImageSummary {
+                    index: r["image_index"].as_u64()? as usize,
+                    path: r["image"].as_str()?.to_string(),
+                    format: String::new(),
+                    width: 0,
+                    height: 0,
+                    tags: r["matching_tags"]
+                        .as_array()
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|t| t.as_str().map(String::from))
                                 .collect()
                         })
-                        .unwrap_or_default()
-                }
-                Err(_) => Vec::new(),
-            }
+                        .unwrap_or_default(),
+                })
+            })
+            .await
         })
     }
 
@@ -787,32 +772,22 @@ impl CompaniesDataBridge for TuiReplBridge {
     fn portfolio_list(&self) -> Vec<PortfolioSummary> {
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
-            match self
-                .invoke_mcp_tool("companies", "portfolio_list", args)
-                .await
-            {
-                Ok(ref result) => {
-                    let content = parse_mcp_json(result);
-                    content
-                        .as_ref()
-                        .and_then(|v| v["portfolios"].as_array())
-                        .map(|portfolios| {
-                            portfolios
-                                .iter()
-                                .filter_map(|p| {
-                                    let name = p.as_str()?.to_string();
-                                    Some(PortfolioSummary {
-                                        name,
-                                        holdings: 0,
-                                        created: None,
-                                    })
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                }
-                Err(_) => Vec::new(),
-            }
+            mcp_array_map(
+                self,
+                "companies",
+                "portfolio_list",
+                args,
+                "portfolios",
+                |p| {
+                    let name = p.as_str()?.to_string();
+                    Some(PortfolioSummary {
+                        name,
+                        holdings: 0,
+                        created: None,
+                    })
+                },
+            )
+            .await
         })
     }
 }
@@ -830,31 +805,14 @@ impl ResearchDataBridge for TuiReplBridge {
             let mut args = serde_json::Map::new();
             args.insert("query".into(), serde_json::Value::String(query));
             args.insert("count".into(), serde_json::Value::from(10_u64));
-            match self.invoke_mcp_tool("research", "web_search", args).await {
-                Ok(ref result) => {
-                    let content = parse_mcp_json(result);
-                    content
-                        .as_ref()
-                        .and_then(|v| v["results"].as_array())
-                        .map(|results| {
-                            results
-                                .iter()
-                                .filter_map(|r| {
-                                    Some(SearchResult {
-                                        title: r["title"].as_str()?.to_string(),
-                                        url: r["url"].as_str()?.to_string(),
-                                        snippet: r["snippet"]
-                                            .as_str()
-                                            .map(String::from)
-                                            .unwrap_or_default(),
-                                    })
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                }
-                Err(_) => Vec::new(),
-            }
+            mcp_array_map(self, "research", "web_search", args, "results", |r| {
+                Some(SearchResult {
+                    title: r["title"].as_str()?.to_string(),
+                    url: r["url"].as_str()?.to_string(),
+                    snippet: r["snippet"].as_str().map(String::from).unwrap_or_default(),
+                })
+            })
+            .await
         })
     }
 
@@ -872,17 +830,12 @@ impl ResearchDataBridge for TuiReplBridge {
                 "format".into(),
                 serde_json::Value::String("markdown".into()),
             );
-            match self.invoke_mcp_tool("research", "web_extract", args).await {
-                Ok(ref result) => {
-                    let text = extract_mcp_text(result)?;
-                    Some(ExtractResult {
-                        url: url.clone(),
-                        content: text,
-                        format: "markdown".into(),
-                    })
-                }
-                Err(_) => None,
-            }
+            let text = mcp_text(self, "research", "web_extract", args).await?;
+            Some(ExtractResult {
+                url: url.clone(),
+                content: text,
+                format: "markdown".into(),
+            })
         })
     }
 
@@ -961,35 +914,17 @@ impl ReplicaDataBridge for TuiReplBridge {
         self.rt_handle.block_on(async {
             let mut args = serde_json::Map::new();
             args.insert("action".into(), serde_json::Value::String("list".into()));
-            match self
-                .invoke_mcp_tool("replica", "replica_registry", args)
-                .await
-            {
-                Ok(ref result) => {
-                    let content = parse_mcp_json(result);
-                    content
-                        .as_ref()
-                        .and_then(|v| v["replicas"].as_array())
-                        .map(|replicas| {
-                            replicas
-                                .iter()
-                                .filter_map(|r| {
-                                    Some(ReplicaInfo {
-                                        author: r["author"].as_str()?.to_string(),
-                                        centroid_count: r["centroid_count"].as_u64().unwrap_or(0)
-                                            as usize,
-                                        status: r["status"]
-                                            .as_str()
-                                            .map(String::from)
-                                            .unwrap_or_else(|| "unknown".into()),
-                                    })
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                }
-                Err(_) => Vec::new(),
-            }
+            mcp_array_map(self, "replica", "replica_registry", args, "replicas", |r| {
+                Some(ReplicaInfo {
+                    author: r["author"].as_str()?.to_string(),
+                    centroid_count: r["centroid_count"].as_u64().unwrap_or(0) as usize,
+                    status: r["status"]
+                        .as_str()
+                        .map(String::from)
+                        .unwrap_or_else(|| "unknown".into()),
+                })
+            })
+            .await
         })
     }
 
@@ -1004,30 +939,16 @@ impl SkillsDataBridge for TuiReplBridge {
     fn skill_list(&self) -> Vec<SkillListItem> {
         self.rt_handle.block_on(async {
             let args = serde_json::Map::new();
-            match self.invoke_mcp_tool("skill", "skill_list", args).await {
-                Ok(ref result) => {
-                    let content = parse_mcp_json(result);
-                    content
-                        .as_ref()
-                        .and_then(|v| v["skills"].as_array())
-                        .map(|skills| {
-                            skills
-                                .iter()
-                                .filter_map(|s| {
-                                    Some(SkillListItem {
-                                        id: s["id"].as_str()?.to_string(),
-                                        description: s["description"]
-                                            .as_str()
-                                            .map(String::from)
-                                            .unwrap_or_default(),
-                                    })
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                }
-                Err(_) => Vec::new(),
-            }
+            mcp_array_map(self, "skill", "skill_list", args, "skills", |s| {
+                Some(SkillListItem {
+                    id: s["id"].as_str()?.to_string(),
+                    description: s["description"]
+                        .as_str()
+                        .map(String::from)
+                        .unwrap_or_default(),
+                })
+            })
+            .await
         })
     }
 
@@ -1038,17 +959,12 @@ impl SkillsDataBridge for TuiReplBridge {
             let mut args = serde_json::Map::new();
             args.insert("skill_id".into(), serde_json::Value::String(skill_id));
             args.insert("context".into(), serde_json::Value::String(context));
-            match self.invoke_mcp_tool("skill", "skill_execute", args).await {
-                Ok(ref result) => {
-                    let text = extract_mcp_text(result)?;
-                    Some(SkillExecResult {
-                        skill_id: "".into(),
-                        output: text,
-                        tokens_used: 0,
-                    })
-                }
-                Err(_) => None,
-            }
+            let text = mcp_text(self, "skill", "skill_execute", args).await?;
+            Some(SkillExecResult {
+                skill_id: "".into(),
+                output: text,
+                tokens_used: 0,
+            })
         })
     }
 
