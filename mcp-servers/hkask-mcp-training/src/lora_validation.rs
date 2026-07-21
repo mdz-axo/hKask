@@ -466,10 +466,18 @@ fn validate_harness_compatibility(params: &TrainingParams, findings: &mut Vec<Va
             }
         }
         Some(TrainingHarnessId::Trl) => {
-            // TRL harness: Phase 1 supports SFTTrainer only.
+            // TRL harness: all trainers are supported (Phase 1-3).
+            // G-H1 only checks harness-method compatibility, not dataset format.
+            // Dataset format validation is handled by the dataset pipeline's
+            // format detection (DatasetFormat::detect) and the trainer's
+            // expected_dataset_format() method.
             match params.trl_trainer.unwrap_or_default() {
-                TrlTrainer::Sft => {
-                    // SFT is supported in Phase 1 — no finding.
+                TrlTrainer::Sft
+                | TrlTrainer::Dpo
+                | TrlTrainer::Kto
+                | TrlTrainer::Orpo
+                | TrlTrainer::Reward => {
+                    // All trainers are supported — no finding.
                 }
             }
         }

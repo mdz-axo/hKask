@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::ports::EscalationEntry;
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, Loop, LoopAction, LoopActionParams, LoopId,
+    ActionType, Deviation, DeviationDirection, Loop, RegulatoryAction, RegulatoryActionParams, LoopId,
     SignalMetric,
 };
 use hkask_types::WebID;
@@ -263,17 +263,17 @@ impl MetacognitionLoop {
 
     /// Extract a string parameter from action data. Data is now typed `RegulationData`;
     /// non-regulation actions carry `NoData`, so callers should provide reasonable defaults.
-    fn param_str<'a>(_action: &'a LoopAction, _key: &str, default: &'a str) -> &'a str {
+    fn param_str<'a>(_action: &'a RegulatoryAction, _key: &str, default: &'a str) -> &'a str {
         default
     }
 
     /// Extract a u64 parameter from action data. Data is now typed `RegulationData`;
     /// non-regulation actions carry `NoData`, so callers should provide reasonable defaults.
-    fn param_u64(_action: &LoopAction, _key: &str, default: u64) -> u64 {
+    fn param_u64(_action: &RegulatoryAction, _key: &str, default: u64) -> u64 {
         default
     }
 
-    pub(super) async fn act_on_throttle(&self, action: &LoopAction) -> Option<EscalationEntry> {
+    pub(super) async fn act_on_throttle(&self, action: &RegulatoryAction) -> Option<EscalationEntry> {
         let domain = Self::param_str(action, "domain", "");
         let new_threshold = Self::param_u64(
             action,
@@ -313,7 +313,7 @@ impl MetacognitionLoop {
     // authority DAG: Curation (L5) owns the escalation queue as its algedonic
     // regulation mechanism. This does NOT bypass the Communication Loop because
     // the queue is not a loop-to-loop message channel.
-    pub(super) async fn act_on_escalate(&self, action: &LoopAction) -> Option<EscalationEntry> {
+    pub(super) async fn act_on_escalate(&self, action: &RegulatoryAction) -> Option<EscalationEntry> {
         let metric = Self::param_str(action, "metric", "");
         let target = Self::param_str(action, "target", "");
         match metric {
@@ -371,7 +371,7 @@ impl MetacognitionLoop {
     }
 
     /// Log an unhandled action type (no-op).
-    pub(super) fn act_on_no_action(&self, action: &LoopAction) {
+    pub(super) fn act_on_no_action(&self, action: &RegulatoryAction) {
         info!(
             target: MC_TARGET,
             action_type = ?action.action_type,
@@ -380,14 +380,14 @@ impl MetacognitionLoop {
     }
 
     // Explicit 4-stage cycle: sense → compare → compute → act
-    // Delegation methods removed — HkaskLoop trait impl provides tick().
+    // Delegation methods removed — RegulationLoop trait impl provides tick().
 
     /// Template-driven compute: invoke KnowAct templates for calibrated decisions.
     pub(super) async fn compute_with_templates(
         &self,
         executor: &Arc<hkask_templates::ManifestExecutor>,
         deviations: &[Deviation],
-    ) -> Vec<LoopAction> {
+    ) -> Vec<RegulatoryAction> {
         let snapshot = self.last_snapshot_tx.borrow().clone();
         let mut ctx = HashMap::new();
 
@@ -585,31 +585,31 @@ impl MetacognitionLoop {
                     tracing::warn!(target: MC_TARGET, ?step, "LLM produced malformed remediation step — missing 'action' field");
                 }
                 match action_type {
-                    "calibrate" | "adjust_threshold" => actions.push(LoopAction::new(
+                    "calibrate" | "adjust_threshold" => actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         ActionType::Calibrate,
-                        LoopActionParams::reason("calibrate"),
+                        RegulatoryActionParams::reason("calibrate"),
                     )),
                     "adjust_budget" => {
                         let new_budget =
                             step.get("new_budget").and_then(|v| v.as_u64()).unwrap_or(0);
                         if new_budget > 0 && !target.is_empty() {
-                            actions.push(LoopAction::new(
+                            actions.push(RegulatoryAction::new(
                                 LoopId::Curation,
                                 ActionType::OverrideEnergyBudget,
-                                LoopActionParams::reason("adjust_budget"),
+                                RegulatoryActionParams::reason("adjust_budget"),
                             ));
                         }
                     }
-                    "escalate" | "restart" | "rebalance" => actions.push(LoopAction::new(
+                    "escalate" | "restart" | "rebalance" => actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         ActionType::Escalate,
-                        LoopActionParams::reason(action_type),
+                        RegulatoryActionParams::reason(action_type),
                     )),
-                    _ => actions.push(LoopAction::new(
+                    _ => actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         ActionType::Notify,
-                        LoopActionParams::reason("notify"),
+                        RegulatoryActionParams::reason("notify"),
                     )),
                 }
             }
@@ -624,7 +624,7 @@ impl MetacognitionLoop {
     }
 
     /// Fallback: Rust threshold comparison (standalone CLI, no executor).
-    pub(super) fn compute_with_thresholds(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    pub(super) fn compute_with_thresholds(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         let mut actions = Vec::new();
         for dev in deviations {
             match dev.signal.metric {
@@ -632,20 +632,20 @@ impl MetacognitionLoop {
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let _deficit = dev.signal.value as u64;
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         ActionType::Calibrate,
-                        LoopActionParams::reason("variety_deficit"),
+                        RegulatoryActionParams::reason("variety_deficit"),
                     ));
                 }
                 SignalMetric::MetacognitionCriticalAlerts
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
                     let _count = dev.signal.value as u64;
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         ActionType::Escalate,
-                        LoopActionParams::reason("critical_alerts"),
+                        RegulatoryActionParams::reason("critical_alerts"),
                     ));
                 }
                 _ => {}

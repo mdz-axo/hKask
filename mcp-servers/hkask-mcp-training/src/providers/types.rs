@@ -62,9 +62,9 @@ impl TrainingHarnessId {
 /// Each variant maps to a TRL trainer class + config class pair.
 /// Add trainers as concrete needs emerge (P7 — evolutionary architecture).
 ///
-/// Phase 1 (v0.31.0): `Sft` only.
-/// Phase 2 (planned): `Dpo`, `Kto`, `Orpo`.
-/// Phase 3 (planned): `Reward`.
+/// Phase 1 (v0.31.0): `Sft`.
+/// Phase 2 (v0.31.0): `Dpo`, `Kto`, `Orpo` — preference optimization.
+/// Phase 3 (v0.31.0): `Reward` — reward model training.
 /// Deferred: online RL trainers (GRPO, RLOO, PPO, OnlineDPO, NashMD, XPO) —
 ///   require vLLM co-location and sandboxed environments; add when a concrete
 ///   RL use case emerges.
@@ -74,14 +74,32 @@ pub enum TrlTrainer {
     /// TRL `SFTTrainer` + `SFTConfig` — supervised fine-tuning.
     /// The canonical SFT path; parallel to Axolotl's SFT support.
     /// Supports: packing, assistant_only_loss, completion_only_loss, VLMs.
+    /// Data format: ChatML `{"messages": [...]}` or prompt-completion.
     #[default]
     Sft,
-    // Phase 2 trainers (not yet implemented — add when concrete need emerges):
-    // Dpo,    // DPOTrainer + DPOConfig — paired preference data
-    // Kto,    // KTOTrainer + KTOConfig — unpaired binary preference data
-    // Orpo,   // ORPOTrainer + ORPOConfig — single-stage SFT + preference
-    // Phase 3:
-    // Reward, // RewardTrainer + RewardConfig — reward model training
+    /// TRL `DPOTrainer` + `DPOConfig` — Direct Preference Optimization.
+    /// Offline preference optimization from paired chosen/rejected data.
+    /// Data format: `{"prompt": ..., "chosen": ..., "rejected": ...}`.
+    /// Source: arXiv:2305.18290.
+    Dpo,
+    /// TRL `KTOTrainer` + `KTOConfig` — Kahneman-Tversky Optimization.
+    /// Unpaired binary preference data (good/bad labels, no pairing needed).
+    /// Data format: `{"prompt": ..., "completion": ..., "label": bool}`.
+    /// Source: arXiv:2402.01306.
+    Kto,
+    /// TRL `ORPOTrainer` + `ORPOConfig` — Odds Ratio Preference Optimization.
+    /// Single-stage SFT + preference alignment in one pass.
+    /// Data format: `{"chosen": ..., "rejected": ...}` (prompt implicit).
+    /// Source: arXiv:2403.07691.
+    Orpo,
+    /// TRL `RewardTrainer` + `RewardConfig` — reward model training.
+    /// Trains a reward model for RLHF pipelines (needed before PPO/GRPO).
+    /// Data format: `{"chosen": ..., "rejected": ...}` (prompt implicit).
+    /// Source: https://huggingface.co/docs/trl/main/en/reward_trainer.
+    Reward,
+    // Deferred: online RL trainers (GRPO, RLOO, PPO, OnlineDPO, NashMD, XPO)
+    // — require vLLM co-location and sandboxed environments. Add when a
+    // concrete RL use case emerges (P7 — evolutionary architecture).
 }
 
 impl TrlTrainer {
@@ -90,6 +108,10 @@ impl TrlTrainer {
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "sft" => Some(Self::Sft),
+            "dpo" => Some(Self::Dpo),
+            "kto" => Some(Self::Kto),
+            "orpo" => Some(Self::Orpo),
+            "reward" => Some(Self::Reward),
             _ => None,
         }
     }
@@ -98,6 +120,10 @@ impl TrlTrainer {
     pub fn trainer_class(&self) -> &'static str {
         match self {
             Self::Sft => "SFTTrainer",
+            Self::Dpo => "DPOTrainer",
+            Self::Kto => "KTOTrainer",
+            Self::Orpo => "ORPOTrainer",
+            Self::Reward => "RewardTrainer",
         }
     }
 
@@ -105,6 +131,21 @@ impl TrlTrainer {
     pub fn config_class(&self) -> &'static str {
         match self {
             Self::Sft => "SFTConfig",
+            Self::Dpo => "DPOConfig",
+            Self::Kto => "KTOConfig",
+            Self::Orpo => "ORPOConfig",
+            Self::Reward => "RewardConfig",
+        }
+    }
+
+    /// The expected dataset format for this trainer (for G-H1 validation).
+    pub fn expected_dataset_format(&self) -> &'static str {
+        match self {
+            Self::Sft => "chatml or prompt-completion",
+            Self::Dpo => "preference (prompt + chosen + rejected)",
+            Self::Kto => "unpaired preference (prompt + completion + label)",
+            Self::Orpo => "preference (chosen + rejected)",
+            Self::Reward => "preference (chosen + rejected)",
         }
     }
 }

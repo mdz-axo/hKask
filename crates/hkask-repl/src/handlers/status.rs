@@ -73,7 +73,7 @@ pub fn handle_status(
             println!("  Seam:     \x1b[2mdisabled\x1b[0m (no inventory available)");
         }
     }
-    // Show LoopSystem registered loops
+    // Show LoopScheduler registered loops
     let loops = state.service_context.cns().loops.clone();
     let loop_count = rt.block_on(loops.registered_count());
     let loop_ids = rt.block_on(loops.registered_loop_ids());

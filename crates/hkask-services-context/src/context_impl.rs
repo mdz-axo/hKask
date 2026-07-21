@@ -26,7 +26,7 @@ use std::sync::Arc;
 
 use hkask_pods::CuratorContext;
 use hkask_pods::InferenceLoop;
-use hkask_pods::LoopSystem;
+use hkask_pods::LoopScheduler;
 use hkask_pods::consent::ConsentManager;
 use hkask_pods::curation::SemanticIndex;
 use hkask_pods::curation::sync_port::SemanticIndexSyncPort;
@@ -35,7 +35,7 @@ use hkask_pods::pod::ActivePods;
 use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::CapabilityChecker;
 use hkask_regulation::types::loops::CuratorHandle;
-use hkask_regulation::types::loops::HkaskLoop;
+use hkask_regulation::types::loops::RegulationLoop;
 use hkask_regulation::types::loops::{CurationInput, CuratorDirective};
 use hkask_regulation::{
     CalibratedEnergyEstimator, RegulationLedger, CyberneticsLoop, EnergyEstimator, SeamSummary,

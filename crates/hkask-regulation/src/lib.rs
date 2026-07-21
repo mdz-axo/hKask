@@ -90,7 +90,7 @@ pub use seam_span::SeamSpan;
 pub use seam_types::{SeamCoverage, SeamInventory};
 pub use seam_watcher::{SeamDrift, SeamSummary, SeamWatcher};
 pub use sensor_provider::{
-    EnergyBudgetSensor, SensorCatalog, SensorProvider, SensorRegistry, ToolReliabilitySensor,
+    EnergyBudgetSensor, SensorRegistry, Sensor, SensorRegistry, ToolReliabilitySensor,
     VarietySensor, WalletBalanceRatioSensor, WalletKeyHealthSensor,
 };
 pub use set_points::{
@@ -104,7 +104,7 @@ pub use slo_span::SloSpan;
 pub use slo_types::{SloDefinition, SloEvaluation, SloSeverity, seed_slos};
 pub use snapshot_loop::{SnapshotLoop, SnapshotLoopConfig};
 pub use tool_stats::ToolStats;
-pub use types::loops::{CurationInput, ExperienceClassification, HkaskLoop, LoopAction};
+pub use types::loops::{CurationInput, ExperienceClassification, RegulationLoop, RegulatoryAction};
 pub use wallet_budget::WalletBackedBudget;
 pub use wallet_energy_estimator::WalletEnergyEstimator;
 pub use wallet_gas_calibrator::{

@@ -1,8 +1,8 @@
-//! SensorProvider trait — pluggable metric sensors (Fermi Extractor pattern).
+//! Sensor trait — pluggable metric sensors (Fermi Extractor pattern).
 //!
 //! Fermi's `Extractor` trait separates domain data extraction from the fitting
-//! loop. SensorProvider applies the same pattern to hKask's regulation loop:
-//! each metric gets its own `SensorProvider` implementation, registered with
+//! loop. Sensor applies the same pattern to hKask's regulation loop:
+//! each metric gets its own `Sensor` implementation, registered with
 //! a `SensorRegistry`. The `CyberneticsLoop::sense()` method walks the registry
 //! instead of containing inline sensing logic.
 //!
@@ -14,9 +14,9 @@
 //!
 //! ## Unified Sensor Catalog (v0.32.0)
 //!
-//! The `SensorCatalog` provides a single registration point for sensors
+//! The `SensorRegistry` provides a single registration point for sensors
 //! across ALL loops, not just Cybernetics. Each loop owns a `SensorRegistry`
-//! for its local sensors, but the `SensorCatalog` tracks all of them for
+//! for its local sensors, but the `SensorRegistry` tracks all of them for
 //! monitoring, health checks, and dynamic registration. This eliminates the
 //! fragmentation where each loop had inline `sense()` methods that couldn't
 //! be discovered or managed from a central point.
@@ -30,11 +30,11 @@ use std::sync::Arc;
 ///
 /// Each implementation senses a single `SignalMetric` from its data source.
 /// Fermi pattern: the `Extractor` trait takes a domain payload and produces
-/// a scalar; `SensorProvider` takes system state and produces an optional
+/// a scalar; `Sensor` takes system state and produces an optional
 /// `Signal`. If the sensor has nothing to report (metric is healthy),
 /// it returns `None`.
 #[async_trait::async_trait]
-pub trait SensorProvider: Send + Sync {
+pub trait Sensor: Send + Sync {
     /// Sense the current state and produce a signal if the metric is
     /// in a reportable state. Returns `None` if nothing to report.
     async fn sense(&self) -> Option<Signal>;
@@ -60,16 +60,17 @@ pub trait SensorProvider: Send + Sync {
     }
 }
 
-/// Registry of sensor providers for a single loop, walked by `sense()` each tick.
+/// Sensor bus for a single loop — actively walks sensors each tick.
 ///
 /// Providers are registered at construction time and executed in order.
 /// Order doesn't matter — each provider independently decides whether
-/// to emit a signal.
-pub struct SensorRegistry {
-    providers: Mutex<Vec<Arc<dyn SensorProvider>>>,
+/// to emit a signal. The bus aggregates their signals into a single
+/// `Vec<Signal>` for the loop's `sense()` phase.
+pub struct SensorBus {
+    providers: Mutex<Vec<Arc<dyn Sensor>>>,
 }
 
-impl SensorRegistry {
+impl SensorBus {
     /// expect: "The system provides pluggable metric sensing for the cybernetic regulation loop"
     pub fn new() -> Self {
         Self {
@@ -78,13 +79,13 @@ impl SensorRegistry {
     }
 
     /// expect: "The system provides pluggable metric sensing for the cybernetic regulation loop"
-    pub fn register(&self, provider: Arc<dyn SensorProvider>) {
+    pub fn register(&self, provider: Arc<dyn Sensor>) {
         self.providers.lock().push(provider);
     }
 
     /// expect: "The system provides pluggable metric sensing for the cybernetic regulation loop"
     pub async fn sense_all(&self, source: LoopId) -> Vec<Signal> {
-        let providers: Vec<Arc<dyn SensorProvider>> = { self.providers.lock().clone() }; // Lock dropped here — no .await while holding it.
+        let providers: Vec<Arc<dyn Sensor>> = { self.providers.lock().clone() }; // Lock dropped here — no .await while holding it.
         let mut signals = Vec::new();
         for provider in &providers {
             if let Some(signal) = provider.sense().await {
@@ -117,17 +118,17 @@ impl SensorRegistry {
     }
 }
 
-impl Default for SensorRegistry {
+impl Default for SensorBus {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Catalog of all sensors across all loops in the system.
+/// Registry of all sensors across all loops in the system.
 ///
 /// Provides a single registration point for sensors across ALL loops, not
-/// just Cybernetics. Each loop owns a `SensorRegistry` for its local sensors,
-/// but the `SensorCatalog` tracks all of them for monitoring, health checks,
+/// just Cybernetics. Each loop owns a `SensorBus` for its local sensors,
+/// but the `SensorRegistry` tracks all of them for monitoring, health checks,
 /// and dynamic registration.
 ///
 /// This eliminates the fragmentation where each loop had inline `sense()`
@@ -136,26 +137,26 @@ impl Default for SensorRegistry {
 /// # Architecture
 ///
 /// ```text
-/// SensorCatalog (singleton, system-level)
-/// ├── LoopId::Cybernetics → SensorRegistry
-/// ├── LoopId::Inference   → SensorRegistry
-/// ├── LoopId::Episodic    → SensorRegistry
-/// ├── LoopId::Semantic    → SensorRegistry
-/// ├── LoopId::Curation    → SensorRegistry
-/// ├── LoopId::Snapshot    → SensorRegistry
-/// ├── LoopId::StorageGuard → SensorRegistry
-/// └── LoopId::McpServerGuard → SensorRegistry
+/// SensorRegistry (singleton, system-level)
+/// ├── LoopId::Cybernetics → SensorBus
+/// ├── LoopId::Inference   → SensorBus
+/// ├── LoopId::Episodic    → SensorBus
+/// ├── LoopId::Semantic    → SensorBus
+/// ├── LoopId::Curation    → SensorBus
+/// ├── LoopId::Snapshot    → SensorBus
+/// ├── LoopId::StorageGuard → SensorBus
+/// └── LoopId::McpServerGuard → SensorBus
 /// ```
 ///
-/// Each loop's `sense()` method calls `catalog.sense_all(loop_id)` instead
+/// Each loop's `sense()` method calls `registry.sense_all(loop_id)` instead
 /// of containing inline sensing logic. Sensors are registered at startup
-/// via `catalog.register_for(loop_id, provider)`.
-pub struct SensorCatalog {
-    /// Per-loop registries. Each loop owns its own registry.
-    registries: Mutex<HashMap<LoopId, SensorRegistry>>,
+/// via `registry.register_for(loop_id, provider)`.
+pub struct SensorRegistry {
+    /// Per-loop sensor buses. Each loop owns its own bus.
+    registries: Mutex<HashMap<LoopId, SensorBus>>,
 }
 
-impl SensorCatalog {
+impl SensorRegistry {
     /// Create a new empty catalog.
     pub fn new() -> Self {
         Self {
@@ -163,21 +164,21 @@ impl SensorCatalog {
         }
     }
 
-    /// Get or create the registry for a specific loop.
-    pub fn registry_for(&self, loop_id: LoopId) -> SensorRegistry {
+    /// Get or create the sensor bus for a specific loop.
+    pub fn bus_for(&self, loop_id: LoopId) -> SensorBus {
         let registries = self.registries.lock();
         registries
             .get(&loop_id)
             .cloned()
-            .unwrap_or_else(SensorRegistry::new)
+            .unwrap_or_else(SensorBus::new)
     }
 
-    /// Register a sensor provider for a specific loop.
-    pub fn register_for(&self, loop_id: LoopId, provider: Arc<dyn SensorProvider>) {
+    /// Register a sensor for a specific loop.
+    pub fn register_for(&self, loop_id: LoopId, provider: Arc<dyn Sensor>) {
         let mut registries = self.registries.lock();
         registries
             .entry(loop_id)
-            .or_insert_with(SensorRegistry::new)
+            .or_insert_with(SensorBus::new)
             .register(provider);
     }
 
@@ -230,13 +231,13 @@ impl SensorCatalog {
     }
 }
 
-impl Default for SensorCatalog {
+impl Default for SensorRegistry {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Clone for SensorRegistry {
+impl Clone for SensorBus {
     fn clone(&self) -> Self {
         Self {
             providers: Mutex::new(self.providers.lock().clone()),
@@ -270,7 +271,7 @@ impl EnergyBudgetSensor {
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for EnergyBudgetSensor {
+impl Sensor for EnergyBudgetSensor {
     async fn sense(&self) -> Option<Signal> {
         let statuses = self.budget_manager.read().await.all_agent_statuses().await;
         // Use the worst remaining ratio as the aggregate signal.
@@ -305,13 +306,16 @@ pub struct VarietySensor {
 
 impl VarietySensor {
     /// expect: "The system provides pluggable metric sensing for the cybernetic regulation loop"
-    pub fn new(cns: Arc<tokio::sync::RwLock<super::runtime::RegulationLedger>>, set_point: f64) -> Self {
+    pub fn new(
+        cns: Arc<tokio::sync::RwLock<super::runtime::RegulationLedger>>,
+        set_point: f64,
+    ) -> Self {
         Self { cns, set_point }
     }
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for VarietySensor {
+impl Sensor for VarietySensor {
     async fn sense(&self) -> Option<Signal> {
         let cns = self.cns.read().await;
         let health = cns.health().await;
@@ -347,7 +351,7 @@ impl WalletKeyHealthSensor {
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for WalletKeyHealthSensor {
+impl Sensor for WalletKeyHealthSensor {
     async fn sense(&self) -> Option<Signal> {
         let key_alerts = self.budget_manager.read().await.wallet_key_alerts().await;
         if key_alerts.is_empty() {
@@ -396,7 +400,7 @@ impl WalletBalanceRatioSensor {
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for WalletBalanceRatioSensor {
+impl Sensor for WalletBalanceRatioSensor {
     async fn sense(&self) -> Option<Signal> {
         let wallet_ratios = self
             .budget_manager
@@ -446,7 +450,7 @@ impl ToolReliabilitySensor {
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for ToolReliabilitySensor {
+impl Sensor for ToolReliabilitySensor {
     async fn sense(&self) -> Option<Signal> {
         let alerts = self.tool_stats.reliability_alerts().await;
         if alerts.is_empty() {
@@ -486,7 +490,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl SensorProvider for TestSensor {
+    impl Sensor for TestSensor {
         async fn sense(&self) -> Option<Signal> {
             Some(Signal::new(
                 self.loop_id,
@@ -506,51 +510,51 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn sensor_registry_sense_all_returns_signals() {
-        let registry = SensorRegistry::new();
-        registry.register(Arc::new(TestSensor {
+    async fn sensor_bus_sense_all_returns_signals() {
+        let bus = SensorBus::new();
+        bus.register(Arc::new(TestSensor {
             metric: SignalMetric::EnergyRemaining,
             loop_id: LoopId::Cybernetics,
             value: 0.5,
             set_point: 0.2,
         }));
-        registry.register(Arc::new(TestSensor {
+        bus.register(Arc::new(TestSensor {
             metric: SignalMetric::VarietyDeficit,
             loop_id: LoopId::Cybernetics,
             value: 10.0,
             set_point: 5.0,
         }));
 
-        let signals = registry.sense_all(LoopId::Cybernetics).await;
+        let signals = bus.sense_all(LoopId::Cybernetics).await;
         assert_eq!(signals.len(), 2);
         assert_eq!(signals[0].source, LoopId::Cybernetics);
         assert_eq!(signals[1].source, LoopId::Cybernetics);
     }
 
     #[tokio::test]
-    async fn sensor_registry_empty_returns_no_signals() {
-        let registry = SensorRegistry::new();
-        let signals = registry.sense_all(LoopId::Cybernetics).await;
+    async fn sensor_bus_empty_returns_no_signals() {
+        let bus = SensorBus::new();
+        let signals = bus.sense_all(LoopId::Cybernetics).await;
         assert!(signals.is_empty());
     }
 
     #[tokio::test]
-    async fn sensor_registry_provider_names() {
-        let registry = SensorRegistry::new();
-        registry.register(Arc::new(TestSensor {
+    async fn sensor_bus_provider_names() {
+        let bus = SensorBus::new();
+        bus.register(Arc::new(TestSensor {
             metric: SignalMetric::EnergyRemaining,
             loop_id: LoopId::Cybernetics,
             value: 0.5,
             set_point: 0.2,
         }));
-        let names = registry.provider_names();
+        let names = bus.provider_names();
         assert_eq!(names.len(), 1);
         assert!(names[0].contains("TestSensor"));
     }
 
     #[tokio::test]
     async fn sensor_catalog_register_and_sense() {
-        let catalog = SensorCatalog::new();
+        let catalog = SensorRegistry::new();
         catalog.register_for(
             LoopId::Cybernetics,
             Arc::new(TestSensor {
@@ -584,14 +588,14 @@ mod tests {
 
     #[tokio::test]
     async fn sensor_catalog_sense_empty_loop_returns_nothing() {
-        let catalog = SensorCatalog::new();
+        let catalog = SensorRegistry::new();
         let signals = catalog.sense_all(LoopId::Cybernetics).await;
         assert!(signals.is_empty());
     }
 
     #[tokio::test]
     async fn sensor_catalog_total_sensors() {
-        let catalog = SensorCatalog::new();
+        let catalog = SensorRegistry::new();
         catalog.register_for(
             LoopId::Cybernetics,
             Arc::new(TestSensor {
@@ -624,7 +628,7 @@ mod tests {
 
     #[tokio::test]
     async fn sensor_catalog_sensor_inventory() {
-        let catalog = SensorCatalog::new();
+        let catalog = SensorRegistry::new();
         catalog.register_for(
             LoopId::Cybernetics,
             Arc::new(TestSensor {
@@ -661,7 +665,7 @@ mod tests {
 
     #[tokio::test]
     async fn sensor_catalog_loops_without_sensors() {
-        let catalog = SensorCatalog::new();
+        let catalog = SensorRegistry::new();
         // No sensors registered — all loops should be listed as without sensors
         let empty_loops = catalog.loops_without_sensors();
         assert!(empty_loops.contains(&LoopId::Cybernetics));
@@ -685,14 +689,14 @@ mod tests {
 
     #[tokio::test]
     async fn sensor_registry_clone_preserves_providers() {
-        let registry = SensorRegistry::new();
-        registry.register(Arc::new(TestSensor {
+        let bus = SensorBus::new();
+        bus.register(Arc::new(TestSensor {
             metric: SignalMetric::EnergyRemaining,
             loop_id: LoopId::Cybernetics,
             value: 0.5,
             set_point: 0.2,
         }));
-        let cloned = registry.clone();
+        let cloned = bus.clone();
         let signals = cloned.sense_all(LoopId::Cybernetics).await;
         assert_eq!(signals.len(), 1);
     }

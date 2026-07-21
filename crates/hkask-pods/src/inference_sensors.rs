@@ -1,14 +1,14 @@
-//! Inference loop sensors — SensorProvider implementations for InferenceLoop metrics.
+//! Inference loop sensors — Sensor implementations for InferenceLoop metrics.
 //!
 //! These sensors replace the inline `sense()` method in `InferenceLoop`. They share
 //! state with the loop via `Arc<InferenceSensorState>`, allowing the sensors to
 //! read the loop's state without the loop needing to contain sensing logic.
 //!
 //! This is part of the unified sensor catalog (ADR-056 Phase 4) — all sensing
-//! flows through `SensorProvider` implementations registered with the
-//! `SensorCatalog`, enabling centralized monitoring and management.
+//! flows through `Sensor` implementations registered with the
+//! `SensorRegistry`, enabling centralized monitoring and management.
 
-use hkask_regulation::sensor_provider::SensorProvider;
+use hkask_regulation::sensor_provider::Sensor;
 use hkask_regulation::types::loops::{LoopId, Signal, SignalMetric};
 use hkask_ports::CircuitBreakerPort;
 use std::sync::Arc;
@@ -74,7 +74,7 @@ impl CircuitBreakerStateSensor {
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for CircuitBreakerStateSensor {
+impl Sensor for CircuitBreakerStateSensor {
     async fn sense(&self) -> Option<Signal> {
         let state_value = match &self.circuit_breaker {
             Some(cb) => match cb.state() {
@@ -113,7 +113,7 @@ impl InferenceAvailableSensor {
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for InferenceAvailableSensor {
+impl Sensor for InferenceAvailableSensor {
     async fn sense(&self) -> Option<Signal> {
         let available = match &self.circuit_breaker {
             Some(cb) => {
@@ -154,7 +154,7 @@ impl InferenceGasRemainingSensor {
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for InferenceGasRemainingSensor {
+impl Sensor for InferenceGasRemainingSensor {
     async fn sense(&self) -> Option<Signal> {
         Some(Signal::new(
             LoopId::Inference,
@@ -185,7 +185,7 @@ impl InferenceModelAvailableSensor {
 }
 
 #[async_trait::async_trait]
-impl SensorProvider for InferenceModelAvailableSensor {
+impl Sensor for InferenceModelAvailableSensor {
     async fn sense(&self) -> Option<Signal> {
         let model_available = if self.state.model_available.load(Ordering::Relaxed) {
             1.0

@@ -12,7 +12,7 @@ use crate::types::loops::{
 /// A proposed action before substitution and mode-specific filtering.
 ///
 /// The `compute()` method applies `try_substitute` and mode checks
-/// to finalize these into `LoopAction` instances.
+/// to finalize these into `RegulatoryAction` instances.
 ///
 /// Fields are read by `build_regulation_action` via string matching
 /// on `reason`; `target`, `action_type`, `data`, and `metric_name`

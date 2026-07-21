@@ -1,8 +1,8 @@
-//! `HkaskLoop` trait implementation for `MetacognitionLoop`.
+//! `RegulationLoop` trait implementation for `MetacognitionLoop`.
 
 use crate::ports::{EscalationBatch, EscalationEntry};
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, HkaskLoop, LoopAction, LoopId, Signal, SignalMetric,
+    ActionType, Deviation, RegulationLoop, RegulatoryAction, LoopId, Signal, SignalMetric,
 };
 use hkask_types::BotID;
 use tracing::{info, warn};
@@ -13,9 +13,9 @@ use super::format::format_health_status;
 use super::loop_body::MetacognitionLoop;
 use super::persistence::persist_escalation_with_retry;
 
-// HkaskLoop — sense → compare → compute → act
+// RegulationLoop — sense → compare → compute → act
 #[async_trait::async_trait]
-impl HkaskLoop for MetacognitionLoop {
+impl RegulationLoop for MetacognitionLoop {
     fn id(&self) -> LoopId {
         // Metacognition is a worker within Curation (Loop 5), not a governing loop.
         LoopId::Curation
@@ -121,7 +121,7 @@ impl HkaskLoop for MetacognitionLoop {
     /// calibrated decisions are produced by KnowAct templates, not Rust
     /// threshold comparison. Falls back to Rust logic when no executor
     /// is configured (standalone CLI).
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         if let Some(executor) = self.context.manifest_executor().await {
             return self.compute_with_templates(&executor, deviations).await;
         }
@@ -133,7 +133,7 @@ impl HkaskLoop for MetacognitionLoop {
     /// When a template output is available (from compute_with_templates),
     /// "restart" and "rebalance" actions trigger bot direction via A2A
     /// in addition to escalation queue audit entries.
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         let mut escalation_entries: Vec<EscalationEntry> = Vec::new();
 
         for action in actions {

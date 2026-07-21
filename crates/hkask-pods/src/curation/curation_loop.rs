@@ -17,7 +17,7 @@
 
 use chrono::Utc;
 use hkask_regulation::types::loops::{
-    CommunicationEvent, CurationInput, Deviation, HkaskLoop, LoopAction, LoopId, Signal,
+    CommunicationEvent, CurationInput, Deviation, RegulationLoop, RegulatoryAction, LoopId, Signal,
     SignalMetric,
 };
 use hkask_memory::ConsolidationBridge;
@@ -188,7 +188,7 @@ impl CurationLoop {
     /// Auto-consolidation: fire the consolidation bridge if auto-consolidation is
     /// enabled and all consent requirements are satisfied.
     ///
-    /// Called from [`act()`](HkaskLoop::act) for both `consolidation_candidates_exist`
+    /// Called from [`act()`](RegulationLoop::act) for both `consolidation_candidates_exist`
     /// and `pending_escalations_exist` actions. Requires a `ConsentManager` wired
     /// into `CuratorContext` and affirmative consent for both `EpisodicMemory`
     /// and `SemanticMemory` on the Curator WebID.
@@ -326,10 +326,10 @@ impl CurationLoop {
     }
 
     // Explicit 4-stage cycle: sense → compare → compute → act
-    // Delegation methods removed — HkaskLoop trait impl provides tick().
+    // Delegation methods removed — RegulationLoop trait impl provides tick().
 }
 #[async_trait::async_trait]
-impl HkaskLoop for CurationLoop {
+impl RegulationLoop for CurationLoop {
     fn id(&self) -> LoopId {
         LoopId::Curation
     }
@@ -452,63 +452,63 @@ impl HkaskLoop for CurationLoop {
         ]
     }
 
-    /// Compute: produce CuratorDirectives as LoopActions.
+    /// Compute: produce CuratorDirectives as RegulatoryActions.
     ///
     /// Produces escalation actions for all six deviation types. Consolidation is
     /// handled independently via `try_auto_consolidate()`, called from `act()` for
     /// both `consolidation_candidates_exist` and `pending_escalations_exist` actions.
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         let mut actions = Vec::new();
 
         for dev in deviations {
             match dev.signal.metric {
                 SignalMetric::AlgedonicEvents if dev.signal.value > 0.0 => {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Cybernetics,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::LoopActionParams::reason(
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason(
                             "algedonic_events_exceeded",
                         ),
                     ));
                 }
                 SignalMetric::PendingEscalations if dev.signal.value > 0.0 => {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::LoopActionParams::reason(
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason(
                             "pending_escalations_exist",
                         ),
                     ));
                 }
                 SignalMetric::ConsolidationCandidates if dev.signal.value > 0.0 => {
                     // Episodic budget pressure — fire consolidation bridge in act()
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::LoopActionParams::reason(
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason(
                             "consolidation_candidates_exist",
                         ),
                     ));
                 }
                 SignalMetric::GoalStaleCount if dev.signal.value > 0.0 => {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::LoopActionParams::reason("goals_stale"),
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason("goals_stale"),
                     ));
                 }
                 SignalMetric::GoalExpiredCount if dev.signal.value > 0.0 => {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::LoopActionParams::reason("goals_expired"),
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason("goals_expired"),
                     ));
                 }
                 SignalMetric::GoalExpiredCount if dev.signal.value > 0.0 => {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::LoopActionParams::reason("goals_expired"),
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason("goals_expired"),
                     ));
                 }
                 _ => {}
@@ -519,7 +519,7 @@ impl HkaskLoop for CurationLoop {
     }
 
     /// Act: issue directives through CuratorContext with DAMPEN filtering.
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         for action in actions {
             tracing::info!(target: CUR_TARGET, action_type = ?action.action_type, target_loop = %action.target, "Curation Loop regulatory action");
             let directive = match action.action_type {

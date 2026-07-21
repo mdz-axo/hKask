@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use crate::semantic::SemanticMemory;
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopActionParams, LoopId,
+    ActionType, Deviation, DeviationDirection, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId,
     Signal, SignalMetric,
 };
 use hkask_storage::HMem;
@@ -200,7 +200,7 @@ impl SemanticLoop {
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for SemanticLoop {
+impl RegulationLoop for SemanticLoop {
     fn id(&self) -> LoopId {
         LoopId::Semantic
     }
@@ -239,7 +239,7 @@ impl HkaskLoop for SemanticLoop {
     /// - `triple_count` above set-point → Calibrate (budget exceeded)
     ///   If `auto_condense` is enabled, condensation is attempted first.
     /// - `low_confidence_count` above 0 → Calibrate (consolidation trigger)
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         let mut actions = Vec::new();
 
         for dev in deviations {
@@ -253,10 +253,10 @@ impl HkaskLoop for SemanticLoop {
                             .h_mems_older_than(self.condensation_window_days, 200)
                             && !old_triples.is_empty()
                         {
-                            actions.push(LoopAction::new(
+                            actions.push(RegulatoryAction::new(
                                 LoopId::Semantic,
                                 ActionType::Calibrate,
-                                LoopActionParams::reason("semantic_condense"),
+                                RegulatoryActionParams::reason("semantic_condense"),
                             ));
                             // Don't also emit budget enforcement — condensation may resolve it
                             continue;
@@ -264,19 +264,19 @@ impl HkaskLoop for SemanticLoop {
                     }
 
                     let _overage = (dev.signal.value - dev.signal.set_point) as usize;
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Semantic,
                         ActionType::Calibrate,
-                        LoopActionParams::reason("semantic_triple_count_exceeded"),
+                        RegulatoryActionParams::reason("semantic_triple_count_exceeded"),
                     ));
                 }
                 SignalMetric::LowConfidenceCount
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Semantic,
                         ActionType::Calibrate,
-                        LoopActionParams::reason("semantic_low_confidence_review"),
+                        RegulatoryActionParams::reason("semantic_low_confidence_review"),
                     ));
                 }
                 _ => {}
@@ -298,7 +298,7 @@ impl HkaskLoop for SemanticLoop {
     ///   h_mems to bring count back within budget. Fires after the
     ///   low-confidence review — if budget is still exceeded after clearing
     ///   low-confidence entries, progressively delete the next-lowest.
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         for action in actions {
             match action.action_type {
                 ActionType::Calibrate => {

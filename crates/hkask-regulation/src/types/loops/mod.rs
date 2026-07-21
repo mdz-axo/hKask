@@ -1,6 +1,6 @@
 //! hKask 6-Loop Architecture — channel types and re-exports.
 //!
-//! The loop type system (LoopId, Signal, Deviation, LoopAction, Loop trait, etc.)
+//! The loop type system (LoopId, Signal, Deviation, RegulatoryAction, Loop trait, etc.)
 //! has been moved to `hkask_types::loops` to break the circular dependency
 //! that prevented extracting CNS subcrates.
 //!
@@ -36,15 +36,15 @@ pub mod loop_trait;
 pub use channels::{CommunicationEvent, CurationInput, GoalTransitionEvent, ToolConsumptionEvent};
 pub use hkask_types::loops::{
     ActionDecision, ActionType, BudgetOption, Deviation, DeviationDirection,
-    ExperienceClassification, ImpactReport, LoopAction, LoopActionParams, LoopId, LoopQuality,
+    ExperienceClassification, ImpactReport, RegulatoryAction, RegulatoryActionParams, LoopId, LoopMetrics,
     RegulationData, Signal, SignalMetric, TriggerOrigin,
 };
 
 // The Loop trait stays in hkask-cns (orphan rule — external crates impl it for foreign types).
 pub use loop_trait::Loop;
 
-// Backward-compatible alias — old code used `HkaskLoop`.
-pub use loop_trait::Loop as HkaskLoop;
+// Backward-compatible alias — old code used `RegulationLoop`.
+pub use loop_trait::Loop as RegulationLoop;
 
 // Backward-compatible re-exports — CuratorDirective and CuratorHandle were
 // previously re-exported from here but live in hkask_types::curator.
@@ -56,7 +56,7 @@ mod tests {
 
     #[test]
     fn loop_quality_default_is_zero() {
-        let q = LoopQuality::default();
+        let q = LoopMetrics::default();
         assert_eq!(q.delay_ms, 0);
         assert_eq!(q.gain, 0.0);
         assert_eq!(q.fidelity_score, 0.0);

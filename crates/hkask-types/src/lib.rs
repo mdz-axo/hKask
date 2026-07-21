@@ -53,7 +53,7 @@ pub use id::{
 
 pub use loops::{
     ActionDecision, ActionType, BudgetOption, Deviation, DeviationDirection,
-    ExperienceClassification, ImpactReport, LoopAction, LoopActionParams, LoopId, LoopQuality,
+    ExperienceClassification, ImpactReport, RegulatoryAction, RegulatoryActionParams, LoopId, LoopMetrics,
     RegulationData, Signal, SignalMetric, TriggerOrigin,
 };
 pub use observable_span::ObservableSpan;

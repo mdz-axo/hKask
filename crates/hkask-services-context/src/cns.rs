@@ -3,7 +3,7 @@
 //!
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
-use hkask_pods::loop_system::LoopSystem;
+use hkask_pods::loop_system::LoopScheduler;
 use hkask_regulation::{CalibratedEnergyEstimator, RegulationLedger, CyberneticsLoop, ToolStats};
 use hkask_types::cns::LedgerHealth;
 use hkask_types::event::{RegulationSink, SpanNamespace};
@@ -16,7 +16,7 @@ use tokio::sync::RwLock;
 pub struct CnsContext {
     pub runtime: Arc<RwLock<RegulationLedger>>,
     pub cybernetics: Arc<RwLock<CyberneticsLoop>>,
-    pub loops: Arc<LoopSystem>,
+    pub loops: Arc<LoopScheduler>,
     pub events: Arc<dyn RegulationSink>,
     pub energy: Arc<CalibratedEnergyEstimator>,
     /// Statistical learner for per-tool cost distributions and reliability.
@@ -28,7 +28,7 @@ impl CnsContext {
     pub fn new(
         runtime: Arc<RwLock<RegulationLedger>>,
         cybernetics: Arc<RwLock<CyberneticsLoop>>,
-        loops: Arc<LoopSystem>,
+        loops: Arc<LoopScheduler>,
         events: Arc<dyn RegulationSink>,
         energy: Arc<CalibratedEnergyEstimator>,
         tool_stats: Arc<ToolStats>,

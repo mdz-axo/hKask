@@ -13,7 +13,7 @@ use tokio::sync::RwLock;
 
 /// Loop wiring: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
 pub(super) struct LoopWiring {
-    pub loop_system: Arc<LoopSystem>,
+    pub loop_system: Arc<LoopScheduler>,
     /// Concrete GixCasAdapter for pod-directory backup operations.
     pub pod_backup_adapter: Arc<hkask_git_cas::GixCasAdapter>,
     pub cybernetics_loop: Arc<RwLock<CyberneticsLoop>>,
@@ -47,7 +47,7 @@ pub(super) async fn build_loops(
     f: &mut Foundation,
     system_webid: WebID,
 ) -> Result<LoopWiring, ServiceError> {
-    let loop_system = Arc::new(LoopSystem::new());
+    let loop_system = Arc::new(LoopScheduler::new());
 
     let (curator_directive_tx, curator_directive_rx) =
         tokio::sync::mpsc::unbounded_channel::<CuratorDirective>();
@@ -68,7 +68,7 @@ pub(super) async fn build_loops(
         .with_seam_watcher();
     let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
     loop_system
-        .register_loop(Arc::clone(&cybernetics_loop) as Arc<dyn HkaskLoop>)
+        .register_loop(Arc::clone(&cybernetics_loop) as Arc<dyn RegulationLoop>)
         .await;
 
     // Inference loop (optional)
@@ -178,9 +178,9 @@ pub(super) async fn build_loops(
         config.curator_auto_consolidation_enabled,
     );
     curator_agent.curation_loop().restore_cursor();
-    let curation_loop: Arc<dyn HkaskLoop> = curator_agent.curation_loop().clone();
+    let curation_loop: Arc<dyn RegulationLoop> = curator_agent.curation_loop().clone();
     loop_system.register_loop(curation_loop).await;
-    let metacognition_loop: Arc<dyn HkaskLoop> = curator_agent.metacognition().clone();
+    let metacognition_loop: Arc<dyn RegulationLoop> = curator_agent.metacognition().clone();
     loop_system.register_loop(metacognition_loop).await;
 
     // ── StorageGuard (Loop 7) — autonomous disk space management ──────

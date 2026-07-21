@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::consolidation::ConsolidationBridge;
 use crate::episodic::EpisodicMemory;
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopActionParams, LoopId,
+    ActionType, Deviation, DeviationDirection, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId,
     Signal, SignalMetric,
 };
 use hkask_ports::ConsolidationRequest;
@@ -90,7 +90,7 @@ impl EpisodicLoop {
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for EpisodicLoop {
+impl RegulationLoop for EpisodicLoop {
     fn id(&self) -> LoopId {
         LoopId::Episodic
     }
@@ -125,7 +125,7 @@ impl HkaskLoop for EpisodicLoop {
     ///
     /// - >80% of budget → `Throttle` self (reduce ingestion rate)
     /// - >100% of budget → `Escalate` to Curation AND `Calibrate` self (consolidate h_mems)
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         let mut actions = Vec::new();
 
         for dev in deviations {
@@ -137,23 +137,23 @@ impl HkaskLoop for EpisodicLoop {
                 if ratio > 1.0 {
                     // Budget exceeded — consolidate to free space
                     let _overage = (dev.signal.value - dev.signal.set_point) as usize;
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Episodic,
                         ActionType::Calibrate,
-                        LoopActionParams::reason("episodic_budget_exceeded_consolidate"),
+                        RegulatoryActionParams::reason("episodic_budget_exceeded_consolidate"),
                     ));
                     // Also escalate to Curation (budget exceeded)
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         ActionType::Escalate,
-                        LoopActionParams::reason("episodic_budget_exceeded"),
+                        RegulatoryActionParams::reason("episodic_budget_exceeded"),
                     ));
                 } else if ratio > 0.8 {
                     // Approaching budget — throttle self
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Episodic,
                         ActionType::Throttle,
-                        LoopActionParams::reason("episodic_budget_approaching"),
+                        RegulatoryActionParams::reason("episodic_budget_approaching"),
                     ));
                 }
             }
@@ -170,7 +170,7 @@ impl HkaskLoop for EpisodicLoop {
     /// - `Throttle`: log warning (no direct enforcement — ingestion rate
     ///   limiting is handled by the caller checking storage usage).
     /// - `Escalate`: logged (Curation loop handles escalation).
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         for action in actions {
             match action.action_type {
                 ActionType::Calibrate => {

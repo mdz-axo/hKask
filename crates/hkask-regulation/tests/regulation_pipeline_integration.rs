@@ -16,7 +16,7 @@ use hkask_regulation::cybernetics_loop::CyberneticsLoop;
 use hkask_regulation::energy::{GasBudget, GasCost};
 use hkask_regulation::runtime::RegulationLedger;
 use hkask_regulation::set_points::{InferenceThrottleMode, SetPoints};
-use hkask_regulation::types::loops::{ActionDecision, ActionType, HkaskLoop, LoopId, SignalMetric};
+use hkask_regulation::types::loops::{ActionDecision, ActionType, RegulationLoop, LoopId, SignalMetric};
 use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -264,11 +264,11 @@ async fn action_decision_block_fires_on_severe_worsening() {
     // worsening=0.25 ≥ block_ratio=0.20 → Block.
 
     // Produce a mock action as compute would, carrying the pre-action ratio.
-    use hkask_regulation::types::loops::{LoopAction, LoopActionParams, RegulationData};
-    let mock_action = LoopAction::new(
+    use hkask_regulation::types::loops::{RegulatoryAction, RegulatoryActionParams, RegulationData};
+    let mock_action = RegulatoryAction::new(
         LoopId::Inference,
         ActionType::Throttle,
-        LoopActionParams::with_data(
+        RegulatoryActionParams::with_data(
             "energy_budget_low",
             RegulationData::EnergyBudgetLow {
                 remaining_ratio: 0.25,
@@ -460,7 +460,7 @@ async fn loop_quality_reflects_regulation_activity() {
 ///   3. Inject CNS ν-events through a configured event sink
 ///   4. Run tick(): sense → compare → compute → act → verify
 ///   5. Verify each phase produces correct outputs
-///   6. Assert LoopQuality reflects the pipeline state
+///   6. Assert LoopMetrics reflects the pipeline state
 ///   7. Assert regulation history is recorded
 ///
 /// Principle grounding:
@@ -573,8 +573,8 @@ async fn full_cybernetic_cycle_exercises_all_phases() {
         );
     }
 
-    // ── Phase 6: LoopQuality — self-observability ────────────────────────
-    // Run tick() for proper LoopQuality computation (tick() calls verify_impact
+    // ── Phase 6: LoopMetrics — self-observability ────────────────────────
+    // Run tick() for proper LoopMetrics computation (tick() calls verify_impact
     // and records the results through regulation history).
     loop_instance.tick().await;
     let quality = loop_instance.loop_quality().await;

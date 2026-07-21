@@ -9,7 +9,7 @@
 
 use hkask_regulation::sensor_provider::SensorRegistry;
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, HkaskLoop, LoopAction, LoopActionParams, LoopId,
+    ActionType, Deviation, DeviationDirection, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId,
     RegulationData, Signal, SignalMetric,
 };
 use std::sync::Arc;
@@ -31,13 +31,13 @@ use crate::inference_sensors::{
 /// When the model is unavailable, it produces `Calibrate` to signal that
 /// model selection is needed.
 ///
-/// Sensing is delegated to `SensorProvider` implementations registered in
+/// Sensing is delegated to `Sensor` implementations registered in
 /// the `sensor_registry`. The loop shares state with its sensors via
 /// `Arc<InferenceSensorState>`.
 pub struct InferenceLoop {
     /// Shared state between the loop and its sensors.
     sensor_state: Arc<InferenceSensorState>,
-    /// Sensor registry — holds the SensorProvider implementations for this loop.
+    /// Sensor registry — holds the Sensor implementations for this loop.
     sensor_registry: SensorRegistry,
     /// Currently active inference model (None = not yet selected / unavailable).
     /// Kept in sync with `sensor_state.model_available`.
@@ -135,7 +135,7 @@ impl InferenceLoop {
     /// gas remaining ratio, circuit breaker state, and model availability.
     #[must_use]
     pub async fn sense(&self) -> Vec<Signal> {
-        <Self as HkaskLoop>::sense(self).await
+        <Self as RegulationLoop>::sense(self).await
     }
 
     /// **Compare stage** (sense → compare → compute → act):
@@ -144,7 +144,7 @@ impl InferenceLoop {
     /// Detects deviations from healthy operating set-points.
     #[must_use]
     pub async fn compare(&self, signals: &[Signal]) -> Vec<Deviation> {
-        <Self as HkaskLoop>::compare(self, signals).await
+        <Self as RegulationLoop>::compare(self, signals).await
     }
 
     /// **Compute stage** (sense → compare → compute → act):
@@ -153,28 +153,28 @@ impl InferenceLoop {
     /// set-point → AdjustEnergyBudget (self-throttle). Model unavailable →
     /// Calibrate (signal model selection needed).
     #[must_use]
-    pub async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
-        <Self as HkaskLoop>::compute(self, deviations).await
+    pub async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
+        <Self as RegulationLoop>::compute(self, deviations).await
     }
 
     /// **Act stage** (sense → compare → compute → act):
     /// Execute inference call if budget allows. Logs all regulatory actions
     /// with structured spans. Gas self-throttle and model unavailability
     /// are logged at warn level.
-    pub async fn act(&self, actions: &[LoopAction]) {
-        <Self as HkaskLoop>::act(self, actions).await
+    pub async fn act(&self, actions: &[RegulatoryAction]) {
+        <Self as RegulationLoop>::act(self, actions).await
     }
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for InferenceLoop {
+impl RegulationLoop for InferenceLoop {
     fn id(&self) -> LoopId {
         LoopId::Inference
     }
 
     /// Sense: delegate to the SensorRegistry.
     ///
-    /// All sensing is now done through SensorProvider implementations:
+    /// All sensing is now done through Sensor implementations:
     /// - `CircuitBreakerStateSensor` — 0.0=closed, 1.0=open, 0.5=half-open
     /// - `InferenceAvailableSensor` — 1.0 if circuit breaker allows, 0.0 if not
     /// - `InferenceGasRemainingSensor` — ratio of gas remaining in loop's budget
@@ -190,7 +190,7 @@ impl HkaskLoop for InferenceLoop {
     /// - Inference unavailable → `Throttle`
     /// - Gas below set-point → `AdjustEnergyBudget` (self-throttle)
     /// - Model unavailable → `Calibrate` (signal model selection needed)
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         let mut actions = Vec::new();
 
         for dev in deviations {
@@ -198,28 +198,28 @@ impl HkaskLoop for InferenceLoop {
                 SignalMetric::CircuitBreakerState
                     if dev.direction == DeviationDirection::AboveSetPoint =>
                 {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Inference,
                         ActionType::Throttle,
-                        LoopActionParams::reason("circuit_breaker_open"),
+                        RegulatoryActionParams::reason("circuit_breaker_open"),
                     ));
                 }
                 SignalMetric::InferenceAvailable
                     if dev.direction == DeviationDirection::BelowSetPoint =>
                 {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Inference,
                         ActionType::Throttle,
-                        LoopActionParams::reason("inference_unavailable"),
+                        RegulatoryActionParams::reason("inference_unavailable"),
                     ));
                 }
                 SignalMetric::InferenceGasRemaining
                     if dev.direction == DeviationDirection::BelowSetPoint =>
                 {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Inference,
                         ActionType::AdjustEnergyBudget,
-                        LoopActionParams::with_data(
+                        RegulatoryActionParams::with_data(
                             "gas_below_set_point",
                             RegulationData::EnergyBudgetLow {
                                 remaining_ratio: dev.signal.value,
@@ -231,10 +231,10 @@ impl HkaskLoop for InferenceLoop {
                 SignalMetric::InferenceModelAvailable
                     if dev.direction == DeviationDirection::BelowSetPoint =>
                 {
-                    actions.push(LoopAction::new(
+                    actions.push(RegulatoryAction::new(
                         LoopId::Inference,
                         ActionType::Calibrate,
-                        LoopActionParams::reason("model_unavailable"),
+                        RegulatoryActionParams::reason("model_unavailable"),
                     ));
                 }
                 _ => {}
@@ -249,7 +249,7 @@ impl HkaskLoop for InferenceLoop {
     /// Logs all actions with structured spans. Gas self-throttle and model
     /// unavailability are logged at warn level to surface budget depletion
     /// and model selection needs.
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         for action in actions {
             match action.action_type {
                 ActionType::AdjustEnergyBudget => {

@@ -53,8 +53,8 @@ use crate::regulation_policy::{
     extract_deficit_threshold,
 };
 use crate::types::loops::{
-    ActionDecision, ActionType, CurationInput, Deviation, HkaskLoop, ImpactReport, LoopAction,
-    LoopActionParams, LoopId, LoopQuality, Signal, SignalMetric, TriggerOrigin,
+    ActionDecision, ActionType, CurationInput, Deviation, RegulationLoop, ImpactReport, RegulatoryAction,
+    RegulatoryActionParams, LoopId, LoopMetrics, Signal, SignalMetric, TriggerOrigin,
 };
 use crate::types::loops::{BudgetOption, RegulationData};
 use hkask_ports::BackpressureSignal;
@@ -100,7 +100,7 @@ pub struct CyberneticsLoop {
     /// Direct curator directive channel: Curation → Cybernetics.
     curator_directive_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<CuratorDirective>>>>,
     /// Loop-quality telemetry from the most recent tick cycle.
-    loop_quality: RwLock<LoopQuality>,
+    loop_quality: RwLock<LoopMetrics>,
     /// SLO data provider for periodic SLO evaluation. If set, SLOs are evaluated
     /// on each tick and breaches are escalated through the algedonic pathway.
     slo_provider: Option<Arc<dyn SloDataProvider>>,
@@ -191,7 +191,7 @@ impl CyberneticsLoop {
             alerts_tx: None,
             slo_provider: None,
             curator_directive_rx: None,
-            loop_quality: RwLock::new(LoopQuality::default()),
+            loop_quality: RwLock::new(LoopMetrics::default()),
             budget_persistence_path: None,
             stagnation_detector,
             sensor_registry,
@@ -407,7 +407,7 @@ impl CyberneticsLoop {
     /// Runs after verify_impact. Scans the action set from this tick and logs
     /// warnings for patterns that suggest inconsistent regulation (e.g.,
     /// Throttle + CircuitBreak on same loop, AdjustEnergyBudget + OverrideEnergyBudget).
-    fn check_coherence(&self, actions: &[LoopAction]) {
+    fn check_coherence(&self, actions: &[RegulatoryAction]) {
         use ActionType::*;
         let has = |t: ActionType| actions.iter().any(|a| a.action_type == t);
         let has_target = |t: ActionType, target: LoopId| {
@@ -849,7 +849,7 @@ impl CyberneticsLoop {
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for CyberneticsLoop {
+impl RegulationLoop for CyberneticsLoop {
     fn id(&self) -> LoopId {
         LoopId::Cybernetics
     }
@@ -864,7 +864,7 @@ impl HkaskLoop for CyberneticsLoop {
 
         // All sensing is now done through the SensorRegistry.
         // Wallet balance ratio, energy remaining, variety deficit, wallet key health,
-        // and tool reliability are all sensed by registered SensorProvider implementations.
+        // and tool reliability are all sensed by registered Sensor implementations.
         //
         // The inline wallet ratio sensing that was here has been migrated to
         // WalletBalanceRatioSensor (v0.32.0) — see ADR-056.
@@ -881,7 +881,7 @@ impl HkaskLoop for CyberneticsLoop {
         signals
     }
 
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         let mut actions = Vec::new();
 
         // Predictive regulation: check if any metric is approaching its set-point.
@@ -906,10 +906,10 @@ impl HkaskLoop for CyberneticsLoop {
                     "Predictive: metric approaching set-point"
                 );
                 // Emit a predictive notification to Curation.
-                actions.push(LoopAction::new(
+                actions.push(RegulatoryAction::new(
                     LoopId::Curation,
                     ActionType::Notify,
-                    LoopActionParams::reason("predictive_threshold_approach"),
+                    RegulatoryActionParams::reason("predictive_threshold_approach"),
                 ));
             }
         }
@@ -927,7 +927,7 @@ impl HkaskLoop for CyberneticsLoop {
         actions
     }
 
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         self.replenish_all_budgets().await;
 
         // E04: Detect and escalate budget exhaustion via algedonic pathway
@@ -1180,7 +1180,7 @@ impl HkaskLoop for CyberneticsLoop {
     /// Accept / Stage / Block using per-metric worsening thresholds.
     /// Blocked actions are prevented from re-use until Curation intervenes.
     /// Actions that repeatedly fail to improve trigger stagnation detection.
-    async fn verify_impact(&self, previous_actions: &[LoopAction]) -> Vec<ImpactReport> {
+    async fn verify_impact(&self, previous_actions: &[RegulatoryAction]) -> Vec<ImpactReport> {
         let mut reports = Vec::new();
 
         // Re-sense current state for comparison.
@@ -1364,7 +1364,7 @@ impl HkaskLoop for CyberneticsLoop {
     /// Full regulation cycle with loop-quality telemetry.
     ///
     /// Overrides the default `tick()` to measure elapsed time and compute
-    /// `LoopQuality` metrics (delay_ms, gain, fidelity_score, effectiveness_score)
+    /// `LoopMetrics` metrics (delay_ms, gain, fidelity_score, effectiveness_score)
     /// after each cycle. Calls `verify_impact` to close the feedback loop.
     async fn tick(&self) {
         let start = std::time::Instant::now();
@@ -1467,7 +1467,7 @@ impl HkaskLoop for CyberneticsLoop {
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
 
-        let quality = LoopQuality::from_cycle(
+        let quality = LoopMetrics::from_cycle(
             elapsed_ms,
             &deviations,
             &actions,
@@ -1489,7 +1489,7 @@ impl HkaskLoop for CyberneticsLoop {
         );
 
         self.emit_regulation_span(
-            SpanKind::LoopQualityTelemetry,
+            SpanKind::LoopMetricsTelemetry,
             serde_json::json!({
                 "delay_ms": quality.delay_ms,
                 "gain": quality.gain,
@@ -1562,10 +1562,10 @@ impl HkaskLoop for CyberneticsLoop {
     }
 }
 
-/// Adapt `Arc<RwLock<CyberneticsLoop>>` for use as `Arc<dyn HkaskLoop>` in LoopSystem.
+/// Adapt `Arc<RwLock<CyberneticsLoop>>` for use as `Arc<dyn RegulationLoop>` in LoopScheduler.
 /// Eliminates the pass-through `CyberneticsLoopHandle` struct per Prohibition #4.
 #[async_trait::async_trait]
-impl HkaskLoop for tokio::sync::RwLock<CyberneticsLoop> {
+impl RegulationLoop for tokio::sync::RwLock<CyberneticsLoop> {
     fn id(&self) -> LoopId {
         LoopId::Cybernetics
     }
@@ -1574,21 +1574,21 @@ impl HkaskLoop for tokio::sync::RwLock<CyberneticsLoop> {
         self.read().await.sense().await
     }
 
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         self.read().await.compute(deviations).await
     }
 
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         self.read().await.act(actions).await
     }
 
-    async fn verify_impact(&self, previous_actions: &[LoopAction]) -> Vec<ImpactReport> {
+    async fn verify_impact(&self, previous_actions: &[RegulatoryAction]) -> Vec<ImpactReport> {
         self.read().await.verify_impact(previous_actions).await
     }
 }
 
 impl CyberneticsLoop {
-    /// Build a `LoopAction` from a `ProposedAction` returned by the regulation policy.
+    /// Build a `RegulatoryAction` from a `ProposedAction` returned by the regulation policy.
     ///
     /// Applies mode-specific filtering (e.g., `InferenceThrottleMode`) and
     /// `try_substitute` for stagnation-based action ladder substitution.
@@ -1597,7 +1597,7 @@ impl CyberneticsLoop {
         &self,
         dev: &Deviation,
         proposed: &regulation_policy::ProposedAction,
-    ) -> Option<LoopAction> {
+    ) -> Option<RegulatoryAction> {
         use ActionType::*;
         use LoopId::*;
         use SignalMetric::*;
@@ -1612,10 +1612,10 @@ impl CyberneticsLoop {
                     return None;
                 }
                 let at = self.try_substitute(EnergyRemaining, Throttle).await;
-                Some(LoopAction::with_metric(
+                Some(RegulatoryAction::with_metric(
                     Inference,
                     at,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "energy_budget_low",
                         RegulationData::EnergyBudgetLow {
                             remaining_ratio: dev.signal.value,
@@ -1634,10 +1634,10 @@ impl CyberneticsLoop {
                 };
                 let remaining_ratio = dev.signal.value;
                 let projected_minutes = (remaining_ratio * 60.0) as u64;
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Curation,
                     Escalate,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "budget_guard_escalation",
                         RegulationData::BudgetGuardEscalation {
                             remaining_ratio,
@@ -1673,10 +1673,10 @@ impl CyberneticsLoop {
                 let at = self
                     .try_substitute(EnergyRemaining, AdjustEnergyBudget)
                     .await;
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Cybernetics,
                     at,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "energy_depletion_auto_adjust",
                         RegulationData::EnergyDepletionAutoAdjust {
                             remaining_ratio: dev.signal.value,
@@ -1688,10 +1688,10 @@ impl CyberneticsLoop {
             // -- VarietyDeficit AboveSetPoint -------------------------------
             "variety_deficit_exceeded" => {
                 let at = self.try_substitute(VarietyDeficit, Escalate).await;
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Curation,
                     at,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "variety_deficit_exceeded",
                         RegulationData::VarietyDeficitExceeded {
                             deficit: dev.signal.value,
@@ -1703,10 +1703,10 @@ impl CyberneticsLoop {
             // -- ErrorRate AboveSetPoint ------------------------------------
             "error_rate_exceeded" => {
                 let at = self.try_substitute(ErrorRate, CircuitBreak).await;
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Inference,
                     at,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "error_rate_exceeded",
                         RegulationData::ErrorRateExceeded {
                             error_rate: dev.signal.value,
@@ -1718,10 +1718,10 @@ impl CyberneticsLoop {
             // -- ConnectorLatency AboveSetPoint -----------------------------
             "connector_latency_exceeded" => {
                 let at = self.try_substitute(ConnectorLatency, Throttle).await;
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Cybernetics,
                     at,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "connector_latency_exceeded",
                         RegulationData::ConnectorLatencyExceeded {
                             latency_secs: dev.signal.value,
@@ -1739,10 +1739,10 @@ impl CyberneticsLoop {
                     "Communication queue depth exceeded backpressure threshold"
                 );
                 let at = self.try_substitute(CommunicationQueueDepth, Throttle).await;
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Cybernetics,
                     at,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "communication_backpressure",
                         RegulationData::CommunicationBackpressure {
                             queue_depth: dev.signal.value,
@@ -1765,10 +1765,10 @@ impl CyberneticsLoop {
                     "Wallet balance alert"
                 );
                 let at = self.try_substitute(WalletBalanceRatio, Escalate).await;
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Curation,
                     at,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "wallet_balance_low",
                         RegulationData::WalletBalanceLow {
                             balance_ratio: dev.signal.value,
@@ -1784,10 +1784,10 @@ impl CyberneticsLoop {
                     target: "cns.wallet",
                     "API key health alert — exhausted or expired"
                 );
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Curation,
                     Escalate,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "wallet_key_unhealthy",
                         RegulationData::WalletKeyUnhealthy {
                             severity: "warning".into(),
@@ -1812,10 +1812,10 @@ impl CyberneticsLoop {
                     severity = severity,
                     "Public seam coverage degraded — seam watcher alert"
                 );
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Curation,
                     Escalate,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "seam_coverage_degraded",
                         RegulationData::SeamCoverageDegraded {
                             coverage_pct: dev.signal.value,
@@ -1836,10 +1836,10 @@ impl CyberneticsLoop {
                     improvement = improvement,
                     "Public seam coverage improved — seam watcher positive signal"
                 );
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Curation,
                     Notify,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "seam_coverage_improved",
                         RegulationData::SeamCoverageImproved {
                             coverage_pct: dev.signal.value,
@@ -1858,10 +1858,10 @@ impl CyberneticsLoop {
                     "Tool reliability degraded — success rate below threshold"
                 );
                 let at = self.try_substitute(ToolReliability, Escalate).await;
-                Some(LoopAction::new(
+                Some(RegulatoryAction::new(
                     Curation,
                     at,
-                    LoopActionParams::with_data(
+                    RegulatoryActionParams::with_data(
                         "tool_reliability_degraded",
                         RegulationData::ToolReliabilityDegraded {
                             reliability: dev.signal.value,
@@ -1886,7 +1886,7 @@ impl CyberneticsLoop {
     /// Return a snapshot of the most recent loop-quality telemetry.
     ///
     /// expect: "The system provides observability into CNS regulation state"
-    pub async fn loop_quality(&self) -> LoopQuality {
+    pub async fn loop_quality(&self) -> LoopMetrics {
         *self.loop_quality.read().await
     }
 

@@ -713,7 +713,7 @@ pub enum SpanKind {
     /// Regulatory plateau detected — escalation triggered: `cns.regulation.plateau_detected`
     RegulatoryPlateauDetected,
     /// Loop-quality telemetry recorded: `cns.regulation.loop_quality`
-    LoopQualityTelemetry,
+    LoopMetricsTelemetry,
 }
 
 impl SpanKind {
@@ -737,7 +737,7 @@ impl SpanKind {
             SpanKind::ActionSubstituted => ("cns.regulation", "action_substituted"),
             SpanKind::ActionBlocked => ("cns.regulation", "action_blocked"),
             SpanKind::RegulatoryPlateauDetected => ("cns.regulation", "plateau_detected"),
-            SpanKind::LoopQualityTelemetry => ("cns.regulation", "loop_quality"),
+            SpanKind::LoopMetricsTelemetry => ("cns.regulation", "loop_quality"),
         }
     }
 }

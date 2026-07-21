@@ -1,11 +1,11 @@
 //! McpServerGuard Loop — Proactive MCP server health monitoring (Loop 8)
 //!
 //! Lives in `hkask-services-context` (not `hkask-cns`) to avoid a circular
-//! dependency — it needs both `McpRuntime` from `hkask-mcp` and the `HkaskLoop`
+//! dependency — it needs both `McpRuntime` from `hkask-mcp` and the `RegulationLoop`
 //! trait from `hkask-cns`. Both are available here.
 
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, HkaskLoop, LoopAction, LoopActionParams, LoopId, Signal, SignalMetric,
+    ActionType, Deviation, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId, Signal, SignalMetric,
 };
 use hkask_mcp::McpRuntime;
 use std::sync::Arc;
@@ -21,7 +21,7 @@ impl McpServerGuardLoop {
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for McpServerGuardLoop {
+impl RegulationLoop for McpServerGuardLoop {
     fn id(&self) -> LoopId {
         LoopId::McpServerGuard
     }
@@ -50,19 +50,19 @@ impl HkaskLoop for McpServerGuardLoop {
             .collect()
     }
 
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         if deviations.is_empty() {
             return Vec::new();
         }
 
-        vec![LoopAction::new(
+        vec![RegulatoryAction::new(
             LoopId::McpServerGuard,
             ActionType::Notify,
-            LoopActionParams::reason("mcp_server_health"),
+            RegulatoryActionParams::reason("mcp_server_health"),
         )]
     }
 
-    async fn act(&self, _actions: &[LoopAction]) {
+    async fn act(&self, _actions: &[RegulatoryAction]) {
         // Read dead server state directly from the runtime instead of
         // extracting it from action data (which was JSON key-sniffing).
         let servers = self.runtime.servers().await;

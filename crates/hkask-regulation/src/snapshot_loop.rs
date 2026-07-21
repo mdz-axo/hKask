@@ -1,6 +1,6 @@
 //! SnapshotLoop — Cybernetic loop for scheduled CAS snapshots
 //!
-//! Implements the HkaskLoop (sense → compare → compute → act) cycle to
+//! Implements the RegulationLoop (sense → compare → compute → act) cycle to
 //! take snapshots of CAS repositories based on their retention policies.
 //!
 //! Per-repo policies determine when a snapshot is needed:
@@ -9,11 +9,11 @@
 //! - If no previous snapshot exists, one is always taken
 //!
 //! State tracking uses `parking_lot::RwLock` for interior mutability so
-//! the `HkaskLoop` trait's `&self` methods can update snapshot timestamps
+//! the `RegulationLoop` trait's `&self` methods can update snapshot timestamps
 //! after successful snapshot actions.
 
 use crate::types::loops::{
-    ActionType, Deviation, HkaskLoop, LoopAction, LoopActionParams, LoopId, Signal, SignalMetric,
+    ActionType, Deviation, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId, Signal, SignalMetric,
 };
 use hkask_ports::git_cas::{
     CasRetentionPolicy, CasRetentionTier, CommitHash, GitCASPort, RepoId, RepoSnapshotPolicy,
@@ -62,7 +62,7 @@ struct SnapshotState {
 ///
 /// Interior mutability via `parking_lot::RwLock<Hash`Map<String, SnapshotState>`>`
 /// allows `act()` to record successful snapshot timestamps despite the
-/// `&self` signature required by `HkaskLoop`.
+/// `&self` signature required by `RegulationLoop`.
 pub struct SnapshotLoop {
     port: Arc<dyn GitCASPort>,
     config: SnapshotLoopConfig,
@@ -146,7 +146,7 @@ impl SnapshotLoop {
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for SnapshotLoop {
+impl RegulationLoop for SnapshotLoop {
     fn id(&self) -> LoopId {
         LoopId::Snapshot
     }
@@ -204,20 +204,20 @@ impl HkaskLoop for SnapshotLoop {
     }
 
     /// Compute: produce a single Calibrate action for snapshot scheduling.
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         if deviations.is_empty() {
             return Vec::new();
         }
         // One action covers all due repos — act() iterates them
-        vec![LoopAction::new(
+        vec![RegulatoryAction::new(
             LoopId::Snapshot,
             ActionType::Calibrate,
-            LoopActionParams::reason("snapshot_due"),
+            RegulatoryActionParams::reason("snapshot_due"),
         )]
     }
 
     /// Act: take snapshots for repos that need them.
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         if actions.is_empty() {
             return;
         }

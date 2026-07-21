@@ -21,7 +21,7 @@ pub mod curator_agent; // Loop 5
 pub mod error;
 
 pub mod inference_loop; // Loop 1 (domain logic; governance applied externally via GovernedTool in hkask-cns)
-pub mod inference_sensors; // Loop 1 sensors — SensorProvider implementations for InferenceLoop
+pub mod inference_sensors; // Loop 1 sensors — Sensor implementations for InferenceLoop
 pub mod loop_system;
 pub mod pod; // Loop 5 (agent pod lifecycle is Curation)
 pub mod ports;
@@ -47,7 +47,7 @@ pub use inference_sensors::{
     CircuitBreakerStateSensor, InferenceAvailableSensor, InferenceGasRemainingSensor,
     InferenceModelAvailableSensor, InferenceSensorState,
 };
-pub use loop_system::LoopSystem;
+pub use loop_system::LoopScheduler;
 pub use pod::{ActivePods, PodDeployment, PodFactory, PodID, PodKind, PodRegistry};
 pub use ports::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,

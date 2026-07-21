@@ -1,6 +1,6 @@
 //! StorageGuard Loop — Autonomous disk space management (Loop 7)
 //!
-//! Implements the HkaskLoop (sense → compare → compute → act) cycle to
+//! Implements the RegulationLoop (sense → compare → compute → act) cycle to
 //! monitor disk usage on the /data volume and take corrective action.
 //!
 //! Extracted from hkask-cns to separate disk space management from
@@ -22,9 +22,9 @@
 //! Exports are sovereignty artifacts. Pruning without consent would violate P1.
 //! The loop checks `prune_exports_enabled` before acting.
 
-use hkask_regulation::HkaskLoop;
+use hkask_regulation::RegulationLoop;
 use hkask_types::loops::{
-    ActionType, Deviation, LoopAction, LoopActionParams, LoopId, Signal, SignalMetric,
+    ActionType, Deviation, RegulatoryAction, RegulatoryActionParams, LoopId, Signal, SignalMetric,
 };
 use std::path::Path;
 use std::sync::Arc;
@@ -160,7 +160,7 @@ fn walk_dir_bounded(
 }
 
 #[async_trait::async_trait]
-impl HkaskLoop for StorageGuardLoop {
+impl RegulationLoop for StorageGuardLoop {
     fn id(&self) -> LoopId {
         LoopId::StorageGuard
     }
@@ -194,7 +194,7 @@ impl HkaskLoop for StorageGuardLoop {
     }
 
     /// Compute: produce Prune action if critical, Notify if warn.
-    async fn compute(&self, deviations: &[Deviation]) -> Vec<LoopAction> {
+    async fn compute(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
         if deviations.is_empty() {
             return Vec::new();
         }
@@ -222,16 +222,16 @@ impl HkaskLoop for StorageGuardLoop {
             ActionType::Notify
         };
 
-        vec![LoopAction::new(
+        vec![RegulatoryAction::new(
             LoopId::StorageGuard,
             action_type,
-            LoopActionParams::reason("disk_usage_exceeded"),
+            RegulatoryActionParams::reason("disk_usage_exceeded"),
         )]
     }
 
     /// Act: if Prune, delete export archives older than the configured threshold.
     /// If Notify, log a CNS span (the Cybernetics loop handles escalation).
-    async fn act(&self, actions: &[LoopAction]) {
+    async fn act(&self, actions: &[RegulatoryAction]) {
         for action in actions {
             if action.action_type == ActionType::Prune {
                 if !self.prune_cooldown_elapsed() {

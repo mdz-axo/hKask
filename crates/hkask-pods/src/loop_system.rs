@@ -6,7 +6,7 @@
 //! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic}
 //! Snapshot loop runs independently on its own schedule.
 
-use hkask_regulation::types::loops::HkaskLoop;
+use hkask_regulation::types::loops::RegulationLoop;
 use hkask_regulation::types::loops::LoopId;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -71,13 +71,13 @@ pub const AUTHORITY_ORDER: [LoopId; 6] = [
 
 /// Multiple loops may share a `LoopId` (e.g., Episodic + Semantic both register
 /// as `Memory`). They are ticked in registration order within the same ID.
-type LoopRegistry = Arc<RwLock<HashMap<LoopId, Vec<Arc<dyn HkaskLoop>>>>>;
+type LoopRegistry = Arc<RwLock<HashMap<LoopId, Vec<Arc<dyn RegulationLoop>>>>>;
 
 /// Loop System — manages loop registration, tick scheduling, and lifecycle.
 ///
 /// Inter-loop communication uses direct `tokio::mpsc` channels wired during
 /// `AgentService::build()`. This struct handles only registration and ticking.
-pub struct LoopSystem {
+pub struct LoopScheduler {
     /// All registered loops keyed by LoopId. Vec supports multiple loops per ID.
     loops: LoopRegistry,
     /// Cancellation token for graceful shutdown
@@ -86,14 +86,14 @@ pub struct LoopSystem {
     tick_intervals: HashMap<LoopId, Duration>,
 }
 
-impl LoopSystem {
-    /// Create a new LoopSystem.
+impl LoopScheduler {
+    /// Create a new LoopScheduler.
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — LoopSystem orchestrates sense-act cycles
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — LoopScheduler orchestrates sense-act cycles
     /// \[P5\] Constraining: Essentialism — minimal registry + cancellation token
     /// pre:  (none).
-    /// post: Returns a `LoopSystem` with an empty loop registry, a fresh
+    /// post: Returns a `LoopScheduler` with an empty loop registry, a fresh
     ///       cancellation token, and default tick intervals for all four
     ///       loop IDs.
     pub fn new() -> Self {
@@ -135,10 +135,10 @@ impl LoopSystem {
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — register loop instances under LoopId
-    /// pre:  `loop_instance` is a valid `Arc<dyn HkaskLoop>`.
+    /// pre:  `loop_instance` is a valid `Arc<dyn RegulationLoop>`.
     /// post: The loop is added to the registry under its `LoopId`;
     ///       logs the registration at info level.
-    pub async fn register_loop(&self, loop_instance: Arc<dyn HkaskLoop>) {
+    pub async fn register_loop(&self, loop_instance: Arc<dyn RegulationLoop>) {
         let id = loop_instance.id();
         let mut loops = self.loops.write().await;
         loops.entry(id).or_default().push(loop_instance);
@@ -213,7 +213,7 @@ impl LoopSystem {
 
         info!(
             target: "loop_system",
-            "LoopSystem started with per-loop tick intervals"
+            "LoopScheduler started with per-loop tick intervals"
         );
     }
 
@@ -264,7 +264,7 @@ impl LoopSystem {
     /// post: The cancellation token is triggered; all spawned tick tasks
     ///       will terminate on their next `select!` iteration.
     pub fn shutdown(&self) {
-        info!(target: "loop_system", "LoopSystem shutting down");
+        info!(target: "loop_system", "LoopScheduler shutting down");
         self.cancel.cancel();
     }
 
@@ -291,7 +291,7 @@ impl LoopSystem {
     }
 }
 
-impl Default for LoopSystem {
+impl Default for LoopScheduler {
     fn default() -> Self {
         Self::new()
     }

@@ -4,7 +4,7 @@
 //! that prevented extracting CNS subcrates. The Loop trait uses async-trait
 //! for object safety.
 
-use super::actions::{ActionType, LoopAction};
+use super::actions::{ActionType, RegulatoryAction};
 use super::signals::{Deviation, DeviationDirection, SignalMetric};
 
 /// Loop identifiers for the 6-loop model.
@@ -153,7 +153,7 @@ pub enum ActionDecision {
 /// quickly enough? Is it producing appropriate actions for detected deviations?
 /// Are those actions actually effective?
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
-pub struct LoopQuality {
+pub struct LoopMetrics {
     /// Milliseconds between sense start and act completion (loop latency).
     pub delay_ms: u64,
     /// Ratio of actions produced to deviations detected (responsiveness).
@@ -178,7 +178,7 @@ pub struct LoopQuality {
     pub trigger: TriggerOrigin,
 }
 
-impl Default for LoopQuality {
+impl Default for LoopMetrics {
     fn default() -> Self {
         Self {
             delay_ms: 0,
@@ -191,14 +191,14 @@ impl Default for LoopQuality {
     }
 }
 
-impl LoopQuality {
+impl LoopMetrics {
     /// Compute loop quality from the cycle's inputs and outputs.
     ///
     /// expect: "The system measures its own regulatory effectiveness"
     /// \[P9\] Homeostatic Self-Regulation — loop quality enables CNS self-observation
     /// pre:  elapsed_ms is measured wall-clock time; deviations and actions are from
     ///       the same regulation cycle
-    /// post: returns LoopQuality with gain, fidelity_score, effectiveness_score, and
+    /// post: returns LoopMetrics with gain, fidelity_score, effectiveness_score, and
     ///       fidelity_confidence computed from cycle data
     ///
     /// - `elapsed_ms`: wall-clock time from sense start to act end
@@ -209,7 +209,7 @@ impl LoopQuality {
     pub fn from_cycle(
         elapsed_ms: u64,
         deviations: &[Deviation],
-        actions: &[LoopAction],
+        actions: &[RegulatoryAction],
         impact_reports: &[ImpactReport],
         trigger: TriggerOrigin,
     ) -> Self {

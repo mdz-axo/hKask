@@ -1,7 +1,7 @@
 //! CNS algedonic alert display and loop system tick for the REPL.
 //!
 //! After each inference turn, the CNS is checked for critical alerts
-//! and the LoopSystem is ticked. CNS variety counters are updated by
+//! and the LoopScheduler is ticked. CNS variety counters are updated by
 //! the service layer via CNS spans (cns.chat.request, cns.chat.response) —
 //! the REPL only reads alerts, never mutates CNS state directly.
 //!
@@ -10,7 +10,7 @@
 
 use hkask_services_context::AgentService;
 
-/// Check CNS algedonic alerts and tick the LoopSystem after each turn.
+/// Check CNS algedonic alerts and tick the LoopScheduler after each turn.
 /// Only reads CNS state (alerts) and ticks loop system — no direct mutation.
 /// CNS variety counters are updated by the service layer via CNS spans.
 pub(super) fn update_cns_and_display(ctx: &AgentService, rt: &tokio::runtime::Handle) {
@@ -26,7 +26,7 @@ pub(super) fn update_cns_and_display(ctx: &AgentService, rt: &tokio::runtime::Ha
         }
     }
 
-    // Tick the LoopSystem to run sense→compare→compute→act for
+    // Tick the LoopScheduler to run sense→compare→compute→act for
     // CyberneticsLoop and InferenceLoop. The CyberneticsLoop reads
     // CNS variety and energy budgets, producing regulatory actions
     // (Throttle, AdjustEnergyBudget, Escalate, Calibrate) visible

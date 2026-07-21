@@ -110,14 +110,14 @@ impl RegulationData {
 ///
 /// # Design note: why `reason` is a free-form `String`
 ///
-/// `LoopQuality::from_cycle` does string matching on `reason` to
+/// `LoopMetrics::from_cycle` does string matching on `reason` to
 /// compute fidelity scores. Making `reason` a typed enum would prevent
 /// misspellings but would also require updating the enum every time a
 /// new action is added — coupling the type system to runtime heuristics.
 /// The current design keeps the heuristic flexible while ensuring the
 /// field is always present (no `Option`, no JSON key lookup).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct LoopActionParams {
+pub struct RegulatoryActionParams {
     /// Human-readable reason for the action (required for observability).
     pub reason: String,
     /// Typed regulation data (non-regulation actions use `RegulationData::NoData`).
@@ -125,7 +125,7 @@ pub struct LoopActionParams {
     pub data: RegulationData,
 }
 
-impl LoopActionParams {
+impl RegulatoryActionParams {
     /// Create parameters with just a reason (no regulation data).
     pub fn reason(reason: impl Into<String>) -> Self {
         Self {
@@ -143,7 +143,7 @@ impl LoopActionParams {
     }
 }
 
-impl std::fmt::Display for LoopActionParams {
+impl std::fmt::Display for RegulatoryActionParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.data {
             RegulationData::NoData => write!(f, "{}", self.reason),
@@ -154,18 +154,18 @@ impl std::fmt::Display for LoopActionParams {
 
 /// Efferent action produced by a loop's compute phase.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct LoopAction {
+pub struct RegulatoryAction {
     pub target: LoopId,
     pub action_type: ActionType,
-    pub parameters: LoopActionParams,
+    pub parameters: RegulatoryActionParams,
     /// The signal metric this action targets. Set by `compute()` so
     /// `verify_impact` doesn't need to infer it from JSON key sniffing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metric_name: Option<String>,
 }
 
-impl LoopAction {
-    pub fn new(target: LoopId, action_type: ActionType, parameters: LoopActionParams) -> Self {
+impl RegulatoryAction {
+    pub fn new(target: LoopId, action_type: ActionType, parameters: RegulatoryActionParams) -> Self {
         Self {
             target,
             action_type,
@@ -178,7 +178,7 @@ impl LoopAction {
     pub fn with_metric(
         target: LoopId,
         action_type: ActionType,
-        parameters: LoopActionParams,
+        parameters: RegulatoryActionParams,
         metric_name: String,
     ) -> Self {
         Self {
