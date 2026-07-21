@@ -1170,17 +1170,19 @@ mod tests {
         let mut skill_index: hkask_templates::Registry = hkask_templates::Registry::new();
         loader.load_into(&mut skill_index);
         // Seed registry with the template entry so list(None) returns it.
-        registry.register(hkask_ports::RegistryEntry {
-            id: "test-skill/test".to_string(),
-            template_type: TemplateType::KnowAct,
-            name: "test".to_string(),
-            lexicon_terms: vec!["classify".to_string()],
-            description: "Minimal cognition template".to_string(),
-            source_path: "registry/templates/test-skill/test.j2".to_string(),
-            required_capabilities: vec![],
-            cascade_level: 0,
-            matroshka_limit: 7,
-        });
+        registry
+            .register(hkask_ports::RegistryEntry {
+                id: "test-skill/test".to_string(),
+                template_type: TemplateType::KnowAct,
+                name: "test".to_string(),
+                lexicon_terms: vec!["classify".to_string()],
+                description: "Minimal cognition template".to_string(),
+                source_path: "registry/templates/test-skill/test.j2".to_string(),
+                required_capabilities: vec![],
+                cascade_level: 0,
+                matroshka_limit: 7,
+            })
+            .unwrap();
 
         let auditor = SkillAuditor::new(
             &registry, &registry, // Registry implements both traits

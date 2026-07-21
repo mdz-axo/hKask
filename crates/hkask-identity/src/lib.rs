@@ -101,7 +101,6 @@ impl UserPod {
     /// post: returns a UserPod with derived webid, wallet_id=None,
     ///       created_at set to current Unix timestamp,
     ///       last_login=None
-    #[must_use]
     /// Default capabilities granted to every userpod.
     pub const DEFAULT_CAPABILITIES: &[&str] = &["tool:inference:call", "tool:mcp:invoke"];
 

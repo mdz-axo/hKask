@@ -183,20 +183,30 @@ impl Registry {
     /// \[P3\] Motivating: Generative Space — registers a template in the registry
     /// pre:  entry.id is non-empty, entry.template_type is valid
     /// post: entry inserted into templates map
-    pub fn register(&mut self, entry: RegistryEntry) {
+    /// post: returns Err(RegistryError) if lexicon_terms contain unknown terms
+    pub fn register(
+        &mut self,
+        entry: RegistryEntry,
+    ) -> std::result::Result<(), hkask_ports::RegistryError> {
         // Validate entry consistency
         let warnings = entry.validate();
         for warning in &warnings {
             tracing::warn!(target: "hkask.templates", "Registration warning: {}", warning);
         }
 
-        // Validate lexicon_terms against known vocabulary
+        // Validate lexicon_terms against known vocabulary (F-07 fix:
+        // unknown terms are now errors, not warnings — a typo like
+        // `visibilty` should not silently register with a bad tag).
         let vocab_warnings = crate::vocabulary::validate_entry(&entry);
-        for warning in &vocab_warnings {
-            tracing::warn!(target: "hkask.templates", "{}", warning);
+        if !vocab_warnings.is_empty() {
+            return Err(hkask_ports::RegistryError::Other(format!(
+                "lexicon validation failed: {}",
+                vocab_warnings.join("; ")
+            )));
         }
 
         self.templates.insert(entry.id.clone(), entry);
+        Ok(())
     }
 
     /// Get a template entry by ID.
@@ -405,7 +415,13 @@ impl Registry {
                             cascade_level: 0,
                             matroshka_limit: max_recursion,
                         };
-                        registry.register(entry);
+                        if let Err(e) = registry.register(entry) {
+                            tracing::warn!(
+                                target: "hkask.templates",
+                                error = %e,
+                                "Failed to register template entry — lexicon validation error"
+                            );
+                        }
                     }
                 }
                 Err(e) => {

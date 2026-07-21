@@ -150,8 +150,13 @@ impl SqliteRegistry {
         for warning in &entry.validate() {
             tracing::warn!(target: "hkask.templates", "{}", warning);
         }
-        for warning in &crate::vocabulary::validate_entry(&entry) {
-            tracing::warn!(target: "hkask.templates", "{}", warning);
+        // F-07 fix: unknown lexicon terms are now errors, not warnings.
+        let vocab_warnings = crate::vocabulary::validate_entry(&entry);
+        if !vocab_warnings.is_empty() {
+            return Err(TemplateError::Validation(format!(
+                "lexicon validation failed: {}",
+                vocab_warnings.join("; ")
+            )));
         }
         let mut conn = self
             .pool
