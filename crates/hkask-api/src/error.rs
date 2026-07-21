@@ -140,17 +140,6 @@ impl From<uuid::Error> for ServiceErrorResponse {
     }
 }
 
-impl From<hkask_storage::AgentRegistryError> for ServiceErrorResponse {
-    fn from(e: hkask_storage::AgentRegistryError) -> Self {
-        ServiceErrorResponse(hkask_services_core::ServiceError::Domain {
-            kind: hkask_services_core::ErrorKind::BadRequest,
-            domain: hkask_services_core::DomainKind::Agent,
-            source: None,
-            message: e.to_string(),
-        })
-    }
-}
-
 impl From<hkask_agents::pod::AgentPodError> for ServiceErrorResponse {
     fn from(e: hkask_agents::pod::AgentPodError) -> Self {
         use hkask_agents::pod::AgentPodError as PE;
