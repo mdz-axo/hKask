@@ -4629,7 +4629,6 @@ dependencies = [
  "hkask-templates",
  "hkask-tui",
  "hkask-types",
- "hkask-wallet",
  "rustyline",
  "serde",
  "serde_json",
