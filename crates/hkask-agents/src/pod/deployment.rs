@@ -28,7 +28,7 @@ use std::sync::Arc;
 use thiserror::Error;
 use tracing::{debug, info};
 
-use super::types::{AgentPersona, PodID, PodKind};
+use super::types::{PodID, PodKind};
 use super::{AgentPod, AgentPodError};
 use crate::SovereigntyChecker;
 use crate::curator::SemanticIndex;
@@ -231,7 +231,9 @@ impl PodFactory {
     pub async fn deploy(
         &self,
         template_name: &str,
-        persona: &AgentPersona,
+        name: &str,
+        webid: WebID,
+        capabilities: Vec<String>,
         pod_kind: PodKind,
         mcp_runtime: Arc<McpRuntime>,
         capability_checker: Arc<CapabilityChecker>,
@@ -240,17 +242,18 @@ impl PodFactory {
         // 1. Create the underlying AgentPod
         let mut pod = AgentPod::new(
             template_name,
-            persona,
+            name,
+            webid,
+            capabilities,
             self.template_loader.as_ref(),
             Arc::clone(&self.consent),
         )?;
-        // Deterministic PodID from pod_kind + persona name (Solid Pod principle).
-        // Same persona + same pod_kind → same PodID on any server, portable identity.
-        let pod_id = PodID::from_name(&format!("{}:{}", pod_kind, persona.agent.name));
+        // Deterministic PodID from pod_kind + name (Solid Pod principle).
+        let pod_id = PodID::from_name(&format!("{}:{}", pod_kind, name));
         pod.id = pod_id;
 
         // 2. Create per-pod SQLCipher database + storage adapters
-        let (storage, memory_adapter) = self.create_pod_storage(pod_id, persona, pod_kind)?;
+        let (storage, memory_adapter) = self.create_pod_storage(pod_id, name, webid, pod_kind)?;
 
         // 3. Initialize per-pod CNS runtime
         let cns = PerPodCnsRuntime::scoped(pod_id);
@@ -312,7 +315,8 @@ impl PodFactory {
     fn create_pod_storage(
         &self,
         _pod_id: PodID,
-        persona: &AgentPersona,
+        name: &str,
+        webid: WebID,
         pod_kind: PodKind,
     ) -> Result<
         (
@@ -321,7 +325,7 @@ impl PodFactory {
         ),
         PodDeployError,
     > {
-        let agent_name = &persona.agent.name;
+        let agent_name = name;
         let agent_dir = self
             .data_dir
             .join(hkask_types::agent_paths::AGENTS_DIR)
@@ -400,7 +404,7 @@ impl PodFactory {
 
         // Write WebID sidecar for pod identity and CuratorSync provenance.
         let webid_path = db_path.with_extension("webid");
-        std::fs::write(&webid_path, persona.webid().to_string()).map_err(|e| {
+        std::fs::write(&webid_path, webid.to_string()).map_err(|e| {
             PodDeployError::StorageInitFailed {
                 path: webid_path.clone(),
                 reason: format!("Failed to write webid sidecar: {e}. CuratorSync depends on this file to sync the pod."),
@@ -410,8 +414,7 @@ impl PodFactory {
         let kind_path = db_path.with_extension("kind");
         let kind_str = match pod_kind {
             PodKind::Curator => "curator",
-            PodKind::Team => "team",
-            PodKind::Replicant => "replicant",
+            PodKind::UserPod => "userpod",
         };
         std::fs::write(&kind_path, kind_str).map_err(|e| PodDeployError::StorageInitFailed {
             path: kind_path.clone(),
@@ -421,11 +424,9 @@ impl PodFactory {
         // The directory name is sanitized for filesystem safety, but PodID
         // derivation and cross-pod references use the original name.
         let name_path = db_path.with_extension("name");
-        std::fs::write(&name_path, &persona.agent.name).map_err(|e| {
-            PodDeployError::StorageInitFailed {
-                path: name_path.clone(),
-                reason: format!("Failed to write pod.name sidecar: {e}"),
-            }
+        std::fs::write(&name_path, name).map_err(|e| PodDeployError::StorageInitFailed {
+            path: name_path.clone(),
+            reason: format!("Failed to write pod.name sidecar: {e}"),
         })?;
         // Also write pod metadata into the database for backup/portability.
         {
@@ -441,7 +442,7 @@ impl PodFactory {
             })?;
             let now = chrono::Utc::now().to_rfc3339();
             for (key, value) in &[
-                ("webid", persona.webid().to_string()),
+                ("webid", webid.to_string()),
                 ("pod_kind", format!("{:?}", pod_kind)),
                 ("created_at", now),
             ] {
@@ -656,12 +657,8 @@ impl PodRegistry {
 
     /// Find all TeamPods.
     pub fn find_teams(&self) -> Result<Vec<(String, PathBuf)>, PodDeployError> {
-        let entries = self.scan_by_kind()?;
-        Ok(entries
-            .into_iter()
-            .filter(|(k, _, _)| *k == PodKind::Team)
-            .map(|(_, stem, path)| (stem, path))
-            .collect())
+        // PodKind::Team removed in consolidation; no team pods exist.
+        Ok(Vec::new())
     }
 }
 
@@ -671,8 +668,7 @@ fn read_pod_kind(db_path: &std::path::Path) -> Option<PodKind> {
     let content = std::fs::read_to_string(&kind_path).ok()?;
     match content.trim() {
         "curator" => Some(PodKind::Curator),
-        "team" => Some(PodKind::Team),
-        "replicant" => Some(PodKind::Replicant),
+        "userpod" | "replicant" => Some(PodKind::UserPod),
         _ => None,
     }
 }

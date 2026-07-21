@@ -1,6 +1,6 @@
 //! REPL /agent and /agents handlers — agent switching, listing, registration.
 
-use hkask_types::{AgentKind, WebID};
+use hkask_types::WebID;
 
 /// Handle `/agent` — switch agent, or register a new one.
 pub fn handle_agent(

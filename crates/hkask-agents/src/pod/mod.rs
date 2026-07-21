@@ -85,7 +85,7 @@ pub use deployment::{
     PerPodCnsRuntime, PerPodStorage, PodDeployError, PodDeployment, PodFactory, PodRegistry,
 };
 pub use hkask_types::template::{TemplateCrate, TemplateFile};
-pub use types::{AgentMode, AgentPersona, CommunicationPosture, PodID, PodKind, PodLifecycleState};
+pub use types::{AgentMode, CommunicationPosture, PodID, PodKind, PodLifecycleState};
 
 /// Agent Pod — Runtime container for A2A agents
 pub struct AgentPod {
@@ -93,12 +93,10 @@ pub struct AgentPod {
     pub id: PodID,
     /// Agent's WebID
     pub webid: WebID,
-    /// Pod name (decoupled from persona — T2.2 strangler-fig; persona field removed once all reads migrate)
+    /// Pod name (1:1 per user; curator = "curator")
     pub name: String,
-    /// Capabilities granted to this pod (decoupled from persona — T2.2 strangler-fig)
+    /// Capabilities granted to this pod
     pub capabilities: Vec<String>,
-    /// Agent persona (curator keeps; userpods migrate off this — T2.2)
-    pub persona: AgentPersona,
     /// Template crate reference
     pub template_crate: TemplateCrate,
     /// Primary capability token
@@ -207,7 +205,9 @@ impl AgentPod {
     ///       Returns `Err` if template loading or key derivation fails.
     pub fn new(
         crate_name: &str,
-        persona: &AgentPersona,
+        name: &str,
+        webid: WebID,
+        capabilities: Vec<String>,
         loader: &TemplateCrateLoader,
         consent: Arc<dyn crate::SovereigntyConsent>,
     ) -> AgentPodResult<Self> {
@@ -219,9 +219,8 @@ impl AgentPod {
         // not the token's resource field, is the OCAP perimeter (P4.1).
         let signing_key = system_ocap_signing_key()?;
 
-        // Use first capability from persona, or default to "tool:execute".
         let default_capability = "tool:execute".to_string();
-        let capability_str = persona.capabilities.first().unwrap_or(&default_capability);
+        let capability_str = capabilities.first().unwrap_or(&default_capability);
         let spec = CapabilitySpec::parse(capability_str).unwrap_or_else(|_| {
             tracing::warn!(
                 target: "hkask.capability",
@@ -237,20 +236,19 @@ impl AgentPod {
             spec.resource_id,
             spec.action,
             WebID::from_persona(b"system-pod-creator"),
-            persona.webid(),
+            webid,
             &signing_key,
         );
 
         // Initialize sovereignty checker for this pod, wired to the live
         // consent port. Grants via the API or CLI are observed here.
-        let sovereignty_checker = SovereigntyChecker::new(persona.webid(), consent);
+        let sovereignty_checker = SovereigntyChecker::new(webid, consent);
 
         Ok(Self {
             id: PodID::new(),
-            webid: persona.webid(),
-            name: persona.agent.name.clone(),
-            capabilities: persona.capabilities.clone(),
-            persona: persona.clone(),
+            webid,
+            name: name.to_string(),
+            capabilities: capabilities.clone(),
             template_crate,
             capability_token,
             state: PodLifecycleState::Populated,
@@ -289,7 +287,7 @@ impl AgentPod {
             ));
         }
 
-        let capabilities: Vec<String> = self.persona.capabilities.clone();
+        let capabilities: Vec<String> = self.capabilities.clone();
         let token = a2a
             .register_agent(self.webid, capabilities)
             .await

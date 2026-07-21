@@ -6,7 +6,7 @@
 use super::AgentPodError;
 use super::context::PodContext;
 use super::deployment::{PodDeployment, PodFactory, PodRegistry};
-use super::types::{AgentPersona, PodID, PodKind, PodLifecycleState};
+use super::types::{PodID, PodKind, PodLifecycleState};
 use crate::a2a::A2ARuntime;
 use crate::curator::SemanticIndex;
 use hkask_capability::CapabilityChecker;
@@ -203,15 +203,6 @@ impl ActivePods {
         self.find_by_name(name).await
     }
 
-    /// Get the persona for a pod by ID.
-    pub async fn persona(&self, pod_id: &PodID) -> Option<AgentPersona> {
-        self.deployments
-            .read()
-            .await
-            .get(pod_id)
-            .map(|d| d.pod.persona.clone())
-    }
-
     /// Get a pod's WebID — matches old PodManager::get_pod_webid.
     pub async fn get_pod_webid(&self, pod_id: &PodID) -> Option<WebID> {
         self.deployments
@@ -248,7 +239,6 @@ impl ActivePods {
             .get(pod_id)
             .map(|d| {
                 d.pod
-                    .persona
                     .capabilities
                     .iter()
                     .any(|cap| cap == tool || cap.starts_with(&format!("{}:", tool)))
@@ -261,15 +251,14 @@ impl ActivePods {
     pub async fn create_pod(
         &self,
         template_name: &str,
-        persona: &AgentPersona,
-        _name: Option<String>,
+        name: &str,
+        webid: WebID,
+        capabilities: Vec<String>,
         pod_kind: PodKind,
     ) -> Result<PodID, AgentPodError> {
         let factory = &self.factory;
         let mcp = Arc::clone(&self.mcp_runtime);
         // Enforce CuratorPod singleton (P5 Essentialism).
-        // Check BEFORE deployment to avoid SQLCipher HMAC mismatch on
-        // already-encrypted curator.db from a prior pod.
         if pod_kind == PodKind::Curator {
             let ci = self.curator_index.read().await;
             if ci.is_some() {
@@ -283,7 +272,9 @@ impl ActivePods {
         let deployment = factory
             .deploy(
                 template_name,
-                persona,
+                name,
+                webid,
+                capabilities,
                 pod_kind,
                 mcp,
                 Arc::clone(&self.capability_checker),
@@ -374,10 +365,16 @@ impl ActivePods {
             }
         }
 
-        // Create CuratorPod
-        let curator_persona = super::types::AgentPersona::system("curator");
+        // Create CuratorPod — system daemon, identity derived from "curator".
+        let curator_webid = WebID::from_persona(b"curator");
         let pod_id = self
-            .create_pod("curator", &curator_persona, None, PodKind::Curator)
+            .create_pod(
+                "curator",
+                "curator",
+                curator_webid,
+                vec!["tool:execute".to_string()],
+                PodKind::Curator,
+            )
             .await?;
 
         // Activate it

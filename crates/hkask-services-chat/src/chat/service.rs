@@ -60,20 +60,6 @@ impl ChatService {
             queue,
         ));
         let agent = CuratorAgent::new(agents_ctx);
-        let agent = if let Some(curator_id) = ctx.infra().pods.clone().find_by_name("curator").await
-        {
-            if let Some(persona) = ctx.infra().pods.clone().persona(&curator_id).await {
-                if let Some(posture) = persona.communication_posture {
-                    agent.with_communication_posture(posture)
-                } else {
-                    agent
-                }
-            } else {
-                agent
-            }
-        } else {
-            agent
-        };
         let snapshot =
             agent
                 .metacognition()

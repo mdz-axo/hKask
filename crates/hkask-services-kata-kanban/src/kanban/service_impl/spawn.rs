@@ -17,11 +17,13 @@ impl KanbanService {
 
         if let Some(ref pm) = self.pod_manager {
             let pod_name = Self::build_pod_name(&task.title);
-            let persona_yaml = Self::build_persona_yaml(&pod_name, &task.title, &spawn_spec);
-            match hkask_agents::pod::AgentPersona::from_yaml(&persona_yaml) {
-                Ok(persona) => {
-                    let pod_note =
-                        Self::activate_pod(pm, "kanban-agent", &persona, &pod_name, &spawn_spec)?;
+            let capabilities: Vec<String> = spawn_spec
+                .delegated_skills
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+            match Self::activate_pod(pm, "kanban-agent", &pod_name, &capabilities, &spawn_spec) {
+                Ok(pod_note) => {
                     let comment = super::Comment::new(task_id, task.owner, pod_note);
                     task.comments.push(comment);
                     task.updated_at = chrono::Utc::now();
@@ -29,11 +31,11 @@ impl KanbanService {
                     return Ok(format!(
                         "Pod {} activated (webid: {}). Use /kanban note {} to communicate.",
                         pod_name,
-                        persona.webid().redacted_display(),
+                        hkask_types::WebID::from_persona(pod_name.as_bytes()).redacted_display(),
                         task_id
                     ));
                 }
-                Err(e) => return Ok(format!("Persona parse failed: {}", e)),
+                Err(e) => return Ok(format!("Pod activation failed: {}", e)),
             }
         }
 
@@ -61,40 +63,26 @@ impl KanbanService {
         )
     }
 
-    fn build_persona_yaml(pod_name: &str, title: &str, spec: &super::SpawnSpec) -> String {
-        let skills = spec
-            .delegated_skills
-            .iter()
-            .map(|s| format!("  - {}", s))
-            .collect::<Vec<_>>()
-            .join("\n");
-        format!(
-            "agent:\n  name: {name}\n  type: bot\n  version: 0.1.0\n  charter:\n    description: Task: {title}\n    editor: kanban\n  capabilities:\n{skills}\n",
-            name = pod_name,
-            title = title,
-            skills = skills,
-        )
-    }
-
     fn activate_pod(
         pm: &hkask_agents::pod::ActivePods,
         agent_type: &str,
-        persona: &hkask_agents::pod::AgentPersona,
         pod_name: &str,
+        capabilities: &[String],
         spec: &super::SpawnSpec,
     ) -> Result<String, KanbanError> {
         let rt = tokio::runtime::Handle::current();
+        let webid = hkask_types::WebID::from_persona(pod_name.as_bytes());
         let pod_id = rt
             .block_on(pm.create_pod(
                 agent_type,
-                persona,
-                Some(pod_name.to_string()),
-                hkask_agents::pod::PodKind::Team,
+                pod_name,
+                webid,
+                capabilities.to_vec(),
+                hkask_agents::pod::PodKind::UserPod,
             ))
             .map_err(|e| KanbanError::Internal(format!("Pod creation failed: {}", e)))?;
         rt.block_on(pm.activate_pod(&pod_id))
             .map_err(|e| KanbanError::Internal(format!("Pod activation failed: {}", e)))?;
-        let webid = persona.webid();
         Ok(format!(
             "Pod activated: id={}, webid={}, skills={:?}, tools={:?}",
             pod_id,
