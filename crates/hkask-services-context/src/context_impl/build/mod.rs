@@ -47,7 +47,7 @@ impl AgentService {
 
         // ── Matrix transport + 7R7 listener ──────────────────────────────
         let matrix_transport =
-            matrix::build_matrix(Some(Arc::clone(&foundation.cns_event_sink))).await;
+            matrix::build_matrix(Some(Arc::clone(&foundation.reg_event_sink))).await;
 
         // Communication events are now pushed directly in CurationLoop.sense()
         // from the RegulationArchive query_algedonic results — no separate watcher needed.
@@ -98,7 +98,7 @@ impl AgentServiceWiring {
             Arc::clone(&self.foundation.consent_manager),
             Arc::clone(&self.loops.a2a_runtime),
             Arc::clone(&self.foundation.escalation_queue),
-            Arc::clone(&self.foundation.cns_event_sink) as Arc<dyn RegulationSink>,
+            Arc::clone(&self.foundation.reg_event_sink) as Arc<dyn RegulationSink>,
             self.foundation.curation_inbox_tx.clone(),
         );
 
@@ -106,7 +106,7 @@ impl AgentServiceWiring {
             Arc::clone(&self.foundation.ledger_runtime),
             Arc::clone(&self.loops.cybernetics_loop),
             Arc::clone(&self.loops.loop_system),
-            Arc::clone(&self.foundation.cns_event_sink) as Arc<dyn RegulationSink>,
+            Arc::clone(&self.foundation.reg_event_sink) as Arc<dyn RegulationSink>,
             Arc::clone(&self.mcp_pods.energy_estimator),
             Arc::clone(&self.mcp_pods.tool_stats),
         );

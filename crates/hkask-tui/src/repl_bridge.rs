@@ -70,7 +70,7 @@ pub trait SystemBridge: Send + Sync {
     /// Get gas cap.
     fn gas_cap(&self) -> u64;
     /// Get Regulation alert count (warning + critical).
-    fn cns_alert_count(&self) -> u32;
+    fn reg_alert_count(&self) -> u32;
     /// Get context window pressure (0.0–1.0).
     fn context_pressure(&self) -> f64;
     /// Get MCP server count (loaded / total).

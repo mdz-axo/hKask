@@ -359,7 +359,7 @@ impl ChatWindow {
             "status" => {
                 let gas = self.bridge.gas_remaining();
                 let cap = self.bridge.gas_cap();
-                let alerts = self.bridge.cns_alert_count();
+                let alerts = self.bridge.reg_alert_count();
                 let ctx = self.bridge.context_pressure();
                 let (mcp_loaded, mcp_total) = self.bridge.mcp_status();
                 self.add_message(

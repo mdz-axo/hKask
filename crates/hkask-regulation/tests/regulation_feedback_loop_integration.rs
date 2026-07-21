@@ -13,7 +13,7 @@ use hkask_types::event::{CyclePhase, Span, SpanNamespace};
 // The Regulation detects perturbations and restores homeostasis.
 
 #[test]
-fn cns_detects_perturbation() {
+fn reg_detects_perturbation() {
     let ledger = MockRegulationLedger::new();
     assert!(ledger.is_homeostatic(), "Ledger should start homeostatic");
 
@@ -30,7 +30,7 @@ fn cns_detects_perturbation() {
 }
 
 #[test]
-fn cns_restores_homeostasis_after_time() {
+fn reg_restores_homeostasis_after_time() {
     let ledger = MockRegulationLedger::new();
 
     // Perturb the system
@@ -54,7 +54,7 @@ fn cns_restores_homeostasis_after_time() {
 }
 
 #[test]
-fn cns_throttles_tool_on_budget_exceeded() {
+fn reg_throttles_tool_on_budget_exceeded() {
     let ledger = MockRegulationLedger::with_state(MockCnsState::perturbed("tool-x"));
 
     assert!(!ledger.is_homeostatic());
@@ -63,7 +63,7 @@ fn cns_throttles_tool_on_budget_exceeded() {
 }
 
 #[test]
-fn cns_tracks_variety_by_domain() {
+fn reg_tracks_variety_by_domain() {
     let ledger = MockRegulationLedger::new();
 
     ledger.record_variety("reg.tool");
@@ -76,7 +76,7 @@ fn cns_tracks_variety_by_domain() {
 }
 
 #[test]
-fn cns_multiple_perturbations_accumulate_signals() {
+fn reg_multiple_perturbations_accumulate_signals() {
     let ledger = MockRegulationLedger::new();
 
     let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");

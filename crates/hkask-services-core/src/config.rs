@@ -20,7 +20,7 @@ use hkask_wallet_types::WalletConfig;
 
 const DEFAULT_ENERGY_BUDGET_CAP: u64 = 10_000;
 const DEFAULT_GAS_REPLENISH_RATE: u64 = 1_000;
-const DEFAULT_CNS_THRESHOLD: u64 = 100;
+const DEFAULT_REG_THRESHOLD: u64 = 100;
 const DEFAULT_TEMPLATE_CACHE_PATH: &str = "/tmp/hkask-templates";
 const DEFAULT_USER_NAME: &str = "curator";
 const TEST_USER_NAME: &str = "test-user";
@@ -88,7 +88,7 @@ pub struct ServiceConfig {
     pub inference_config: InferenceConfig,
 
     /// Regulation variety threshold for algedonic alerts.
-    pub cns_threshold: u64,
+    pub reg_threshold: u64,
 
     /// Gas budget cap per session (units).
     pub energy_budget_cap: u64,
@@ -193,7 +193,7 @@ impl ServiceConfig {
             a2a_secret,
             default_model,
             inference_config,
-            cns_threshold: DEFAULT_CNS_THRESHOLD,
+            reg_threshold: DEFAULT_REG_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
@@ -235,7 +235,7 @@ impl ServiceConfig {
             db_provider: parse_db_provider(&std::env::var("HKASK_DB_PROVIDER").unwrap_or_default()),
             a2a_secret: a2a_secret.into_bytes(),
             inference_config: inference_config.clone(),
-            cns_threshold: DEFAULT_CNS_THRESHOLD,
+            reg_threshold: DEFAULT_REG_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: false,
@@ -265,7 +265,7 @@ impl ServiceConfig {
             db_provider: DbProvider::Sqlite,
             a2a_secret: vec![0u8; 32],
             inference_config: inference_config.clone(),
-            cns_threshold: DEFAULT_CNS_THRESHOLD,
+            reg_threshold: DEFAULT_REG_THRESHOLD,
             energy_budget_cap: DEFAULT_ENERGY_BUDGET_CAP,
             gas_replenish_rate: DEFAULT_GAS_REPLENISH_RATE,
             in_memory: true,

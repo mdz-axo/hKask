@@ -387,7 +387,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn calibrate_emits_cns_gas_span_when_adjusted() {
+    async fn calibrate_emits_reg_gas_span_when_adjusted() {
         let agent = WebID::new();
         let server = "hkask-mcp-media";
 

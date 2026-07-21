@@ -1070,7 +1070,7 @@ impl Workspace {
         self.drain_window_actions();
         self.status_bar.gas_remaining = self.system_bridge.gas_remaining();
         self.status_bar.gas_cap = self.system_bridge.gas_cap();
-        let alerts = self.system_bridge.cns_alert_count();
+        let alerts = self.system_bridge.reg_alert_count();
         self.status_bar.reg_status = if alerts >= 5 {
             crate::status_bar::RegStatus::Critical(alerts)
         } else if alerts > 0 {

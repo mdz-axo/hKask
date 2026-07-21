@@ -212,7 +212,7 @@ fn build_wallet(
     let svc = WalletService::build(
         &config.wallet_config,
         Arc::clone(&wallet_store),
-        Arc::clone(&f.cns_event_sink),
+        Arc::clone(&f.reg_event_sink),
         Arc::clone(&l.cybernetics_loop),
     )?;
     let svc = Arc::new(
@@ -310,7 +310,7 @@ fn build_wallet(
                 Arc::clone(&f.gas_event_store),
                 Arc::clone(wallet_manager) as Arc<dyn hkask_ports::WalletBudgetPort>,
             )
-            .with_event_sink(Arc::clone(&f.cns_event_sink)),
+            .with_event_sink(Arc::clone(&f.reg_event_sink)),
         );
         calibrator
             .clone()

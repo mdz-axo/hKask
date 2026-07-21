@@ -233,7 +233,7 @@ impl AgentService {
     #[must_use]
     pub fn build_per_agent_memory(
         db: Database,
-        cns_event_sink: Option<Arc<dyn RegulationSink>>,
+        reg_event_sink: Option<Arc<dyn RegulationSink>>,
     ) -> PerAgentMemory {
         // EpisodicMemory + SemanticMemory for ConsolidationService
         let pool_for_mem = db.sqlite_pool().expect("sqlite pool error");
@@ -241,7 +241,7 @@ impl AgentService {
             Arc::new(SqliteDriver::new(pool_for_mem));
         let ts1 = HMemStore::from_driver(Arc::clone(&mem_driver));
         let mut episodic_memory = EpisodicMemory::new(ts1);
-        if let Some(ref sink) = cns_event_sink {
+        if let Some(ref sink) = reg_event_sink {
             episodic_memory = episodic_memory.with_ledger(Arc::clone(sink));
         }
         let episodic_memory = Arc::new(episodic_memory);
@@ -253,7 +253,7 @@ impl AgentService {
             1024,
         );
         let mut semantic_memory = SemanticMemory::new(ts2, emb);
-        if let Some(ref sink) = cns_event_sink {
+        if let Some(ref sink) = reg_event_sink {
             semantic_memory = semantic_memory.with_ledger(Arc::clone(sink));
         }
         let semantic_memory = Arc::new(semantic_memory);

@@ -110,7 +110,7 @@ impl KataEngine {
         }
     }
 
-    pub(super) async fn check_cns_alerts(&self, manifest: &KataManifest, kata_type: &str) {
+    pub(super) async fn check_reg_alerts(&self, manifest: &KataManifest, kata_type: &str) {
         let Some(ref ledger) = self.ledger_runtime else {
             return;
         };

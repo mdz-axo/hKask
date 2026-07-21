@@ -408,7 +408,7 @@ impl KataEngine {
                 result.step_experiences = state.step_experiences.clone();
 
                 // Regulation algedonic check: is variety deficit exceeding threshold?
-                self.check_cns_alerts(manifest, "improvement").await;
+                self.check_reg_alerts(manifest, "improvement").await;
 
                 // P9: Regulation span
                 if manifest.ledger.emit_spans {
@@ -442,7 +442,7 @@ impl KataEngine {
                 result.step_experiences = state.step_experiences.clone();
 
                 // Regulation algedonic check: is coaching variety deficit exceeding threshold?
-                self.check_cns_alerts(manifest, "coaching").await;
+                self.check_reg_alerts(manifest, "coaching").await;
 
                 // P9: Regulation span
                 if manifest.ledger.emit_spans {
@@ -504,7 +504,7 @@ impl KataEngine {
                 }
 
                 // Regulation algedonic check: is starter practice variety deficit exceeding threshold?
-                self.check_cns_alerts(manifest, "starter").await;
+                self.check_reg_alerts(manifest, "starter").await;
 
                 // P9: Regulation span
                 if manifest.ledger.emit_spans {

@@ -31,7 +31,7 @@ impl SystemBridge for MockReplBridge {
     fn gas_cap(&self) -> u64 {
         10_000
     }
-    fn cns_alert_count(&self) -> u32 {
+    fn reg_alert_count(&self) -> u32 {
         0
     }
     fn context_pressure(&self) -> f64 {

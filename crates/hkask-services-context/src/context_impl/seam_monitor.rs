@@ -27,10 +27,10 @@ pub(crate) fn spawn_seam_drift_check(
             interval_secs
         );
         {
-            let cns_rt = ledger.read().await;
+            let reg_rt = ledger.read().await;
             let mut guard = watcher_lock.write().await;
             if let Some(ref mut watcher) = *guard {
-                let drifts = watcher.check_drift(&cns_rt, &*sink).await;
+                let drifts = watcher.check_drift(&reg_rt, &*sink).await;
                 if !drifts.is_empty() {
                     tracing::info!(
                         target: "hkask.architecture.seam",
@@ -43,11 +43,11 @@ pub(crate) fn spawn_seam_drift_check(
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval_secs));
         loop {
             interval.tick().await;
-            let cns_rt = ledger.read().await;
+            let reg_rt = ledger.read().await;
             let mut guard = watcher_lock.write().await;
             if let Some(ref mut watcher) = *guard {
                 let _ = watcher.refresh();
-                let drifts = watcher.check_drift(&cns_rt, &*sink).await;
+                let drifts = watcher.check_drift(&reg_rt, &*sink).await;
                 if !drifts.is_empty() {
                     let degradations: Vec<_> =
                         drifts.iter().filter(|d| d.delta_pct < 0.0).collect();

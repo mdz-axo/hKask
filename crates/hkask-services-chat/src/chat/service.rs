@@ -48,8 +48,8 @@ impl ChatService {
     #[must_use = "result must be used"]
     pub async fn run_curator_metacognition(ctx: &AgentService) -> Result<String, ServiceError> {
         let queue = Arc::clone(&ctx.governance().escalations);
-        let cns_lock = &ctx.ledger().runtime;
-        let ledger = Arc::new(cns_lock.read().await.clone());
+        let reg_lock = &ctx.ledger().runtime;
+        let ledger = Arc::new(reg_lock.read().await.clone());
 
         let agents_ctx = Arc::new(hkask_pods::CuratorContext::new(
             CuratorHandle::system(),

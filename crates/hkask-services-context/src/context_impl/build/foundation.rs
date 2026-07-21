@@ -16,7 +16,7 @@ pub(super) struct Foundation {
     pub user_store: Arc<std::sync::Mutex<UserStore>>,
     pub ledger_runtime: Arc<RwLock<RegulationLedger>>,
     pub seam_watcher: Arc<RwLock<Option<SeamWatcher>>>,
-    pub cns_event_sink: Arc<dyn RegulationSink>,
+    pub reg_event_sink: Arc<dyn RegulationSink>,
     /// Abstracted event store for gas report queries and calibration.
     pub gas_event_store: Arc<dyn LedgerStoragePort>,
     /// Concrete regulation record store for SLO evaluation and Regulation queries.
@@ -54,7 +54,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         Arc::new(RegulationArchive::from_driver(Arc::clone(&shared_driver)));
     let gas_event_store: Arc<dyn LedgerStoragePort> =
         Arc::clone(&gas_store) as Arc<dyn LedgerStoragePort>;
-    let cns_event_sink: Arc<dyn RegulationSink> = Arc::clone(&gas_store) as Arc<dyn RegulationSink>;
+    let reg_event_sink: Arc<dyn RegulationSink> = Arc::clone(&gas_store) as Arc<dyn RegulationSink>;
 
     // Shared channel for CurationInput.
     let (curation_inbox_tx, curation_inbox_rx) =
@@ -65,7 +65,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         ConsentManager::new(
             Arc::new(consent_store) as Arc<dyn hkask_ports::consent_port::ConsentPort>
         )
-        .with_event_sink(Arc::clone(&cns_event_sink)),
+        .with_event_sink(Arc::clone(&reg_event_sink)),
     );
 
     let escalation_queue = Arc::new(
@@ -102,7 +102,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
 
     // Regulation runtime
     let ledger_runtime = Arc::new(RwLock::new(RegulationLedger::with_threshold(
-        config.cns_threshold,
+        config.reg_threshold,
     )));
 
     // Reset variety counters for fresh session — prevents stale deficit
@@ -136,7 +136,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
     };
 
     // Spawn periodic seam drift check (background watcher).
-    seam_monitor::spawn_seam_drift_check(&seam_watcher, &ledger_runtime, &cns_event_sink);
+    seam_monitor::spawn_seam_drift_check(&seam_watcher, &ledger_runtime, &reg_event_sink);
 
     Ok(Foundation {
         db,
@@ -149,7 +149,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         user_store,
         ledger_runtime,
         seam_watcher,
-        cns_event_sink: cns_event_sink.clone(),
+        reg_event_sink: reg_event_sink.clone(),
         gas_event_store,
         regulation_store: gas_store,
     })

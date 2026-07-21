@@ -110,7 +110,7 @@ fn main() {
     }
 
     // P9: Regulation span
-    let cns_start = Instant::now();
+    let reg_start = Instant::now();
     tracing::info!(
         target: "hkask.cli",
         operation = "command_dispatched",
@@ -217,5 +217,5 @@ fn main() {
     }
 
     // P9: Regulation span
-    tracing::info!(target: "hkask.cli", operation = "command_completed", latency_ms = cns_start.elapsed().as_millis(), "REG");
+    tracing::info!(target: "hkask.cli", operation = "command_completed", latency_ms = reg_start.elapsed().as_millis(), "REG");
 }

@@ -22,7 +22,7 @@ struct MockBridge {
     model_name: String,
     gas_remaining: u64,
     gas_cap: u64,
-    cns_alerts: u32,
+    reg_alerts: u32,
     context_pressure: f64,
     mcp_loaded: usize,
     mcp_total: usize,
@@ -40,7 +40,7 @@ impl MockBridge {
             model_name: "mock-model".into(),
             gas_remaining: 500,
             gas_cap: 1000,
-            cns_alerts: 0,
+            reg_alerts: 0,
             context_pressure: 0.3,
             mcp_loaded: 2,
             mcp_total: 4,
@@ -70,8 +70,8 @@ impl SystemBridge for MockBridge {
     fn gas_cap(&self) -> u64 {
         self.gas_cap
     }
-    fn cns_alert_count(&self) -> u32 {
-        self.cns_alerts
+    fn reg_alert_count(&self) -> u32 {
+        self.reg_alerts
     }
     fn context_pressure(&self) -> f64 {
         self.context_pressure
