@@ -50,6 +50,10 @@ pub enum Commands {
         /// Optional: input file (non-interactive mode). Use "-" for stdin.
         #[arg(short = 'f', long)]
         input: Option<PathBuf>,
+
+        /// MCP server to load before a non-interactive turn. Repeat to load multiple servers.
+        #[arg(long = "mcp")]
+        mcp_servers: Vec<String>,
     },
 
     /// Agent pod management (admin: export-container, export-k8s)

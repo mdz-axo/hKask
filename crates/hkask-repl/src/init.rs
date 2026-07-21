@@ -279,7 +279,7 @@ fn load_thread_registry(agent_name: &str, stm_life: u32) -> crate::threads::Thre
 /// Discover MCP tools via the governed McpRuntime and populate the tool prompt.
 ///
 /// Used by: `init_repl_state`
-fn discover_tools(
+pub(super) fn discover_tools(
     governed_tool: &Arc<McpRuntime>,
     rt: &tokio::runtime::Handle,
 ) -> Vec<hkask_ports::ChatToolDefinition> {

@@ -612,14 +612,14 @@ impl MediaDataBridge for TuiReplBridge {
 
 impl TrainingDataBridge for TuiReplBridge {
     fn adapter_list(&self) -> Vec<AdapterSummary> {
-        // TODO: migrate to AdapterPort::list_adapters via AdapterRouter.
-        // The training MCP server no longer exposes training_list_adapters.
+        // Adapter lists are unavailable until this bridge reads
+        // AdapterPort::list_adapters through AdapterRouter.
         Vec::new()
     }
 
     fn deployment_list(&self) -> Vec<DeploymentSummary> {
-        // TODO: migrate to AdapterPort::endpoint_status via AdapterRouter.
-        // The training MCP server no longer exposes training_deployment_status.
+        // Deployment status is unavailable until this bridge reads
+        // AdapterPort::endpoint_status through AdapterRouter.
         Vec::new()
     }
 

@@ -77,7 +77,7 @@ This table records observed implementation behavior, not intended future behavio
 | Layout validation | Implemented | `crates/hkask-tui/src/layout.rs:49-112` |
 | Configuration snapshot | Recursive-lock defect removed | `crates/hkask-repl/src/tui_bridges.rs:40-63` |
 | Inference routing | Implemented: request-owned receiver and stream state; one active request per window | `crates/hkask-tui/src/repl_bridge.rs`, `crates/hkask-repl/src/lib.rs`, `crates/hkask-tui/src/mcp_tabbed.rs` |
-| Render isolation | Partial: Kanban renders a cached five-column snapshot refreshed from `tick`; other domains still require measurement | `crates/hkask-tui/src/windows/kanban.rs` |
+| Render isolation | Degraded: domain bridge calls still execute on the TUI event-loop thread; the timed `tick` cache experiment was reverted because it did not provide asynchronous isolation | `crates/hkask-tui/src/windows/` |
 | Domain-state fidelity | Partial: Backup and Wallet use explicit `Unavailable/Ready/Failed` snapshots; pod scan failure is optional rather than fabricated | `crates/hkask-tui/src/bridges/backup.rs`, `crates/hkask-tui/src/bridges/wallet.rs`, `crates/hkask-tui/src/repl_bridge.rs` |
 | Text editing | Implemented: shared UTF-8 byte-boundary cursor operations cover Chat, Curator, Terminal, and Editor | `crates/hkask-tui/src/text_cursor.rs` |
 | Terminal creation | Implemented: PTY and shell failures render an unavailable state instead of panicking | `crates/hkask-tui/src/windows/terminal.rs` |
@@ -92,7 +92,7 @@ The review applies the deletion test before proposing a new abstraction: a modul
 |----------|-------------------------|-----------------------------------|------------------------------------|
 | Resolved P0 | Inference previously used one destructive global completion slot. | `InferenceRequestId` now owns receiver and streaming state; two-window routing is regression-tested. | No event bus was added; one request map proved sufficient. |
 | Resolved P0 | MCP windows previously discarded scoped completions. | Shared `McpTabbedWindow` helpers bind and poll window-owned requests. | Generalization followed a working Training vertical test. |
-| Partial P1 | Domain/service calls can occur in render paths. | Kanban now proves zero service calls across repeated renders; measure the next domain before copying the pattern. | No global cache exists. The remaining recommendation is falsified per domain if measured calls are bounded and non-blocking. |
+| Open P1 | Domain/service calls can block the event-loop thread. | Measure user-visible latency before changing architecture; do not move synchronous calls from `render` to `tick` and call that isolation. | The timed cache experiment was rejected and reverted because `tick` runs on the same thread. |
 | Partial P1 | Service failures and empty data were conflated. | Backup, Wallet, and pod scanning now preserve unavailability; migrate another domain only when consequence or evidence warrants it. | Snapshot enums are domain-local, not a generic status framework. |
 | Resolved P1 | Unicode input could create invalid UTF-8 byte indices. | A private byte-boundary cursor module serves four input surfaces with multibyte regressions. | Extraction occurred only after duplication was confirmed in four callers. |
 | Resolved P1 | PTY setup panicked on recoverable failures. | Fallible PTY setup renders a terminal-unavailable message. | The window factory remains unchanged. |
@@ -108,10 +108,10 @@ Each component is intended to be independently testable and revertible:
 3. ✅ Route ordinary Chat completion by owner.
 4. ✅ Route MCP scoped completion by owner.
 5. ✅ Enforce one active request per window.
-6. ✅ Measure Kanban render-bound queries.
-7. ✅ Add the Kanban snapshot state.
-8. ✅ Refresh Kanban outside `render`.
-9. ⏳ Repeat only for domains whose measurements show the same problem.
+6. ✅ Counted repeated render-bound calls; no latency claim was established.
+7. ❌ Rejected and reverted timed per-window caches.
+8. ⏳ Measure user-visible event-loop latency before proposing another implementation.
+9. ⏳ If blocking is confirmed, compare explicit refresh, genuine background execution, and disabling live views.
 10. ✅ Add multibyte regressions.
 11. ✅ Repair all four known editor paths.
 12. ✅ Extract shared cursor behavior after duplication was demonstrated.

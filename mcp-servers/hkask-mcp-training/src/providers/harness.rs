@@ -128,9 +128,19 @@ impl HarnessAdapter for AxolotlHarness {
             );
         }
 
-        let template_root =
-            std::env::var("HKASK_TEMPLATE_ROOT").unwrap_or_else(|_| "registry".to_string());
-        let template_path = PathBuf::from(template_root).join("templates/training/axolotl-lora.j2");
+        let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                let working_directory_root = PathBuf::from("registry");
+                if working_directory_root.is_dir() {
+                    working_directory_root
+                } else {
+                    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("../..")
+                        .join("registry")
+                }
+            });
+        let template_path = template_root.join("templates/training/axolotl-lora.j2");
         let template = std::fs::read_to_string(&template_path).map_err(|error| {
             ProviderError::InvalidConfig(format!(
                 "Read Axolotl template {}: {error}",

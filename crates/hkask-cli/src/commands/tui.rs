@@ -13,56 +13,40 @@ use std::sync::Arc;
 
 use crate::repl_host::CliHost;
 
+fn execute_one_shot(input_path: &PathBuf, execute: impl FnOnce(&str)) {
+    let content = super::helpers::or_exit(
+        std::fs::read_to_string(input_path),
+        "Failed to read input file",
+    );
+    execute(content.trim());
+}
+
 /// Launch the TUI workspace or non-interactive chat.
 ///
 /// pre:  rt is a valid tokio Runtime; registry is initialized
 /// post: launches TUI (interactive) or prints one chat response (non-interactive via -f)
 #[allow(clippy::too_many_arguments)]
 pub fn run_tui(
-    rt: &tokio::runtime::Runtime,
+    _rt: &tokio::runtime::Runtime,
     registry: &mut SqliteRegistry,
     handle: &tokio::runtime::Handle,
     template: Option<String>,
     input: Option<PathBuf>,
+    mcp_servers: Vec<String>,
     agent: String,
     model: Option<String>,
 ) {
     if let Some(input_path) = input {
-        let onboarding_outcome = match rt.block_on(crate::onboarding::run_onboarding()) {
-            Ok(outcome) => outcome,
-            Err(e) => {
-                if matches!(e, crate::onboarding::OnboardingError::Cancelled) {
-                    std::process::exit(0);
-                }
-                eprintln!("Cannot start: {}", e);
-                eprintln!("Run `kask tui` first to complete onboarding interactively.");
-                std::process::exit(1);
-            }
-        };
-        let content = super::helpers::or_exit(
-            std::fs::read_to_string(&input_path),
-            "Failed to read input file",
-        );
-        print!("{}: ", agent);
-        use std::io::Write;
-        let _ = std::io::stdout().flush();
-        let chat_response = rt.block_on(super::chat::chat_with_agent_streaming(
-            content.trim(),
-            Some(&agent),
-            model.as_deref(),
-            None,
-            onboarding_outcome.resolved_secrets.as_ref(),
-            None,
-            None,
-            None,
-            None,
-        ));
-        if let Some(ref usage) = chat_response.usage {
-            eprintln!(
-                "  {} tokens ({} prompt + {} completion)",
-                usage.total_tokens, usage.prompt_tokens, usage.completion_tokens
+        execute_one_shot(&input_path, |content| {
+            hkask_repl::run_once(
+                registry,
+                model.as_deref(),
+                content,
+                &mcp_servers,
+                handle.clone(),
+                Arc::new(CliHost),
             );
-        }
+        });
     } else {
         // Launch the TUI workspace. The TUI hosts the REPL as its chat window.
         // If the TUI feature is not built, fall back to the line-based REPL.
@@ -89,5 +73,22 @@ pub fn run_tui(
                 Arc::new(CliHost),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn one_shot_input_is_trimmed_and_dispatched() {
+        let dir = tempfile::tempdir().expect("temporary directory");
+        let input_path = dir.path().join("request.txt");
+        std::fs::write(&input_path, "  use training_submit  \n").expect("write input");
+
+        let mut received = None;
+        execute_one_shot(&input_path, |input| received = Some(input.to_string()));
+
+        assert_eq!(received.as_deref(), Some("use training_submit"));
     }
 }

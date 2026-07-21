@@ -119,10 +119,20 @@ fn main() {
         Commands::Tui {
             template,
             input,
+            mcp_servers,
             agent,
             model,
         } => {
-            commands::tui::run_tui(&rt, &mut registry, &handle, template, input, agent, model);
+            commands::tui::run_tui(
+                &rt,
+                &mut registry,
+                &handle,
+                template,
+                input,
+                mcp_servers,
+                agent,
+                model,
+            );
         }
 
         Commands::Pod { action } => commands::pod::run_pod(&rt, action),

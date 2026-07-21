@@ -13,14 +13,14 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.31.0 — Ratatui architecture hardening. Request-owned inference routing, MCP completion delivery, UTF-8-safe input, fallible PTY startup, Kanban render snapshots, enforced window lifecycle policy, single-pass fallback bootstrap, and explicit Backup/Wallet/pod unavailability are implemented. `hkask-tui`: 127 tests pass (32 unit + 95 integration); strict clippy passes for TUI and REPL-with-TUI.
+**Current session:** v0.31.0 — Ratatui architecture hardening. Request-owned inference routing, MCP completion delivery, UTF-8-safe input, fallible PTY startup, enforced window lifecycle policy, single-pass fallback bootstrap, and explicit Backup/Wallet/pod unavailability are implemented. The synchronous timed-cache experiment was reverted because `tick` shares the event-loop thread. `hkask-tui`: 127 tests pass (32 unit + 95 integration); strict clippy passes for TUI and REPL-with-TUI.
 
 **This session (2026-07-20):**
 - Added the source-aligned [Terminal UI Architecture](../explanation/tui-architecture.md) explanation and `DIAG-TUI-005` sequence diagram.
 - Implemented request-owned inference and scoped MCP completion delivery without a global event bus.
 - Added UTF-8-safe cursor operations shared by Chat, Curator, Terminal, and Editor.
 - Made PTY startup fallible, enforced singleton/closeability metadata, and reused initialized state during line-REPL fallback.
-- Moved Kanban service reads out of render and into a one-second cached tick snapshot.
+- Reverted timed Kanban/Media cache refreshes after determining that `tick` runs on the same event-loop thread and therefore does not provide asynchronous isolation.
 - Replaced fabricated Backup, Wallet, and pod telemetry with explicit unavailable/ready/failed semantics.
 - Corrected active TUI launch, keybinding, persistence, bridge-count, and dependency documentation.
 - `cargo test -p hkask-tui`: 127 passed; strict clippy passed for `hkask-tui` and `hkask-repl --features tui`.

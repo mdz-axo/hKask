@@ -174,6 +174,42 @@ pub fn run(
     run_with_state(state, template_id, rt_handle);
 }
 
+/// Execute one input through the standard governed REPL turn loop.
+///
+/// Used by non-interactive surfaces that must retain the REPL's MCP tool
+/// dispatch, OCAP delegation, gas accounting, and CNS updates.
+pub fn run_once(
+    registry: &mut SqliteRegistry,
+    initial_model: Option<&str>,
+    input: &str,
+    mcp_servers: &[String],
+    rt_handle: tokio::runtime::Handle,
+    host: Arc<dyn host::ReplHost>,
+) {
+    let Some(mut state) = init::init_repl_state(registry, initial_model, &rt_handle, host) else {
+        return;
+    };
+    let runtime = state.service_context.infra().mcp.clone();
+    for server_id in mcp_servers {
+        if !rt_handle.block_on(builtin_servers::start_single_server(
+            runtime.as_ref(),
+            server_id,
+        )) {
+            eprintln!("Failed to load MCP server: {server_id}");
+            return;
+        }
+    }
+    if !mcp_servers.is_empty() {
+        state.tool_definitions = init::discover_tools(&runtime, &rt_handle);
+    }
+    let Some(secrets) = &state.resolved_secrets else {
+        eprintln!("Error: No A2A secret resolved. Complete onboarding before invoking tools.");
+        return;
+    };
+    let a2a_secret = ZeroizingSecret::new(secrets.a2a_secret.as_bytes().to_vec());
+    turn::single_agent_turn(input, &mut state, &rt_handle, &a2a_secret, None);
+}
+
 fn run_with_state(
     mut state: ReplState,
     template_id: Option<&str>,
@@ -383,7 +419,7 @@ pub fn run_tui(
     }
 }
 
-/// Bridge implementation connecting the TUI to hKask's full inference engine.
+/// Receiver and partial output owned by one TUI inference request.
 #[cfg(feature = "tui")]
 struct PendingTuiInference {
     receiver: std::sync::mpsc::Receiver<hkask_tui::TuiTurnResult>,
@@ -509,6 +545,13 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
 
         std::thread::spawn(move || {
             let mut s = state.lock().unwrap_or_else(|e| e.into_inner());
+            let runtime = s.service_context.infra().mcp.clone();
+            if rt.block_on(builtin_servers::start_single_server(
+                runtime.as_ref(),
+                &scope,
+            )) {
+                s.tool_definitions = init::discover_tools(&runtime, &rt);
+            }
 
             // Scope tool definitions to the requested MCP server. We save
             // and restore the originals around the turn. If the turn panics,
