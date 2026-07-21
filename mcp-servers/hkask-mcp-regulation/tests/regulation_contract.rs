@@ -8,7 +8,7 @@
 //! agent uses.
 
 use hkask_database::sqlite::SqliteDriver;
-use hkask_mcp_cns::CnsServer;
+use hkask_mcp_regulation::CnsServer;
 use hkask_storage::RegulationArchive;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
@@ -67,7 +67,7 @@ fn error_kind(out: &str) -> Option<String> {
 #[tokio::test]
 async fn cns_query_spans_returns_empty_array_when_no_events() {
     let server = test_server();
-    let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard",
         "since_hours": 1.0,
         "limit": 100
@@ -107,7 +107,7 @@ async fn cns_query_spans_returns_matching_events() {
         Some(Arc::new(store)),
     );
 
-    let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard",
         "since_hours": 1.0,
         "limit": 100
@@ -129,7 +129,7 @@ async fn cns_query_spans_returns_matching_events() {
 #[tokio::test]
 async fn cns_query_spans_rejects_empty_namespace() {
     let server = test_server();
-    let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "",
         "since_hours": 1.0,
         "limit": 100
@@ -145,7 +145,7 @@ async fn cns_query_spans_rejects_empty_namespace() {
 #[tokio::test]
 async fn cns_query_spans_rejects_whitespace_namespace() {
     let server = test_server();
-    let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "   ",
         "since_hours": 1.0,
         "limit": 100
@@ -162,7 +162,7 @@ async fn cns_query_spans_rejects_whitespace_namespace() {
 #[tokio::test]
 async fn cns_query_spans_returns_permission_denied_without_store() {
     let server = test_server_no_store();
-    let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard",
         "since_hours": 1.0,
         "limit": 100
@@ -179,7 +179,7 @@ async fn cns_query_spans_returns_permission_denied_without_store() {
 #[tokio::test]
 async fn cns_query_spans_applies_defaults() {
     let server = test_server();
-    let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard"
     }))
     .expect("deserialize QuerySpansRequest with defaults");
@@ -199,7 +199,7 @@ async fn cns_query_spans_applies_defaults() {
 #[tokio::test]
 async fn reg_span_stats_returns_empty_object_when_no_events() {
     let server = test_server();
-    let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::SpanStatsRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.outcome",
         "since_hours": 1.0
     }))
@@ -238,7 +238,7 @@ async fn reg_span_stats_returns_aggregated_counts() {
         Some(Arc::new(store)),
     );
 
-    let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::SpanStatsRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.outcome",
         "since_hours": 1.0
     }))
@@ -265,7 +265,7 @@ async fn reg_span_stats_returns_aggregated_counts() {
 #[tokio::test]
 async fn reg_span_stats_rejects_empty_namespace() {
     let server = test_server();
-    let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::SpanStatsRequest = serde_json::from_value(serde_json::json!({
         "namespace": "",
         "since_hours": 1.0
     }))
@@ -280,7 +280,7 @@ async fn reg_span_stats_rejects_empty_namespace() {
 #[tokio::test]
 async fn reg_span_stats_returns_permission_denied_without_store() {
     let server = test_server_no_store();
-    let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::SpanStatsRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard",
         "since_hours": 1.0
     }))
@@ -310,7 +310,7 @@ async fn cns_query_spans_strips_cns_prefix() {
 
     // Query with the full "reg.guard" namespace — should find the event
     // stored under span_category="guard.input".
-    let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "reg.guard",
         "since_hours": 1.0,
         "limit": 100
@@ -327,7 +327,7 @@ async fn cns_query_spans_strips_cns_prefix() {
 #[tokio::test]
 async fn cns_query_spans_handles_non_cns_namespace() {
     let server = test_server();
-    let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
+    let req: hkask_mcp_regulation::QuerySpansRequest = serde_json::from_value(serde_json::json!({
         "namespace": "hkask",
         "since_hours": 1.0,
         "limit": 100

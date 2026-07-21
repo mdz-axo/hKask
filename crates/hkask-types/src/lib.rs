@@ -35,7 +35,7 @@ pub mod sql_impls;
 
 // ── Essential re-exports (used by ≥3 downstream crates) ─────────────────
 
-pub use cns::CircuitState;
+pub use regulation::CircuitState;
 pub use crypto::Ed25519PublicKey;
 pub use curation::{
     BoundaryClassification, DataCategory, DataSovereigntyBoundary, UserSovereigntyState,
