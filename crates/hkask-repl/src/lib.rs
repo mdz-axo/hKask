@@ -806,11 +806,6 @@ impl hkask_tui::SessionBridge for TuiReplBridge {
             .clone()
     }
 
-    fn set_agent(&self, name: &str) -> anyhow::Result<String> {
-        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        Ok(handlers::agent::switch_agent(&mut state, name))
-    }
-
     fn list_agents_display(&self) -> String {
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         handlers::agent::list_agents_display(&state)

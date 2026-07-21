@@ -668,7 +668,7 @@ fn read_pod_kind(db_path: &std::path::Path) -> Option<PodKind> {
     let content = std::fs::read_to_string(&kind_path).ok()?;
     match content.trim() {
         "curator" => Some(PodKind::Curator),
-        "userpod" | "userpod" => Some(PodKind::UserPod),
+        "userpod" | "replicant" => Some(PodKind::UserPod),
         _ => None,
     }
 }
@@ -686,4 +686,3 @@ fn read_pod_name(db_path: &std::path::Path) -> Option<String> {
 }
 
 // ── Tests ───────────────────────────────────────────────────────────────────
-

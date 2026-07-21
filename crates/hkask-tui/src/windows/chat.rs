@@ -415,18 +415,16 @@ impl ChatWindow {
                                 format!("Current agent: {}", b.current_agent()),
                             );
                         } else {
-                            self.agent_name = sub.to_string();
-                            match b.set_agent(sub) {
-                                Ok(msg) => self.add_message(MessageSender::CnsAlert, msg),
-                                Err(e) => self
-                                    .add_message(MessageSender::CnsAlert, format!("Error: {}", e)),
-                            }
+                            self.add_message(
+                                MessageSender::CnsAlert,
+                                "No switching — one userpod per user.".to_string(),
+                            );
                         }
                     }
                     None => self.add_message(
                         MessageSender::CnsAlert,
                         format!(
-                            "Current agent: {} (agent switching unavailable in this host)",
+                            "Current agent: {} (agent info unavailable in this host)",
                             self.agent_name
                         ),
                     ),
@@ -1015,7 +1013,7 @@ mod tests {
     }
 
     #[test]
-    fn agent_switch_uses_session_bridge_and_updates_chat_window() {
+    fn agent_with_name_shows_no_switching_message() {
         let (_sys, repl) = crate::test_util::mock_bridges();
         let session = crate::test_util::mock_session_bridge();
         let mut chat =
@@ -1023,14 +1021,10 @@ mod tests {
 
         chat.execute_slash_command("/agent new-agent");
 
-        assert_eq!(
-            chat.agent_name, "new-agent",
-            "/agent must update ChatWindow.agent_name"
-        );
-        let last = chat.messages.last().expect("a confirmation was added");
+        let last = chat.messages.last().expect("a message was added");
         assert!(
-            last.content.contains("Switched to agent: new-agent"),
-            "/agent <name> must confirm via SessionBridge; got: {}",
+            last.content.contains("No switching"),
+            "/agent <name> must show no-switching message; got: {}",
             last.content
         );
     }

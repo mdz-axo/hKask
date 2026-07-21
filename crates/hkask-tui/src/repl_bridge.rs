@@ -165,11 +165,8 @@ pub trait ReplBridge: SystemBridge {
 /// implements it; the TUI receives `Arc<dyn SessionBridge>` optionally and
 /// falls back to a stub when unset.
 pub trait SessionBridge: Send + Sync {
-    /// The live current agent name (read from session state, not a cached
-    /// field, so it reflects prior `/agent` switches).
+    /// The live current userpod name.
     fn current_agent(&self) -> String;
-    /// Switch to `name`; returns a rendered confirmation or an error message.
-    fn set_agent(&self, name: &str) -> anyhow::Result<String>;
     /// Render the registered-agent list as a display string.
     fn list_agents_display(&self) -> String;
     /// Render the session history (recent turns) as a display string.

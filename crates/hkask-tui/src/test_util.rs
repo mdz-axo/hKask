@@ -88,11 +88,11 @@ impl SettingsBridge for MockReplBridge {
         "(settings unavailable in test mock)".to_string()
     }
     fn set_setting(&self, key: &str, value: &str) -> anyhow::Result<String> {
-            // Mirror the real `apply_setting` confirmation so tests can verify the
-            // key/value were passed through the bridge wiring correctly.
-            Ok(format!("{} set to {}", key, value))
-        }
+        // Mirror the real `apply_setting` confirmation so tests can verify the
+        // key/value were passed through the bridge wiring correctly.
+        Ok(format!("{} set to {}", key, value))
     }
+}
 
 /// Create a mock bridge for tests. Returns both system and repl Arcs
 /// backed by the same MockReplBridge instance.
@@ -117,9 +117,6 @@ pub(crate) fn mock_settings_bridge() -> Arc<dyn SettingsBridge> {
 impl SessionBridge for MockReplBridge {
     fn current_agent(&self) -> String {
         self.agent_name.clone()
-    }
-    fn set_agent(&self, name: &str) -> anyhow::Result<String> {
-        Ok(format!("Switched to agent: {}", name))
     }
     fn list_agents_display(&self) -> String {
         "(mock agents)".to_string()

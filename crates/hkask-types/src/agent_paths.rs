@@ -255,15 +255,22 @@ mod tests {
     #[test]
     fn ensure_dirs_creates_all_subdirs() {
         let tmp = tempfile::TempDir::new().expect("tempdir");
-        std::env::set_var("HKASK_DATA_DIR", tmp.path());
-        ensure_userpod_dirs("testuserpod").expect("ensure dirs");
-        let base = tmp.path().join("userpods").join("testuserpod");
-        assert!(base.exists());
+        let cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(tmp.path()).unwrap();
+
+        ensure_userpod_dirs("testuserpod").expect("create dirs");
+
+        assert!(userpod_dir("testuserpod").exists());
         for sub in USERPOD_SUBDIRS {
-            assert!(base.join(sub).exists(), "missing subdir: {sub}");
+            assert!(
+                userpod_dir("testuserpod").join(sub).exists(),
+                "missing subdir: {sub}"
+            );
         }
+
         // Idempotent: calling again should not error
         ensure_userpod_dirs("testuserpod").expect("idempotent");
-        std::env::remove_var("HKASK_DATA_DIR");
+
+        std::env::set_current_dir(cwd).unwrap();
     }
 }

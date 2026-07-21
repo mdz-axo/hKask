@@ -1,11 +1,12 @@
-//! REPL /agent and /agents handlers — userpod switching, listing, registration.
+//! REPL /agent and /agents handlers — userpod info, listing, A2A registration.
 //!
-//! Agents are gone — userpods present as agents in A2A. These commands now
-//! operate against the A2A runtime directly.
+//! One user = one userpod. There is no switching — the current userpod is
+//! set during REPL init and never changes. These commands show the current
+//! userpod, list A2A-registered agents, and allow manual A2A registration.
 
 use hkask_types::WebID;
 
-/// Handle `/agent` — switch userpod, or register a new one in A2A.
+/// Handle `/agent` — show current userpod, or register a new A2A agent.
 pub fn handle_agent(
     arg1: &str,
     rest: &str,
@@ -15,8 +16,9 @@ pub fn handle_agent(
     match arg1 {
         "" => {
             println!("  Current userpod: \x1b[1m{}\x1b[0m", state.current_agent);
-            println!("  Use \x1b[36m/agent <NAME>\x1b[0m to switch");
-            println!("  Use \x1b[36m/agent register <webid> [cap1,cap2,...]\x1b[0m to register");
+            println!(
+                "  Use \x1b[36m/agent register <webid> [cap1,cap2,...]\x1b[0m to register in A2A"
+            );
             println!();
         }
 
@@ -57,26 +59,16 @@ pub fn handle_agent(
             }
         }
 
-        // Default: switch userpod
-        name => {
-            println!("  \x1b[1m{}\x1b[0m", switch_agent(state, name));
+        _ => {
+            println!("  \x1b[33mNo switching — one userpod per user.\x1b[0m");
+            println!("  Current userpod: \x1b[1m{}\x1b[0m", state.current_agent);
+            println!("  Use \x1b[36m/agent register <webid>\x1b[0m to register in A2A");
             println!();
         }
     }
 }
 
-/// Switch the active userpod. Persona loading was removed (no more persona YAML).
-/// Returns a confirmation string. Shared by the REPL `/agent` handler and
-/// the TUI `SessionBridge` (no parallel logic).
-pub(crate) fn switch_agent(state: &mut super::super::ReplState, name: &str) -> String {
-    state.current_agent = name.to_string();
-    format!("Switched to userpod: {}", state.current_agent)
-}
-
 /// Render the A2A-registered agent list as a display string (no printing).
-///
-/// Runs the A2A `list_agents` query via `block_in_place` on the current
-/// runtime — callers must be inside a tokio runtime context.
 pub(crate) fn list_agents_display(state: &super::super::ReplState) -> String {
     let a2a = state.service_context.governance().a2a.clone();
     let agents = tokio::task::block_in_place(|| {
@@ -85,7 +77,7 @@ pub(crate) fn list_agents_display(state: &super::super::ReplState) -> String {
     if agents.is_empty() {
         return "No agents registered in A2A.".to_string();
     }
-    let mut out = format!("Agents ({})\n", agents.len());
+    let mut out = format!("A2A Agents ({})\n", agents.len());
     out.push_str(&format!("{:<60} {:<12} CAPABILITIES\n", "WEBID", "ACTIVE"));
     out.push_str(&"-".repeat(90));
     out.push('\n');

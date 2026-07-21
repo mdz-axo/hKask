@@ -1,7 +1,7 @@
 //! Health check endpoint — Kubernetes readiness probe.
 //!
 //! Verifies:
-//! - Database is reachable (real SQL query via AgentRegistryStore)
+//! - Database is reachable (real SQL query via UserStore)
 //! - Matrix/Conduit is reachable (HTTP to Conduit's versions endpoint)
 //! - Data volume disk usage (warn if >80%, critical if >95%)
 //!

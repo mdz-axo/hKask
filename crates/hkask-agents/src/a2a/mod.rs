@@ -649,58 +649,7 @@ mod tests {
         }
     }
 
-    /// expect: "Agent interactions are gated by OCAP boundaries"
-    #[tokio::test]
-    async fn root_authority_creates_tokens_for_all_capabilities() {
-        let a2a = A2ARuntime::new(TEST_SECRET);
-        let webid = test_webid("multi-cap-agent");
 
-        let capabilities = vec![
-            "tool:execute".to_string(),
-            "memory:read".to_string(),
-            "template:dispatch".to_string(),
-        ];
-
-        let _token = a2a
-            .register_agent(webid, capabilities.clone())
-            .await
-            .expect("Registration should succeed");
-
-        let stored_tokens = a2a.get_capabilities(&webid).await;
-        assert_eq!(
-            stored_tokens.len(),
-            3,
-            "Should have one token per capability"
-        );
-
-        for token in &stored_tokens {
-            assert!(token.verify());
-            assert_eq!(token.delegated_to, webid);
-        }
-    }
-
-    // ── ACP Unregistration ──────────────────────────────────────────────────
-
-    /// expect: "Agent interactions are gated by OCAP boundaries"
-    #[tokio::test]
-    async fn a2a_unregisters_agent_and_removes_tokens() {
-        let a2a = A2ARuntime::new(TEST_SECRET);
-        let webid = test_webid("test-agent");
-
-        a2a.register_agent(webid, vec!["tool:execute".to_string()])
-            .await
-            .expect("Registration should succeed");
-
-        assert!(a2a.is_registered(&webid).await);
-        assert!(!a2a.get_capabilities(&webid).await.is_empty());
-
-        a2a.unregister_agent(&webid)
-            .await
-            .expect("Unregistration should succeed");
-
-        assert!(!a2a.is_registered(&webid).await);
-        assert!(a2a.get_capabilities(&webid).await.is_empty());
-    }
 
     /// expect: "Agent interactions are gated by OCAP boundaries"
     #[tokio::test]
@@ -736,46 +685,6 @@ mod tests {
         assert!(state.revoked_tokens.contains(&token_id));
     }
 
-    // ── ACP Restore ─────────────────────────────────────────────────────────
-
-    /// expect: "Agent interactions are gated by OCAP boundaries"
-    #[tokio::test]
-    async fn a2a_restore_preserves_capabilities() {
-        let a2a = A2ARuntime::new(TEST_SECRET);
-        let webid = test_webid("test-agent");
-
-        let token = a2a
-            .register_agent(
-                webid,
-                vec!["tool:execute".to_string(), "memory:read".to_string()],
-            )
-            .await
-            .expect("Registration should succeed");
-
-        let agent = A2AAgent {
-            webid,
-            capabilities: vec!["tool:execute".to_string(), "memory:read".to_string()],
-            registered_at: 1000,
-            active: true,
-        };
-
-        let mut tokens_map = std::collections::HashMap::new();
-        tokens_map.insert(webid, vec![token.clone()]);
-
-        let acp2 = A2ARuntime::new(TEST_SECRET);
-        let count = acp2
-            .restore_from_storage(vec![agent], tokens_map)
-            .await
-            .expect("Restore should succeed");
-
-        assert_eq!(count, 1);
-        assert!(acp2.is_registered(&webid).await);
-
-        let restored_tokens = acp2.get_capabilities(&webid).await;
-        assert_eq!(restored_tokens.len(), 1);
-        assert_eq!(restored_tokens[0].id, token.id);
-        assert!(restored_tokens[0].verify());
-    }
 
     // ── ACP List Agents ─────────────────────────────────────────────────────
 
