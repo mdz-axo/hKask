@@ -225,7 +225,7 @@ mod tests {
             serde_json::json!({"cns_health": "healthy"})
         }
 
-        async fn cns_status(&self, _userpod: &str, _domain: Option<&str>) -> serde_json::Value {
+        async fn reg_status(&self, _userpod: &str, _domain: Option<&str>) -> serde_json::Value {
             serde_json::json!({"domains": []})
         }
     }

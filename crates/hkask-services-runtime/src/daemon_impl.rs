@@ -297,7 +297,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         })
     }
 
-    async fn cns_status(&self, _userpod: &str, domain: Option<&str>) -> serde_json::Value {
+    async fn reg_status(&self, _userpod: &str, domain: Option<&str>) -> serde_json::Value {
         let Some(ref cns_lock) = self.ledger_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),

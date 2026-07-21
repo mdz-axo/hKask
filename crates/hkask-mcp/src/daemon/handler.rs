@@ -40,5 +40,5 @@ pub trait DaemonHandler: Send + Sync {
     async fn curator_health(&self, userpod: &str) -> serde_json::Value;
 
     /// Query live Regulation status — variety per domain, backpressure.
-    async fn cns_status(&self, userpod: &str, domain: Option<&str>) -> serde_json::Value;
+    async fn reg_status(&self, userpod: &str, domain: Option<&str>) -> serde_json::Value;
 }

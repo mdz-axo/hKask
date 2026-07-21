@@ -148,9 +148,9 @@ async fn handle_connection(stream: UnixStream, handler: &dyn DaemonHandler) -> s
             let health = handler.curator_health(&userpod).await;
             DaemonResponse::CuratorHealthResponse { health }
         }
-        DaemonRequest::CnsStatusQuery { userpod, domain } => {
-            let status = handler.cns_status(&userpod, domain.as_deref()).await;
-            DaemonResponse::CnsStatusResponse { status }
+        DaemonRequest::RegStatusQuery { userpod, domain } => {
+            let status = handler.reg_status(&userpod, domain.as_deref()).await;
+            DaemonResponse::RegStatusResponse { status }
         }
     };
 

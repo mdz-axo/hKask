@@ -52,7 +52,7 @@ impl DaemonHandler for MockHandler {
         serde_json::json!({"status": "healthy"})
     }
 
-    async fn cns_status(&self, _userpod: &str, _domain: Option<&str>) -> serde_json::Value {
+    async fn reg_status(&self, _userpod: &str, _domain: Option<&str>) -> serde_json::Value {
         serde_json::json!({"variety": 0})
     }
 }
@@ -218,7 +218,7 @@ fn request_variants_serialize_to_correct_shape() {
     .unwrap();
     assert_eq!(health["type"], "curator_health_query");
 
-    let ledger = serde_json::to_value(DaemonRequest::CnsStatusQuery {
+    let ledger = serde_json::to_value(DaemonRequest::RegStatusQuery {
         userpod: "alice".into(),
         domain: Some("tool".into()),
     })
@@ -292,7 +292,7 @@ fn missing_optional_fields() {
     let json3 = r#"{"type":"ledger_status_query","userpod":"bob"}"#;
     let req3: DaemonRequest = serde_json::from_str(json3).unwrap();
     match req3 {
-        DaemonRequest::CnsStatusQuery { domain, .. } => assert!(domain.is_none()),
+        DaemonRequest::RegStatusQuery { domain, .. } => assert!(domain.is_none()),
         _ => panic!("wrong variant"),
     }
 }

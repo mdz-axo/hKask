@@ -25,12 +25,12 @@ pub struct SemanticSearchRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct CnsStatusRequest {
+pub struct RegStatusRequest {
     pub domain: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct CnsQueryRequest {
+pub struct RegQueryRequest {
     /// Regulation namespace prefix to filter by (e.g., "reg.sovereignty", "reg.contract")
     pub namespace: Option<String>,
     /// Lookback window in seconds (default: 3600 = 1 hour)
@@ -50,8 +50,8 @@ pub struct TokenListRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct BotStatusRequest {
-    pub bot_name: Option<String>,
+pub struct UserPodStatusRequest {
+    pub userpod_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

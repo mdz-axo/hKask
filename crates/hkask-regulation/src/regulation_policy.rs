@@ -538,7 +538,8 @@ pub fn default_substitution_ladder(metric: SignalMetric) -> &'static [ActionType
         | SignalMetric::SnapshotInterval
         | SignalMetric::ConsolidationCandidates
         | SignalMetric::PendingEscalations
-        | SignalMetric::SeamCoverage => &[],
+        | SignalMetric::SeamCoverage
+        | SignalMetric::ToolReliability => &[],
     }
 }
 

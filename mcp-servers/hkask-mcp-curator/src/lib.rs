@@ -170,19 +170,19 @@ impl CuratorServer {
     }
 
     #[tool(description = "Live Regulation status — variety per domain")]
-    pub async fn curator_cns_status(
+    pub async fn curator_reg_status(
         &self,
-        Parameters(req): Parameters<CnsStatusRequest>,
+        Parameters(req): Parameters<RegStatusRequest>,
     ) -> String {
-        execute_tool(self, "curator_cns_status", async {
+        execute_tool(self, "curator_reg_status", async {
             let Some(ref daemon) = self.daemon else {
                 return Err(McpToolError::unavailable("Daemon not available"));
             };
             match daemon
-                .cns_status_query(&self.userpod, req.domain.as_deref())
+                .reg_status_query(&self.userpod, req.domain.as_deref())
                 .await
             {
-                Ok(DaemonResponse::CnsStatusResponse { status }) => Ok(status),
+                Ok(DaemonResponse::RegStatusResponse { status }) => Ok(status),
                 Ok(other) => Err(McpToolError::internal(format!(
                     "Bad daemon response: {:?}",
                     other
@@ -329,8 +329,8 @@ impl CuratorServer {
     #[tool(
         description = "Query Regulation regulation records by namespace prefix within a time window. Returns structured event data for governance transparency reporting and consent auditing."
     )]
-    pub async fn cns_query(&self, Parameters(req): Parameters<CnsQueryRequest>) -> String {
-        execute_tool(self, "cns_query", async {
+    pub async fn reg_query(&self, Parameters(req): Parameters<RegQueryRequest>) -> String {
+        execute_tool(self, "reg_query", async {
             let Some(ref store) = self.regulation_store else {
                 return Err(McpToolError::permission_denied(
                     "RegulationArchive not available",
@@ -371,7 +371,7 @@ impl CuratorServer {
             RegulationSpan::Tool {
                 subsystem: hkask_types::regulation::ToolSubsystem::Curator,
             }
-            .emit("cns_query");
+            .emit("reg_query");
 
             Ok(json!({
                 "namespace": namespace_info,

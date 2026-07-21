@@ -63,13 +63,13 @@ fn semantic_search_request_parses_without_limit() {
 }
 
 #[test]
-fn cns_query_request_parses_with_all_fields() {
+fn reg_query_request_parses_with_all_fields() {
     let json = serde_json::json!({
         "namespace": "reg.sovereignty",
         "window_seconds": 3600,
         "limit": 50
     });
-    let req: hkask_mcp_curator::types::CnsQueryRequest =
+    let req: hkask_mcp_curator::types::RegQueryRequest =
         serde_json::from_value(json).expect("should parse Regulation query");
     assert_eq!(req.namespace, Some("reg.sovereignty".to_string()));
     assert_eq!(req.window_seconds, Some(3600));
@@ -77,9 +77,9 @@ fn cns_query_request_parses_with_all_fields() {
 }
 
 #[test]
-fn cns_query_request_parses_with_minimal_fields() {
+fn reg_query_request_parses_with_minimal_fields() {
     let json = serde_json::json!({});
-    let req: hkask_mcp_curator::types::CnsQueryRequest =
+    let req: hkask_mcp_curator::types::RegQueryRequest =
         serde_json::from_value(json).expect("should parse empty Regulation query");
     assert_eq!(req.namespace, None);
     assert_eq!(req.window_seconds, None);
@@ -130,7 +130,7 @@ fn request_types_have_schemas() {
         schemars::schema_for!(hkask_mcp_curator::types::EscalationResolveRequest),
         schemars::schema_for!(hkask_mcp_curator::types::EscalationDismissRequest),
         schemars::schema_for!(hkask_mcp_curator::types::SemanticSearchRequest),
-        schemars::schema_for!(hkask_mcp_curator::types::CnsQueryRequest),
+        schemars::schema_for!(hkask_mcp_curator::types::RegQueryRequest),
         schemars::schema_for!(hkask_mcp_curator::types::MemoryRecallRequest),
         schemars::schema_for!(hkask_mcp_curator::types::TokenListRequest),
     ];

@@ -128,12 +128,12 @@ impl DaemonClient {
 
     /// Query live Regulation status from the daemon.
     #[must_use = "result must be used"]
-    pub async fn cns_status_query(
+    pub async fn reg_status_query(
         &self,
         userpod: &str,
         domain: Option<&str>,
     ) -> std::io::Result<DaemonResponse> {
-        self.send_recv(&DaemonRequest::CnsStatusQuery {
+        self.send_recv(&DaemonRequest::RegStatusQuery {
             userpod: userpod.to_string(),
             domain: domain.map(|d| d.to_string()),
         })

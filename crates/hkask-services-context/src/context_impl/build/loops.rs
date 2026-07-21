@@ -5,8 +5,8 @@ use hkask_database::sqlite::SqliteDriver;
 
 use super::foundation::Foundation;
 use crate::reg_store_slo_provider::CnsStoreSloProvider;
-use hkask_regulation::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
 use hkask_ports::{LedgerStoragePort, escalation::EscalationPort};
+use hkask_regulation::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use std::path::PathBuf;
 use tokio::sync::RwLock;
@@ -25,6 +25,9 @@ pub(super) struct LoopWiring {
     pub curator_context: Arc<hkask_pods::CuratorContext>,
     /// Federation link manager — set when federation is enabled.
     pub federation_link_manager: Option<Arc<dyn FederationDispatch>>,
+    /// System-level sensor registry — tracks all sensors across all loops
+    /// for monitoring, health checks, and dynamic registration.
+    pub sensor_registry: Arc<hkask_regulation::SensorRegistry>,
 }
 
 impl LoopWiring {
@@ -48,24 +51,26 @@ pub(super) async fn build_loops(
     system_webid: WebID,
 ) -> Result<LoopWiring, ServiceError> {
     let loop_system = Arc::new(LoopScheduler::new());
+    let sensor_registry = Arc::new(hkask_regulation::SensorRegistry::new());
 
     let (curator_directive_tx, curator_directive_rx) =
         tokio::sync::mpsc::unbounded_channel::<CuratorDirective>();
 
     // Cybernetics loop
     let set_points = load_set_points();
-    let cybernetics_loop = CyberneticsLoop::with_set_points(Arc::clone(&f.ledger_runtime), set_points)
-        .with_event_sink(Arc::clone(&f.cns_event_sink))
-        .with_alerts_channel(f.curation_inbox_tx.clone())
-        .with_curator_directive_channel(curator_directive_rx)
-        .with_slo_provider(Arc::new(CnsStoreSloProvider::new(Arc::clone(
-            &f.regulation_store,
-        ))))
-        .with_set_point_calibrator(
-            Arc::clone(&f.regulation_store) as Arc<dyn LedgerStoragePort>,
-            DEFAULT_SET_POINT_CALIBRATION_INTERVAL,
-        )
-        .with_seam_watcher();
+    let cybernetics_loop =
+        CyberneticsLoop::with_set_points(Arc::clone(&f.ledger_runtime), set_points)
+            .with_event_sink(Arc::clone(&f.cns_event_sink))
+            .with_alerts_channel(f.curation_inbox_tx.clone())
+            .with_curator_directive_channel(curator_directive_rx)
+            .with_slo_provider(Arc::new(CnsStoreSloProvider::new(Arc::clone(
+                &f.regulation_store,
+            ))))
+            .with_set_point_calibrator(
+                Arc::clone(&f.regulation_store) as Arc<dyn LedgerStoragePort>,
+                DEFAULT_SET_POINT_CALIBRATION_INTERVAL,
+            )
+            .with_seam_watcher();
     let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
     loop_system
         .register_loop(Arc::clone(&cybernetics_loop) as Arc<dyn RegulationLoop>)
@@ -132,7 +137,8 @@ pub(super) async fn build_loops(
     let h_mem_store2 = HMemStore::from_driver(Arc::clone(&mem_driver));
     let embedding_store = EmbeddingStore::from_driver(Arc::clone(&mem_driver), 1024);
     let semantic_memory = Arc::new(
-        SemanticMemory::new(h_mem_store2, embedding_store).with_ledger(Arc::clone(&f.cns_event_sink)),
+        SemanticMemory::new(h_mem_store2, embedding_store)
+            .with_ledger(Arc::clone(&f.cns_event_sink)),
     );
     let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     loop_system.register_loop(Arc::new(semantic_loop)).await;
@@ -273,9 +279,9 @@ pub(super) async fn build_loops(
         a2a_runtime,
         curator_context: curator_context_for_loops,
         federation_link_manager,
+        sensor_registry,
     })
 }
-
 
 /// Thin pod backup daemon: wake every 24h, snapshot all pod directories via gix.
 /// One git repo per pod. The pod directory IS the unit.
