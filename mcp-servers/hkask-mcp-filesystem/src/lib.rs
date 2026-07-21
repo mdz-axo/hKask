@@ -49,7 +49,7 @@ hkask_mcp::mcp_server!(
 
 impl FileSystemServer {
     /// Emit a Regulation span for a filesystem operation.
-    fn emit_cns(&self, operation: &str) {
+    fn emit_reg(&self, operation: &str) {
         RegulationSpan::Tool {
             subsystem: ToolSubsystem::Filesystem,
         }
@@ -91,7 +91,7 @@ impl FileSystemServer {
         // resolved and containment is checked against the canonical root.
         if let Ok(canonical) = resolved.canonicalize() {
             if !canonical.starts_with(&canonical_root) {
-                self.emit_cns("path.rejected");
+                self.emit_reg("path.rejected");
                 return Err(McpToolError::invalid_argument(format!(
                     "Path '{raw_path}' is outside the project root '{}'",
                     self.project_root.display()
@@ -116,7 +116,7 @@ impl FileSystemServer {
             McpToolError::invalid_argument(format!("Cannot resolve path '{raw_path}': {e}"))
         })?;
         if !canonical_ancestor.starts_with(&canonical_root) {
-            self.emit_cns("path.rejected");
+            self.emit_reg("path.rejected");
             return Err(McpToolError::invalid_argument(format!(
                 "Path '{raw_path}' is outside the project root '{}'",
                 self.project_root.display()
@@ -215,7 +215,7 @@ impl FileSystemServer {
                 dt.to_rfc3339()
             });
 
-            self.emit_cns("file.read");
+            self.emit_reg("file.read");
             Ok(serde_json::json!({
                 "content": output,
                 "path": path_str,
@@ -245,7 +245,7 @@ impl FileSystemServer {
                 .await
                 .map_err(|e| McpToolError::internal(format!("Cannot write {}: {e}", req.path)))?;
 
-            self.emit_cns("file.written");
+            self.emit_reg("file.written");
             Ok(serde_json::json!({
                 "written": true,
                 "path": path_str,
@@ -282,7 +282,7 @@ impl FileSystemServer {
                 })?;
                 // Only emit the written span when a write actually occurred — a
                 // no-op edit (zero matches) must not signal a file modification.
-                self.emit_cns("file.written");
+                self.emit_reg("file.written");
             }
             Ok(serde_json::json!({
                 "edited": applied > 0,
@@ -323,7 +323,7 @@ impl FileSystemServer {
                 }));
             }
 
-            self.emit_cns("file.read");
+            self.emit_reg("file.read");
             Ok(serde_json::json!({
                 "path": path_str,
                 "entries": entries,
@@ -403,7 +403,7 @@ impl FileSystemServer {
             .await
             .map_err(|e| McpToolError::internal(format!("search task failed: {e}")))?;
 
-            self.emit_cns("file.read");
+            self.emit_reg("file.read");
             Ok(serde_json::json!({
                 "pattern": req.pattern,
                 "matches": matches,
@@ -444,7 +444,7 @@ impl FileSystemServer {
                 )));
             }
 
-            self.emit_cns("file.deleted");
+            self.emit_reg("file.deleted");
             Ok(serde_json::json!({"deleted": true, "path": path_str}))
         })
         .await
@@ -510,9 +510,9 @@ impl FileSystemServer {
 
                     let exit_code = out.status.code().unwrap_or(-1);
                     if exit_code != 0 {
-                        self.emit_cns("command.failed");
+                        self.emit_reg("command.failed");
                     } else {
-                        self.emit_cns("command.completed");
+                        self.emit_reg("command.completed");
                     }
 
                     Ok(serde_json::json!({
@@ -524,11 +524,11 @@ impl FileSystemServer {
                     }))
                 }
                 Ok(Err(e)) => {
-                    self.emit_cns("command.failed");
+                    self.emit_reg("command.failed");
                     Err(McpToolError::internal(format!("Command error: {e}")))
                 }
                 Err(_) => {
-                    self.emit_cns("command.failed");
+                    self.emit_reg("command.failed");
                     Err(McpToolError::internal(format!(
                         "Command timed out after {timeout_ms}ms"
                     )))

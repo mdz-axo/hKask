@@ -4,11 +4,17 @@ visibility: public
 description: >
   LoRA/QLoRA training configuration and contract enforcement skill for hKask
   (v0.31.0). Produces an advisory, composable PEFT recommendation through a
-  deterministic 6-gate refinement; the operator accepts, overrides, or rejects
-  it, and the runtime enforces established hard contracts against concrete
-  accepted configuration. Audits math, quantization, data/evaluation,
-  forgetting, and harness-method compatibility gates with phase-aware states
-  and evidence. Emits reg.lora.* spans.
+  deterministic 7-gate refinement (adapter purpose → inference constraint →
+  memory → task distance → quality/cost → knowledge preservation → harness
+  capability); the operator accepts, overrides, or rejects it, and the runtime
+  enforces established hard contracts against concrete accepted configuration.
+  Training approach selection (G0-G5) precedes harness selection (G6) — the
+  harness is selected based on its capability to efficiently process the
+  declared dataset and produce the adapter type implied by G0. Audits math,
+  quantization, data/evaluation, forgetting, and harness-method compatibility
+  gates with phase-aware states and evidence. PDCA iteration loop:
+  select-method → audit-config → convergence-check → revise → re-invoke.
+  Emits reg.lora.* spans.
 ---
 
 # LoRA Training
@@ -53,30 +59,37 @@ This skill does not train, load, initialize, merge, or evaluate models.
 ### `lora-training/select-method`
 
 1. Read the declared training inputs and preserve explicit operator requirements.
-2. Refine one composable recommendation record through six gates: inference
-   constraint, memory evidence, task distance, quality/cost, knowledge
-   preservation, and harness capability. Gates refine compatible fields; they
-   do not overwrite the whole recommendation or silently replace earlier
-   constraints.
-3. Emit only derivable values for `base_mode`, `adapter_form`, `scaling`,
-   `initializer`, `preservation`, `rank_range`, `harness`, and `trainer`;
-   otherwise emit `undetermined`, required evidence, alternatives, constraints,
-   or conflicts.
+2. Refine one composable recommendation record through seven gates: adapter
+   purpose (G0), inference constraint (G1), memory evidence (G2), task distance
+   (G3), quality/cost (G4), knowledge preservation (G5), and harness capability
+   (G6). Training approach selection (G0-G5) precedes harness selection (G6).
+   Gates refine compatible fields; they do not overwrite the whole
+   recommendation or silently replace earlier constraints.
+3. Emit only derivable values for `adapter_purpose`, `base_mode`, `adapter_form`,
+   `scaling`, `initializer`, `preservation`, `rank_range`,
+   `target_module_strategy`, `harness`, and `trainer`; otherwise emit
+   `undetermined`, required evidence, alternatives, constraints, or conflicts.
 4. Treat `model_size_b × 2` only as an approximate bf16 base-weight floor.
    Memory pressure may favor QLoRA, but these two scalar inputs do not establish
    that a configuration fits or will OOM.
 5. Preserve operator-requested initializers uniformly. For EVA, report
    `initialize_lora_eva_weights(model, dataloader)` as required evidence; do not
    hardcode a recommendation-phase refusal.
-6. G6 (harness capability) recommends axolotl, trl, or ludwig based on task
-   requirements. If the operator declares `harness_preference` or
-   `trainer_preference` inputs, preserve them as `operator_requested` and
-   validate compatibility with earlier gates. If both are absent, apply
-   task-distance/data-shape reasoning. The three harnesses have distinct
-   capability profiles:
+6. G0 (adapter purpose) establishes what kind of adapter is being produced
+   (instruction, reasoning, vision, preference, reward_model). This
+   determines baseline rank ranges, target module strategies, and the
+   learning-forgetting tradeoff posture. G0 runs first and constrains all
+   subsequent gates.
+7. G6 (harness capability) selects a harness based on the training approach
+   determined by G0-G5. The harness must be able to efficiently process the
+   declared dataset and produce the adapter type implied by G0. If the operator
+   declares `harness_preference` or `trainer_preference` inputs, preserve them
+   as `operator_requested` and validate compatibility. If both are absent,
+   select based on adapter_purpose and dataset_format_hint. The three harnesses
+   have distinct capability profiles:
    - **Axolotl** (YAML, SFT-only): mature, single-file config, the runtime
-     default. Cannot render advanced PEFT initializers (PiSSA, CorDA, LoftQ)
-     or preference optimization trainers.
+     default for instruction adapters. Cannot render advanced PEFT initializers
+     (PiSSA, CorDA, LoftQ) or preference optimization trainers.
    - **TRL** (Python, SFT + preference): HF-native, supports SFTTrainer,
      DPOTrainer, KTOTrainer, ORPOTrainer, RewardTrainer. Best for
      assistant_only_loss, packing strategies, VLMs, and preference
@@ -86,9 +99,14 @@ This skill does not train, load, initialize, merge, or evaluate models.
      (reward-model-free RLHF) and advanced PEFT initializers (PiSSA, EVA,
      CorDA, LoftQ) that axolotl cannot render. Best when the operator needs
      GRPO or an initializer axolotl doesn't support.
-   Axolotl remains the runtime default when harness is undetermined — no
-   silent migration.
-7. Return separate `recommendation`, `readiness`, `justification`, and
+   Axolotl remains the runtime default when harness is undetermined and
+   adapter_purpose is instruction — no silent migration. For non-instruction
+   purposes, axolotl is not a valid default.
+8. The select-method phase is the first turn of a PDCA loop. After audit-config
+   and convergence-check, the operator may revise inputs and re-invoke.
+   Each iteration refines the recommendation. The loop converges when the
+   convergence metric is ≤ 0.10 and no hard blockers remain.
+9. Return separate `recommendation`, `readiness`, `justification`, and
    `authority` objects. Emit `reg.lora.select`.
 
 ### `lora-training/audit-config`
@@ -184,7 +202,7 @@ Do not create alternate finding shapes. A recommendation never overwrites
 
 | Template | Type | Purpose |
 |---|---|---|
-| `select-method.j2` | `KnowAct` | Produce an advisory composable recommendation via six-gate refinement, explicit uncertainty, operator authority, and runtime enforcement boundaries. |
+| `select-method.j2` | `KnowAct` | Produce an advisory composable recommendation via seven-gate refinement (G0 adapter purpose → G1-G5 method → G6 harness), explicit uncertainty, operator authority, PDCA iteration loop, and runtime enforcement boundaries. |
 | `audit-config.j2` | `KnowAct` | Audit declared artifacts with phase-aware gates, states, evidence kinds, normalized findings, and separate readiness. |
 | `report.j2` | `KnowAct` | Preserve findings losslessly; report readiness and contract gaps; propose only evidence-backed pending regressions. |
 | `convergence-check.j2` | `KnowAct` | Compute normalized current-phase convergence and preflight/runtime/post-training posture from supplied evidence. |
@@ -218,6 +236,14 @@ Do not create alternate finding shapes. A recommendation never overwrites
 - EVA: [arXiv:2410.07170](https://arxiv.org/abs/2410.07170).
 - Razin et al.: [arXiv:2410.21228](https://arxiv.org/abs/2410.21228) — intruder
   dimensions and structured forgetting.
+- Biderman et al.: [arXiv:2405.09673](https://arxiv.org/abs/2405.09673) — LoRA
+  Learns Less and Forgets Less. LoRA underperforms full FT on code/math at low
+  rank; high rank (r=256) can match full FT on IFT but not CPT. LoRA forgets
+  less — a feature for knowledge preservation. Rank is the learning-forgetting
+  knob.
+- Thinking Machines Lab: [LoRA Without Regret](https://thinkingmachines.ai/blog/lora)
+  — For SFT on small-to-medium instruction/reasoning datasets, LoRA performs
+  the same as full FT. For datasets exceeding LoRA capacity, LoRA underperforms.
 - AutoPEFT: [arXiv:2301.12132](https://arxiv.org/abs/2301.12132) — rejected
   per-job multi-objective search alternative.
 - DPO: [arXiv:2305.18290](https://arxiv.org/abs/2305.18290) — Direct Preference

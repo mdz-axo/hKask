@@ -533,7 +533,7 @@ impl hkask_ports::ToolPort for McpRuntime {
 
 impl McpRuntime {
     /// Verify OCAP authority via domain-based capability matching.
-    /// Agent tokens use domain shorthand (e.g., `cns` not `cns_health`).
+    /// Agent tokens use domain shorthand (e.g., `regulation` not `regulation_health`).
     async fn verify_capability_domain(
         &self,
         token: &hkask_capability::DelegationToken,

@@ -48,7 +48,7 @@ pub struct CuratorContext {
 impl CuratorContext {
     /// expect: "The system regulates agent behavior through cybernetic feedback"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — CuratorContext bundles regulatory dependencies
-    /// pre:  `handle` is a valid `CuratorHandle`; `cns` is a valid
+    /// pre:  `handle` is a valid `CuratorHandle`; `ledger` is a valid
     ///       `Arc<RegulationLedger>`; `curator_directive_tx` is `Some` or `None`;
     ///       `escalation_port` is a valid `Arc<dyn EscalationPort>`.
     /// post: Returns a `CuratorContext` with no RegulationRecord store, no A2A

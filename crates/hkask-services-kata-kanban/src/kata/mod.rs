@@ -208,7 +208,7 @@ impl KataEngine {
     /// practice and checks algedonic thresholds after cycle completion.
     ///
     /// `[P5]` Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
-    /// pre:  cns must be a valid `Arc<RwLock<RegulationLedger>>`
+    /// pre:  ledger must be a valid `Arc<RwLock<RegulationLedger>>`
     /// post: returns self with ledger_runtime set; kata cycles will increment variety and check alerts
     #[must_use]
     pub fn with_ledger_runtime(mut self, ledger: Arc<RwLock<RegulationLedger>>) -> Self {

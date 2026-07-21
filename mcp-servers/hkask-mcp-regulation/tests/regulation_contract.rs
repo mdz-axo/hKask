@@ -219,10 +219,10 @@ async fn reg_span_stats_returns_empty_object_when_no_events() {
 }
 
 // REQ: reg_span_stats returns aggregated counts by span_category (P5).
-// expect: after inserting two reg.regulation events with different local paths
-// (both stored under span_category="regulation"), reg_span_stats with
+// expect: after inserting two reg.outcome events with different local paths
+// (both stored under span_category="outcome"), reg_span_stats with
 // namespace="reg.outcome" returns total_events=2 and a categories object
-// mapping "regulation" to 2.
+// mapping "outcome" to 2.
 #[tokio::test]
 async fn reg_span_stats_returns_aggregated_counts() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
@@ -255,8 +255,8 @@ async fn reg_span_stats_returns_aggregated_counts() {
         "expected 1 distinct span_category: {out}"
     );
     assert_eq!(
-        categories["regulation"], 2,
-        "regulation category should have count=2: {out}"
+        categories["outcome"], 2,
+        "outcome category should have count=2: {out}"
     );
 }
 

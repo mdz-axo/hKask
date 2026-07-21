@@ -52,8 +52,21 @@ recommendation. The runtime enforces harness-method compatibility via G-H1.
 
 ## Gate Catalog
 
-17 quality gates enforced by the `audit-config` phase. Each gate is a
-single assertion with a citation.
+17 quality gates enforced by the `audit-config` phase, plus the 7-gate
+recommendation refinement in `select-method`. Each gate is a single assertion
+with a citation.
+
+### Recommendation Gates (select-method phase)
+
+| Gate | ID | Purpose | Source |
+|------|----|---------|--------|
+| Adapter purpose | G0 | Establishes what kind of adapter is being produced (instruction, reasoning, vision, preference, reward_model). Determines baseline rank, target modules, and learning-forgetting posture. Runs first, constrains all subsequent gates. | Biderman et al. arXiv:2405.09673; Raschka 2025 |
+| Inference constraint | G1 | Must-merge vs dynamic-switching vs either-ok. Constrains adapter form. | LoRA §4.2 |
+| Memory budget | G2 | Full precision vs quantized 4bit. Model_size_b × 2 as approximate floor only. | QLoRA §3 |
+| Task distance | G3 | Refines rank_range within G0 baseline. Light/moderate/heavy. | LoRA §4.3; Biderman et al. |
+| Quality vs cost | G4 | Refines adapter_form and/or initializer. | LoRA §4.1; PiSSA; LoRA-GA; DoRA |
+| Knowledge preservation | G5 | Refines preservation and initializer (CorDA-KP). | PEFT corda_config; Razin et al. |
+| Harness capability | G6 | Selects harness based on training approach from G0-G5. Harness must process dataset and produce adapter type from G0. | TRL; Ludwig; Axolotl |
 
 ### Math-Contract Gates (from LoRA paper, arXiv:2106.09685)
 
@@ -125,6 +138,14 @@ Converged: metric ≤ 0.10 AND ≥5% relative improvement from previous cycle.
 - **LoRA-GA:** arXiv:2407.05000 — arxiv.org/abs/2407.05000
 - **AdaLoRA:** arXiv:2303.10512 — arxiv.org/abs/2303.10512
 - **Razin et al. (intruder dimensions):** arXiv:2410.21228 — arxiv.org/abs/2410.21228
+- **Biderman et al. (LoRA Learns Less and Forgets Less):** arXiv:2405.09673 —
+  arxiv.org/abs/2405.09673. LoRA underperforms full FT on code/math at low rank;
+  high rank (r=256) matches full FT on IFT but not CPT. LoRA forgets less —
+  a feature for knowledge preservation. Rank is the learning-forgetting knob.
+- **Thinking Machines Lab (LoRA Without Regret):** thinkingmachines.ai/blog/lora —
+  For SFT on small-to-medium instruction/reasoning datasets, LoRA performs the
+  same as full FT. For datasets exceeding LoRA capacity, LoRA underperforms.
+  Learning rate tuning is critical.
 - **AutoPEFT (rejected alternative):** arXiv:2301.12132 — arxiv.org/abs/2301.12132
 - **EVA:** arXiv:2410.07170 — arxiv.org/abs/2410.07170
 - **DPO:** arXiv:2305.18290 — arxiv.org/abs/2305.18290

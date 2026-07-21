@@ -47,7 +47,7 @@ impl RegulationContext {
     ///
     /// Acquires a read lock on the runtime and returns the health status.
     /// This is the canonical access path — replaces the pattern
-    /// `cns().runtime.read().await.health().await`.
+    /// `ledger().runtime.read().await.health().await`.
     #[must_use]
     pub async fn health(&self) -> LedgerHealth {
         self.runtime.read().await.health().await

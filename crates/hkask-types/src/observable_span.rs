@@ -60,7 +60,7 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
 
     /// Emit a structured tracing event through the Regulation infrastructure.
     ///
-    /// Default implementation emits an info-level event with `target = "cns"`,
+    /// Default implementation emits an info-level event with `target = "reg"`,
     /// `reg_domain` set to `self.as_str()`, and `operation` as provided.
     ///
     /// This is the log-only convenience path. Prefer `emit_to()` when a

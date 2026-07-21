@@ -147,7 +147,7 @@ pub async fn companies_get(
         Ok(value) => {
             // Normalize EODHD response if needed
             if primary == Provider::Eodhd && mapping.normalize_eodhd {
-                emit_provider_cns(tool, symbol, "EODHD", true);
+                emit_provider_reg(tool, symbol, "EODHD", true);
                 Ok(normalize_eodhd(tool, &value, symbol))
             } else {
                 Ok(value)
@@ -185,7 +185,7 @@ pub async fn companies_get(
             match fallback_result {
                 Ok(value) => {
                     if secondary == Provider::Eodhd && mapping.normalize_eodhd {
-                        emit_provider_cns(tool, symbol, "EODHD", true);
+                        emit_provider_reg(tool, symbol, "EODHD", true);
                         Ok(normalize_eodhd(tool, &value, symbol))
                     } else {
                         Ok(value)
@@ -201,7 +201,7 @@ pub async fn companies_get(
 const APPROXIMATED_KEY_METRICS_FIELDS: u32 = 4;
 
 /// Emit a Regulation span for provider quality monitoring (FinGPT §3.2 — data quality feedback loop).
-fn emit_provider_cns(tool: &str, symbol: &str, provider: &str, was_normalised: bool) {
+fn emit_provider_reg(tool: &str, symbol: &str, provider: &str, was_normalised: bool) {
     let approx_count = if was_normalised {
         match tool {
             "key_metrics" => APPROXIMATED_KEY_METRICS_FIELDS,

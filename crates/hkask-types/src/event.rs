@@ -415,7 +415,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
 /// `reg.pipeline.decimation.binarize` is valid if any prefix
 /// segment (including the full string) is registered.
 fn is_canonical(namespace: &str) -> bool {
-    // MIRRORED in scripts/check-cns-canonical.sh::is_canonical — update both together.
+    // MIRRORED in scripts/check-reg-canonical.sh::is_canonical — update both together.
     if CANONICAL_NAMESPACES.contains(&namespace) {
         return true;
     }

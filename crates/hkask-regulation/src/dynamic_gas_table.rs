@@ -22,9 +22,9 @@
 //!
 //! # Contracts
 //!
-//! REQ: P9-cns-dynamic-gas-table-core — Property-based test: feed observations, verify EMA convergence.
-//! REQ: P9-cns-dynamic-gas-table-obs — Tracer bullet: single observation initializes EMA per server.
-//! REQ: P9-cns-dynamic-gas-table-integration — Integration: calibrated table replaces hardcoded `TableEnergyEstimator` costs.
+//! REQ: P9-reg-dynamic-gas-table-core — Property-based test: feed observations, verify EMA convergence.
+//! REQ: P9-reg-dynamic-gas-table-obs — Tracer bullet: single observation initializes EMA per server.
+//! REQ: P9-reg-dynamic-gas-table-integration — Integration: calibrated table replaces hardcoded `TableEnergyEstimator` costs.
 
 use std::collections::{HashMap, HashSet};
 

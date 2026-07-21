@@ -130,13 +130,13 @@ impl DocProcServer {
                     .await
                 {
                     Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
-                        tracing::debug!(target: "hkask.mcp.docproc.cns", "Pipeline outcome persisted to daemon");
+                        tracing::debug!(target: "hkask.mcp.docproc.reg", "Pipeline outcome persisted to daemon");
                     }
                     Ok(other) => {
-                        tracing::warn!(target: "hkask.mcp.docproc.cns", response = ?other, "Unexpected daemon response");
+                        tracing::warn!(target: "hkask.mcp.docproc.reg", response = ?other, "Unexpected daemon response");
                     }
                     Err(e) => {
-                        tracing::warn!(target: "hkask.mcp.docproc.cns", error = %e, "Failed to persist pipeline outcome");
+                        tracing::warn!(target: "hkask.mcp.docproc.reg", error = %e, "Failed to persist pipeline outcome");
                     }
                 }
             });

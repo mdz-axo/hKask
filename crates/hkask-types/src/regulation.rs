@@ -219,7 +219,7 @@ impl RegulationSpan {
     /// Emit a typed Regulation span event through the `tracing` infrastructure.
     ///
     /// Enforces the canonical Regulation emission convention (PRINCIPLES.md §9.2):
-    /// - `target` = `"cns"` root namespace (full domain in `reg_domain` field)
+    /// - `target` = `"reg"` root namespace (full domain in `reg_domain` field)
     /// - `reg_domain` = `self.as_str()` (e.g. `"reg.tool.media"`)
     /// - `operation` = the verb describing what occurred (e.g. `"invoked"`)
     /// - message = `"REG"` (required for downstream regulation record parsing)

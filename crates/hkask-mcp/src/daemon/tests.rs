@@ -121,7 +121,6 @@ async fn daemon_auth_query_unauthenticated() {
     }
 }
 
-
 #[tokio::test]
 async fn daemon_capability_query() {
     let (mut listener, sock_path) = setup_test_listener().await;
@@ -186,12 +185,6 @@ fn request_variants_serialize_to_correct_shape() {
     assert_eq!(auth["type"], "auth_query");
     assert_eq!(auth["userpod"], "alice");
 
-        userpod: "alice".into(),
-        role: "research".into(),
-    })
-    .unwrap();
-    assert_eq!(assign["role"], "research");
-
     let cap = serde_json::to_value(DaemonRequest::CapabilityQuery {
         userpod: "alice".into(),
         tool: "web_search".into(),
@@ -243,8 +236,6 @@ fn response_variants_serialize_to_correct_shape() {
     .unwrap();
     assert_eq!(auth["type"], "auth_response");
     assert_eq!(auth["authenticated"], true);
-
-    let assign =
 
     let cap = serde_json::to_value(DaemonResponse::CapabilityResponse { granted: false }).unwrap();
     assert_eq!(cap["type"], "capability_response");
@@ -315,7 +306,8 @@ fn failure_unknown_type_tag() {
 
 #[test]
 fn failure_missing_required_field() {
-    // Missing 'role' field
+    // Missing 'tool' field from a capability_query
+    let json = r#"{"type":"capability_query","userpod":"bob"}"#;
     let result: Result<DaemonRequest, _> = serde_json::from_str(json);
     assert!(result.is_err());
 }
@@ -365,7 +357,6 @@ async fn daemon_auth_query_is_idempotent() {
         _ => panic!("Expected AuthResponse"),
     }
 }
-
 
 #[tokio::test]
 async fn daemon_capability_query_is_idempotent() {

@@ -83,9 +83,6 @@ impl DaemonHandler for TestDaemon {
     async fn check_auth(&self, _r: &str) -> (bool, Option<String>) {
         (true, None)
     }
-    async fn check_assignment(&self, _r: &str, _role: &str) -> bool {
-        true
-    }
     async fn check_capability(&self, _r: &str, _t: &str) -> bool {
         true
     }

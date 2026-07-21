@@ -9,9 +9,13 @@ crate:
   description: >
     LoRA/QLoRA training configuration and contract enforcement skill for
     hKask. Produces a composable PEFT recommendation via a deterministic
-    6-gate refinement (inference constraint, memory budget, task distance,
-    quality/cost trade-off, knowledge preservation, harness capability)
-    — not a search (AutoPEFT-style BO is infeasible per training job).
+    7-gate refinement (adapter purpose, inference constraint, memory budget,
+    task distance, quality/cost trade-off, knowledge preservation, harness
+    capability) — not a search (AutoPEFT-style BO is infeasible per training job).
+    Training approach selection (G0-G5) precedes harness selection (G6) — the
+    harness is selected based on its capability to efficiently process the
+    declared dataset and produce the adapter type implied by G0. PDCA iteration
+    loop: select-method → audit-config → convergence-check → revise → re-invoke.
     The skill recommends; the operator accepts, overrides, or rejects; the
     runtime enforces established hard contracts. Enforces the LoRA/QLoRA math
     contracts as quality gates: no-op-at-init invariant, merge
@@ -33,30 +37,31 @@ crate:
 
 templates:
   - id: lora-training/select-method
-    name: "Recommend composable PEFT configuration via 6-gate refinement"
+    name: "Recommend composable PEFT configuration via 7-gate refinement"
     path: select-method.j2
     type: KnowAct
-    lexicon_terms: [select, decide, gate, method, config, training, harness]
+    lexicon_terms: [select, decide, gate, method, config, training, harness, purpose]
     description: >
-      Apply a deterministic 6-gate refinement without overwriting earlier
-      constraints or operator requirements. Emit a composable recommendation
-      record with base_mode, adapter_form, scaling, initializer, preservation,
-      harness, and trainer, plus per-gate citations and explicit undetermined
-      states. Recommendation is advisory and distinct from training readiness:
-      the operator accepts, overrides, or rejects it, while the runtime
-      enforces established hard contracts from concrete config evidence.
-      Memory pressure may favor quantization but model_size_b × 2 alone does
-      not establish OOM. AutoPEFT (arXiv:2301.12132) is referenced as the
-      rejected alternative — multi-objective BO over hundreds of training
-      runs is infeasible per training job. G6 (harness capability) recommends
-      axolotl, trl, or ludwig based on task requirements. Three harnesses:
-      axolotl (YAML, SFT-only, runtime default), trl (Python, SFT + DPO/KTO/
-      ORPO/Reward), ludwig (YAML, SFT + DPO/KTO/ORPO/GRPO + advanced PEFT
-      initializers). Ludwig is the only harness covering GRPO and the full
-      advanced-PEFT initializer set (PiSSA, EVA, CorDA, LoftQ). G6 reads
-      optional harness_preference and trainer_preference inputs — when declared,
-      the skill preserves them as operator_requested; when absent, it applies
-      task-distance/data-shape reasoning.
+      Apply a deterministic 7-gate refinement without overwriting earlier
+      constraints or operator requirements. G0 (adapter purpose) establishes
+      what kind of adapter is being produced (instruction, reasoning, vision,
+      preference, reward_model) and determines baseline rank ranges, target
+      module strategies, and the learning-forgetting tradeoff posture. G1-G5
+      refine the PEFT method. G6 (harness capability) selects a harness based
+      on the training approach determined by G0-G5 — the harness must be able
+      to efficiently process the declared dataset and produce the adapter type
+      implied by G0. Emit a composable recommendation record with
+      adapter_purpose, base_mode, adapter_form, scaling, initializer,
+      preservation, rank_range, target_module_strategy, harness, and trainer,
+      plus per-gate citations and explicit undetermined states. PDCA iteration
+      loop: select-method → audit-config → convergence-check → revise →
+      re-invoke. Recommendation is advisory and distinct from training
+      readiness. G6 reads optional harness_preference and trainer_preference
+      inputs. Three harnesses: axolotl (YAML, SFT-only, runtime default for
+      instruction), trl (Python, SFT + DPO/KTO/ORPO/Reward), ludwig (YAML,
+      SFT + DPO/KTO/ORPO/GRPO + advanced PEFT initializers). Ludwig is the
+      only harness covering GRPO and the full advanced-PEFT initializer set
+      (PiSSA, EVA, CorDA, LoftQ).
 
   - id: lora-training/audit-config
     name: "Audit training config against math/quant/data/forgetting/harness gates"

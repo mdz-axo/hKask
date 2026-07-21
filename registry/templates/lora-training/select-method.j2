@@ -44,7 +44,7 @@ max_tokens = 4096
 thinking_budget = "full"
 
 {# Reads declared training config inputs: LoraConfig, BitsAndBytesConfig, accelerate config, training script arguments #}
-{# Applies deterministic 6-gate refinement — NOT a search #}
+{# Applies deterministic 7-gate refinement — NOT a search #}
 {# Emits `reg.lora.select` CNS span (P9) — namespace registered in CANONICAL_NAMESPACES #}
 {# Every recommendation includes a citation (arXiv paper section or PEFT docs section) #}
 {# Relationships: complements kali-audit (security surface) and tdd (training-loop code) — zero overlap #}
@@ -456,6 +456,14 @@ SOURCE REFERENCES (concrete — P8):
 - AdaLoRA: arXiv:2303.10512 (arxiv.org/abs/2303.10512) — dynamic rank.
 - Razin et al.: arXiv:2410.21228 (arxiv.org/abs/2410.21228) — intruder
   dimensions and structured forgetting.
+- Biderman et al.: arXiv:2405.09673 (arxiv.org/abs/2405.09673) — LoRA Learns
+  Less and Forgets Less. LoRA underperforms full FT on code/math at low rank;
+  high rank (r=256) can match full FT on IFT but not CPT. LoRA forgets less —
+  a feature for knowledge preservation. Rank is the learning-forgetting knob.
+- Thinking Machines Lab: thinkingmachines.ai/blog/lora — LoRA Without Regret.
+  For SFT on small-to-medium instruction/reasoning datasets, LoRA performs
+  the same as full FT. For datasets exceeding LoRA capacity, LoRA underperforms.
+  Learning rate tuning is critical; optimal LR is model+task dependent.
 - AutoPEFT: arXiv:2301.12132 (arxiv.org/abs/2301.12132) — rejected
   per-job BO alternative.
 - PEFT v0.19.0: huggingface.co/docs/peft/v0.19.0/package_reference/lora

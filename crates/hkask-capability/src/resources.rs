@@ -142,7 +142,7 @@ pub fn capabilities_match(token_capability: &str, required_capability: &str) -> 
     if token_spec.resource != required_spec.resource {
         return false;
     }
-    // Different domains never match (cns ≠ semantic)
+    // Different domains never match (regulation ≠ semantic)
     if token_spec.resource_id != required_spec.resource_id {
         return false;
     }

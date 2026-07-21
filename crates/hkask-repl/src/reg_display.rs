@@ -5,7 +5,7 @@
 //! the service layer via Regulation spans (reg.chat.request, reg.chat.response) —
 //! the REPL only reads alerts, never mutates Regulation state directly.
 //!
-//! # REQ: P4-cns-access — REPL only reads Regulation alerts (read-only), never mutates Regulation state
+//! # REQ: P4-reg-access — REPL only reads Regulation alerts (read-only), never mutates Regulation state
 //! expect: "I can access all hKask functionality through the kask CLI"
 
 use hkask_services_context::AgentService;
