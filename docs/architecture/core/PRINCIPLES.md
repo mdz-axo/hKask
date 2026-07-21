@@ -204,7 +204,7 @@ tracing::info!(target: "cns.{domain}", operation = "{verb}", {key} = %{value}, .
 ### 1.4 Agent Principles (Nature of Agency)
 
 #### P10 — User Agency
-Users act as agents in the AI world through their userpod. Userpods present in A2A as agents (the generic "agent" concept is preserved); the hKask-specific bot/replicant role taxonomy is removed. User agency is bounded by sovereignty (P1) and capability (P4) — the userpod is the unit of agency, not a separate "replicant" or "bot" role.
+Users act as agents in the AI world through their userpod. Userpods present in A2A as agents (the generic "agent" concept is preserved); the hKask-specific bot/userpod role taxonomy is removed. User agency is bounded by sovereignty (P1) and capability (P4) — the userpod is the unit of agency, not a separate "userpod" or "bot" role.
 
 #### P11 — Digital Public/Private Sphere
 Users, via their userpods, can explicitly control what is private versus shared; visibility is consent-governed. (The generic "agent" concept remains for A2A interop.)

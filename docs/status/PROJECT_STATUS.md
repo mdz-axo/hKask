@@ -144,7 +144,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | Tests | ~2,166 (`#[test]` + `#[tokio::test]` annotations) |
 | CLI subcommands | 37 |
 | API route groups | 21 |
-| ACP replicant | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
+| ACP userpod | 1 (`hkask-acp`) — IDE agent presence via Agent Client Protocol |
 | CNS spans | 100+ |
 
 ---
@@ -255,9 +255,9 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 ## Session (2026-06-11)
 
 - Onboarding overhaul: model selection, passphrase strength UX, First Steps guide, `is_first_run` flag
-- New `kask onboard` CLI subcommand for adding replicants to existing installations
+- New `kask onboard` CLI subcommand for adding userpods to existing installations
 - New `/start` guided tour (9 steps) and `/feedback` REPL-only ledger command
-- 3 code bugs fixed: `run_add_replicant` dangerous fallback, `/start` cursor reset, stale comment
+- 3 code bugs fixed: `run_add_userpod` dangerous fallback, `/start` cursor reset, stale comment
 - 6 P8 tests added: `append_feedback` (3) + `passphrase_strength` (3) — total: 19→25
 - Docs updated: AGENTS.md, cli-reference.md, REPL-specification.md, test-inventory.md
 - Pre-existing build errors in `hkask-cli` and the old monolithic service crate tests confirmed resolved (prior session) [Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates]

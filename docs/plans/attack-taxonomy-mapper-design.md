@@ -1,6 +1,6 @@
 ---
 title: "Skill Design Spec — attack-taxonomy-mapper"
-audience: [architects, replicants, security auditors]
+audience: [architects, userpods, security auditors]
 last_updated: 2026-07-18
 status: as-built
 version: 0.2.0
@@ -36,7 +36,7 @@ The skill passed `skill-logic-audit` with all material flaws resolved.
 
 | Question | Answer |
 |----------|--------|
-| **Who** | Supply chain attacker / threat actor taxonomy (the *subject* of the taxonomy, not the *agent* — the agent is the replicant host, P12) |
+| **Who** | Supply chain attacker / threat actor taxonomy (the *subject* of the taxonomy, not the *agent* — the agent is the userpod host, P12) |
 | **What** | Software supply chain attack patterns (OSC&R taxonomy: dependency confusion, typosquatting, malicious commit injection, build pipeline compromise) |
 | **Where** | Dependency registry / CI pipeline / repository (manifest evidence from `supply-chain-sentinel` findings + CI logs from `kali-audit`) |
 | **When** | Audit cycle or incident investigation (consumes findings from `supply-chain-sentinel` and `kali-audit` as input) |
@@ -152,7 +152,7 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
   github.com/pbom-dev/OSCAR framework.
 - No synthetic findings — consumes findings from `supply-chain-sentinel` and
   `kali-audit` as input; does not generate new findings.
-- Every output includes `replicant_host` identity (P12).
+- Every output includes `userpod_host` identity (P12).
 - Registry (`manifest.yaml` + `.j2`) is authoritative over SKILL.md (P5.1).
 - `cns.taxonomy.*` namespaces MUST be registered before skill commit (P9
   integrity — same discipline as `supply-chain-sentinel`).

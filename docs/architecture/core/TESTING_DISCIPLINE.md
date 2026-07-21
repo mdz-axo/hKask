@@ -1,6 +1,6 @@
 ---
 title: "hKask Testing Discipline"
-audience: [engineers, agents, replicants]
+audience: [engineers, agents, userpods]
 last_updated: 2026-07-04
 version: "0.31.0"
 status: "Active"
@@ -150,7 +150,7 @@ Implementation-coupled tests are not forbidden — they exist because some code 
 | Strategy | Details |
 |----------|---------|
 | **Primary seam** | `CapabilitySpec`, `DelegationToken`, capability verification traits |
-| **Test type** | Integration: capability attenuation chains, per-replicant key derivation |
+| **Test type** | Integration: capability attenuation chains, per-userpod key derivation |
 | **Key invariant** | Fail-closed: no checker = denied, not open |
 | **Anti-pattern** | Testing HMAC internals rather than attenuation behavior |
 
@@ -248,7 +248,7 @@ Every test verifies an IS claim about system behavior. The CNS span registry (`C
 
 ### 5.4 P6 — Space for Replicants
 
-Replicants propose tests for their own behavior. A replicant can open a PR containing a property-based test verifying its intended behavior, with the replicant's WebID as the authenticated author (P12). A human operator provides affirmative consent (P2) to merge.
+Replicants propose tests for their own behavior. A userpod can open a PR containing a property-based test verifying its intended behavior, with the userpod's WebID as the authenticated author (P12). A human operator provides affirmative consent (P2) to merge.
 
 ### 5.5 P7 — Evolutionary Architecture
 
@@ -296,7 +296,7 @@ Tests accumulate the scar tissue of every production incident. They become the r
 | **P3** | Refactor only when GREEN — never while RED |
 | **P4** | After every bug fix, add a regression test that captures that class of bug |
 | **P5** | Replicants may propose tests; humans provide consent to merge (P2, P6) |
-| **P6** | Every test action carries an authenticated author (TestWebId or replicant WebID) (P12) |
+| **P6** | Every test action carries an authenticated author (TestWebId or userpod WebID) (P12) |
 
 ### 6.4 Quality Rules
 

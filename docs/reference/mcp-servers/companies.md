@@ -19,7 +19,7 @@ Company-finance MCP server for provider-routed market data, fundamental analysis
 
 | Component | Role |
 |-----------|------|
-| `CompaniesServer` | Server struct: `webid`, `replicant`, `daemon`, `client`, FMP/EODHD keys, optional research keys, `PortfolioManager`, `LearningState` (Arc<Mutex>), `FermiDefaults` |
+| `CompaniesServer` | Server struct: `webid`, `userpod`, `daemon`, `client`, FMP/EODHD keys, optional research keys, `PortfolioManager`, `LearningState` (Arc<Mutex>), `FermiDefaults` |
 | `combined_router` | Sums seven domain sub-routers: `financial_data_router` + `analysis_router` + `portfolio_router` + `analytics_router` + `valuation_router` + `economic_profit_router` + `expectations_router` |
 | `execute_tool` | Framework wrapper: CNS tool span (`cns.tool.companies.*`) + daemon outcome recording |
 | `fetch` | Provider-agnostic data access; clones `LearningState` and delegates to `providers::companies_get` |

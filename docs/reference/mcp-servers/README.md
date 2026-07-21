@@ -30,8 +30,8 @@ Built-in MCP servers shipped with hKask. Each server is a thin surface over doma
 All servers follow these patterns:
 :
 
-1. **Bootstrap:** `hkask_mcp::bootstrap_mcp_server(name, target, host_env_var)` → returns `MCPBootstrap { replicant, daemon_client }`
-2. **Struct:** `hkask_mcp::mcp_server!` macro generates the struct with `webid`, `replicant`, `daemon` fields plus domain fields
+1. **Bootstrap:** `hkask_mcp::bootstrap_mcp_server(name, target, host_env_var)` → returns `MCPBootstrap { userpod, daemon_client }`
+2. **Struct:** `hkask_mcp::mcp_server!` macro generates the struct with `webid`, `userpod`, `daemon` fields plus domain fields
 3. **Tool dispatch:** `execute_tool_semantic(self, tool_name, ontology, async { ... })` wraps each tool with CNS span + daemon outcome recording
 4. **Tool router:** `#[tool_handler(router = Self::...router())]` on the `ServerHandler` impl
 5. **Error type:** `McpToolError` for tool-level errors, domain `Error` enums (via `thiserror`) for computation errors

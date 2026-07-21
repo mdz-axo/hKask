@@ -255,7 +255,7 @@ The `CnsSpan` enum at `crates/hkask-types/src/cns.rs:111` defines the core span 
 
 The `SpanKind` enum at `event.rs:523` provides typed construction for common spans, eliminating string typos: `ToolInvoked`, `ToolCompleted`, `GasReserved`, `GasSettled`, `GasDepleted`, `CurationDirectiveAcknowledged`, `CurationEscalation`, `AgentPodRegistered`, `AgentPodActivated`, `VarietyAlgedonicAlert`, and the v0.31.0 regulation spans (`ImpactVerified`, `ActionSubstituted`, `ActionBlocked`, `RegulatoryPlateauDetected`, `LoopQualityTelemetry`).
 
-Beyond `CnsSpan`, the `CANONICAL_NAMESPACES` array registers 139 namespace strings spanning architecture seams, chat, CI, classification, condenser, consent, consolidation, contracts, curation, cybernetics, deploy, federation (14 spans), gas, guard, healing, inference, kata, MCP media, memory, multi-agent, platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), QA (4 spans), regulation, replicant, semantic, skills, SLOs, sovereignty (5 spans), specs, storage, tools, variety, and wallet (10 sub-spans).
+Beyond `CnsSpan`, the `CANONICAL_NAMESPACES` array registers 139 namespace strings spanning architecture seams, chat, CI, classification, condenser, consent, consolidation, contracts, curation, cybernetics, deploy, federation (14 spans), gas, guard, healing, inference, kata, MCP media, memory, multi-agent, platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), QA (4 spans), regulation, userpod, semantic, skills, SLOs, sovereignty (5 spans), specs, storage, tools, variety, and wallet (10 sub-spans).
 
 #### How ν-Events Feed the CNS Homeostatic Loop
 
@@ -549,7 +549,7 @@ sequenceDiagram
     rect rgb(245, 248, 252)
         Note over Tool,Epi: Phase 1 — Tool Call Experience → Episodic Store
 
-        Tool->>+Daemon: store_experience(replicant, entity, attribute, value, confidence)
+        Tool->>+Daemon: store_experience(userpod, entity, attribute, value, confidence)
         Note over Tool: e.g., "moat_check"<br/>outcome="success"<br/>confidence=0.85
         Daemon->>+Epi: record_experience() → store(h_mem)
         Note over Epi: access.visibility = Private<br/>access.perspective = Some(agent_webid)

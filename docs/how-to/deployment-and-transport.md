@@ -694,7 +694,7 @@ flowchart TD
     Y -->|No| T
     
     subgraph "Matrix Onboarding (tokio::spawn)"
-        M1[Register human Matrix account] --> M2[Register replicant Matrix account]
+        M1[Register human Matrix account] --> M2[Register userpod Matrix account]
         M2 --> M3{Accounts created?}
         M3 -->|Yes| M4[Ensure chat room exists]
         M4 --> M5[Invite users to room]
@@ -753,7 +753,7 @@ stateDiagram-v2
     Revoked --> [*]
     
     note left of Pending: Stored in invites table\ncode is 12-char UUID prefix\nCreated by admin's user_id
-    note right of Accepted: accepted_at + accepted_user_id set\nOccurs during OAuth callback\nafter user/replicant creation
+    note right of Accepted: accepted_at + accepted_user_id set\nOccurs during OAuth callback\nafter user/userpod creation
     note left of Expired: expires_at < now\nlookup_invite() returns None\nNo explicit status update needed
 ```
 <!-- DIAGRAM_ALIGNMENT
@@ -767,7 +767,7 @@ status: VERIFIED
 
 | State | Trigger | DB Fields Set | Reversible? |
 |-------|---------|--------------|-------------|
-| **Pending** | `POST /api/v1/admin/invite` or `kask replicant invite` | `invite_id`, `created_by`, `code`, `status='pending'`, `created_at`, `expires_at` | No (only Accepted or Expired) |
+| **Pending** | `POST /api/v1/admin/invite` or `kask userpod invite` | `invite_id`, `created_by`, `code`, `status='pending'`, `created_at`, `expires_at` | No (only Accepted or Expired) |
 | **Accepted** | OAuth callback after invite validation | `status='accepted'`, `accepted_at`, `accepted_user_id` | No (terminal) |
 | **Expired** | 7 days after creation (checked on lookup) | None (implicit — `lookup_invite` checks `expires_at > now`) | No (terminal) |
 

@@ -119,7 +119,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasB
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
 - **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `CnsRuntime::calibrate_threshold()`.
-- **94 canonical CNS span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (replicant memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `CnsSpan` enum in `crates/hkask-types/src/cns.rs` for the authoritative registry.
+- **94 canonical CNS span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `CnsSpan` enum in `crates/hkask-types/src/cns.rs` for the authoritative registry.
 - **Good Regulator contract enforced.** CNS variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 - **Regulation is policy-driven.** `RegulationPolicy` consolidates `(metric, deviation) → (actions, thresholds)` into a pure-data type. Each `RegulationRule` defines a substitution ladder, stage/block thresholds, and stagnation detection — replacing the former scattered `classify_decision` and `default_substitution_ladder` free functions.
 - **Sensor providers are pluggable (Fermi Extractor pattern).** `SensorProvider` trait decouples metric sensing from the regulation loop. `SensorRegistry` holds providers; `CyberneticsLoop::sense()` walks them. Current providers: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`.
@@ -149,7 +149,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasB
 
 **Key properties:**
 - **Singleton invariant.** Exactly one `CuratorAgent` per system (VSM S4 — Intelligence). Multiple Curators would produce conflicting assessments.
-- **Dual-presence in CLI/REPL.** Human replicant + Curator daemon co-present in the interaction loop. User speaks; Curator observes, surfaces CNS alerts, provides memory summaries.
+- **Dual-presence in CLI/REPL.** Human userpod + Curator daemon co-present in the interaction loop. User speaks; Curator observes, surfaces CNS alerts, provides memory summaries.
 - **Curator never bypasses OCAP.** Can recommend actions, cannot execute without capability tokens. No `sudo`.
 - **Template-driven metacognition (P3).** `MetacognitionLoop::compute_with_templates()` invokes `curator/metacognition-diagnose.j2` via `ManifestExecutor::execute_knowact()`. The LLM produces a `diagnosis` + `remediation_plan` with calibrated actions (`adjust_budget`, `restart`, `rebalance`, `calibrate`, `escalate`). Falls back to Rust threshold logic (`compute_with_thresholds()`) when no `ManifestExecutor` is configured (standalone CLI). Circuit breaker: 3 consecutive failures → skip template for 5 cycles.
 - **CAT communication posture.** `MetacognitionLoop` evaluates Matrix messages through `cat::evaluate()` — a pure-function engagement gate based on Communication Accommodation Theory. Before the gate, `condenser/condenser_score_saliency` scores message relevance via ontology graph proximity (P5.4): persona (charter-anchored), episodic memory (PKO process domain), or semantic memory (DC+BIBO document domain). The score modulates `convergence_bias` — domain-relevant messages pull the agent toward stronger engagement.
@@ -168,7 +168,7 @@ Sensor (MCP dispatch, CNS spans) → Model (VarietyTracker, ν-event store, GasB
 
 <!-- Content provenance: absorbed from docs/architecture/reference/hKask-Curator-persona.md during 2026-06-24 consolidation -->
 
-The Curator is a **daemon**, not a replicant — always running, hosts daemon-level operations, responds in <3s latency target. Persona traits:
+The Curator is a **daemon**, not a userpod — always running, hosts daemon-level operations, responds in <3s latency target. Persona traits:
 
 | Trait | Standard |
 |-------|----------|
@@ -254,7 +254,7 @@ hKask extends the Solid Pod isomorphism into three pod tiers:
 |------|-----------|----------|-------|-------------------|
 | **CuratorPod** | `Curator` | `agents/curator/pod.db` | System (singleton) | `SemanticIndex` owner — aggregates Public hMems from all pods |
 | **TeamPod** | `Team` | `agents/team.{name}/pod.db` | Shared bots | Bots share episodic storage; semantic published to Curator |
-| **ReplicantPod** | `Replicant` | `agents/replicant.{name}/pod.db` | Human+replicant pair | Episodic private; semantic published to Curator |
+| **ReplicantPod** | `Replicant` | `agents/userpod.{name}/pod.db` | Human+userpod pair | Episodic private; semantic published to Curator |
 
 **Startup order:** CuratorPod → TeamPods → ReplicantPods (on demand).
 **Data flow:** `store_semantic()` writes locally → CNS event `cns.semantic.published` → `CuratorSync` polling loop opens source pod read-only → inserts Public hMems into `SemanticIndex` with cursor tracking.
@@ -294,7 +294,7 @@ This file is the canonical source for the agent's identity, charter, capabilitie
 public/private directory declarations, and persona constraints.
 
 **Creation paths:**
-- **Onboarding (`register_replicant`):** Writes the full YAML during `kask chat` first run.
+- **Onboarding (`register_userpod`):** Writes the full YAML during `kask chat` first run.
   Stored as `source_yaml` in the `agent_registry` SQL table so the REPL can load
   `persona_constraints` and `process_manifest` without re-reading from disk.
 - **CLI registration (`agent_register`):** Writes YAML from WebID, agent type, and
@@ -306,7 +306,7 @@ public/private directory declarations, and persona constraints.
 ```yaml
 agent:
   name: "Jacques (Zuck)"
-  type: replicant
+  type: userpod
 charter:
   description: "A helpful AI assistant"
 capabilities:
@@ -402,7 +402,7 @@ CLOUD SERVER (single binary, all crates compiled)
   hkask-api - OAuth, WebSocket /terminal, backup endpoints
   hkask-services-runtime - daemon orchestration
   hkask-mcp - MCP server runtime
-  hkask-agents - bot/replicant lifecycle
+  hkask-agents - bot/userpod lifecycle
   hkask-cns - cybernetic nervous system
   hkask-codegraph - code understanding engine (tree-sitter, FTS5, recursive CTE, context assembly)
   hkask-wallet + hkask-memory - wallet and memory subsystems
@@ -657,7 +657,7 @@ The economic layer governs resource consumption across all surfaces.
 | **Gas** | Micro-subunit of rJoules. 1 rJ = 250,000 gas (`RJOULE_TO_GAS`). | gas |
 | **Wallet** | HD wallet derived from WebID via `hkask-wallet`. Holds rJoule balance. | rJ balance |
 | **Encumbrance** | rJoules reserved for an API key, locked against wallet balance during key activity. | rJ locked |
-| **Allocation** | rJoule budget assigned to an API key at issuance, drawn from funding replicant's wallet. | rJ |
+| **Allocation** | rJoule budget assigned to an API key at issuance, drawn from funding userpod's wallet. | rJ |
 
 ##### Dual-Track Cost Model (rJoule Cost System)
 
@@ -707,7 +707,7 @@ See `docs/status/gas-budget-system-status.md` for implementation status.
 Wells (`WellManager`) produce gas/rJoule on a regulated schedule. Wallets (`WalletManager`) store per-agent balances backed by SQLite. The supply chain: Well → Wallet → Agent spend.
 
 - **Well**: One default Well per installation. Auto-replenishes on each cybernetics tick. Admin-configured gas/rJoule rate. Exhaustion triggers algedonic alert with dampening.
-- **Wallet**: Auto-created on replicant startup. Draws initial balance from Well. Auto-draws from Well on low balance during spend (synchronous, no tick delay).
+- **Wallet**: Auto-created on userpod startup. Draws initial balance from Well. Auto-draws from Well on low balance during spend (synchronous, no tick delay).
 - **Priority chain**: WalletManager (SQLite gas) → WalletBackedBudget (rJoule/Hedera) → GasBudget (dimensionless fallback).
 
 See `docs/architecture/well-wallet-architecture.md` for full architecture.
@@ -963,7 +963,7 @@ agents/{name}/
 ├── .git/           ← one repo per pod, git init on first snapshot
 ├── pod.db          ← SQLCipher (all memory, hMems, embeddings, episodic, semantic)
 ├── pod.webid       ← sidecar
-├── pod.kind        ← sidecar (curator/team/replicant)
+├── pod.kind        ← sidecar (curator/team/userpod)
 ├── artifacts/      ← public content
 ├── sessions/       ← private content
 ├── gallery/        ← media
@@ -1005,12 +1005,12 @@ kask backup prune                       # retention cleanup
 
 ### Summary
 
-Kanban provides headless task coordination for agents and replicants. Boards contain columns with WIP limits (Anderson, 2010) and tasks flow through state transitions. Tasks are created unassigned; an agent claims an unassigned task using the authenticated MCP WebID. Three skills compose the workflow.
+Kanban provides headless task coordination for agents and userpods. Boards contain columns with WIP limits (Anderson, 2010) and tasks flow through state transitions. Tasks are created unassigned; an agent claims an unassigned task using the authenticated MCP WebID. Three skills compose the workflow.
 
 | Skill | Purpose | Steps | Manifest |
 |-------|---------|-------|----------|
 | **Kanban Task Decomposition** | Break projects into INVEST-compliant tasks with recomposition strategy | 4 | `registry/manifests/kanban-task-decomposition.yaml` |
-| **Kanban Task Delegation** | Spawn sub-replicants with OCAP capability packages | 2 | `registry/manifests/kanban-task-delegation.yaml` |
+| **Kanban Task Delegation** | Spawn sub-userpods with OCAP capability packages | 2 | `registry/manifests/kanban-task-delegation.yaml` |
 | **Kanban Task Management** | Monitor, coordinate, verify, de-jam | 6 | `registry/manifests/kanban-task-management.yaml` |
 
 ### Key Features
@@ -1295,10 +1295,10 @@ status: VERIFIED
 
 ### Startup Flow
 
-1. `kask login <replicant>` — authenticate (creates session in UserStore)
-2. `kask pod assign <replicant> <role>` — assign MCP role (P4 Gate 2: sovereignty/consent)
-3. `kask pod mode <replicant> server -r <role>` — enter server mode (P4 Gate 1: OCAP)
-4. IDE spawns MCP binary with `HKASK_MCP_HOST=<replicant>`
+1. `kask login <userpod>` — authenticate (creates session in UserStore)
+2. `kask pod assign <userpod> <role>` — assign MCP role (P4 Gate 2: sovereignty/consent)
+3. `kask pod mode <userpod> server -r <role>` — enter server mode (P4 Gate 1: OCAP)
+4. IDE spawns MCP binary with `HKASK_MCP_HOST=<userpod>`
 5. Binary connects to daemon → auth → assignment → capability → serve
 
 ### Memory Flow
@@ -1332,9 +1332,9 @@ Concurrent chat+server mode planned for future release (3-6 months).
 
 ### Summary
 
-hKask agents can present themselves in any ACP-compatible IDE (Zed, VS Code with extensions, JetBrains) via the `hkask-acp` replicant. ACP is an open standard (agentclientprotocol.com) for bidirectional agent↔editor communication — distinct from hKask's internal A2A (Agent-to-Agent) protocol used for inter-agent template dispatch.
+hKask agents can present themselves in any ACP-compatible IDE (Zed, VS Code with extensions, JetBrains) via the `hkask-acp` userpod. ACP is an open standard (agentclientprotocol.com) for bidirectional agent↔editor communication — distinct from hKask's internal A2A (Agent-to-Agent) protocol used for inter-agent template dispatch.
 
-The ACP replicant runs as a subprocess spawned by the IDE, communicating via JSON-RPC 2.0 over stdio. It connects to the same daemon socket as MCP servers (`~/.config/hkask/daemon.sock`) for authentication, capability verification, and memory encoding. Inference is routed through hKask's centralized `InferenceRouter`.
+The ACP userpod runs as a subprocess spawned by the IDE, communicating via JSON-RPC 2.0 over stdio. It connects to the same daemon socket as MCP servers (`~/.config/hkask/daemon.sock`) for authentication, capability verification, and memory encoding. Inference is routed through hKask's centralized `InferenceRouter`.
 
 ### Architecture
 
@@ -1390,7 +1390,7 @@ initialize → session/new → session/prompt → [streaming loop] → stop_reas
                                               └─ usage_update
 ```
 
-The replicant streams inference output as `session/update` notifications while the prompt is processing. The final response carries a structured `StopReason` (`end_turn`, `max_tokens`, `cancelled`).
+The userpod streams inference output as `session/update` notifications while the prompt is processing. The final response carries a structured `StopReason` (`end_turn`, `max_tokens`, `cancelled`).
 
 ### How It Reuses Existing Infrastructure
 
@@ -1401,13 +1401,13 @@ The replicant streams inference output as `session/update` notifications while t
 | Capability tokens | `verify_startup_gates()` → `A2ARuntime` (P4 Gate 2/3) |
 | Memory | `DaemonClient::store_experience()` → dual episodic/semantic encoding |
 | Inference | `InferenceRouter` (same provider dispatch as REPL) |
-| Observability | CNS spans: `cns.acp.bridge.latency`, `cns.acp.replicant.memory_size`, `cns.acp.ide.connection_state` |
-| Accountability | Every memory hMem carries the replicant's `WebID` as `owner` (P12) |
+| Observability | CNS spans: `cns.acp.bridge.latency`, `cns.acp.userpod.memory_size`, `cns.acp.ide.connection_state` |
+| Accountability | Every memory hMem carries the userpod's `WebID` as `owner` (P12) |
 
 ### Key Constraints
 
-1. **P2 Affirmative Consent:** The ACP replicant never initiates without user invocation. Sessions are created by the IDE (user action), not by the replicant.
-2. **1:1 session isolation:** One ACP replicant process = one IDE connection. Concurrent multi-IDE support is gated on usage data (P7 — Evolutionary Architecture).
+1. **P2 Affirmative Consent:** The ACP userpod never initiates without user invocation. Sessions are created by the IDE (user action), not by the userpod.
+2. **1:1 session isolation:** One ACP userpod process = one IDE connection. Concurrent multi-IDE support is gated on usage data (P7 — Evolutionary Architecture).
 3. **Surface-independent identity:** An agent registered in hKask uses the same `WebID`, capability tokens, and memory store whether it's accessed via REPL (`kask chat`), ACP (IDE), or MCP (tools).
 
 ---
@@ -1539,7 +1539,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | ADR | Topic |
 |-----|-------|
 | [`ADRs/ADR-031-consolidation-authorization.md`](../ADRs/ADR-031-consolidation-authorization.md) | Consolidation authorization via master passphrase derivation |
-| [`ADRs/ADR-035-replicant-server-mode.md`](../ADRs/ADR-035-replicant-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
+| [`ADRs/ADR-035-userpod-server-mode.md`](../ADRs/ADR-035-userpod-server-mode.md) | Replicant server mode — AgentMode (Chat/Server), daemon socket transport, dual memory encoding, narrative generation |
 | [`ADRs/ADR-036-gix-migration.md`](../ADRs/ADR-036-gix-migration.md) | Migration to gix (pure-Rust git) for CAS-backed content-addressed agent storage |
 | [`ADRs/ADR-037-blake3-content-addressing.md`](../ADRs/ADR-037-blake3-content-addressing.md) | blake3 content addressing for agent artifacts |
 | [`ADRs/ADR-041-dynamic-model-discovery.md`](../ADRs/ADR-041-dynamic-model-discovery.md) | Dynamic model discovery via inference provider catalog |
@@ -1592,7 +1592,7 @@ docs/architecture/
 ├── ADRs/
 │   ├── _TEMPLATE.md                            # ADR template
 │   ├── ADR-031-consolidation-authorization.md  # Active
-│   ├── ADR-035-replicant-server-mode.md        # Active
+│   ├── ADR-035-userpod-server-mode.md        # Active
 │   ├── ADR-036-gix-migration.md                # Active
 │   ├── ADR-037-blake3-content-addressing.md    # Active
 │   ├── ADR-041-dynamic-model-discovery.md      # Active
@@ -2075,26 +2075,26 @@ Matrix E2EE involves four key types. Here is who manages each:
 
 ### 2.3 Identity Binding: How the Human Knows They're Talking to THEIR Replicant
 
-**The user has already completed hKask onboarding before installing FluffyChat.** They have a replicant identified by a **full name** (first and last, e.g., "Alice-Smith") and a **passphrase**. The replicant credential is the compound string `FirstName-LastName/Passphrase` (or `FirstName-LastName-Passphrase` — the separator `-` or `/` is configurable per install).
+**The user has already completed hKask onboarding before installing FluffyChat.** They have a userpod identified by a **full name** (first and last, e.g., "Alice-Smith") and a **passphrase**. The userpod credential is the compound string `FirstName-LastName/Passphrase` (or `FirstName-LastName-Passphrase` — the separator `-` or `/` is configurable per install).
 
-**No AI assistance during authentication.** This is a **Prohibition-level constraint**. The credential check is a direct, local string comparison — no LLM involvement, no Curator mediation, no "smart" fuzzy matching. The human must recognize their replicant's exact full name. The system must match the exact credential string. AI assistance at this step would undermine the security anchor: the human's personal knowledge of their own replicant identity.
+**No AI assistance during authentication.** This is a **Prohibition-level constraint**. The credential check is a direct, local string comparison — no LLM involvement, no Curator mediation, no "smart" fuzzy matching. The human must recognize their userpod's exact full name. The system must match the exact credential string. AI assistance at this step would undermine the security anchor: the human's personal knowledge of their own userpod identity.
 
 **Future authentication paths (out of scope for v1):** Google ID and GitHub ID OAuth login could replace the name/passphrase system, allowing users to authenticate with existing identity providers. This would eliminate the need to memorize a separate passphrase. But it adds OAuth infrastructure, token management, and provider dependency — unnecessary complexity for the initial integration.
 
-**The question:** when the human opens FluffyChat and sees `@alice-smith:example.com`, how do they know that Matrix account is THEIR replicant and not an impersonator?
+**The question:** when the human opens FluffyChat and sees `@alice-smith:example.com`, how do they know that Matrix account is THEIR userpod and not an impersonator?
 
 **The binding has two layers, both verifiable by the human without AI assistance:**
 
 | Layer | What It Proves | How the Human Verifies |
 |-------|---------------|----------------------|
-| **Exact name match** | `@alice-smith:example.com` IS the replicant "Alice-Smith" | Human recognizes their replicant's exact full name from onboarding. The Matrix user ID is the replicant's first-last name, lowercased, verbatim. No fuzzy matching. No AI suggestion. The human looks at the name and knows it. |
+| **Exact name match** | `@alice-smith:example.com` IS the userpod "Alice-Smith" | Human recognizes their userpod's exact full name from onboarding. The Matrix user ID is the userpod's first-last name, lowercased, verbatim. No fuzzy matching. No AI suggestion. The human looks at the name and knows it. |
 | **SAS verification** | The device behind `@alice-smith:example.com` controls the private key for that account | Human scans QR code (or compares emoji). FluffyChat cryptographically verifies the device key. No AI involvement — this is standard Matrix protocol cryptography. |
 
-**Together, these prove:** "The Matrix account @alice-smith:example.com is controlled by a device whose key I have cryptographically verified, and the name exactly matches my replicant Alice-Smith. Therefore, this is my replicant."
+**Together, these prove:** "The Matrix account @alice-smith:example.com is controlled by a device whose key I have cryptographically verified, and the name exactly matches my userpod Alice-Smith. Therefore, this is my userpod."
 
-**The credential gates registration.** `kask matrix register --agent Alice-Smith` prompts for the full credential string `Alice-Smith/Passphrase`. hKask verifies it locally against the replicant's stored credential — a direct string comparison, no AI. This ensures only someone who already knows the full credential can bind that replicant name to a Matrix identity.
+**The credential gates registration.** `kask matrix register --agent Alice-Smith` prompts for the full credential string `Alice-Smith/Passphrase`. hKask verifies it locally against the userpod's stored credential — a direct string comparison, no AI. This ensures only someone who already knows the full credential can bind that userpod name to a Matrix identity.
 
-**Matrix User ID derivation.** The replicant's full name is transformed into a Matrix MXID (`@localpart:example.com`) using these rules:
+**Matrix User ID derivation.** The userpod's full name is transformed into a Matrix MXID (`@localpart:example.com`) using these rules:
 
 1. Lowercase the full name (e.g., "Alice-Smith" → "alice-smith")
 2. Replace spaces with hyphens (e.g., "Alice Smith" → "alice-smith")
@@ -2115,7 +2115,7 @@ This resolves Gap B2 (MXID format specification) from §12.8.
 
 | Attack | Feasible? | Mitigation |
 |--------|-----------|------------|
-| **Admin registers wrong name** (e.g., registers "Alice-Smith" but human's replicant is "Bob-Jones") | Yes — admin controls the server | Human sees wrong name in FluffyChat → doesn't recognize it → doesn't scan QR. Exact name mismatch is self-evident. No AI can talk the human out of recognizing their own replicant's name. |
+| **Admin registers wrong name** (e.g., registers "Alice-Smith" but human's userpod is "Bob-Jones") | Yes — admin controls the server | Human sees wrong name in FluffyChat → doesn't recognize it → doesn't scan QR. Exact name mismatch is self-evident. No AI can talk the human out of recognizing their own userpod's name. |
 | **Another Matrix user registers `@alice-smith:example.com` before the admin does** | Yes — if open registration is enabled | Admin registers the agent BEFORE enabling open registration. Or: keep registration closed, use `kask matrix register --agent` (admin API, no race). |
 | **Malicious homeserver strips E2EE** | Yes — Conduit could serve unencrypted messages | FluffyChat rejects unencrypted messages in encrypted rooms. The agent's SDK does the same. E2EE is enforced client-side. |
 | **Impersonator creates `@alice-smith:matrix.org` on a different homeserver** | Yes — but different domain | Human connects to `matrix.example.com`, not `matrix.org`. The full MXID is `@alice-smith:example.com`. Different domain = different user. FluffyChat shows the full MXID. |
@@ -2194,13 +2194,13 @@ This resolves Gap B2 (MXID format specification) from §12.8.
    → Or keep registration closed from the start and use: kask matrix register --user Bob-Jones
      (hKask creates the account via Conduit's admin API using the stored admin token)
 
-4. Admin registers the hKask agent (requires full replicant credential):
+4. Admin registers the hKask agent (requires full userpod credential):
    kask matrix register --agent Alice-Smith
-   → Prompts: "Enter credential for replicant 'Alice-Smith':"
+   → Prompts: "Enter credential for userpod 'Alice-Smith':"
    → Admin enters: Alice-Smith/Passphrase (or Alice-Smith-Passphrase)
    → hKask verifies credential locally — direct string comparison, no AI
    → hKask registers @alice-smith:example.com on Conduit
-   → hKask sets Matrix display name to "Alice-Smith (hKask replicant)"
+   → hKask sets Matrix display name to "Alice-Smith (hKask userpod)"
    → hKask prints a labeled QR code:
      ┌──────────────────────────────────────────────┐
      │  Replicant: Alice-Smith                       │
@@ -2236,11 +2236,11 @@ This resolves Gap B2 (MXID format specification) from §12.8.
    → Tap "Create Account" → choose username (e.g., @bob-jones:example.com) and password
    → (If admin used kask matrix register --user Bob-Jones instead, human enters those credentials)
 
-3. Human finds their replicant:
+3. Human finds their userpod:
    → Search for @alice-smith:example.com
-   → Sees display name: "Alice-Smith (hKask replicant)"
-   → Human recognizes "Alice-Smith" as their replicant's exact full name from onboarding
-   → No AI suggestion, no fuzzy matching — the human knows their own replicant's name
+   → Sees display name: "Alice-Smith (hKask userpod)"
+   → Human recognizes "Alice-Smith" as their userpod's exact full name from onboarding
+   → No AI suggestion, no fuzzy matching — the human knows their own userpod's name
    → Starts DM
 
 4. FluffyChat prompts: "Verify device @alice-smith:example.com?"
@@ -2656,9 +2656,9 @@ All of this is complexity hKask doesn't need to own. The sidecar approach keeps 
 
 Agents fall back to the daemon socket for local communication. Cross-installation messages queue in the MCP server's outbox (persisted to SQLCipher) and are delivered when the homeserver returns. The Curator receives a `cns.communication.matrix.unavailable` alert and can inform the user. This is graceful degradation, not catastrophic failure.
 
-**Q8:** P12 (Replicant Host Mandate) is a Prohibition: "every action has an author." How does a Matrix message from an external human map to a host replicant?
+**Q8:** P12 (Replicant Host Mandate) is a Prohibition: "every action has an author." How does a Matrix message from an external human map to a host userpod?
 
-The human is authenticated as their own replicant on their own hKask install. When they send a Matrix message, their `hkask-mcp-communication` server attaches their WebID in the message's structured payload. The receiving hKask install verifies the sender's WebID against the Matrix user ID. If the human doesn't have a replicant (they're using vanilla FluffyChat without a hKask install), the message is attributed to an "external" pseudo-replicant with limited OCAP scope. The Curator flags unverified senders.
+The human is authenticated as their own userpod on their own hKask install. When they send a Matrix message, their `hkask-mcp-communication` server attaches their WebID in the message's structured payload. The receiving hKask install verifies the sender's WebID against the Matrix user ID. If the human doesn't have a userpod (they're using vanilla FluffyChat without a hKask install), the message is attributed to an "external" pseudo-userpod with limited OCAP scope. The Curator flags unverified senders.
 
 ⚠️ Partial — correctly identifies the mapping problem but doesn't address the bootstrapping trust issue: how does the receiving install know that `@bob:example.com` is the same entity as `webid:bob.hkask.local`? This requires out-of-band verification (SAS or QR) on first contact.
 
@@ -2903,7 +2903,7 @@ matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite-cryptostor
 | **P3 — Generative Space** | ✅ | Matrix enables cross-installation agent communication and human-to-agent interaction from mobile devices — expands the space of possible agent behaviors |
 | **P4 — Clear Boundaries (OCAP)** | ✅ | Matrix transport is OCAP-gated; agents need `communication:send` and `communication:receive` capabilities; Conduit is outside the OCAP boundary |
 | **P5 — Essentialism** | ✅ | ~750 lines replacing 303 lines of stubs; no embedded homeserver; two-function transport interface; Docker sidecar not library dependency |
-| **P6 — Space for Replicants & Bots** | ✅ | Matrix enables replicants to communicate with humans on mobile (H2A) and bots to communicate across installs (A2A) |
+| **P6 — Space for Replicants & Bots** | ✅ | Matrix enables userpods to communicate with humans on mobile (H2A) and bots to communicate across installs (A2A) |
 | **P7 — Evolutionary Architecture** | ✅ | Docker sidecar + SDK integration allows Matrix integration to evolve independently of hKask core; Conduit upgrades are `docker pull`, not `cargo update` |
 | **P8 — Semantic Grounding** | ✅ | Every Matrix message produces a ν-event with provenance (sender WebID, timestamp, room context); ν-events are canonical |
 | **P9 — Homeostatic Self-Regulation** | ✅ | `cns.communication.matrix.*` spans feed into Cybernetics Loop; sync health monitored; backpressure on message volume; sidecar health checked |
@@ -2916,7 +2916,7 @@ matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite-cryptostor
 
 ## 10. Open Questions (Subjunctive — What-If)
 
-1. **Bootstrapping trust (RESOLVED):** Identity binding uses two verifiable layers: name match (Matrix user ID = replicant name, human recognizes it from onboarding) + SAS verification (cryptographic proof of device key ownership). The passphrase gates agent registration. See §2.3 for full threat model.
+1. **Bootstrapping trust (RESOLVED):** Identity binding uses two verifiable layers: name match (Matrix user ID = userpod name, human recognizes it from onboarding) + SAS verification (cryptographic proof of device key ownership). The passphrase gates agent registration. See §2.3 for full threat model.
 
 2. **Multi-agent rooms:** If multiple hKask agents are in the same Matrix room, who responds to which messages? Does the Curator route based on `@mention` tags? Does each agent have its own inbox filtered by room? **Recommendation:** Agents only respond to `@mention` tags directed at them. Unaddressed messages are logged to episodic memory but do not trigger activation.
 
@@ -3284,7 +3284,7 @@ matrix.example.com {
 
 Caddy auto-handles TLS, `/.well-known` delegation, and reverse proxying in a single ~20 MB container. This eliminates the TLS configuration barrier entirely.
 
-**B2 — Matrix User ID Format Specification.** The spec says the MXID is `@alice-smith:example.com` but doesn't specify the transformation rules. Matrix MXIDs allow only lowercase letters, digits, and `-._=`. The replicant name "Alice-Smith" must be lowercased. But what about names with spaces? Unicode characters? Apostrophes?
+**B2 — Matrix User ID Format Specification.** The spec says the MXID is `@alice-smith:example.com` but doesn't specify the transformation rules. Matrix MXIDs allow only lowercase letters, digits, and `-._=`. The userpod name "Alice-Smith" must be lowercased. But what about names with spaces? Unicode characters? Apostrophes?
 
 **Recommendation:** Specify the transformation: (a) Lowercase the full name. (b) Replace spaces with hyphens. (c) Strip any character not in `[a-z0-9-._=]`. (d) If the result is empty or conflicts with an existing MXID, append a numeric suffix (`-2`, `-3`). (e) Validate that the result is ≤ 255 characters (Matrix limit).
 
@@ -3569,7 +3569,7 @@ The 7R7 Listener emits `cns.communication.message.observed` spans for every mess
 ```
 
 - **Well**: Admin-configured gas/rJoule source. Auto-replenishes on schedule. One default Well per installation. [OUGHT: future — crypto → gas/rJoule conversion; then Hedera HTS token]
-- **Wallet**: Per-agent balance store. Created by Curator on replicant registration. Agent's own property.
+- **Wallet**: Per-agent balance store. Created by Curator on userpod registration. Agent's own property.
 - **Auto-draw**: When `WalletBackedBudget` is low, automatically draws from the default Well. Closes the cybernetic feedback loop.
 - **Curator**: Creates wallets, monitors balances, reports to admin. Has unlimited gas with admin-configured efficiency limits.
 - **Human Administrator**: Configures Wells, sets Curator policy, is the S5* observer-of-observer.
@@ -3643,7 +3643,7 @@ CREATE TABLE agent_wallets (
 ```rust
 #[async_trait]
 trait WalletManager {
-    /// Create wallet for new replicant. Called by Curator daemon.
+    /// Create wallet for new userpod. Called by Curator daemon.
     /// CNS span: cns.wallet.created
     #[must_use]
     async fn create_wallet(&self, agent: WebID, initial_gas: GasCost, initial_rjoule: u64)
@@ -3678,8 +3678,8 @@ This replaces the current silent block with a closed cybernetic loop: exhaustion
 ### 3.4 Wallet Creation Flow
 
 ```
-1. AgentService registers new replicant
-2. CNS span fires: cns.replicant.registered  [NEW — must be added to CNS registry]
+1. AgentService registers new userpod
+2. CNS span fires: cns.userpod.registered  [NEW — must be added to CNS registry]
 3. Curator daemon receives span
 4. Curator calls: WalletManager::create_wallet(agent, initial_gas, initial_rjoule)
 5. GasBudgetManager registers WalletBackedBudget for the agent
@@ -3720,7 +3720,7 @@ WalletSpend,         // cns.wallet.spend
 WalletExhausted,     // cns.wallet.exhausted → algedonic alert
 
 // Replicant lifecycle (must exist for wallet creation flow)
-ReplicantRegistered, // cns.replicant.registered → triggers wallet creation
+ReplicantRegistered, // cns.userpod.registered → triggers wallet creation
 
 // Curator efficiency
 CuratorEfficiencyExceeded,  // cns.curator.efficiency.exceeded
@@ -4463,7 +4463,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 # Storage Schema ERD
 
-Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, replicant_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/CNS** (nu_events, cns_alerts, cns_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (agent_registry, specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
+Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/CNS** (nu_events, cns_alerts, cns_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (agent_registry, specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
 
 ```mermaid
 erDiagram
@@ -4483,10 +4483,10 @@ erDiagram
         TEXT oauth_display_name
     }
 
-    replicant_identities {
-        TEXT replicant_name PK
+    userpod_identities {
+        TEXT userpod_name PK
         TEXT user_id FK
-        TEXT replicant_webid UK
+        TEXT userpod_webid UK
         TEXT wallet_id
         BLOB first_name_enc
         BLOB last_name_enc
@@ -4498,8 +4498,8 @@ erDiagram
 
     user_sessions {
         TEXT session_id PK
-        TEXT replicant_name FK
-        TEXT replicant_webid
+        TEXT userpod_name FK
+        TEXT userpod_webid
         TEXT user_id FK
         TEXT session_key_salt
         INTEGER expires_at
@@ -4857,9 +4857,9 @@ erDiagram
     }
 
     %% ── Identity/Users relationships ──
-    human_users ||--o{ replicant_identities : "user_id FK"
+    human_users ||--o{ userpod_identities : "user_id FK"
     human_users ||--o{ user_sessions : "user_id FK"
-    replicant_identities ||--o{ user_sessions : "replicant_name FK"
+    userpod_identities ||--o{ user_sessions : "userpod_name FK"
     human_users ||--o{ invites : "created_by FK"
     human_users ||--o| invites : "accepted_user_id FK"
 
@@ -4890,10 +4890,10 @@ erDiagram
 
 | Table | Index Name | Columns | Notes |
 |-------|-----------|---------|-------|
-| `replicant_identities` | `idx_replicant_identities_user` | `user_id` | Lookup by human user |
-| `replicant_identities` | `idx_replicant_identities_webid` | `replicant_webid` | Lookup by WebID |
+| `userpod_identities` | `idx_userpod_identities_user` | `user_id` | Lookup by human user |
+| `userpod_identities` | `idx_userpod_identities_webid` | `userpod_webid` | Lookup by WebID |
 | `user_sessions` | `idx_user_sessions_user` | `user_id` | Session lookup by user |
-| `user_sessions` | `idx_user_sessions_replicant` | `replicant_name` | Session lookup by replicant |
+| `user_sessions` | `idx_user_sessions_userpod` | `userpod_name` | Session lookup by userpod |
 | `user_sessions` | `idx_user_sessions_expiry` | `expires_at` | Expired session cleanup |
 | `invites` | `idx_invites_code` | `code` | Invite code lookup |
 | `invites` | `idx_invites_created_by` | `created_by` | Invites by creator |
@@ -4930,7 +4930,7 @@ erDiagram
 
 This diagram models the storage layer for all [MDS Core Entities](MDS.md#11-core-entities):
 - **`HumanUser`** → `human_users` table
-- **`Replicant`** → `replicant_identities` table
+- **`Replicant`** → `userpod_identities` table
 - **`AgentDefinition` / `RegisteredAgent`** → `agent_registry` table
 - **`Wallet`** → `wallet_balances`, `wallet_transactions`, `encumbrances`, `deposit_addresses`, `deposit_references`
 - **`ApiKey`** → `api_keys` table
@@ -4964,10 +4964,10 @@ erDiagram
         TEXT oauth_display_name
     }
 
-    replicant_identities {
-        TEXT replicant_name PK
+    userpod_identities {
+        TEXT userpod_name PK
         TEXT user_id FK
-        TEXT replicant_webid UK
+        TEXT userpod_webid UK
         TEXT wallet_id
         BLOB first_name_enc
         BLOB last_name_enc
@@ -4979,8 +4979,8 @@ erDiagram
 
     user_sessions {
         TEXT session_id PK
-        TEXT replicant_name FK
-        TEXT replicant_webid
+        TEXT userpod_name FK
+        TEXT userpod_webid
         TEXT user_id FK
         TEXT session_key_salt
         INTEGER expires_at
@@ -5219,10 +5219,10 @@ erDiagram
         TEXT value
     }
 
-    human_users ||--o{ replicant_identities : "user_id"
+    human_users ||--o{ userpod_identities : "user_id"
     human_users ||--o{ user_sessions : "user_id"
     human_users ||--o{ invites : "created_by / accepted_user_id"
-    replicant_identities ||--o{ user_sessions : "replicant_name"
+    userpod_identities ||--o{ user_sessions : "userpod_name"
     goals ||--o{ goal_criteria : "goal_id"
     goals ||--o{ goal_artifacts : "goal_id"
     wallet_balances ||--o{ wallet_transactions : "wallet_id"
@@ -5258,7 +5258,7 @@ status: VERIFIED
 | `quarantined_goals` | `hkask-storage` | `src/goals.rs` |
 | `loop_cursors` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `human_users` | `hkask-storage-core` | `src/sql/users.sql` |
-| `replicant_identities` | `hkask-storage-core` | `src/sql/users.sql` |
+| `userpod_identities` | `hkask-storage-core` | `src/sql/users.sql` |
 | `user_sessions` | `hkask-storage-core` | `src/sql/users.sql` |
 | `invites` | `hkask-storage-core` | `src/sql/users.sql` |
 | `wallet_balances` | `hkask-storage` | `src/wallet/mod.rs` |
@@ -5274,10 +5274,10 @@ status: VERIFIED
 
 | Relationship | Cardinality | On |
 |-------------|-------------|-----|
-| `human_users` → `replicant_identities` | 1:N | `user_id` |
+| `human_users` → `userpod_identities` | 1:N | `user_id` |
 | `human_users` → `user_sessions` | 1:N | `user_id` |
 | `human_users` → `invites` | 1:N | `created_by`, `accepted_user_id` |
-| `replicant_identities` → `user_sessions` | 1:N | `replicant_name` |
+| `userpod_identities` → `user_sessions` | 1:N | `userpod_name` |
 | `goals` → `goal_criteria` | 1:N | `goal_id` |
 | `goals` → `goal_artifacts` | 1:N | `goal_id` |
 | `wallet_balances` → `wallet_transactions` | 1:N | `wallet_id` |
@@ -5300,11 +5300,11 @@ Entity-relationship diagram for hKask's multi-user schema (`crates/hkask-storage
 
 ```mermaid
 erDiagram
-    human_users ||--o{ replicant_identities : "user_id"
+    human_users ||--o{ userpod_identities : "user_id"
     human_users ||--o{ user_sessions : "user_id"
     human_users ||--o{ invites : "created_by"
     human_users ||--o{ invites : "accepted_user_id"
-    replicant_identities ||--o{ user_sessions : "replicant_name"
+    userpod_identities ||--o{ user_sessions : "userpod_name"
 
     human_users {
         TEXT user_id PK "UUID"
@@ -5322,10 +5322,10 @@ erDiagram
         TEXT oauth_display_name "Nullable: display name from provider"
     }
 
-    replicant_identities {
-        TEXT replicant_name PK "Human-readable name"
+    userpod_identities {
+        TEXT userpod_name PK "Human-readable name"
         TEXT user_id FK "References human_users"
-        TEXT replicant_webid UK "WebID URI"
+        TEXT userpod_webid UK "WebID URI"
         TEXT wallet_id "Nullable: linked wallet"
         BLOB first_name_enc "Encrypted first name"
         BLOB last_name_enc "Encrypted last name"
@@ -5337,8 +5337,8 @@ erDiagram
 
     user_sessions {
         TEXT session_id PK "UUID"
-        TEXT replicant_name FK "References replicant_identities"
-        TEXT replicant_webid "WebID copy"
+        TEXT userpod_name FK "References userpod_identities"
+        TEXT userpod_webid "WebID copy"
         TEXT user_id FK "References human_users"
         TEXT session_key_salt "Key derivation salt"
         INTEGER expires_at "Unix timestamp"
@@ -5365,20 +5365,20 @@ status: VERIFIED
 
 ## Cardinality Notes
 
-- **human_users → replicant_identities:** One-to-many. A human can own multiple replicants.
-- **human_users → user_sessions:** One-to-many. A human can have multiple active sessions across replicants.
+- **human_users → userpod_identities:** One-to-many. A human can own multiple userpods.
+- **human_users → user_sessions:** One-to-many. A human can have multiple active sessions across userpods.
 - **human_users → invites (created_by):** One-to-many. An admin can issue many invites.
 - **human_users → invites (accepted_user_id):** One-to-many (nullable). A user can accept multiple invites (though normally one).
-- **replicant_identities → user_sessions:** One-to-many. A replicant can have multiple sessions.
+- **userpod_identities → user_sessions:** One-to-many. A userpod can have multiple sessions.
 
 ## Notable Indexes
 
 | Index | Table | Columns | Purpose |
 |-------|-------|---------|---------|
-| `idx_replicant_identities_user` | replicant_identities | user_id | Lookup replicants by human |
-| `idx_replicant_identities_webid` | replicant_identities | replicant_webid | Lookup by WebID |
+| `idx_userpod_identities_user` | userpod_identities | user_id | Lookup userpods by human |
+| `idx_userpod_identities_webid` | userpod_identities | userpod_webid | Lookup by WebID |
 | `idx_user_sessions_user` | user_sessions | user_id | Session listing by user |
-| `idx_user_sessions_replicant` | user_sessions | replicant_name | Session listing by replicant |
+| `idx_user_sessions_userpod` | user_sessions | userpod_name | Session listing by userpod |
 | `idx_user_sessions_expiry` | user_sessions | expires_at | Expired session cleanup |
 | `idx_invites_code` | invites | code | Invite lookup by code |
 | `idx_invites_created_by` | invites | created_by | Admin's invite listing |

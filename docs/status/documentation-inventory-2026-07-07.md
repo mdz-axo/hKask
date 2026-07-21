@@ -50,7 +50,7 @@ Documents that guide a user step-by-step from zero to a working outcome.
 | `docs/user-guides/kata-user-guide.md` | Tutorial | Mixed (Tutorial/Reference) | UNVERIFIED | 2026-07-05 | Active |
 | `docs/user-guides/skill-user-guide.md` | Tutorial | Tutorial | UNVERIFIED | 2026-07-02 | Active |
 
-**Gap:** No single end-to-end tutorial taking a new developer from zero to a working `kask` session. The onboarding walkthrough is the closest but targets replicant users, not developers.
+**Gap:** No single end-to-end tutorial taking a new developer from zero to a working `kask` session. The onboarding walkthrough is the closest but targets userpod users, not developers.
 
 ### 2.2 How-To Quadrant (14 documents)
 
@@ -115,7 +115,7 @@ Documents that provide background, context, and discuss design decisions.
 | `docs/architecture/matrix-integration-architecture.md` | Explanation | Explanation | UNVERIFIED | 2026-07-04 | Active |
 | `docs/architecture/well-wallet-architecture.md` | Explanation | Explanation | UNVERIFIED | 2026-07-04 | Active |
 | `docs/architecture/ADRs/ADR-031-consolidation-authorization.md` | Decision Record | Explanation | UNVERIFIED | 2026-06-17 | Active |
-| `docs/architecture/ADRs/ADR-035-replicant-server-mode.md` | Decision Record | Explanation | UNVERIFIED | 2026-06-17 | Active |
+| `docs/architecture/ADRs/ADR-035-userpod-server-mode.md` | Decision Record | Explanation | UNVERIFIED | 2026-06-17 | Active |
 | `OPEN_QUESTIONS.md` | Explanation | Explanation | DIRECT (verified against code changes) | 2026-06-20 | Active |
 | `docs/research/lazy-universe-research.md` | Research | Explanation | INFERRED | 2026-07-01 | ⚠️ Links to archived loop-architecture.md |
 | `docs/research/loyalty-without-lock-in.md` | Research | Explanation | UNVERIFIED | 2026-07-01 | Active |

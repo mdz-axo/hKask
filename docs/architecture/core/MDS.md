@@ -28,8 +28,7 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 |--------|-------|-------------|---------------|
 | `HumanUser` | `hkask-storage` | Human identity with WebID, role (Admin\|Member), OAuth provider link | P1 |
 | `Replicant` | `hkask-types` | Agent identity with persona, voice, wallet link | P6 |
-| `AgentDefinition` / `RegisteredAgent` | `hkask-types` | Canonical agent registry schema persisted by storage and loaded from YAML | P3 |
-| `AgentPod` | `hkask-agents` | Runtime container for a replicant (Inactive\|Active\|ServerMode) | P1 |
+| `AgentPod` | `hkask-agents` | Runtime container for a userpod (Inactive\|Active\|ServerMode) | P1 |
 | `Wallet` | `hkask-wallet` | rJoule balance, encumbrance, multi-chain deposits | P9 |
 | `ApiKey` | `hkask-wallet` | Scoped API key with spending limits and expiry | P1 |
 | `hMem` | `hkask-storage` | Entity-Attribute-Value knowledge representation, bitemporal | P3 |
@@ -537,7 +536,6 @@ All 9 fields are **private** and exposed through **20 public methods** grouped b
 | `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
 | `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
 | `CnsContext` | `cns` | `runtime` (CnsRuntime), `cybernetics` (CyberneticsLoop), `loops` (LoopSystem), `events` (NuEventSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
-| `StorageContext` | `storage` | `registry` (SqliteRegistry), `goals` (SqliteGoalRepository), `agents` (AgentRegistryStore), `users` (UserStore), `sovereignty` (SovereigntyBoundaryStore), `wallet` (WalletStore) |
 
 #### Public Methods (20)
 

@@ -36,7 +36,6 @@ The `hkask-ports` crate defines **17 trait contracts**, each guarding a distinct
 |---------|--------|
 | CNS regulation | `CircuitBreakerPort`, `CnsStoragePort`, `CnsObserver` |
 | Federation | `FederationTransport`, `FederationSyncPort`, `FederationDispatch` |
-| Storage and registry | `EmbeddingPort`, `RegistryPort`, `RegistryIndex`, `SkillRegistryIndex`, `GitCASPort` |
 | Inference and tools | `InferencePort`, `ToolPort` |
 | Governance and pipelines | `ConsentPort`, `EscalationPort`, `WalletBudgetPort`, `StepExecutor` |
 
@@ -159,7 +158,6 @@ The following nine traits are defined in `hkask-ports` but are not given full se
 | `StepExecutor` | `pipeline_runner.rs` | Pipeline step execution boundary for multi-step agent workflows. |
 | `SkillRegistryIndex` | `registry.rs` | Read-only skill registry access: `list_skills`, `get_skill_metadata`. Used by `SkillAuditor` and bundle composition. |
 | `RegistryIndex` | `registry.rs` | Read-only template registry access: `list_templates`, `get_template`. Used by the cascade resolver. |
-| `RegistryPort` | `registry_port.rs` | Full registry access (read + write): `insert_template`, `get_template`, `list_templates`. The mutable counterpart to `RegistryIndex`. |
 | `EscalationPort` | `escalation.rs` | Escalation queue access: `push_escalation`, `list_escalations`, `resolve_escalation`. Bridges CNS algedonic alerts to Curator action. |
 | `ConsentPort` | `consent_port.rs` | Consent store access: `check_consent`, `grant_consent`, `revoke_consent`. Enforces P1 sovereignty at the data-access boundary. |
 
@@ -476,7 +474,7 @@ The architectural metaphor is deliberate. P5.4 invokes Heisenberg: the more prec
 
 Before either axis engages, there is a simpler filter. P5.2 defines the 5W1H ontological core — **Who, What, When, Where, Why, How** — as the drop-dead-simple gate every artifact must pass. An artifact that answers none of these six questions is ontological noise. This is not abstract philosophy. It is operational:
 
-- **Who** — agent, replicant, bot (anchored by P12 replicant host mandate)
+- **Who** — agent, userpod, bot (anchored by P12 userpod host mandate)
 - **What** — entity, resource, data, state
 - **When** — time, sequence, duration, temporal scope
 - **Where** — pod boundary, namespace, domain
@@ -2144,18 +2142,18 @@ sequenceDiagram
     participant Daemon as DaemonClient
     participant Handler as DaemonHandler
 
-    Main->>+Gates: verify_startup_gates(client, replicant, role, tools)
+    Main->>+Gates: verify_startup_gates(client, userpod, role, tools)
 
-    Gates->>+Daemon: auth_query(replicant)
-    Daemon->>+Handler: check_auth(replicant)
+    Gates->>+Daemon: auth_query(userpod)
+    Daemon->>+Handler: check_auth(userpod)
     Handler-->>-Daemon: (authenticated, webid?)
     Daemon-->>-Gates: AuthResponse
     alt Not authenticated
         Gates-->>Main: McpError::Auth
     end
 
-    Gates->>+Daemon: assignment_query(replicant, role)
-    Daemon->>+Handler: check_assignment(replicant, role)
+    Gates->>+Daemon: assignment_query(userpod, role)
+    Daemon->>+Handler: check_assignment(userpod, role)
     Handler-->>-Daemon: bool
     Daemon-->>-Gates: AssignmentResponse
     alt Not assigned
@@ -2163,8 +2161,8 @@ sequenceDiagram
     end
 
     loop each required tool
-        Gates->>+Daemon: capability_query(replicant, tool)
-        Daemon->>+Handler: check_capability(replicant, tool)
+        Gates->>+Daemon: capability_query(userpod, tool)
+        Daemon->>+Handler: check_capability(userpod, tool)
         Handler-->>-Daemon: bool
         Daemon-->>-Gates: CapabilityResponse
         alt Denied

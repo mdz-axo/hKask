@@ -1,6 +1,6 @@
 ---
 title: "Skill Design Spec — runtime-posture-monitor"
-audience: [architects, replicants, security auditors]
+audience: [architects, userpods, security auditors]
 last_updated: 2026-07-18
 status: as-built
 version: 0.2.0
@@ -36,7 +36,7 @@ The `cns.runtime.*` namespaces are registered in `CANONICAL_NAMESPACES`
 
 | Question | Answer |
 |----------|--------|
-| **Who** | Running application / replicant host (P12 — `replicant_host` mandatory in every output) |
+| **Who** | Running application / userpod host (P12 — `userpod_host` mandatory in every output) |
 | **What** | API endpoint exposure / bot detection / LLM usage anomalies / runtime dependency behavior |
 | **Where** | Runtime environment / production workload (NOT workspace manifest — distinct from `supply-chain-sentinel`) |
 | **When** | Continuous (not audit cycle) — observes `hkask.*` performative spans as they are emitted |
@@ -51,7 +51,7 @@ The `cns.runtime.*` namespaces are registered in `CANONICAL_NAMESPACES`
 static code/templates/manifests. `supply-chain-sentinel` audits static
 dependency manifests. `adversarial-red-team` probes the LLM I/O boundary
 with synthetic attacks. None of them observe **runtime** behavior of a
-deployed replicant.
+deployed userpod.
 
 **Does this skill download external packages?** No. Reads only `hkask.*`
 performative spans already emitted by the running system (P4 runtime
@@ -159,7 +159,7 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
 - No synthetic runtime signals; only observe spans actually emitted by the
   running system.
 - No external package download; reads only local CNS telemetry (P4 boundary).
-- Every output includes `replicant_host` identity (P12).
+- Every output includes `userpod_host` identity (P12).
 - Registry (`manifest.yaml` + `.j2`) is authoritative over SKILL.md (P5.1).
 - `cns.runtime.*` namespaces MUST be registered before skill commit (P9
   integrity — same discipline as `supply-chain-sentinel`).

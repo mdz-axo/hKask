@@ -26,7 +26,7 @@ hKask's 11 MCP servers provide tool capabilities to agents. The original archite
 
 ## Decision
 
-**MCP servers are served by replicants operating in "server mode."** The MCP binary is a thin launcher that authenticates the serving replicant through a Unix domain socket daemon. The daemon mediates P4 dual-gate verification (OCAP capability + sovereignty/consent assignment) and dual memory encoding (episodic + semantic). Every 10 tool calls, the daemon triggers internal narrative generation via inference — the agent "thinks about" what it's observing.
+**MCP servers are served by userpods operating in "server mode."** The MCP binary is a thin launcher that authenticates the serving userpod through a Unix domain socket daemon. The daemon mediates P4 dual-gate verification (OCAP capability + sovereignty/consent assignment) and dual memory encoding (episodic + semantic). Every 10 tool calls, the daemon triggers internal narrative generation via inference — the agent "thinks about" what it's observing.
 
 ### Architecture
 
@@ -40,10 +40,10 @@ hKask's 11 MCP servers provide tool capabilities to agents. The original archite
 ### Startup Flow
 
 ```
-1. kask login <replicant>              → session in UserStore (P2: Affirmative Consent)
-2. kask pod assign <replicant> <role>  → assigned_mcp_roles populated (P4 Gate 2: sovereignty)
-3. kask pod mode <replicant> server -r <role> → enter_server_mode() (P4 Gate 1: OCAP)
-4. IDE spawns MCP binary with HKASK_MCP_HOST=<replicant>
+1. kask login <userpod>              → session in UserStore (P2: Affirmative Consent)
+2. kask pod assign <userpod> <role>  → assigned_mcp_roles populated (P4 Gate 2: sovereignty)
+3. kask pod mode <userpod> server -r <role> → enter_server_mode() (P4 Gate 1: OCAP)
+4. IDE spawns MCP binary with HKASK_MCP_HOST=<userpod>
 5. Binary → daemon: auth_query → assignment_query → capability_query
 6. All gates pass → MCP server starts
 7. Tool calls → record_experience() → daemon store_experience → dual encoding

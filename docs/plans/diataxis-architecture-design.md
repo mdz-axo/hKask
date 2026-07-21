@@ -74,7 +74,7 @@ Index of operational procedures. 20 how-to documents:
 | 14 | `run-kata-cycle.md` | Toyota Kata improvement cycle | Coach |
 | 15 | `design-a-skill.md` | PDCA FlowDef manifest, convergence threshold, gas budget | Skill Author |
 | 16 | `compose-skills.md` | Bundle multiple skills with cascade ordering | Skill Author |
-| 17 | `train-lora-adapter.md` | Fine-tune LoRA adapter for replicant persona | ML Engineer |
+| 17 | `train-lora-adapter.md` | Fine-tune LoRA adapter for userpod persona | ML Engineer |
 | 18 | `configure-guard.md` | Content safety guard with classification policy | Security Engineer |
 | 19 | `use-repl.md` | Interactive agent session with slash-command dispatch | User |
 | 20 | `use-tui.md` | Terminal UI workspace with multi-window agent interface | User |

@@ -85,21 +85,21 @@ OCAP (Object Capability) enforcement uses Ed25519-signed `DelegationToken` objec
 
 ```bash
 kask token list
-kask token list --replicant <replicant-name>
+kask token list --userpod <userpod-name>
 ```
 
 Output:
 
 ```
 curator — tool:*, inference:*, memory:read — 2026-06-15T10:30:00Z
-replicant-alice — tool:web_search, tool:condenser — 2026-06-20T14:22:00Z
+userpod-alice — tool:web_search, tool:condenser — 2026-06-20T14:22:00Z
 ```
 
 ### Issue a Token
 
 ```bash
 kask token issue \
-  --replicant my-replicant \
+  --userpod my-userpod \
   --capabilities "tool:web_search,tool:condenser,inference:*" \
   --ttl 24h
 ```
@@ -193,7 +193,7 @@ Agent pods (2):
   curator-primary (active)
     WebID: webid://curator
     Name:  curator
-  replicant-alice (active)
+  userpod-alice (active)
     WebID: webid://alice
     Name:  alice
 ```

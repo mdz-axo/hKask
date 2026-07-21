@@ -17,7 +17,7 @@ hKask has three actor classes, each with an accountable host identity (WebID):
 - **Human users** — each acts through their own **userpod** (1:1; Solid-Pod-modeled,
   persistent for the life of the account). The userpod is the unit of user agency.
 - **The curator** — the system daemon (runs under systemd; the one surviving
-  "replicant" by name). It coordinates userpods and owns the `SemanticIndex`.
+  "userpod" by name). It coordinates userpods and owns the `SemanticIndex`.
 - **AI tools** — skills and MCP servers, invoked by a userpod or the curator. They
   never act under their own identity — every tool action is attributed to the hosting
   userpod or curator.
@@ -46,9 +46,9 @@ P12: every regulated variable is attributed.
 
 ## What changed in the v0.31.0 consolidation
 
-The prior "Replicant Host Mandate" framed a bot/replicant taxonomy (P10). That taxonomy
+The prior "Replicant Host Mandate" framed a bot/userpod taxonomy (P10). That taxonomy
 is retired; P10 is refocused to **user agency**. The mandate is renamed to "Authenticated
 Host Mandate" to reflect that the accountable host is the userpod (or curator), not a
-"replicant" or "bot" role. The generic "agent" concept is preserved for A2A interop —
-userpods present as agents in A2A — but the hKask-specific bot/replicant distinction is
+"userpod" or "bot" role. The generic "agent" concept is preserved for A2A interop —
+userpods present as agents in A2A — but the hKask-specific bot/userpod distinction is
 gone. See `PRINCIPLES.md` §1.4 (P10 — User Agency, P12 — Authenticated Host Mandate).

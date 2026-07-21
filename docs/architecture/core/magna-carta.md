@@ -138,7 +138,7 @@ A human user may define consent structures at different granularities:
 |---|---|
 | Master consent | Covers all agents for the user |
 | Per-agent consent | Specific to a single agent |
-| Per-agent-type consent | One structure for bots (A2A interaction), another for replicants (H2A bridging) |
+| Per-agent-type consent | One structure for bots (A2A interaction), another for userpods (H2A bridging) |
 
 Most-specific grant wins. The verification manifest asserts that consent resolution follows this hierarchy.
 
@@ -237,7 +237,7 @@ The Curator is not just a quality gate. The Curator is the Magna Carta enforcer,
    - Variety deficit > 100
    - Sovereignty compromised
    - Consent violation detected
-6. **Magna Carta Verification** — Review and resolve verification findings with the human user or the user's replicant
+6. **Magna Carta Verification** — Review and resolve verification findings with the human user or the user's userpod
 
 ### Curation Decisions
 
@@ -261,7 +261,7 @@ The Cybernetic Nervous System monitors, providing algedonic signaling from the V
 **Algedonic Alert Threshold:** Variety deficit > 100
 
 When triggered, the Curator escalates to:
-- The human user or the user's replicant (via the Curator chat session)
+- The human user or the user's userpod (via the Curator chat session)
 - System administrator
 - External audit trail
 
@@ -353,7 +353,7 @@ Verification is triggered by:
 
 ### Resolution Process
 
-When an assertion fails, the verification report is escalated to the Curator. The Curator reviews the finding with the human user or the user's replicant in a chat session. The resolution process is defined by the user in collaboration with the Curator — the user instructs the Curator on how to resolve issues, and the Curator follows that process.
+When an assertion fails, the verification report is escalated to the Curator. The Curator reviews the finding with the human user or the user's userpod in a chat session. The resolution process is defined by the user in collaboration with the Curator — the user instructs the Curator on how to resolve issues, and the Curator follows that process.
 
 ---
 

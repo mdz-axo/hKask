@@ -1,6 +1,6 @@
 ---
 title: "Security Skills — Path of Action for Remaining Infrastructure Work"
-audience: [architects, replicants, security auditors]
+audience: [architects, userpods, security auditors]
 last_updated: 2026-07-18
 status: active
 version: 0.1.0

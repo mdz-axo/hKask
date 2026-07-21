@@ -21,7 +21,7 @@ LLM access — they are NOT CI gates.
 **Procedure:**
 ```bash
 # Run the supply-chain-sentinel skill against the hKask workspace
-kask skill run supply-chain-sentinel --surface cargo --replicant-host test-auditor
+kask skill run supply-chain-sentinel --surface cargo --userpod-host test-auditor
 ```
 
 **Expected output:**
@@ -34,7 +34,7 @@ kask skill run supply-chain-sentinel --surface cargo --replicant-host test-audit
 1. The skill produces JSON output (not an error)
 2. `manifest_paths` includes `Cargo.toml` and `Cargo.lock`
 3. `defense_layers_present` includes at least `dependency_pinning` and `sbom_presence`
-4. `replicant_host` is present in all outputs
+4. `userpod_host` is present in all outputs
 5. `cns.supply_chain.*` spans are emitted (check via `cns_query_spans` MCP tool)
 6. No synthetic findings — every finding references a real `Cargo.toml` line
 
@@ -48,7 +48,7 @@ kask skill run supply-chain-sentinel --surface cargo --replicant-host test-audit
 kask skill audit  # emits hkask.* performative spans
 
 # 2. Run the runtime-posture-monitor skill
-kask skill run runtime-posture-monitor --signal all --replicant-host test-monitor
+kask skill run runtime-posture-monitor --signal all --userpod-host test-monitor
 ```
 
 **Expected output:**
@@ -60,7 +60,7 @@ kask skill run runtime-posture-monitor --signal all --replicant-host test-monito
 **Validation:**
 1. The skill produces JSON output (not an error)
 2. `signal_sources` includes at least one `cns.*` or `hkask.*` target
-3. `replicant_host` is present in all outputs
+3. `userpod_host` is present in all outputs
 4. `cns.runtime.*` spans are emitted (check via `cns_query_spans` MCP tool)
 5. No synthetic signals — every finding references a real span target + timestamp
 
@@ -72,7 +72,7 @@ in `security/regressions/` as `surface: supply-chain` entries.
 **Procedure:**
 ```bash
 # Run the attack-taxonomy-mapper skill
-kask skill run attack-taxonomy-mapper --source all --replicant-host test-mapper
+kask skill run attack-taxonomy-mapper --source all --userpod-host test-mapper
 ```
 
 **Expected output:**
@@ -86,7 +86,7 @@ kask skill run attack-taxonomy-mapper --source all --replicant-host test-mapper
 2. `findings_to_map` includes at least one finding (if regressions exist)
 3. Each mapping includes `osc_r_tactic` and `osc_r_technique` (verified names)
 4. No invented OSC&R categories — all mapped to existing entries in `github.com/pbom-dev/OSCAR`
-5. `replicant_host` is present in all outputs
+5. `userpod_host` is present in all outputs
 6. `cns.taxonomy.*` spans are emitted (check via `cns_query_spans` MCP tool)
 
 ### Fixture 4: Kali Audit (kali-audit)
@@ -96,7 +96,7 @@ kask skill run attack-taxonomy-mapper --source all --replicant-host test-mapper
 **Procedure:**
 ```bash
 # Run the kali-audit skill against the hKask codebase
-kask skill run kali-audit --surface code --replicant-host test-auditor
+kask skill run kali-audit --surface code --userpod-host test-auditor
 ```
 
 **Expected output:**
@@ -108,7 +108,7 @@ kask skill run kali-audit --surface code --replicant-host test-auditor
 **Validation:**
 1. The skill produces JSON output (not an error)
 2. `defense_layers` includes at least 4 of the 8 layers
-3. `replicant_host` is present in all outputs
+3. `userpod_host` is present in all outputs
 4. Every finding includes concrete evidence (file path, line number, code snippet)
 5. No fabricated findings — every finding is verifiable by reading the cited file
 
@@ -130,16 +130,16 @@ To run all smoke tests manually:
 
 ```bash
 # 1. Supply chain audit
-kask skill run supply-chain-sentinel --surface cargo --replicant-host smoke-test
+kask skill run supply-chain-sentinel --surface cargo --userpod-host smoke-test
 
 # 2. Runtime posture monitor (requires running instance)
-kask skill run runtime-posture-monitor --signal all --replicant-host smoke-test
+kask skill run runtime-posture-monitor --signal all --userpod-host smoke-test
 
 # 3. Attack taxonomy mapper (requires supply-chain findings)
-kask skill run attack-taxonomy-mapper --source all --replicant-host smoke-test
+kask skill run attack-taxonomy-mapper --source all --userpod-host smoke-test
 
 # 4. Kali audit
-kask skill run kali-audit --surface code --replicant-host smoke-test
+kask skill run kali-audit --surface code --userpod-host smoke-test
 ```
 
 Check CNS span emissions:

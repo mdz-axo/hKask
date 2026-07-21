@@ -113,7 +113,7 @@ For hKask, that primitive is the 5W1H ontological framework (P5.2):
 
 | Dimension | Question | Verification Property |
 |---|---|---|
-| **Who** | Which pod authored this? WebID verifiable? | P12 replicant host mandate — every action carries an accountable identity |
+| **Who** | Which pod authored this? WebID verifiable? | P12 userpod host mandate — every action carries an accountable identity |
 | **What** | What artifact type? WordAct, FlowDef, KnowAct? Content hash? | Artifact integrity verification; type-level composition checking |
 | **When** | When was it published? Versioned? | Temporal ordering; staleness detection; convergence windows |
 | **Where** | Which pod namespace? What domain? | Pod boundary enforcement (P4.1); domain scoping |

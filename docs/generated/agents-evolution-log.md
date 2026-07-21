@@ -1,6 +1,6 @@
 # AGENTS.md Evolution Log
 
-Artifact: `AGENTS.md` (operating guide for replicant agents)
+Artifact: `AGENTS.md` (operating guide for userpod agents)
 Evolution method: Genetic-Pareto (gpa-evolution) over text artifact
 Iteration: 1 (convergence deferred by design — metric = 1.0)
 

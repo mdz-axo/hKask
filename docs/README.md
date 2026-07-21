@@ -87,7 +87,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 
 ### ADRs (`architecture/ADRs/`)
 
-17 ADRs covering consolidation authorization, replicant server mode, gix migration, BLAKE3 content addressing, dynamic model discovery, port promotion, database driver, nested runtime panics, ledger-wallet separation, CLI bootstrap, REPL extraction, storage modularization, CNS type decomposition, ledger database driver compliance, Qwen3.6 chat template and training gap analysis. See directory for full index.
+17 ADRs covering consolidation authorization, userpod server mode, gix migration, BLAKE3 content addressing, dynamic model discovery, port promotion, database driver, nested runtime panics, ledger-wallet separation, CLI bootstrap, REPL extraction, storage modularization, CNS type decomposition, ledger database driver compliance, Qwen3.6 chat template and training gap analysis. See directory for full index.
 
 ---
 

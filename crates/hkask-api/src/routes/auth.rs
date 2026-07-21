@@ -387,13 +387,7 @@ pub async fn callback(
         "CNS"
     );
 
-    // Fire-and-forget: register Matrix accounts on Conduit and join chat room.
-    // Non-blocking — if Conduit is unavailable, the user can still use the system.
-    let userpod_name = userpod.userpod_name.clone();
-    let display = display_name.clone();
-    tokio::spawn(async move {
-        onboard_matrix(&userpod_name, &display).await;
-    });
+    // Matrix account registration is deferred out of the OAuth flow.
 
     // Clear state cookie and set session cookie
     let clear_state = "hkask_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0";
@@ -752,15 +746,6 @@ pub struct AcceptInviteQuery {
 /// Matrix registration is deferred out of the onboarding flow.
 ///
 /// Called as a fire-and-forget task after OAuth sign-in. Non-blocking.
-async fn onboard_matrix(_userpod_name: &str, _display_name: &str) {
-    // Matrix account registration is deferred out of the onboarding flow.
-    // Matrix setup will be handled separately when Conduit is available.
-    tracing::info!(
-        target: "hkask.api.matrix",
-        "Matrix registration deferred — not attempted during onboarding"
-    );
-}
-
 /// URL-encode a string (basic implementation — only encodes special chars).
 fn urlencoding(s: &str) -> String {
     s.chars()

@@ -94,7 +94,6 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 | `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
 | `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
 | `CnsContext` | `cns` | `runtime` (CnsRuntime), `cybernetics` (CyberneticsLoop), `loops` (LoopSystem), `events` (NuEventSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
-| `StorageContext` | `storage` | `registry` (SqliteRegistry), `goals` (SqliteGoalRepository), `agents` (AgentRegistryStore), `users` (UserStore), `sovereignty` (SovereigntyBoundaryStore), `wallet` (WalletStore) |
 
 #### Public Methods (20)
 
@@ -826,7 +825,7 @@ These domains are documented here for completeness. The canonical contract forma
 | Kata history | P3 | 7 | `P3-sto-kata-record`, `P3-sto-kata-list-agent`, `P3-sto-kata-count-*`, `P3-sto-kata-last`, `P3-sto-kata-range`, `P3-sto-kata-delete-before` |
 | Embeddings | P3 | 8 | `P3-sto-embedding-new`, `P3-sto-embedding-store`, `P3-sto-embedding-get`, `P3-sto-embedding-search`, `P3-sto-embedding-delete`, `P3-sto-embedding-count`, `P3-sto-embedding-prefix` |
 | Escalation | P3 | 10 | `P3-sto-escalation-pending`, `P3-sto-escalation-queue-new`, `P3-sto-escalation-add`, `P3-sto-escalation-list-pending`, `P3-sto-escalation-get`, `P3-sto-escalation-resolve`, `P3-sto-escalation-dismiss`, `P3-sto-escalation-stats`, `P3-sto-escalation-summary-new`, `P3-sto-escalation-summary-text` |
-| User store | P1 | 13 | `P1-sto-user-schema`, `P1-sto-user-register`, `P1-sto-user-login`, `P1-sto-user-logout`, `P1-sto-user-passphrase-change`, `P1-sto-user-passphrase-expired`, `P1-sto-user-session-get`, `P1-sto-user-session-list`, `P1-sto-user-replicant-get`, `P1-sto-user-human-get`, `P1-sto-user-replicant-list`, `P1-sto-user-wallet-get`, `P1-sto-user-wallet-set` |
+| User store | P1 | 13 | `P1-sto-user-schema`, `P1-sto-user-register`, `P1-sto-user-login`, `P1-sto-user-logout`, `P1-sto-user-passphrase-change`, `P1-sto-user-passphrase-expired`, `P1-sto-user-session-get`, `P1-sto-user-session-list`, `P1-sto-user-userpod-get`, `P1-sto-user-human-get`, `P1-sto-user-userpod-list`, `P1-sto-user-wallet-get`, `P1-sto-user-wallet-set` |
 | Gallery | P3 | 14 | `P3-sto-gallery-mode-str`, `P3-sto-gallery-schema`, `P3-sto-gallery-create`, `P3-sto-gallery-add-image`, `P3-sto-gallery-get-image`, `P3-sto-gallery-tag-image`, `P3-sto-gallery-get-tags`, `P3-sto-gallery-get`, `P3-sto-gallery-all-tags`, `P3-sto-gallery-face-register`, `P3-sto-gallery-face-list`, `P3-sto-gallery-face-get`, `P3-sto-gallery-face-remove`, `P3-sto-gallery-face-update` |
 | Agent registry | P3 | 15 | `P3-sto-agent-registry-schema`, `P3-sto-agent-registry-insert`, `P3-sto-agent-registry-get`, `P3-sto-agent-registry-list`, `P3-sto-agent-registry-list-by-kind`, `P3-sto-agent-registry-remove`, `P3-sto-agent-registry-profile-*`, `P3-sto-agent-registry-contact-*`, `P3-sto-agent-registry-task-*` |
 | Goals | P3 | 18 | `P3-sto-goal-repo-new`, `P3-sto-goal-repo-telemetry`, `P3-sto-goal-try-row`, `P3-sto-goal-row-parse`, `P3-sto-goal-create`, `P3-sto-goal-get`, `P3-sto-goal-update-state`, `P3-sto-goal-list`, `P3-sto-goal-criterion-add`, `P3-sto-goal-artifact-add`, `P3-sto-goal-criteria-get`, `P3-sto-goal-artifacts-get`, `P3-sto-goal-subgoal-create`, `P3-sto-goal-subgoal-list`, `P3-sto-goal-delete`, `P3-sto-goal-quarantine`, `P3-sto-goal-repair`, `P3-sto-goal-quarantine-list` |
@@ -837,7 +836,6 @@ These domains are documented here for completeness. The canonical contract forma
 
 #### Agent Registry Schema (Canonical)
 
-- **Canonical types:** `hkask_types::agent_registry::{AgentDefinition, Charter, Right, Responsibility, RegisteredAgent, UserProfile, Contact, ScheduledTask}`.
 - **Persistence:** `hkask-storage` re-exports these types and stores the full `AgentDefinition` parsed from YAML (no flattening).
 - **Rights/Responsibilities:** Tagged enum entries only. Example keys: `read`, `write`, `execute`, `coordinate`, `escalate_to` for rights; `monitor`, `synthesize`, `perform`, `calibrate`, `escalate`, `maintain`, `emit`, `orchestrate`, `record`, `produce` for responsibilities.
 - **Charter:** `description`, `archetype`, `visibility` only. Legacy `purpose` and `constraints` fields are not supported.
@@ -1294,7 +1292,7 @@ The web interface provides two browser-based surfaces: (1) an xterm.js terminal 
 | FR-WEB1 | `OAuthProvider` enum (`GitHub`, `Google`) | [P1] Goal: User Sovereignty — user chooses identity provider; [P4] Constraining: Clear Boundaries — provider scope is fixed |
 | FR-WEB2 | `OAuthConfig::new(client_id, client_secret, redirect_uri)` | [P4] Goal: Clear Boundaries — provider membrane established from admin configuration; [P1] Constraining: User Sovereignty — secrets stored in OS keychain only |
 | FR-WEB3 | `GET /api/v1/auth/login?provider={github\|google}` | [P1] Goal: User Sovereignty — initiates OAuth flow; user redirects to provider; [P2] Constraining: Affirmative Consent — provider scopes explicitly requested |
-| FR-WEB4 | `GET /api/v1/auth/callback?provider={github\|google}&code=...` | [P1] Goal: User Sovereignty — OAuth callback creates/loads HumanUser, provisions WebID + default replicant + wallet on first sign-in; [P2] Constraining: Affirmative Consent — session cookie set only after verified callback |
+| FR-WEB4 | `GET /api/v1/auth/callback?provider={github\|google}&code=...` | [P1] Goal: User Sovereignty — OAuth callback creates/loads HumanUser, provisions WebID + default userpod + wallet on first sign-in; [P2] Constraining: Affirmative Consent — session cookie set only after verified callback |
 | FR-WEB5 | Session cookie set after OAuth callback | [P1] Goal: User Sovereignty — cookie scoped to user's WebID; [P4] Constraining: Clear Boundaries — `HttpOnly`, `Secure`, `SameSite=Strict` |
 | FR-WEB6 | `GET /api/v1/auth/session` | [P1] Goal: User Sovereignty — returns current session info (WebID, provider, session expiry) |
 | FR-WEB7 | `POST /api/v1/auth/logout` | [P1] Goal: User Sovereignty — destroys session; [P12] Constraining: Subscriber Consent — emits `SessionClose` CNS span |
@@ -1324,7 +1322,7 @@ The web interface provides two browser-based surfaces: (1) an xterm.js terminal 
 
 hKask supports exactly two roles: **Admin** and **Member**. Admin is the user who runs `kask init --profile server`. All subsequent users are Members. Admins can view/modify server config (including toggling between open and closed registration), invite new members, and view all active sessions. Members can only view/modify their own settings.
 
-The server registration mode (`open` or `closed`, default: `closed`) is set during `kask init` and can be changed at runtime via `PATCH /api/v1/admin/config`. In open mode, anyone with an OAuth account can sign in and create replicants. In closed mode, only users with a valid admin-issued invite code can join.
+The server registration mode (`open` or `closed`, default: `closed`) is set during `kask init` and can be changed at runtime via `PATCH /api/v1/admin/config`. In open mode, anyone with an OAuth account can sign in and create userpods. In closed mode, only users with a valid admin-issued invite code can join.
 
 #### Production Contracts (16)
 
@@ -1334,7 +1332,7 @@ The server registration mode (`open` or `closed`, default: `closed`) is set duri
 | FR-MU2 | Role assigned at `kask init --profile server` (Admin) / first OAuth sign-in (Member) | [P1] Goal: User Sovereignty — role determined by provisioning path; [P12] Constraining: Subscriber Consent — emits `RoleAssigned` CNS span |
 | FR-MU3 | `GET /api/v1/admin/config` (Admin-only) | [P1] Goal: User Sovereignty — admin can view server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
 | FR-MU4 | `PATCH /api/v1/admin/config` (Admin-only) — toggle registration mode | [P1] Goal: User Sovereignty — admin can modify server configuration; [P4] Constraining: Clear Boundaries — gated by role check |
-| FR-MU5 | `POST /api/v1/admin/invite` + `kask replicant invite --by <name>` (Admin-only) | [P2] Goal: Affirmative Consent — admin explicitly invites new members; [P12] Constraining: Subscriber Consent — emits `InviteSent` CNS span |
+| FR-MU5 | `POST /api/v1/admin/invite` + `kask userpod invite --by <name>` (Admin-only) | [P2] Goal: Affirmative Consent — admin explicitly invites new members; [P12] Constraining: Subscriber Consent — emits `InviteSent` CNS span |
 | FR-MU6 | `GET /api/v1/auth/accept-invite?code=` — invitee clicks link, OAuth flow, account linked | [P2] Goal: Affirmative Consent — invitee explicitly accepts; [P12] Constraining: Subscriber Consent — emits `InviteAccepted` CNS span |
 | FR-MU7 | `GET /api/v1/admin/sessions` (Admin-only) | [P1] Goal: User Sovereignty — admin can view all active sessions; [P4] Constraining: Clear Boundaries — Member cannot access this endpoint |
 | FR-MU8 | `GET/PATCH /api/v1/user/settings` (Member: own settings only) | [P1] Goal: User Sovereignty — user controls own settings; [P4] Constraining: Clear Boundaries — WebID-scoped, cannot modify other users |
@@ -1344,7 +1342,7 @@ The server registration mode (`open` or `closed`, default: `closed`) is set duri
 | FR-MU12 | Open registration: OAuth callback auto-provisions user without invite check | [P3] Goal: Generative Space — frictionless onboarding for open communities; [P1] Constraining: User Sovereignty — user still authenticates via OAuth |
 | FR-MU13 | Closed registration: OAuth callback requires valid invite cookie or returns 403 | [P2] Goal: Affirmative Consent — admin controls membership; [P4] Constraining: Clear Boundaries — gate enforced before user creation |
 | FR-MU14 | Invite cookie flow: `hkask_invite_code` HttpOnly cookie with 10-min TTL carries code through OAuth roundtrip | [P2] Goal: Affirmative Consent — invite persists across OAuth redirect; [P4] Constraining: Clear Boundaries — cookie cleared after callback |
-| FR-MU15 | Matrix account registration (fire-and-forget): after OAuth sign-in, `tokio::spawn` registers human + replicant on Conduit | [P5] Goal: Essentialism — non-blocking; user can sign in even if Conduit is offline; [P12] Constraining: Subscriber Consent — CNS span pending |
+| FR-MU15 | Matrix account registration (fire-and-forget): after OAuth sign-in, `tokio::spawn` registers human + userpod on Conduit | [P5] Goal: Essentialism — non-blocking; user can sign in even if Conduit is offline; [P12] Constraining: Subscriber Consent — CNS span pending |
 | FR-MU16 | Server chat room: curator creates "hKask Server Chat" room on first sign-in, stores `conduit_room_id` in ServerConfig, auto-invites new members | [P3] Goal: Generative Space — team chat available immediately; [P4] Constraining: Clear Boundaries — room managed by curator's Matrix credentials |
 | FR-MU17 | `PATCH /api/v1/admin/members/{user_id}` — promote/demote member (Admin-only, refuses to demote last admin) | [P1] Goal: User Sovereignty — admin succession is explicit; [P4] Constraining: Clear Boundaries — prevents zero-admin state |
 
@@ -1376,10 +1374,10 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 | FR-BK5 | `GET /api/v1/backup/download` | [P1] Goal: User Sovereignty — download latest backup archive; [P4] Constraining: Clear Boundaries — scoped to authenticated WebID |
 | FR-BK6 | `kask backup upload --server <url>` / `POST /api/v1/backup/upload` | [P1] Goal: User Sovereignty — user mediates server migration; [P3] Constraining: Generative Space — idempotent `INSERT OR REPLACE` merge |
 | FR-BK7 | `kask config set backup.auto-export.frequency <daily\|weekly>` | [P1] Goal: User Sovereignty — scheduled exports for convenience; [P4] Constraining: Clear Boundaries — archives stored server-side, encrypted |
-| FR-BK8 | `kask replicate rename <from> <to>` / `POST /api/v1/replicants/rename` | [P3] Goal: Generative Space — user renames replicant entity; [P1] Constraining: User Sovereignty — only own replicants |
-| FR-BK9 | `kask replicate merge --from <source> --into <target>` / `POST /api/v1/replicants/merge` | [P3] Goal: Generative Space — idempotent upsert of all hMems from source into target; [P1] Constraining: User Sovereignty — source unchanged after merge |
-| FR-BK10 | `kask replicate delete <name>` / `DELETE /api/v1/replicants/{name}` | [P3] Goal: Generative Space — user removes replicant and all its hMems; [P1] Constraining: User Sovereignty — only own replicants |
-| FR-BK11 | Auto-rename on replicant collision: `"ada" → "ada-migrated-20260617"` | [P3] Goal: Generative Space — prevents data loss on migration; [P1] Constraining: User Sovereignty — returns `MigrationReceipt { renamed_replicants }` |
+| FR-BK8 | `kask replicate rename <from> <to>` / `POST /api/v1/userpods/rename` | [P3] Goal: Generative Space — user renames userpod entity; [P1] Constraining: User Sovereignty — only own userpods |
+| FR-BK9 | `kask replicate merge --from <source> --into <target>` / `POST /api/v1/userpods/merge` | [P3] Goal: Generative Space — idempotent upsert of all hMems from source into target; [P1] Constraining: User Sovereignty — source unchanged after merge |
+| FR-BK10 | `kask replicate delete <name>` / `DELETE /api/v1/userpods/{name}` | [P3] Goal: Generative Space — user removes userpod and all its hMems; [P1] Constraining: User Sovereignty — only own userpods |
+| FR-BK11 | Auto-rename on userpod collision: `"ada" → "ada-migrated-20260617"` | [P3] Goal: Generative Space — prevents data loss on migration; [P1] Constraining: User Sovereignty — returns `MigrationReceipt { renamed_userpods }` |
 
 #### CNS Span Contracts (4)
 
@@ -1396,7 +1394,7 @@ The backup archive is a single SQLCipher-encrypted SQLite file containing the us
 |-----|-----------|
 | FR-BK-T1 | export_archive_encrypted_with_passphrase |
 | FR-BK-T2 | upload_merge_idempotent_converges |
-| FR-BK-T3 | replicant_collision_auto_renames |
+| FR-BK-T3 | userpod_collision_auto_renames |
 
 #### 3.17a Pod-Directory Git Backup
 
@@ -1476,7 +1474,7 @@ status: VERIFIED
 | FR-DP7 | systemd service unit: `Type=simple`, `Restart=on-failure`, `User=hkask` | [P4] Goal: Clear Boundaries — process lifecycle gated by systemd; [P5] Constraining: Essentialism — single service, no orchestration |
 | FR-DP8 | Multi-stage Docker build: `rust:1.91-slim` builder → `debian:bookworm-slim` runtime | [P5] Goal: Essentialism — single Dockerfile for reproducible builds; [P4] Constraining: Clear Boundaries — non-root user, minimal attack surface |
 | FR-DP9 | OAuth config (GitHub + Google client ID/secret) stored in OS keychain | [P1] Goal: User Sovereignty — OAuth credentials user-owned, not in config files; [P4] Constraining: Clear Boundaries — secrets gated by OS keychain |
-| FR-DP10 | OAuth callback provisions `HumanUser` record, default replicant, wallet on first sign-in | [P1] Goal: User Sovereignty — auto-provisioning from verified identity; [P2] Constraining: Affirmative Consent — user explicitly clicks "Sign in with GitHub" |
+| FR-DP10 | OAuth callback provisions `HumanUser` record, default userpod, wallet on first sign-in | [P1] Goal: User Sovereignty — auto-provisioning from verified identity; [P2] Constraining: Affirmative Consent — user explicitly clicks "Sign in with GitHub" |
 | FR-DP11 | `GET /api/cns/health` returns `{ overall_deficit, critical_count, warning_count, healthy }` | [P4] Goal: Clear Boundaries — health check is the deployment liveness probe; [P9] Constraining: Homeostatic Self-Regulation — CNS drives health signal |
 | FR-DP12 | Zero client-side install: browser terminal via xterm.js + WebSocket | [P5] Goal: Essentialism — no client binary, no SSH setup required; [P3] Constraining: Generative Space — user gets full `kask repl` via browser |
 | FR-DP13 | `GET /health` returns `{ healthy, db, conduit }` — DB query + Matrix/Conduit reachability check | [P4] Goal: Clear Boundaries — readiness probe gates traffic until all dependencies are reachable; [P9] Constraining: Homeostatic Self-Regulation — fail closed when dependencies degraded |
@@ -1499,7 +1497,7 @@ status: VERIFIED
 ### 3.18 CodeGraph (`hkask-codegraph`)
 
 **Goal Principle:** P3 (Generative Space) — agents query, traverse, and analyze the codebase through a semantic code graph to generate informed responses; P9 (Homeostatic Self-Regulation) — index staleness tracked via CNS spans, stale indices trigger algedonic alerts
-**Constraining Principles:** P5 (Essentialism) — two-crate pattern (domain + thin MCP wrapper), no service layer, no external graph database; P4 (Clear Boundaries) — OCAP-gated MCP tools, capability tier enforcement per replicant
+**Constraining Principles:** P5 (Essentialism) — two-crate pattern (domain + thin MCP wrapper), no service layer, no external graph database; P4 (Clear Boundaries) — OCAP-gated MCP tools, capability tier enforcement per userpod
 **Crate:** `hkask-codegraph` (domain), `hkask-mcp-codegraph` (MCP server)
 **Sources:** `crates/hkask-codegraph/src/graph/schema.rs`, `crates/hkask-codegraph/src/indexer/pipeline.rs`, `crates/hkask-codegraph/src/graph/search.rs`, `crates/hkask-codegraph/src/graph/traversal.rs`, `crates/hkask-codegraph/src/graph/context.rs`, `crates/hkask-codegraph/src/graph/analysis.rs`, `mcp-servers/hkask-mcp-codegraph/src/lib.rs`
 
@@ -1848,7 +1846,7 @@ ER diagrams have been added for all 8 CNS domains (§2) and the deployment domai
 - [x] Deployment domain specification (§3.18) — 12 production contracts, 4 test contracts
 - [x] Web Interface specification — OAuth, xterm.js terminal, WebSocket PTY (planned — see `docs/plans/deployment-and-backup.md`)
 - [x] Multi-User specification — Admin/Member roles, invite flow, admin-only endpoints (planned)
-- [x] Backup & Migration specification — SQLCipher archive, export/upload, replicant operations (planned)
+- [x] Backup & Migration specification — SQLCipher archive, export/upload, userpod operations (planned)
 
 ## Appendix C: Key References
 

@@ -23,7 +23,7 @@ Platform engineering inherits from systems engineering, operations research, dis
 | **Kelsey Hightower** | The conscience of platform engineering. His Kubernetes advocacy taught the industry that platforms must *disappear* for developers — "the best platform is the one you don't notice." Walked away from Google to emphasize that platform engineering is about people, not technology. | hKask's REPL and self-service skills (P3 Generative Space) embody Hightower's principle. But he would ask: "Does a user need to understand CNS spans to use hKask?" The answer should be no. |
 | **Charity Majors** (Honeycomb CTO) | Defined **Observability 2.0**: a single unified storage model for wide structured log events, replacing the "three pillars" (metrics, logs, traces) she called a vendor marketing construct. Her insight: observability is a *data analytics* problem, not an ops problem. Platform engineering teams become data governance teams. | hKask's CNS with 90 typed span variants is an Observability 2.0 architecture born before the term existed. Wide structured events at every membrane crossing. |
 | **Dr. Nicole Forsgren** | Created the **DORA metrics** (Deployment Frequency, Lead Time, Change Failure Rate, MTTR) and the **SPACE framework** for developer productivity. Rigorous statistical research proving that delivery performance drives organizational performance — not the other way around. | hKask has no DORA metrics for itself. How frequently do skills get deployed? What's the lead time from FlowDef creation to production use? What's the change failure rate of a YAML manifest edit? These are measurable with existing CNS spans. |
-| **Simon Wardley** | Created **Wardley Mapping**: a situational awareness technique that maps components on a value chain against their evolutionary stage (Genesis → Custom → Product → Commodity). Introduced the Pioneer-Settler-Town Planner (now Explorer-Villager-Town Planner) team structure. His doctrine: "Strategy is the art of manipulating an environment to gain a desirable outcome." | hKask needs a Wardley Map. Where are skills on the evolution axis? Where is the CNS? The MCP protocol? A map would reveal what to commoditize (deploy to MCP servers), what to productize (skills), and what to keep in Genesis (the Platform Engineer replicant). |
+| **Simon Wardley** | Created **Wardley Mapping**: a situational awareness technique that maps components on a value chain against their evolutionary stage (Genesis → Custom → Product → Commodity). Introduced the Pioneer-Settler-Town Planner (now Explorer-Villager-Town Planner) team structure. His doctrine: "Strategy is the art of manipulating an environment to gain a desirable outcome." | hKask needs a Wardley Map. Where are skills on the evolution axis? Where is the CNS? The MCP protocol? A map would reveal what to commoditize (deploy to MCP servers), what to productize (skills), and what to keep in Genesis (the Platform Engineer userpod). |
 
 ### 1.2 The Architects of Reliability
 
@@ -37,7 +37,7 @@ Platform engineering inherits from systems engineering, operations research, dis
 
 | Exemplar | Key Contribution | Relevance to hKask |
 |----------|-----------------|-------------------|
-| **Gene Kim** | Co-author of *The Phoenix Project*, *The DevOps Handbook*, and *Accelerate*. Codified the Three Ways of DevOps: Flow, Feedback, and Continual Learning. His insight: IT is not a cost center — it's a value stream. | hKask's kata system (PDCA cycles) is the Continual Learning way embodied. The CNS is the Feedback way. But where is Flow? The time from a user's intent ("I need an agent that does X") to a running replicant is unmeasured. |
+| **Gene Kim** | Co-author of *The Phoenix Project*, *The DevOps Handbook*, and *Accelerate*. Codified the Three Ways of DevOps: Flow, Feedback, and Continual Learning. His insight: IT is not a cost center — it's a value stream. | hKask's kata system (PDCA cycles) is the Continual Learning way embodied. The CNS is the Feedback way. But where is Flow? The time from a user's intent ("I need an agent that does X") to a running userpod is unmeasured. |
 | **Jez Humble** | Co-author of *Continuous Delivery* and *Accelerate*. Defined the principle that software should always be in a deployable state. Introduced the deployment pipeline as the central metaphor for delivery. | hKask's skill registry + FlowDef cascade is a deployment pipeline for agent behavior. But there's no equivalent of a canary deploy for skills — you can't test a new WordAct in 1% of sessions before rolling it out. |
 | **Sam Newman** | Author of *Building Microservices* and *Monolith to Microservices*. Defined the characteristics of evolutionary architecture and the importance of independently deployable units. | hKask's 53 crates with deep-module discipline and hexagonal ports is a microservices architecture at the crate level. Each MCP server is an independently deployable unit. Newman's "evolutionary architecture" maps to hKask's P7. |
 | **Matthew Skelton & Manuel Pais** | Authors of *Team Topologies*. Defined the four fundamental team types (Stream-Aligned, Enabling, Complicated Subsystem, Platform) and three interaction modes (Collaboration, X-as-a-Service, Facilitating). Their insight: **platform is a product, not a project.** | hKask's architecture maps cleanly to Team Topologies — the service layer is a Platform, the Curator is an Enabling Team, hkask-inference is a Complicated Subsystem. But hKask has no Team Topology of its own operators. |
@@ -175,11 +175,11 @@ Loyalty is harder than lock-in. The risks are real:
 
 ## 4. Skills a Loyalty-Anchored, Continuously Improving Platform Must Develop
 
-hKask's existing 43 capabilities (39 skills, 2 templates, 1 bundle, 1 legacy) are comprehensive but not organized for platform engineering. A loyalty-anchored platform engineer replicant needs to *compose* these skills into platform-maintenance workflows and *develop* new capabilities that don't yet exist.
+hKask's existing 43 capabilities (39 skills, 2 templates, 1 bundle, 1 legacy) are comprehensive but not organized for platform engineering. A loyalty-anchored platform engineer userpod needs to *compose* these skills into platform-maintenance workflows and *develop* new capabilities that don't yet exist.
 
 ### 4.1 Existing Skills Repurposed for Platform Engineering
 
-These skills already exist in hKask. The Platform Engineer replicant would activate them on a cadence:
+These skills already exist in hKask. The Platform Engineer userpod would activate them on a cadence:
 
 | Skill | Platform Engineering Use | Cadence |
 |-------|------------------------|---------|
@@ -192,7 +192,7 @@ These skills already exist in hKask. The Platform Engineer replicant would activ
 | **mcda** | When multiple interventions compete for attention, evaluate them on: user impact, implementation cost, risk, alignment with Magna Carta. Produce ranked recommendations with sensitivity analysis. | On demand |
 | **superforecasting** | Calibrated probability forecasts: "What is the probability that CNS alert fatigue becomes a problem by Q4 2026?" "Probability that a skill injection vulnerability is found in the wild within 12 months?" | Quarterly |
 | **adversarial-red-team** | Test the platform's defenses. Can a compromised Inference loop read Curator state? Can a malicious skill exhaust the gas budget? Can a forged DelegationToken bypass OCAP? | Monthly |
-| **scenario-builder** | Scenario planning: "What if the primary inference provider goes down for 24 hours?" "What if a replicant gains write access to the skill registry?" "What if CNS variety tracking saturates?" | Quarterly |
+| **scenario-builder** | Scenario planning: "What if the primary inference provider goes down for 24 hours?" "What if a userpod gains write access to the skill registry?" "What if CNS variety tracking saturates?" | Quarterly |
 | **handoff** | Between platform iterations, capture: what was done, what remains, key decisions, open questions. Ensures continuity across PDCA cycles. | Per cycle |
 
 ### 4.2 New Skills the Platform Engineer Replicant Needs
@@ -268,11 +268,11 @@ bundle:
     rjoule: 5        # inference for KnowAct skills
 ```
 
-This bundle is the computational embodiment of a world-class platform engineer — continuously auditing, recommending, and (with consent) improving the platform. It doesn't replace the human platform engineer; it amplifies them. The human sets the direction; the replicant maintains the vigilance.
+This bundle is the computational embodiment of a world-class platform engineer — continuously auditing, recommending, and (with consent) improving the platform. It doesn't replace the human platform engineer; it amplifies them. The human sets the direction; the userpod maintains the vigilance.
 
 ### 4.4 The Loyalty Feedback Loop
 
-The Platform Engineer replicant closes a cybernetic loop unique to loyalty-anchored platforms:
+The Platform Engineer userpod closes a cybernetic loop unique to loyalty-anchored platforms:
 
 ```
 User Sovereignty (P1) → Portability Verified → Loyalty Score ↑
@@ -526,7 +526,7 @@ Concretely:
 - The loyalty contract (Magna Carta) is constitutionally encoded but not operationally verified — no consent audit, no portability verification, no loyalty scorecard
 - Identified gaps acknowledged but not systematically closed by user impact
 
-A world-class platform engineer — combining Vogels' API discipline, Hightower's user empathy, Majors' observability rigor, Forsgren's measurement science, and Wardley's situational awareness — would see hKask's architecture as **80% of the way to a self-maintaining, loyalty-anchored platform**. The sensors, regulatory loops, and skills are all there. Missing: the contract layer (SLOs), the measurement layer (PaaP metrics), the verification layer (loyalty scorecard), and the automation layer (Platform Engineer replicant).
+A world-class platform engineer — combining Vogels' API discipline, Hightower's user empathy, Majors' observability rigor, Forsgren's measurement science, and Wardley's situational awareness — would see hKask's architecture as **80% of the way to a self-maintaining, loyalty-anchored platform**. The sensors, regulatory loops, and skills are all there. Missing: the contract layer (SLOs), the measurement layer (PaaP metrics), the verification layer (loyalty scorecard), and the automation layer (Platform Engineer userpod).
 
 ---
 
@@ -587,7 +587,7 @@ INVESTMENT 3 ── Platform Engineer Replicant
                  (Continuous audit, recommendation, consent-gated improvement via skills)
 ```
 
-Each builds on the one before: SLOs define *what* the platform promises. PaaP metrics define *how well* it serves. The replicant automates *continuous improvement* against both.
+Each builds on the one before: SLOs define *what* the platform promises. PaaP metrics define *how well* it serves. The userpod automates *continuous improvement* against both.
 
 ---
 
@@ -685,12 +685,12 @@ The ultimate move: create a hKask agent that continuously audits and improves th
 
 ### 11.1 Replicant Definition
 
-The Platform Engineer replicant is defined by the `skill-bundler` manifest in §4.3. The replicant YAML mirrors that bundle, with the addition of the 10 new platform-specific skills that must be developed as FlowDef manifests before the replicant can execute them:
+The Platform Engineer userpod is defined by the `skill-bundler` manifest in §4.3. The userpod YAML mirrors that bundle, with the addition of the 10 new platform-specific skills that must be developed as FlowDef manifests before the userpod can execute them:
 
 ```yaml
 agent:
   name: Platform Engineer
-  type: replicant
+  type: userpod
 charter:
   description: >
     Maintains platform health through continuous SLO monitoring,
@@ -772,17 +772,17 @@ New CNS spans:
 | Pattern | Enhancement |
 |---------|------------|
 | **A: Skills Model** | SLOs, PaaP metrics, and platform audit are FlowDef skills — no new types needed |
-| **B: CNS Feedback Loop** | SLO breach is a new algedonic trigger; PaaP metrics are new CNS spans; Platform Engineer replicant is a new observer |
-| **C: Curator + 7R7** | Platform Engineer replicant is a new agent in the Curator's charge. Curator metacognition now includes platform health as a dimension |
-| **D: AgentPod** | Platform Engineer replicant gets its own pod with read-only access to platform state |
+| **B: CNS Feedback Loop** | SLO breach is a new algedonic trigger; PaaP metrics are new CNS spans; Platform Engineer userpod is a new observer |
+| **C: Curator + 7R7** | Platform Engineer userpod is a new agent in the Curator's charge. Curator metacognition now includes platform health as a dimension |
+| **D: AgentPod** | Platform Engineer userpod gets its own pod with read-only access to platform state |
 
 ### 12.2 How This Composes with the Four Loops
 
 | Loop | Enhancement |
 |------|------------|
-| **Inference** | SLO-INF-001/002 monitor inference health. Platform Engineer replicant uses inference for audit runs |
+| **Inference** | SLO-INF-001/002 monitor inference health. Platform Engineer userpod uses inference for audit runs |
 | **Memory** | SLO-MEM-001 monitors consolidation. PaaP metrics stored as episodic memories |
-| **Curation** | Platform Engineer replicant reports to Curator. New CNS spans for audit/recommendation lifecycle |
+| **Curation** | Platform Engineer userpod reports to Curator. New CNS spans for audit/recommendation lifecycle |
 | **Cybernetics** | SLO breach triggers enrich algedonic pathway. PaaP metric spans feed VarietyTracker |
 
 ### 12.3 Implementation Status — 2026-07-01
@@ -793,10 +793,10 @@ New CNS spans:
 | **Phase 2** | SloManager in hkask-cns + CnsRuntime integration + `evaluate_and_escalate_slos()` wired to algedonic pathway + SLO evaluation scheduled in CyberneticsLoop tick | ✅ Done |
 | **Phase 3** | PaaP metric CNS spans + API | ✅ Done — 11 CNS spans added. `platform-dx-analyzer` FlowDef manifest registered. API endpoints for metric queries deferred (not in scope for platform engineering infrastructure). |
 | **Phase 4** | DORA/SPACE CNS spans + `platform-dx-analyzer` FlowDef | ✅ Done — CNS spans + FlowDef manifest + template crate + compute-dora KnowAct template. Registered in bootstrap and startup. |
-| **Phase 5** | Platform Engineer replicant agent definition | ✅ Done — `agent_persona.yaml` + `persona.j2` WordAct template. Registered in bootstrap registry. |
+| **Phase 5** | Platform Engineer userpod agent definition | ✅ Done — `agent_persona.yaml` + `persona.j2` WordAct template. Registered in bootstrap registry. |
 | **Phase 6** | Sovereignty skills (consent-auditor, portability-verifier, governance-transparency-reporter) | ✅ Done — 3 FlowDef manifests + 3 template crate manifests + 6 KnowAct templates + `TokenRegistry` trait + SQLite `TokenRegistryStore` + `list_tokens` MCP tool + 5 sovereignty CNS spans |
 | **Phase 7** | Strategic skills (health-scorer, loyalty-scorecard, bulkhead-auditor, wardley-mapper) | ✅ Done — 4 FlowDef manifests + 4 template crate manifests + 4 KnowAct templates |
-| **Phase 8** | Full replicant operating cadence + startup wiring | ✅ Done — SLO evaluation runs every tick. Manifests registered in SqliteRegistry at CLI startup. TokenRegistryStore wired in curator MCP. SloDataProvider wired in loop system. Platform Engineer replicant persona and agent definition complete. |
+| **Phase 8** | Full userpod operating cadence + startup wiring | ✅ Done — SLO evaluation runs every tick. Manifests registered in SqliteRegistry at CLI startup. TokenRegistryStore wired in curator MCP. SloDataProvider wired in loop system. Platform Engineer userpod persona and agent definition complete. |
 
 ### 12.4 Build Inventory
 
@@ -865,7 +865,7 @@ No production dependency from CNS → Storage.
 | Platform metrics are measurable | PaaP metric CNS spans emitted | All 6 metrics emitting within 30 days of Phase 3 start |
 | DORA metrics are tracked per user | `cns.platform.metric.dora.*` spans | All 4 DORA metrics emitting within 30 days of Phase 4 start |
 | SPACE dimensions are tracked per user | `cns.platform.metric.space.*` spans | All 5 SPACE dimensions emitting within 30 days of Phase 4 start |
-| Platform Engineer replicant is active | `cns.platform.audit.*` spans | Weekly audits running within 30 days of Phase 5 start |
+| Platform Engineer userpod is active | `cns.platform.audit.*` spans | Weekly audits running within 30 days of Phase 5 start |
 | Replicant recommendations are actionable | Acceptance rate of recommendations | >60% acceptance within 90 days |
 | DORA elite cluster achieved | % of skill authors in Elite or High DORA cluster | >50% within 180 days of Phase 4 start |
 | Loyalty scorecard is operational | `cns.platform.metric.loyalty` span count | Monthly loyalty scores emitting within 30 days of Phase 7 start |
@@ -879,7 +879,7 @@ No production dependency from CNS → Storage.
 |------|-----------|--------|------------|
 | SLO alert fatigue | Medium | High | Start with 3 SLOs, expand only when signal-to-noise proven |
 | Replicant recommendations too frequent | Medium | Medium | Monthly audit cadence; batch recommendations |
-| Platform Engineer replicant scope creep | Low | Medium | OCAP boundaries prevent write access; charter is narrow |
+| Platform Engineer userpod scope creep | Low | Medium | OCAP boundaries prevent write access; charter is narrow |
 | SLO targets too aggressive | Medium | Low | Start with loose targets (99.0%), tighten based on actual performance |
 | PaaP metrics gamed | Low | Medium | Metrics anchored in CNS spans — hard to fake without system compromise |
 

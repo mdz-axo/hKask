@@ -322,7 +322,7 @@ The `visibility` field controls where the skill appears:
 |-------|------|-------------|
 | `private` | `.agents/skills/` only | Author's working copy; not exported |
 | `public` | Both zones | Available to all; published to `skills/` |
-| `shared` | Both zones | Available to authenticated replicants |
+| `shared` | Both zones | Available to authenticated userpods |
 
 ### Deriving SKILL.md from the Registry
 
@@ -389,14 +389,14 @@ kask skill publish <skill-name>
 This:
 1. Copies the skill directory from `.agents/skills/<name>/` to `skills/<namespace>--<name>/`
 2. Sets `visibility: public` in the published copy's SKILL.md
-3. Sets `namespace` to the current replicant name (from `HKASK_REPLICANT_NAME`, git `user.name`, or `"local"`)
+3. Sets `namespace` to the current userpod name (from `HKASK_REPLICANT_NAME`, git `user.name`, or `"local"`)
 4. Emits a `cns.skill` span (`skill_published`)
 
 Output:
 
 ```
 Published 'diagnose' as 'mdz-axolotl--diagnose' to public zone: skills/mdz-axolotl--diagnose
-  Sortable by replicant: mdz-axolotl
+  Sortable by userpod: mdz-axolotl
   Sortable by skill:    diagnose
 ```
 
@@ -655,7 +655,7 @@ dotenvy = { workspace = true }
 
 ### Step 1: Define the Server Struct
 
-Use the `mcp_server!` macro from `hkask-mcp`. It generates the struct with mandatory fields (`webid`, `replicant`, `daemon`) plus your domain-specific fields, along with a `new()` constructor and a `ToolContext` implementation.
+Use the `mcp_server!` macro from `hkask-mcp`. It generates the struct with mandatory fields (`webid`, `userpod`, `daemon`) plus your domain-specific fields, along with a `new()` constructor and a `ToolContext` implementation.
 
 ```rust
 // mcp-servers/<your-mcp-package>/src/lib.rs
@@ -675,7 +675,7 @@ mcp_server! {
 }
 ```
 
-The macro generates a struct with `webid`, `replicant`, `daemon`, and your custom fields, a `new()` constructor, and a `ToolContext` implementation. The server struct can have zero custom fields using the `;` variant:
+The macro generates a struct with `webid`, `userpod`, `daemon`, and your custom fields, a `new()` constructor, and a `ToolContext` implementation. The server struct can have zero custom fields using the `;` variant:
 
 ```rust
 mcp_server! {
@@ -743,7 +743,7 @@ Every hKask MCP server has a `run()` function that accepts the bootstrap result 
 use hkask_mcp::{DaemonClient, McpError, run_server};
 
 pub async fn run(
-    replicant: String,
+    userpod: String,
     daemon_client: Option<DaemonClient>,
 ) -> Result<(), McpError> {
     run_server(
@@ -753,7 +753,7 @@ pub async fn run(
             let webid = hkask_types::WebID::new();
             let server = ExampleServer::new(
                 webid,
-                replicant.clone(),
+                userpod.clone(),
                 daemon_client.clone(),
                 None,
                 std::collections::HashMap::new(),
@@ -783,7 +783,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
     ).await;
 
     hkask_mcp_example::run(
-        bootstrap.replicant,
+        bootstrap.userpod,
         bootstrap.daemon_client,
     ).await
 }
@@ -791,7 +791,7 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
 
 `bootstrap_mcp_server` does:
 1. **Loads `.env`** — calls `dotenvy::dotenv().ok()`
-2. **Reads replicant identity** — from the env var you specify (default: `HKASK_MCP_HOST`)
+2. **Reads userpod identity** — from the env var you specify (default: `HKASK_MCP_HOST`)
 3. **Verifies P4 startup gates** — calls `verify_startup_gates()` against the daemon
 4. **Falls back to direct mode** — if the daemon is unavailable, warns and returns `daemon_client: None`
 
@@ -828,7 +828,7 @@ Manual test (stdio):
 
 ```bash
 cargo build -p <your-mcp-package>
-HKASK_MCP_HOST=test-replicant cargo run -p <your-mcp-package>
+HKASK_MCP_HOST=test-userpod cargo run -p <your-mcp-package>
 ```
 
 Daemon mode test:
@@ -1078,7 +1078,7 @@ status: VERIFIED (v2 — corrected: kata engine is single-pass; convergence loop
 ## Cross-Reference
 
 - [`hKask-architecture-master.md` § Kata — Cybernetic Capability Development](../architecture/core/hKask-architecture-master.md#kata--cybernetic-capability-development)
-- [`PRINCIPLES.md` § P6 — Space for Replicants & Bots](../architecture/core/PRINCIPLES.md#p6--space-for-replicants--bots)
+- [`PRINCIPLES.md` § P6 — Space for Replicants & Bots](../architecture/core/PRINCIPLES.md#p6--space-for-userpods--bots)
 - [`kata/mod.rs`](crates/hkask-services-kata-kanban/src/kata/mod.rs) — `KataEngine::execute()` dispatch (L333-486)
 - [`kata/improvement.rs`](crates/hkask-services-kata-kanban/src/kata/improvement.rs) — `run_improvement_from()` single-pass step loop (L20-121)
 - [`executor.rs`](crates/hkask-templates/src/executor.rs) — `ManifestExecutor::execute_manifest()` convergence loop (L209-686), `check_convergence()` (L746-799)

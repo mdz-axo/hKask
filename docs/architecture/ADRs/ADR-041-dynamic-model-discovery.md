@@ -19,7 +19,7 @@ hKask's onboarding previously used a hardcoded list of model names in `crates/hk
 
 **Problem Statement:** Onboarding presented stale, provider-agnostic model names that did not reflect the current near-frontier open-weight model landscape or the user's configured cloud inference provider.
 
-**Stakeholders:** CLI users (first-run onboarding), `kask onboard` users, replicant creators.
+**Stakeholders:** CLI users (first-run onboarding), `kask onboard` users, userpod creators.
 
 **Constraints:**
 - The pipeline must run during CLI onboarding, before the agent runtime is operational (no template executor available)

@@ -138,9 +138,9 @@ pub struct ChatResponseMessage {
    bypasses fusion) but a latent bug.
 
 2. **`UserStore` vs `AgentRegistryStore` mismatch** — onboarding writes to
-   `agent_registry`, daemon checks `replicant_identities`. The
-   `create_user_session` workaround fails with "replicant not found" for
-   replicants created via onboarding.
+   `agent_registry`, daemon checks `userpod_identities`. The
+   `create_user_session` workaround fails with "userpod not found" for
+   userpods created via onboarding.
 
 3. **Keychain entries disappear between sessions** — root cause unknown.
    The HKDF fallback in `resolve_secrets_from_keychain` mitigates this.

@@ -102,20 +102,20 @@ existence):
 
 Expected: `Daemon is running (socket: ...)`
 
-See [ADR-035](../architecture/ADRs/ADR-035-replicant-server-mode.md) for the
+See [ADR-035](../architecture/ADRs/ADR-035-userpod-server-mode.md) for the
 full daemon architecture and startup flow.
 
 ---
 
 ## 5. Authenticate Your Replicant
 
-Create a UserStore session so the daemon recognizes your replicant:
+Create a UserStore session so the daemon recognizes your userpod:
 
 ```bash
-./target/release/kask replicant login
+./target/release/kask userpod login
 ```
 
-You will be prompted for your replicant name and master passphrase. This
+You will be prompted for your userpod name and master passphrase. This
 creates a session that the daemon's `check_auth` queries to verify MCP
 server bootstrap requests.
 
@@ -137,7 +137,7 @@ The Curator lists installed skills. To exit: `/quit` or `Ctrl+D`.
 
 > **Note:** As of v0.31.0, `kask chat` auto-starts the daemon if it's not
 > already running, and `run_onboarding` creates a UserStore session in
-> operating mode. The explicit `kask daemon start` and `kask replicant login`
+> operating mode. The explicit `kask daemon start` and `kask userpod login`
 > steps above are still recommended for first-run clarity and for
 > environments where you want the daemon running independently of the chat
 > session.

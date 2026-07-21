@@ -436,7 +436,7 @@ This documentation standard itself maps to the 5 MDS categories:
 | Pre-release | Full corpus hygiene sweep | Documentation steward |
 | Post-merge (≥10 new docs) | Regenerate corpus inventory | Documentation steward |
 | Weekly | Review plans for staleness | Workstream lead |
-| Per-session | Clean superseded handoffs | Agent / replicant |
+| Per-session | Clean superseded handoffs | Agent / userpod |
 
 ---
 

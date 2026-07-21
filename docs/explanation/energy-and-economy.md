@@ -63,7 +63,7 @@ pub struct Well {
 
 #### Wallets: Per-Agent Balances
 
-Where the Well is the source, the `WalletManager` (`crates/hkask-cns/src/wallet_manager.rs`) is distribution. Backed by SQLite via `WalletStore`, it creates per-agent wallets on replicant registration, manages deposits and spending, and auto-draws from the Well when balances run low.
+Where the Well is the source, the `WalletManager` (`crates/hkask-cns/src/wallet_manager.rs`) is distribution. Backed by SQLite via `WalletStore`, it creates per-agent wallets on userpod registration, manages deposits and spending, and auto-draws from the Well when balances run low.
 
 The `WalletBackedBudget` (`crates/hkask-cns/src/wallet_budget.rs`) extends this for paid agents. Unlike standard `GasBudget` which replenishes from a dimensionless pool, `WalletBackedBudget` converts gas costs to rJoules and debits a real wallet. It always has `hard_limit = true` — rJoules represent real value. When an API key is attached, it checks encumbrance (allocated rJoule reservation) rather than raw wallet balance.
 

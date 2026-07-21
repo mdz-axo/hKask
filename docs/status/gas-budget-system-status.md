@@ -21,14 +21,14 @@ mds_categories: [trust, lifecycle, domain]
 
 ### Well System
 - `WellConfig`, `Well`, `WellManager` in `well.rs`
-- Default Well auto-created on first replicant start
+- Default Well auto-created on first userpod start
 - Auto-replenish on each regulation cycle
 - Exhaustion → algedonic alert with dampening (no re-alert fatigue)
 - **Auto-draw**: agents below 25% budget draw from default Well into wallet
 
 ### Wallet System
 - SQLite-backed `WalletStore` (`agent_wallets` table) + `WalletManager` in `wallet_manager.rs`
-- Wallet auto-created on replicant start with initial balance
+- Wallet auto-created on userpod start with initial balance
 - Integrated into spend path: `can_proceed` → `reserve_gas` → `settle_gas` check wallet first
 - Priority chain: WalletManager → WalletBackedBudget → GasBudget
 

@@ -383,7 +383,7 @@ Registry, vocabulary, and template execution for hKask.
 
 ### hkask-agents
 
-Agent pods, ACP, and bot/replicant management for hKask.
+Agent pods, ACP, and bot/userpod management for hKask.
 
 **Public Modules:**
 
@@ -476,7 +476,7 @@ MCP runtime and dispatch for hKask.
 
 **Key Public Types:**
 
-`MCPBootstrap` — Result of standard MCP server daemon bootstrap. Fields: `replicant: String`, `daemon_client: Option<DaemonClient>`.
+`MCPBootstrap` — Result of standard MCP server daemon bootstrap. Fields: `userpod: String`, `daemon_client: Option<DaemonClient>`.
 
 `ToolContext` (trait) — Implemented by all 15 hKask MCP server structs. Methods: `webid() -> &WebID`, `record_tool_outcome(tool, outcome)`.
 
@@ -527,7 +527,7 @@ CLI commands for hKask.
 | `cloud` | Cloud gateway client support |
 | `commands` | All subcommand handler modules (37 subcommands) |
 | `experience` | User experience utilities |
-| `onboarding` | Interactive replicant onboarding flow |
+| `onboarding` | Interactive userpod onboarding flow |
 | `onboarding_session` | Onboarding session state management |
 | `repl_host` | REPL host infrastructure |
 | `transcript_viewer` | TUI transcript viewer (feature-gated: `tui`) |
@@ -578,7 +578,7 @@ HTTP API with utoipa OpenAPI for hKask.
 
 Constructors: `with_defaults()`, `from_service_context(ctx)`, `with_wallet_service(svc)`, `start_loops()`, `shutdown_loops()`.
 
-**Route Groups (21+):** `auth_router`, `landing_page`, `health_check`, `templates_router`, `terminal_router`, `pods_router`, `mcp_router`, `replicant_router`, `cns_router`, `sovereignty_router`, `chat_router`, `models_router`, `a2a_router`, `bundles_router`, `curator_router`, `episodic_router`, `export_router`, `consolidation_router`, `git_router`, `goal_router`, `settings_router`, `wallet_router`, `admin`.
+**Route Groups (21+):** `auth_router`, `landing_page`, `health_check`, `templates_router`, `terminal_router`, `pods_router`, `mcp_router`, `userpod_router`, `cns_router`, `sovereignty_router`, `chat_router`, `models_router`, `a2a_router`, `bundles_router`, `curator_router`, `episodic_router`, `export_router`, `consolidation_router`, `git_router`, `goal_router`, `settings_router`, `wallet_router`, `admin`.
 
 **Middleware Stack (applied in order):** CNS span middleware → Session cookie middleware → Capability token middleware → Admin role-gating middleware → API key auth middleware.
 
@@ -834,7 +834,7 @@ Code understanding engine — tree-sitter based semantic code graph for hKask.
 
 ### hkask-acp
 
-ACP (Agent Client Protocol) replicant — presents hKask coding agents in IDEs via the Agent Client Protocol.
+ACP (Agent Client Protocol) userpod — presents hKask coding agents in IDEs via the Agent Client Protocol.
 
 **Public Modules:**
 
@@ -1499,13 +1499,13 @@ classDiagram
     namespace MCPServer {
         class CodeGraphServer {
             +WebID webid
-            +String replicant
+            +String userpod
             +Option~DaemonClient~ daemon
             +CapabilityTier capability_tier
             -Arc~Mutex~IndexPipeline~~ pipeline
             -Option~EmbeddingRouter~ embed_router
             -Environment jinja
-            +new(replicant, daemon, db_path) Result
+            +new(userpod, daemon, db_path) Result
             +codegraph_query()
             +codegraph_traverse()
             +codegraph_impact()

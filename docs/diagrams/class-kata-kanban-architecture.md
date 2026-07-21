@@ -19,7 +19,7 @@ classDiagram
 
     class KanbanServer {
         +webid: WebID
-        +replicant: String
+        +userpod: String
         +daemon: Option~DaemonClient~
         +service: KanbanService
         +kanban_board_create() String

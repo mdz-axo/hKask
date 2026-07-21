@@ -21,7 +21,7 @@ behavior of the shipping code and the standing properties of its sandbox design.
 
 | Component | Role |
 |-----------|------|
-| `FileSystemServer` | Server struct (`mcp_server!` macro): `webid`, `replicant`, `daemon`, `project_root`, `capability_tier` |
+| `FileSystemServer` | Server struct (`mcp_server!` macro): `webid`, `userpod`, `daemon`, `project_root`, `capability_tier` |
 | `sandbox_path` | Security boundary: resolve → canonicalize → containment check |
 | `execute_tool` | Framework wrapper: CNS tool span (`cns.tool.filesystem.*`) + daemon outcome recording |
 | `emit_cns` | Operation-level span emission (`file.read`, `file.written`, …) |

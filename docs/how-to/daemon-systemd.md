@@ -101,6 +101,6 @@ kask doctor --bootstrap
 
 ## Cross-references
 
-- [ADR-035: Replicant Server Mode](../architecture/ADRs/ADR-035-replicant-server-mode.md)
+- [ADR-035: Replicant Server Mode](../architecture/ADRs/ADR-035-userpod-server-mode.md)
 - [Getting Started](getting-started.md)
 - [REPL Bootstrap Gap Post-Mortem](../status/repl-bootstrap-gap-2026-07-18.md)
