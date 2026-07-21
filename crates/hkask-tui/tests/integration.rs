@@ -383,6 +383,23 @@ fn media_renders() {
 }
 
 #[test]
+fn media_refreshes_outside_render() {
+    use hkask_tui::bridges::media::MockMediaBridge;
+
+    let media = MockMediaBridge::with_gallery("/tmp/gallery", 2).arc();
+    let mut window = MediaWindow::new(window_id(), bridge()).with_media_bridge(media.clone());
+    render_smoke(&window, 80, 24);
+    assert_eq!(media.query_count(), 0);
+
+    window.tick();
+    assert_eq!(media.query_count(), 2);
+    let text = render_snapshot(&window, 80, 24).join("\n");
+    assert!(text.contains("gallery-1"));
+    render_smoke(&window, 80, 24);
+    assert_eq!(media.query_count(), 2);
+}
+
+#[test]
 fn research_renders() {
     let w = ResearchWindow::new(window_id(), bridge());
     render_smoke(&w, 80, 24);

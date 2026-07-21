@@ -4,6 +4,7 @@
 //! from hkask-mcp-media / GalleryStore.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Gallery status snapshot.
 #[derive(Debug, Clone)]
@@ -36,6 +37,7 @@ pub trait MediaDataBridge: Send + Sync {
 pub struct MockMediaBridge {
     pub gallery: GalleryStatus,
     pub images: Vec<ImageSummary>,
+    query_count: AtomicUsize,
 }
 
 impl MockMediaBridge {
@@ -48,6 +50,7 @@ impl MockMediaBridge {
                 root_path: None,
             },
             images: Vec::new(),
+            query_count: AtomicUsize::new(0),
         }
     }
 
@@ -71,7 +74,12 @@ impl MockMediaBridge {
                 root_path: Some(root.into()),
             },
             images,
+            query_count: AtomicUsize::new(0),
         }
+    }
+
+    pub fn query_count(&self) -> usize {
+        self.query_count.load(Ordering::Relaxed)
     }
 
     pub fn arc(self) -> Arc<Self> {
@@ -81,9 +89,11 @@ impl MockMediaBridge {
 
 impl MediaDataBridge for MockMediaBridge {
     fn gallery_status(&self) -> GalleryStatus {
+        self.query_count.fetch_add(1, Ordering::Relaxed);
         self.gallery.clone()
     }
     fn recent_images(&self, limit: usize) -> Vec<ImageSummary> {
+        self.query_count.fetch_add(1, Ordering::Relaxed);
         self.images.iter().take(limit).cloned().collect()
     }
     fn tagged_images(&self, _tag: &str, _limit: usize) -> Vec<ImageSummary> {

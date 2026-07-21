@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through sections + Chat tab.
 
 use crate::bridges::MediaDataBridge;
+use crate::bridges::media::{GalleryStatus, ImageSummary};
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -14,6 +15,7 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MediaSection {
@@ -52,6 +54,9 @@ pub struct MediaWindow {
     chat_state: McpChatState,
     bridge: Arc<dyn ReplBridge>,
     media: Option<Arc<dyn MediaDataBridge>>,
+    gallery: Option<GalleryStatus>,
+    images: Vec<ImageSummary>,
+    last_refresh: Option<Instant>,
 }
 
 impl MediaWindow {
@@ -63,11 +68,23 @@ impl MediaWindow {
             chat_state: McpChatState::new(),
             bridge,
             media: None,
+            gallery: None,
+            images: Vec::new(),
+            last_refresh: None,
         }
     }
     pub fn with_media_bridge(mut self, m: Arc<dyn MediaDataBridge>) -> Self {
         self.media = Some(m);
         self
+    }
+
+    fn refresh_data(&mut self) {
+        let Some(media) = self.media.as_ref() else {
+            return;
+        };
+        self.gallery = Some(media.gallery_status());
+        self.images = media.recent_images(12);
+        self.last_refresh = Some(Instant::now());
     }
 }
 
@@ -142,6 +159,12 @@ impl Window for MediaWindow {
     fn tick(&mut self) {
         let bridge = self.bridge.clone();
         self.poll_chat_request(bridge.as_ref());
+        if self
+            .last_refresh
+            .is_none_or(|last| last.elapsed() >= Duration::from_secs(1))
+        {
+            self.refresh_data();
+        }
     }
 }
 
@@ -166,9 +189,8 @@ impl McpTabbedWindow for MediaWindow {
             headers::section(format!("Media: {} ([ ] to navigate)", self.section.title())),
             Line::from(""),
         ];
-        if let Some(ref m) = self.media {
-            let gs = m.gallery_status();
-            let images = m.recent_images(12);
+        if let Some(ref gs) = self.gallery {
+            let images = &self.images;
             match self.section {
                 MediaSection::Gallery => {
                     if !gs.active {
@@ -183,7 +205,7 @@ impl McpTabbedWindow for MediaWindow {
                 }
                 MediaSection::Collections => {
                     lines.push(Line::from(format!("  {} image(s)", images.len())));
-                    for img in &images {
+                    for img in images {
                         let path = img.path.clone();
                         lines.push(Line::from(vec![
                             Span::raw("  📷 "),
@@ -197,7 +219,7 @@ impl McpTabbedWindow for MediaWindow {
                 }
                 MediaSection::Recent => {
                     lines.push(Line::from(format!("  {} recent image(s)", images.len())));
-                    for img in &images {
+                    for img in images {
                         let path = img.path.clone();
                         lines.push(Line::from(vec![
                             Span::raw("  📷 "),
@@ -210,6 +232,8 @@ impl McpTabbedWindow for MediaWindow {
                     }
                 }
             }
+        } else if self.media.is_some() {
+            lines.push(Line::from("  Loading media snapshot…"));
         } else {
             lines.push(Line::from("  No media MCP server connected."));
         }
