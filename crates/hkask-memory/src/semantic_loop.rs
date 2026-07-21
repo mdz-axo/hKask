@@ -18,7 +18,7 @@ use hkask_regulation::types::loops::{
     Signal, SignalMetric,
 };
 use hkask_storage::HMem;
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 
 /// Default storage budget for semantic h_mem count.

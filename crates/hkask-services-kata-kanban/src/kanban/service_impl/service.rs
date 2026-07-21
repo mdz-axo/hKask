@@ -147,7 +147,7 @@ impl KanbanService {
             board_id = %board.id,
             name = %name,
             owner = %owner,
-            "CNS"
+            "REG"
         );
 
         Ok(board)
@@ -439,7 +439,7 @@ impl KanbanService {
             task_id = %task.id,
             board_id = %board_id,
             owner = %owner,
-            "CNS"
+            "REG"
         );
 
         Ok(task)
@@ -628,7 +628,7 @@ impl KanbanService {
             from = %from_status,
             to = %target,
             actor = %actor,
-            "CNS"
+            "REG"
         );
 
         Ok(task)
@@ -689,7 +689,7 @@ impl KanbanService {
             operation = "task_assigned",
             task_id = %task_id,
             agent = %actor,
-            "CNS"
+            "REG"
         );
 
         Ok(task)
@@ -777,7 +777,7 @@ impl KanbanService {
             task_id = %task_id,
             passed = passed,
             verifier = %verifier,
-            "CNS"
+            "REG"
         );
 
         Ok((task, verification))
@@ -925,7 +925,7 @@ impl KanbanService {
             task_id = %task_id,
             added = amount,
             new_remaining = task.gas_remaining,
-            "CNS"
+            "REG"
         );
         Ok(task)
     }
@@ -956,7 +956,7 @@ impl KanbanService {
             task_id = %task_id,
             added = amount,
             new_remaining = task.rjoule_remaining,
-            "CNS"
+            "REG"
         );
         Ok(task)
     }

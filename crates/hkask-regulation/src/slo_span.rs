@@ -9,7 +9,7 @@ pub enum SloSpan {
 impl SloSpan {
     pub fn as_str(&self) -> &'static str {
         match self {
-            SloSpan::SloEvaluated => "cns.slo.evaluated",
+            SloSpan::SloEvaluated => "reg.slo.evaluated",
         }
     }
 }
@@ -24,7 +24,7 @@ impl std::str::FromStr for SloSpan {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.slo.evaluated" => Ok(SloSpan::SloEvaluated),
+            "reg.slo.evaluated" => Ok(SloSpan::SloEvaluated),
             _ => Err(()),
         }
     }

@@ -105,7 +105,7 @@ pub(crate) async fn sovereignty_status(
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyStatusResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "hkask.api", operation = "sovereignty_status", "CNS");
+    tracing::info!(target: "hkask.api", operation = "sovereignty_status", "REG");
     let cm = &state.agent_service.governance().consent;
     let webid_str = auth.webid.to_string();
     let boundary = DataSovereigntyBoundary::load_or_default();
@@ -157,7 +157,7 @@ pub(crate) async fn sovereignty_grant_consent(
     Json(req): Json<SovereigntyConsentRequest>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "hkask.api", operation = "sovereignty_grant", category = %req.category, "CNS");
+    tracing::info!(target: "hkask.api", operation = "sovereignty_grant", category = %req.category, "REG");
     let webid_str = auth.webid.to_string();
     let cat_str = req.category;
     let cat = hkask_types::DataCategory::parse(&cat_str);
@@ -199,7 +199,7 @@ pub(crate) async fn sovereignty_revoke_consent(
     Extension(auth): Extension<AuthContext>,
 ) -> Result<Json<SovereigntyConsentResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "hkask.api", operation = "sovereignty_revoke", "CNS");
+    tracing::info!(target: "hkask.api", operation = "sovereignty_revoke", "REG");
     let webid_str = auth.webid.to_string();
     let cm = &state.agent_service.governance().consent;
     cm.revoke_consent(&webid_str)
@@ -233,7 +233,7 @@ pub(crate) async fn sovereignty_check_access(
     Query(params): Query<std::collections::HashMap<String, String>>,
 ) -> Result<Json<AccessCheckResponse>, ServiceErrorResponse> {
     // P9: CNS span
-    tracing::info!(target: "hkask.api", operation = "sovereignty_check_access", "CNS");
+    tracing::info!(target: "hkask.api", operation = "sovereignty_check_access", "REG");
     let cat_str = params.get("category").map(|s| s.as_str()).unwrap_or("");
     if cat_str.is_empty() {
         return Err(ServiceError::Domain {

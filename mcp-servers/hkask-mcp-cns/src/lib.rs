@@ -12,7 +12,7 @@
 //! The stored `span_category` column holds the short name (e.g. "guard.input",
 //! "regulation", "gas") — i.e. the `SpanNamespace::short_name()` with the
 //! `cns.` prefix stripped. Callers pass the full `cns.*` namespace (e.g.
-//! "cns.guard"); the server strips the `cns.` prefix before querying so the
+//! "reg.guard"); the server strips the `cns.` prefix before querying so the
 //! `LIKE 'prefix%'` predicate hits the index on `(span_category, phase)`.
 
 #![allow(unused_crate_dependencies)]
@@ -41,12 +41,12 @@ hkask_mcp::mcp_server!(
 
 /// Request for `cns_query_spans`.
 ///
-/// `namespace` is the full canonical CNS namespace prefix (e.g. "cns.guard",
-/// "cns.regulation", "hkask"). The server strips the `cns.` prefix before
+/// `namespace` is the full canonical CNS namespace prefix (e.g. "reg.guard",
+/// "reg.outcome", "hkask"). The server strips the `cns.` prefix before
 /// querying the `span_category` column, which stores short names.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct QuerySpansRequest {
-    /// Canonical namespace prefix (e.g. "cns.guard", "cns.regulation", "hkask").
+    /// Canonical namespace prefix (e.g. "reg.guard", "reg.outcome", "hkask").
     /// Empty string is rejected with `invalid_argument`.
     namespace: String,
     /// Lookback window in hours (default 1.0).
@@ -68,7 +68,7 @@ fn default_limit() -> u64 {
 /// Request for `cns_span_stats`.
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SpanStatsRequest {
-    /// Canonical namespace prefix (e.g. "cns.guard", "cns.regulation", "hkask").
+    /// Canonical namespace prefix (e.g. "reg.guard", "reg.outcome", "hkask").
     /// Empty string is rejected with `invalid_argument`.
     namespace: String,
     /// Lookback window in hours (default 1.0).
@@ -88,7 +88,7 @@ impl CnsServer {
             let namespace = req.namespace.trim();
             if namespace.is_empty() {
                 return Err(McpToolError::invalid_argument(
-                    "namespace must be a non-empty string (e.g. \"cns.guard\", \"cns.regulation\", \"hkask\")",
+                    "namespace must be a non-empty string (e.g. \"reg.guard\", \"reg.outcome\", \"hkask\")",
                 ));
             }
             let Some(ref store) = self.nu_event_store else {
@@ -99,7 +99,7 @@ impl CnsServer {
             let since = chrono::Utc::now()
                 - chrono::Duration::seconds((req.since_hours * 3600.0) as i64);
             // The stored span_category column holds the short name (e.g. "guard.input",
-            // "regulation", "gas"). Strip the "cns." prefix so LIKE 'prefix%' hits the
+            // "regulation", "gas"). Strip the "reg." prefix so LIKE 'prefix%' hits the
             // (span_category, phase) index.
             let short_prefix = strip_cns_prefix(namespace);
             let events = store
@@ -144,7 +144,7 @@ impl CnsServer {
             let namespace = req.namespace.trim();
             if namespace.is_empty() {
                 return Err(McpToolError::invalid_argument(
-                    "namespace must be a non-empty string (e.g. \"cns.guard\", \"cns.regulation\", \"hkask\")",
+                    "namespace must be a non-empty string (e.g. \"reg.guard\", \"reg.outcome\", \"hkask\")",
                 ));
             }
             let Some(ref store) = self.nu_event_store else {
@@ -178,7 +178,7 @@ impl CnsServer {
 /// `span_category` column. Non-`cns.` namespaces (e.g. `hkask`) are returned
 /// as-is so callers can query performative telemetry too.
 fn strip_cns_prefix(namespace: &str) -> &str {
-    namespace.strip_prefix("cns.").unwrap_or(namespace)
+    namespace.strip_prefix("reg.").unwrap_or(namespace)
 }
 
 // ── Server startup ─────────────────────────────────────────────────────

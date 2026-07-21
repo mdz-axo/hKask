@@ -10,8 +10,8 @@ pub enum ClassifySpan {
 impl ClassifySpan {
     pub fn as_str(&self) -> &'static str {
         match self {
-            ClassifySpan::ClassifyDualFidelity => "cns.classify.dual_fidelity",
-            ClassifySpan::ClassifyDrift => "cns.classify.drift",
+            ClassifySpan::ClassifyDualFidelity => "reg.classify.dual_fidelity",
+            ClassifySpan::ClassifyDrift => "reg.classify.drift",
         }
     }
 }
@@ -26,8 +26,8 @@ impl std::str::FromStr for ClassifySpan {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.classify.dual_fidelity" => Ok(ClassifySpan::ClassifyDualFidelity),
-            "cns.classify.drift" => Ok(ClassifySpan::ClassifyDrift),
+            "reg.classify.dual_fidelity" => Ok(ClassifySpan::ClassifyDualFidelity),
+            "reg.classify.drift" => Ok(ClassifySpan::ClassifyDrift),
             _ => Err(()),
         }
     }

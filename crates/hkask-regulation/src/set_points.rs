@@ -4,7 +4,7 @@
 //! signals are compared. When a signal deviates beyond its set-point,
 //! the loop produces an efferent action.
 
-use hkask_types::cns::QueueDepth;
+use hkask_types::regulation::QueueDepth;
 
 /// Default minimum energy budget remaining ratio (20%).
 ///

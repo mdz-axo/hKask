@@ -485,10 +485,10 @@ impl ApiRequestSpan {
     /// Degrades gracefully: on namespace miss or persistence failure, logs a
     /// warning and continues (the request is not blocked by observability).
     pub fn emit_to(&self, sink: &dyn RegulationSink, observer: &WebID) {
-        let Some(ns) = SpanNamespace::parse("cns.api.request") else {
+        let Some(ns) = SpanNamespace::parse("reg.api.request") else {
             tracing::warn!(
                 target: "hkask.api_metering",
-                "cns.api.request namespace not registered — span not persisted"
+                "reg.api.request namespace not registered — span not persisted"
             );
             return;
         };
@@ -540,11 +540,11 @@ impl ApiMeteringAlert {
     /// post: returns alert type label
     pub fn alert_type(&self) -> &'static str {
         match self {
-            Self::RateLimitExceeded { .. } => "cns.api.rate_limit_exceeded",
-            Self::AllocationLow { .. } => "cns.api.allocation_low",
-            Self::AllocationExhausted { .. } => "cns.api.allocation_exhausted",
-            Self::AnomalyAbuse { .. } => "cns.api.anomaly_abuse",
-            Self::ScopeViolation { .. } => "cns.api.scope_violation",
+            Self::RateLimitExceeded { .. } => "reg.api.rate_limit_exceeded",
+            Self::AllocationLow { .. } => "reg.api.allocation_low",
+            Self::AllocationExhausted { .. } => "reg.api.allocation_exhausted",
+            Self::AnomalyAbuse { .. } => "reg.api.anomaly_abuse",
+            Self::ScopeViolation { .. } => "reg.api.scope_violation",
         }
     }
 
@@ -684,8 +684,8 @@ mod tests {
             .unwrap()
             .clone()
             .expect("event was persisted");
-        assert_eq!(event.span.namespace.as_str(), "cns.api.request");
-        assert_eq!(event.span.path, "cns.api.request.request");
+        assert_eq!(event.span.namespace.as_str(), "reg.api.request");
+        assert_eq!(event.span.path, "reg.api.request.request");
         assert_eq!(event.phase, CyclePhase::Sense);
         // Observation contains the serialized span fields
         let obs = &event.observation;

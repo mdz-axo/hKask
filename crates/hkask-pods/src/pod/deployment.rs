@@ -129,10 +129,10 @@ pub enum PodDeployError {
 
 impl PerPodLedger {
     pub fn scoped(pod_id: PodID) -> Self {
-        let span_namespace = format!("cns.agent_pod.{}", pod_id);
+        let span_namespace = format!("reg.pod.{}", pod_id);
         let inner = RegulationLedger::default();
         debug!(
-            target: "reg.agent_pod",
+            target: "reg.pod",
             pod_id = %pod_id,
             namespace = %span_namespace,
             "Per-pod CNS runtime initialized"
@@ -155,7 +155,7 @@ impl PerPodLedger {
     }
 
     pub async fn emit_tool_span(&self, tool_name: &str) {
-        let domain = format!("cns.agent_pod.{}.tool.{}", self.pod_id, tool_name);
+        let domain = format!("reg.pod.{}.tool.{}", self.pod_id, tool_name);
         self.inner.increment_variety(&domain, tool_name).await;
     }
 
@@ -165,13 +165,13 @@ impl PerPodLedger {
         success: bool,
         error_kind: Option<&str>,
     ) {
-        let domain = format!("cns.agent_pod.{}.tool.{}", self.pod_id, tool_name);
+        let domain = format!("reg.pod.{}.tool.{}", self.pod_id, tool_name);
         self.inner
             .record_outcome(&domain, success, error_kind)
             .await;
     }
 
-    pub async fn health(&self) -> hkask_types::cns::LedgerHealth {
+    pub async fn health(&self) -> hkask_types::regulation::LedgerHealth {
         self.inner.health().await
     }
 
@@ -180,7 +180,7 @@ impl PerPodLedger {
     }
 
     pub async fn variety_for_tool(&self, tool_name: &str) -> u64 {
-        let domain = format!("cns.agent_pod.{}.tool.{}", self.pod_id, tool_name);
+        let domain = format!("reg.pod.{}.tool.{}", self.pod_id, tool_name);
         self.inner.variety_for_domain(&domain).await
     }
 

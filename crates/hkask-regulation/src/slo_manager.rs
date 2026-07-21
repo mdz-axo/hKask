@@ -62,7 +62,7 @@ pub enum SloManagerError {
 ///
 /// ```rust,ignore
 /// use hkask_regulation::slo_manager::SloManager;
-/// use hkask_types::cns::seed_slos;
+/// use hkask_types::regulation::seed_slos;
 ///
 /// let mut manager = SloManager::new();
 /// for slo in seed_slos() {
@@ -184,7 +184,7 @@ impl SloManager {
                         SloSpan::SloEvaluated.emit("evaluated");
                         tracing::info!(
                             target: "reg",
-                            reg_domain = "cns.slo.evaluated",
+                            reg_domain = "reg.slo.evaluated",
                             slo_id = %slo.slo_id,
                             compliance = %compliance,
                             error_budget_pct = %(error_budget_remaining * 100.0),
@@ -209,7 +209,7 @@ impl SloManager {
                     Err(e) => {
                         tracing::warn!(
                             target: "reg",
-                            reg_domain = "cns.slo.evaluated",
+                            reg_domain = "reg.slo.evaluated",
                             slo_id = %slo.slo_id,
                             error = %e,
                             "SLO evaluation failed — data provider error",
@@ -293,7 +293,7 @@ mod tests {
     #[test]
     fn register_and_deregister_slo() {
         let mut manager = SloManager::new();
-        let slo = SloDefinition::new("test", "test", "cns.test", 0.99, 3600, SloSeverity::Medium);
+        let slo = SloDefinition::new("test", "test", "reg.test", 0.99, 3600, SloSeverity::Medium);
         manager.register(slo);
         assert_eq!(manager.slos().len(), 1);
         assert!(manager.deregister("test"));
@@ -312,7 +312,7 @@ mod tests {
         let mut slo = SloDefinition::new(
             "active",
             "active",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::High,
@@ -321,7 +321,7 @@ mod tests {
         let mut slo2 = SloDefinition::new(
             "inactive",
             "inactive",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::High,
@@ -362,7 +362,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "test",
             "test",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::Critical,
@@ -380,7 +380,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "test",
             "test",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::High,
@@ -404,7 +404,7 @@ mod tests {
     fn evaluate_with_minimum_operations_threshold() {
         let mut manager = SloManager::new();
         manager.register(
-            SloDefinition::new("test", "test", "cns.test", 0.99, 3600, SloSeverity::High)
+            SloDefinition::new("test", "test", "reg.test", 0.99, 3600, SloSeverity::High)
                 .with_minimum_operations(100),
         );
         // 50 ops with 100% success, but below minimum of 100
@@ -424,7 +424,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "test",
             "test",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::Critical,
@@ -446,7 +446,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "test1",
             "test",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::Medium,
@@ -454,7 +454,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "test2",
             "test",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::Medium,
@@ -477,7 +477,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "passing",
             "passing",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::High,
@@ -486,7 +486,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "failing",
             "failing",
-            "cns.test",
+            "reg.test",
             0.999,
             3600,
             SloSeverity::Critical,
@@ -505,7 +505,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "medium",
             "medium",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::Medium,
@@ -513,7 +513,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "critical",
             "critical",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::Critical,
@@ -521,7 +521,7 @@ mod tests {
         manager.register(SloDefinition::new(
             "high",
             "high",
-            "cns.test",
+            "reg.test",
             0.99,
             3600,
             SloSeverity::High,

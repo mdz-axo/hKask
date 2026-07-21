@@ -220,7 +220,7 @@ impl crate::calibrator::Calibrator for WalletGasCalibrator {
     }
 
     fn calibration_target(&self) -> &'static str {
-        "cns.wallet.calibration"
+        "reg.wallet.calibration"
     }
 }
 
@@ -347,7 +347,7 @@ mod tests {
         let event = sink
             .last_event()
             .expect("wallet conversion span should be emitted");
-        assert_eq!(event.span.as_str(), "cns.wallet.conversion.calibrated");
+        assert_eq!(event.span.as_str(), "reg.wallet.conversion.calibrated");
         assert_eq!(event.phase, CyclePhase::Act);
         assert_eq!(
             event

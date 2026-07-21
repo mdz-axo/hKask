@@ -39,7 +39,7 @@ impl KataEngine {
                     step = step.ordinal,
                     action = %step.action,
                     bot = %state.learner_bot,
-                    "CNS"
+                    "REG"
                 );
             }
 
@@ -60,7 +60,7 @@ impl KataEngine {
                     namespace = %manifest.cns.span_namespace,
                     step = step.ordinal,
                     passed_check = check_result,
-                    "CNS"
+                    "REG"
                 );
             }
 
@@ -93,7 +93,7 @@ impl KataEngine {
                     namespace = %manifest.cns.span_namespace,
                     step = step.ordinal,
                     gas = state.gas_consumed,
-                    "CNS"
+                    "REG"
                 );
             }
 

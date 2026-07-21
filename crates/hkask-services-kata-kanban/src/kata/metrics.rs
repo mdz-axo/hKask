@@ -127,7 +127,7 @@ impl KataEngine {
                 severity = ?a.severity,
                 deficit = a.deficit,
                 threshold = a.threshold,
-                "CNS"
+                "REG"
             );
         }
     }

@@ -4,7 +4,7 @@ use super::WalletService;
 use hkask_services_core::{DomainKind, ServiceError};
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
-use hkask_types::cns::{RegulationSpan, ToolSubsystem};
+use hkask_types::regulation::{RegulationSpan, ToolSubsystem};
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::WalletId;
 use hkask_wallet::GAS_PER_RJOULE;

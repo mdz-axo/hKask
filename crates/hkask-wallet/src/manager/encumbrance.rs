@@ -2,7 +2,7 @@
 
 use super::*;
 
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 
 impl WalletManager {
     pub fn encumber(

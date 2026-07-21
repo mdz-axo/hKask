@@ -114,8 +114,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.acp.userpod.memory_size",
     // ── Core infrastructure ──
     "reg.adapter",
-    "reg.agent_pod",
-    "reg.algedonic",
+    "reg.pod",
+    "reg.alert",
     // ── Seam architecture ──
     "reg.architecture.seam.coverage",
     "reg.architecture.seam.drift",
@@ -263,10 +263,10 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.qa.repair_exhausted",
     "reg.qa.repair_verified",
     // ── Regulation (v0.31.0 Fermi impact-gate) ──
-    "reg.regulation",
-    "reg.regulation.calibration",
-    "reg.regulation.coherence",
-    "reg.regulation.predictive",
+    "reg.outcome",
+    "reg.outcome.calibration",
+    "reg.outcome.coherence",
+    "reg.outcome.predictive",
     // ── UserPod ──
     "reg.userpod.registered",
     // ── Semantic ──
@@ -728,16 +728,16 @@ impl SpanKind {
             SpanKind::GasDepleted => ("reg.gas", "depleted"),
             SpanKind::CurationDirectiveAcknowledged => ("reg.curation", "directive_acknowledged"),
             SpanKind::CurationEscalation => ("reg.curation", "escalation"),
-            SpanKind::AgentPodRegistered => ("reg.agent_pod", "registered"),
-            SpanKind::AgentPodActivated => ("reg.agent_pod", "activated"),
-            SpanKind::AgentPodDeactivated => ("reg.agent_pod", "deactivated"),
+            SpanKind::AgentPodRegistered => ("reg.pod", "registered"),
+            SpanKind::AgentPodActivated => ("reg.pod", "activated"),
+            SpanKind::AgentPodDeactivated => ("reg.pod", "deactivated"),
             SpanKind::VarietyAlgedonicAlert => ("reg.variety", "algedonic_alert"),
             SpanKind::DepositCredited => ("reg.wallet", "deposit_credited"),
-            SpanKind::ImpactVerified => ("reg.regulation", "impact_verified"),
-            SpanKind::ActionSubstituted => ("reg.regulation", "action_substituted"),
-            SpanKind::ActionBlocked => ("reg.regulation", "action_blocked"),
-            SpanKind::RegulatoryPlateauDetected => ("reg.regulation", "plateau_detected"),
-            SpanKind::LoopMetricsTelemetry => ("reg.regulation", "loop_quality"),
+            SpanKind::ImpactVerified => ("reg.outcome", "impact_verified"),
+            SpanKind::ActionSubstituted => ("reg.outcome", "action_substituted"),
+            SpanKind::ActionBlocked => ("reg.outcome", "action_blocked"),
+            SpanKind::RegulatoryPlateauDetected => ("reg.outcome", "plateau_detected"),
+            SpanKind::LoopMetricsTelemetry => ("reg.outcome", "loop_quality"),
         }
     }
 }
@@ -875,7 +875,7 @@ mod tests {
             SpanCategory::Inference
         );
         assert_eq!(
-            SpanNamespace::new("reg.agent_pod").unwrap().category(),
+            SpanNamespace::new("reg.pod").unwrap().category(),
             SpanCategory::Episodic
         );
         assert_eq!(
@@ -949,7 +949,7 @@ mod tests {
         );
         assert_eq!(
             Span::from_kind(SpanKind::AgentPodRegistered).as_str(),
-            "reg.agent_pod.registered"
+            "reg.pod.registered"
         );
         assert_eq!(
             Span::from_kind(SpanKind::VarietyAlgedonicAlert).as_str(),

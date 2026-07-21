@@ -3,7 +3,7 @@
 //!
 
 pub mod agent_paths;
-pub mod cns;
+pub mod regulation;
 pub mod corpus;
 pub mod crypto;
 pub mod curation;

@@ -5,7 +5,7 @@
 //! rather than concrete implementations. Per the Authority DAG,
 //! domain crates depend on these port traits (not on each other).
 
-pub mod cns;
+pub mod regulation;
 pub mod consent_port;
 pub mod embedding;
 pub mod embedding_port;

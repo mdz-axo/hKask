@@ -13,11 +13,11 @@ pub enum InfraSpan {
 impl InfraSpan {
     pub fn as_str(&self) -> &'static str {
         match self {
-            InfraSpan::CiInvariantViolation => "cns.ci.invariant.violation",
-            InfraSpan::GuardViolation => "cns.guard.violation",
-            InfraSpan::CuratorConsolidation => "cns.curator.consolidation",
-            InfraSpan::Chat => "cns.chat",
-            InfraSpan::WalletConversion => "cns.wallet.conversion",
+            InfraSpan::CiInvariantViolation => "reg.ci.invariant.violation",
+            InfraSpan::GuardViolation => "reg.guard.violation",
+            InfraSpan::CuratorConsolidation => "reg.curator.consolidation",
+            InfraSpan::Chat => "reg.chat",
+            InfraSpan::WalletConversion => "reg.wallet.conversion",
         }
     }
 }
@@ -32,11 +32,11 @@ impl std::str::FromStr for InfraSpan {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.ci.invariant.violation" => Ok(InfraSpan::CiInvariantViolation),
-            "cns.guard.violation" => Ok(InfraSpan::GuardViolation),
-            "cns.curator.consolidation" => Ok(InfraSpan::CuratorConsolidation),
-            "cns.chat" => Ok(InfraSpan::Chat),
-            "cns.wallet.conversion" => Ok(InfraSpan::WalletConversion),
+            "reg.ci.invariant.violation" => Ok(InfraSpan::CiInvariantViolation),
+            "reg.guard.violation" => Ok(InfraSpan::GuardViolation),
+            "reg.curator.consolidation" => Ok(InfraSpan::CuratorConsolidation),
+            "reg.chat" => Ok(InfraSpan::Chat),
+            "reg.wallet.conversion" => Ok(InfraSpan::WalletConversion),
             _ => Err(()),
         }
     }

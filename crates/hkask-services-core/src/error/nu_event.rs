@@ -30,73 +30,73 @@ impl ServiceError {
                 domain, message, ..
             } => match domain {
                 DomainKind::Agent => (
-                    "cns.agent_pod",
+                    "reg.pod",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Consent => (
-                    "cns.sovereignty",
+                    "reg.sovereignty",
                     "error.consent",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Curator => (
-                    "cns.curation",
+                    "reg.curation",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Federation => (
-                    "cns.federation.sync",
+                    "reg.federation.sync",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Inference => (
-                    "cns.inference",
+                    "reg.inference",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Infrastructure => (
-                    "cns.cybernetics",
+                    "reg.cybernetics",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Memory => (
-                    "cns.memory.encode",
+                    "reg.memory.encode",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Pod => (
-                    "cns.agent_pod",
+                    "reg.pod",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Storage => (
-                    "cns.cybernetics",
+                    "reg.cybernetics",
                     "error.storage",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::User => (
-                    "cns.sovereignty",
+                    "reg.sovereignty",
                     "error.user",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Wallet => (
-                    "cns.wallet.balance",
+                    "reg.wallet.balance",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Mcp => (
-                    "cns.tool",
+                    "reg.tool",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
                 DomainKind::Skill => (
-                    "cns.skill",
+                    "reg.skill",
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
             },
             ServiceError::ModelService { message, .. } => (
-                "cns.inference",
+                "reg.inference",
                 "error.model_service",
                 serde_json::json!({ "message": message }),
             ),
@@ -106,7 +106,7 @@ impl ServiceError {
                 tool,
                 message,
             } => (
-                "cns.tool",
+                "reg.tool",
                 "error",
                 serde_json::json!({
                     "kind": kind.to_string(),
@@ -116,7 +116,7 @@ impl ServiceError {
                 }),
             ),
             ServiceError::Infra(e) => (
-                "cns.cybernetics",
+                "reg.cybernetics",
                 "error.infra",
                 serde_json::json!({ "error": e.to_string() }),
             ),

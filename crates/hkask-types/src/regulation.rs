@@ -135,7 +135,7 @@ pub enum RegulationSpan {
     Gas,
     /// Curation loop operations — registry sync, pod sync, directive issuance.
     Curation,
-    /// Self-healing operation span. Canonical string: `"cns.heal"`.
+    /// Self-healing operation span. Canonical string: `"reg.heal"`.
     SelfHeal,
     /// Memory encoding operations.
     MemoryEncode,
@@ -220,9 +220,9 @@ impl RegulationSpan {
     ///
     /// Enforces the canonical CNS emission convention (PRINCIPLES.md §9.2):
     /// - `target` = `"cns"` root namespace (full domain in `reg_domain` field)
-    /// - `reg_domain` = `self.as_str()` (e.g. `"cns.tool.media"`)
+    /// - `reg_domain` = `self.as_str()` (e.g. `"reg.tool.media"`)
     /// - `operation` = the verb describing what occurred (e.g. `"invoked"`)
-    /// - message = `"CNS"` (required for downstream ν-event parsing)
+    /// - message = `"REG"` (required for downstream ν-event parsing)
     ///
     /// Callers that need additional structured fields can attach them by
     /// entering a child [`mod@tracing::span`] before calling `emit()`.
@@ -230,7 +230,7 @@ impl RegulationSpan {
     /// # Example
     ///
     /// ```rust,no_run
-    /// use hkask_types::cns::{RegulationSpan, ToolSubsystem};
+    /// use hkask_types::regulation::{RegulationSpan, ToolSubsystem};
     ///
     /// RegulationSpan::Tool { subsystem: ToolSubsystem::Media }
     ///     .emit("invoked");
@@ -240,43 +240,43 @@ impl RegulationSpan {
             target: "reg",
             reg_domain = %self.as_str(),
             operation = %operation,
-            "CNS",
+            "REG",
         );
     }
 
     /// expect: "System types preserve semantic identity and are provenance-aware"
     /// pre:  self is a valid RegulationSpan variant
-    /// post: returns the canonical namespace string (e.g. "cns.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
+    /// post: returns the canonical namespace string (e.g. "reg.tool.web_search"); output matches CANONICAL_NAMESPACES byte-for-byte
     ///
     /// This output must match ν-event serialization strings byte-for-byte
     /// (P8 — Semantic Grounding).
     pub fn as_str(&self) -> &'static str {
         match self {
             RegulationSpan::Tool { subsystem } => match subsystem {
-                ToolSubsystem::WebSearch => "cns.tool.web_search",
-                ToolSubsystem::Condenser => "cns.tool.condenser",
-                ToolSubsystem::Training => "cns.tool.training",
-                ToolSubsystem::Replica => "cns.tool.replica",
-                ToolSubsystem::Research => "cns.tool.research",
-                ToolSubsystem::Communication => "cns.tool.communication",
-                ToolSubsystem::Registry => "cns.tool.registry",
-                ToolSubsystem::Wallet => "cns.tool.wallet",
-                ToolSubsystem::Media => "cns.tool.media",
-                ToolSubsystem::Kanban => "cns.tool.kanban",
-                ToolSubsystem::Memory => "cns.tool.memory",
-                ToolSubsystem::Companies => "cns.tool.companies",
-                ToolSubsystem::Docproc => "cns.tool.docproc",
-                ToolSubsystem::Filesystem => "cns.tool.filesystem",
-                ToolSubsystem::Curator => "cns.tool.curator",
-                ToolSubsystem::Other => "cns.tool",
+                ToolSubsystem::WebSearch => "reg.tool.web_search",
+                ToolSubsystem::Condenser => "reg.tool.condenser",
+                ToolSubsystem::Training => "reg.tool.training",
+                ToolSubsystem::Replica => "reg.tool.replica",
+                ToolSubsystem::Research => "reg.tool.research",
+                ToolSubsystem::Communication => "reg.tool.communication",
+                ToolSubsystem::Registry => "reg.tool.registry",
+                ToolSubsystem::Wallet => "reg.tool.wallet",
+                ToolSubsystem::Media => "reg.tool.media",
+                ToolSubsystem::Kanban => "reg.tool.kanban",
+                ToolSubsystem::Memory => "reg.tool.memory",
+                ToolSubsystem::Companies => "reg.tool.companies",
+                ToolSubsystem::Docproc => "reg.tool.docproc",
+                ToolSubsystem::Filesystem => "reg.tool.filesystem",
+                ToolSubsystem::Curator => "reg.tool.curator",
+                ToolSubsystem::Other => "reg.tool",
             },
-            RegulationSpan::Inference => "cns.inference",
-            RegulationSpan::Fusion => "cns.fusion",
-            RegulationSpan::AgentPod => "cns.agent_pod",
-            RegulationSpan::Gas => "cns.gas",
-            RegulationSpan::Curation => "cns.curation",
-            RegulationSpan::SelfHeal => "cns.heal",
-            RegulationSpan::MemoryEncode => "cns.memory.encode",
+            RegulationSpan::Inference => "reg.inference",
+            RegulationSpan::Fusion => "reg.fusion",
+            RegulationSpan::AgentPod => "reg.pod",
+            RegulationSpan::Gas => "reg.gas",
+            RegulationSpan::Curation => "reg.curation",
+            RegulationSpan::SelfHeal => "reg.heal",
+            RegulationSpan::MemoryEncode => "reg.memory.encode",
         }
     }
 }
@@ -308,61 +308,61 @@ impl std::str::FromStr for RegulationSpan {
     /// successfully. Unknown strings return `Err(())`.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.tool" => Ok(RegulationSpan::Tool {
+            "reg.tool" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Other,
             }),
-            "cns.tool.web_search" => Ok(RegulationSpan::Tool {
+            "reg.tool.web_search" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::WebSearch,
             }),
-            "cns.tool.condenser" => Ok(RegulationSpan::Tool {
+            "reg.tool.condenser" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Condenser,
             }),
-            "cns.tool.training" => Ok(RegulationSpan::Tool {
+            "reg.tool.training" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Training,
             }),
-            "cns.tool.replica" => Ok(RegulationSpan::Tool {
+            "reg.tool.replica" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Replica,
             }),
-            "cns.tool.research" => Ok(RegulationSpan::Tool {
+            "reg.tool.research" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Research,
             }),
-            "cns.tool.communication" => Ok(RegulationSpan::Tool {
+            "reg.tool.communication" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Communication,
             }),
-            "cns.tool.registry" => Ok(RegulationSpan::Tool {
+            "reg.tool.registry" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Registry,
             }),
-            "cns.tool.wallet" => Ok(RegulationSpan::Tool {
+            "reg.tool.wallet" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Wallet,
             }),
-            "cns.tool.media" => Ok(RegulationSpan::Tool {
+            "reg.tool.media" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Media,
             }),
-            "cns.tool.kanban" => Ok(RegulationSpan::Tool {
+            "reg.tool.kanban" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Kanban,
             }),
-            "cns.tool.memory" => Ok(RegulationSpan::Tool {
+            "reg.tool.memory" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Memory,
             }),
-            "cns.tool.companies" => Ok(RegulationSpan::Tool {
+            "reg.tool.companies" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Companies,
             }),
-            "cns.tool.docproc" => Ok(RegulationSpan::Tool {
+            "reg.tool.docproc" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Docproc,
             }),
-            "cns.tool.filesystem" => Ok(RegulationSpan::Tool {
+            "reg.tool.filesystem" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Filesystem,
             }),
-            "cns.tool.curator" => Ok(RegulationSpan::Tool {
+            "reg.tool.curator" => Ok(RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Curator,
             }),
-            "cns.inference" => Ok(RegulationSpan::Inference),
-            "cns.fusion" => Ok(RegulationSpan::Fusion),
-            "cns.agent_pod" => Ok(RegulationSpan::AgentPod),
-            "cns.gas" => Ok(RegulationSpan::Gas),
-            "cns.curation" => Ok(RegulationSpan::Curation),
-            "cns.heal" => Ok(RegulationSpan::SelfHeal),
-            "cns.memory.encode" => Ok(RegulationSpan::MemoryEncode),
+            "reg.inference" => Ok(RegulationSpan::Inference),
+            "reg.fusion" => Ok(RegulationSpan::Fusion),
+            "reg.pod" => Ok(RegulationSpan::AgentPod),
+            "reg.gas" => Ok(RegulationSpan::Gas),
+            "reg.curation" => Ok(RegulationSpan::Curation),
+            "reg.heal" => Ok(RegulationSpan::SelfHeal),
+            "reg.memory.encode" => Ok(RegulationSpan::MemoryEncode),
             _ => Err(()),
         }
     }
@@ -380,19 +380,19 @@ mod cns_span_tests {
                 subsystem: ToolSubsystem::Other
             }
             .to_string(),
-            "cns.tool"
+            "reg.tool"
         );
-        assert_eq!(RegulationSpan::Inference.to_string(), "cns.inference");
-        assert_eq!(RegulationSpan::AgentPod.to_string(), "cns.agent_pod");
-        assert_eq!(RegulationSpan::Gas.to_string(), "cns.gas");
-        assert_eq!(RegulationSpan::Curation.to_string(), "cns.curation");
-        assert_eq!(RegulationSpan::SelfHeal.to_string(), "cns.heal");
-        assert_eq!(RegulationSpan::MemoryEncode.to_string(), "cns.memory.encode");
+        assert_eq!(RegulationSpan::Inference.to_string(), "reg.inference");
+        assert_eq!(RegulationSpan::AgentPod.to_string(), "reg.pod");
+        assert_eq!(RegulationSpan::Gas.to_string(), "reg.gas");
+        assert_eq!(RegulationSpan::Curation.to_string(), "reg.curation");
+        assert_eq!(RegulationSpan::SelfHeal.to_string(), "reg.heal");
+        assert_eq!(RegulationSpan::MemoryEncode.to_string(), "reg.memory.encode");
     }
 
     #[test]
     fn cnsspan_from_str_rejects_invalid() {
-        assert!(RegulationSpan::from_str("cns.nonexistent").is_err());
+        assert!(RegulationSpan::from_str("reg.nonexistent").is_err());
         assert!(RegulationSpan::from_str("invalid").is_err());
         assert!(RegulationSpan::from_str("").is_err());
         assert!(RegulationSpan::from_str("tool").is_err()); // short form not supported
@@ -401,28 +401,28 @@ mod cns_span_tests {
     #[test]
     fn cnsspan_from_str_round_trips() {
         let variants = vec![
-            "cns.tool",
-            "cns.tool.web_search",
-            "cns.tool.condenser",
-            "cns.tool.training",
-            "cns.tool.replica",
-            "cns.tool.research",
-            "cns.tool.communication",
-            "cns.tool.registry",
-            "cns.tool.wallet",
-            "cns.tool.media",
-            "cns.tool.kanban",
-            "cns.tool.memory",
-            "cns.tool.companies",
-            "cns.tool.docproc",
-            "cns.tool.filesystem",
-            "cns.tool.curator",
-            "cns.inference",
-            "cns.agent_pod",
-            "cns.gas",
-            "cns.curation",
-            "cns.heal",
-            "cns.memory.encode",
+            "reg.tool",
+            "reg.tool.web_search",
+            "reg.tool.condenser",
+            "reg.tool.training",
+            "reg.tool.replica",
+            "reg.tool.research",
+            "reg.tool.communication",
+            "reg.tool.registry",
+            "reg.tool.wallet",
+            "reg.tool.media",
+            "reg.tool.kanban",
+            "reg.tool.memory",
+            "reg.tool.companies",
+            "reg.tool.docproc",
+            "reg.tool.filesystem",
+            "reg.tool.curator",
+            "reg.inference",
+            "reg.pod",
+            "reg.gas",
+            "reg.curation",
+            "reg.heal",
+            "reg.memory.encode",
         ];
         for s in variants {
             let span: RegulationSpan = s.parse().expect("should parse");
@@ -437,14 +437,14 @@ mod cns_span_tests {
                 subsystem: ToolSubsystem::WebSearch
             }
             .to_string(),
-            "cns.tool.web_search"
+            "reg.tool.web_search"
         );
         assert_eq!(
             RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Other
             }
             .to_string(),
-            "cns.tool"
+            "reg.tool"
         );
     }
 
@@ -516,7 +516,7 @@ mod cns_span_tests {
                 variant
             );
             assert!(
-                s.starts_with("cns."),
+                s.starts_with("reg."),
                 "{:?} should start with cns.",
                 variant
             );

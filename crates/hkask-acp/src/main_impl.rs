@@ -125,7 +125,7 @@ impl HkaskAcpAgent {
                         gate_result.denied_tools.len(),
                         gate_result.denied_tools
                     );
-                    cns_emit_acp("cns.acp.ide.connection_state", &userpod, "connected");
+                    cns_emit_acp("reg.acp.ide.connection_state", &userpod, "connected");
                     (Some(daemon_client), None)
                 }
                 Err(e) => {
@@ -134,7 +134,7 @@ impl HkaskAcpAgent {
                         e
                     );
                     warn!(target: "hkask.acp", userpod = %userpod, error = %msg);
-                    cns_emit_acp("cns.acp.ide.connection_state", &userpod, "degraded");
+                    cns_emit_acp("reg.acp.ide.connection_state", &userpod, "degraded");
                     (None, Some(msg))
                 }
             }
@@ -416,7 +416,7 @@ fn cns_emit_acp(span: &str, userpod: &str, detail: &str) {
         cns_span = %span,
         userpod = %userpod,
         detail = %detail,
-        "CNS"
+        "REG"
     );
 }
 
@@ -434,7 +434,7 @@ pub async fn run() -> Result<(), AcpError> {
     transport.serve(Arc::clone(&agent)).await?;
 
     cns_emit_acp(
-        "cns.acp.ide.connection_state",
+        "reg.acp.ide.connection_state",
         &agent.userpod,
         "disconnected",
     );

@@ -34,7 +34,7 @@ impl KataEngine {
                     automaticity = auto,
                     streak_days = streak,
                     needs_intervention = needs_intervention,
-                    "CNS"
+                    "REG"
                 );
             }
 
@@ -44,7 +44,7 @@ impl KataEngine {
                     namespace = %manifest.cns.span_namespace,
                     bot = %state.learner_bot,
                     days_since_last = history.days_since_last(&state.learner_bot, &today),
-                    "CNS"
+                    "REG"
                 );
             }
         }
@@ -82,7 +82,7 @@ impl KataEngine {
                     namespace = %manifest.cns.span_namespace,
                     practice = %practice.name,
                     bot = %state.learner_bot,
-                    "CNS"
+                    "REG"
                 );
             }
 

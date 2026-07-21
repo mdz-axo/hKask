@@ -33,7 +33,7 @@ impl DiscoveryService {
         token: &DelegationToken,
     ) -> Result<DiscoverResult, ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "hkask.discover", operation = "discover", author = %req.author_name, max_works = req.max_works, "CNS");
+        tracing::info!(target: "hkask.discover", operation = "discover", author = %req.author_name, max_works = req.max_works, "REG");
 
         let author_slug = slugify(&req.author_name);
         let output_dir = req

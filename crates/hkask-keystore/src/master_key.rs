@@ -108,7 +108,7 @@ pub fn derive_all_internal_secrets_with_version(
     let start = std::time::Instant::now();
 
     // P9: CNS span
-    tracing::info!(target: "reg.keystore", operation = "derive_internal_secrets", key_version = key_version, "CNS");
+    tracing::info!(target: "reg.keystore", operation = "derive_internal_secrets", key_version = key_version, "REG");
 
     // Step 1: Argon2id stretch (slow, ~100ms)
     let master_key = crate::encryption::derive_key(master_passphrase, &MASTER_KEY_SALT)
@@ -129,7 +129,7 @@ pub fn derive_all_internal_secrets_with_version(
     );
 
     // P9: CNS span
-    tracing::info!(target: "reg.keystore", operation = "internal_secrets_derived", latency_ms = start.elapsed().as_millis(), "CNS");
+    tracing::info!(target: "reg.keystore", operation = "internal_secrets_derived", latency_ms = start.elapsed().as_millis(), "REG");
 
     InternalSecrets {
         master_key_hex: hex::encode(*master_key),

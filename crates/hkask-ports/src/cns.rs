@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use hkask_types::InfrastructureError;
-use hkask_types::cns::CircuitState;
+use hkask_types::regulation::CircuitState;
 use hkask_types::event::{RegulationRecord, SpanNamespace};
 use hkask_types::id::WebID;
 use hkask_types::loops::LoopId;

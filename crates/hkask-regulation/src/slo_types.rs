@@ -130,7 +130,7 @@ pub fn seed_slos() -> Vec<SloDefinition> {
         SloDefinition::new(
             "SLO-INF-001",
             "Inference availability",
-            "cns.inference",
+            "reg.inference",
             0.999,     // 99.9%
             2_592_000, // 30 days
             SloSeverity::Critical,
@@ -138,7 +138,7 @@ pub fn seed_slos() -> Vec<SloDefinition> {
         SloDefinition::new(
             "SLO-SKL-001",
             "Skill dispatch success rate",
-            "cns.tool",
+            "reg.tool",
             0.995,     // 99.5%
             2_592_000, // 30 days
             SloSeverity::Critical,
@@ -146,7 +146,7 @@ pub fn seed_slos() -> Vec<SloDefinition> {
         SloDefinition::new(
             "SLO-API-001",
             "API endpoint availability",
-            "cns.deploy",
+            "reg.deploy",
             0.999,     // 99.9%
             2_592_000, // 30 days
             SloSeverity::Critical,
@@ -160,15 +160,15 @@ mod slo_tests {
 
     #[test]
     fn slo_definition_clamps_target_to_valid_range() {
-        let slo = SloDefinition::new("test", "test", "cns.test", 1.5, 3600, SloSeverity::Medium);
+        let slo = SloDefinition::new("test", "test", "reg.test", 1.5, 3600, SloSeverity::Medium);
         assert_eq!(slo.target, 1.0);
-        let slo = SloDefinition::new("test", "test", "cns.test", -0.5, 3600, SloSeverity::Medium);
+        let slo = SloDefinition::new("test", "test", "reg.test", -0.5, 3600, SloSeverity::Medium);
         assert_eq!(slo.target, 0.0);
     }
 
     #[test]
     fn slo_error_budget_calculation() {
-        let slo = SloDefinition::new("test", "test", "cns.test", 0.999, 3600, SloSeverity::High);
+        let slo = SloDefinition::new("test", "test", "reg.test", 0.999, 3600, SloSeverity::High);
         // 0.001 × 1,000,000 = 1,000
         assert!((slo.error_budget(1_000_000) - 1_000.0).abs() < 1.0);
     }
@@ -178,7 +178,7 @@ mod slo_tests {
         let slo = SloDefinition::new(
             "test",
             "test",
-            "cns.test",
+            "reg.test",
             0.999,
             3600,
             SloSeverity::Critical,
@@ -214,11 +214,11 @@ mod slo_tests {
 
     #[test]
     fn slo_with_minimum_operations_builder() {
-        let slo = SloDefinition::new("test", "test", "cns.test", 0.99, 3600, SloSeverity::High)
+        let slo = SloDefinition::new("test", "test", "reg.test", 0.99, 3600, SloSeverity::High)
             .with_minimum_operations(1000);
         assert_eq!(slo.minimum_operations, 1000);
         // Default is 1
-        let slo2 = SloDefinition::new("test2", "test", "cns.test", 0.99, 3600, SloSeverity::High);
+        let slo2 = SloDefinition::new("test2", "test", "reg.test", 0.99, 3600, SloSeverity::High);
         assert_eq!(slo2.minimum_operations, 1);
     }
 
@@ -227,7 +227,7 @@ mod slo_tests {
         let slo = SloDefinition::new(
             "SLO-TEST",
             "Test SLO",
-            "cns.test",
+            "reg.test",
             0.95,
             3600,
             SloSeverity::High,
@@ -243,7 +243,7 @@ mod slo_tests {
         let slo = SloDefinition::new(
             "test",
             "test",
-            "cns.test",
+            "reg.test",
             0.999,
             3600,
             SloSeverity::Critical,

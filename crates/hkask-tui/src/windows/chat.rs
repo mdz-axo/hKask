@@ -509,7 +509,7 @@ impl ChatWindow {
                 target: "hkask.tui.mode_switch",
                 from = ?old_mode,
                 to = ?new_mode,
-                "CNS"
+                "REG"
             );
             self.add_message(
                 MessageSender::CnsAlert,

@@ -41,7 +41,7 @@ impl KataEngine {
                     question = q.number,
                     bot = %state.learner_bot,
                     has_ik_state = ik_context.is_some(),
-                    "CNS"
+                    "REG"
                 );
             }
             let step_gas = 2000;

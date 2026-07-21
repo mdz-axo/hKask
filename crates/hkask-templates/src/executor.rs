@@ -330,7 +330,7 @@ impl ManifestExecutor {
                     )));
                 }
                 PolicyVerdict::Log(message) => {
-                    info!(target: "reg.guard.runtime_policy", tool = tool_name, %message, "CNS");
+                    info!(target: "reg.guard.runtime_policy", tool = tool_name, %message, "REG");
                 }
                 PolicyVerdict::Allow => {}
             }
@@ -484,7 +484,7 @@ impl ManifestExecutor {
                     step = step.ordinal,
                     action = %step.action,
                     description = %step.description,
-                    "CNS"
+                    "REG"
                 );
 
                 // Evaluate step condition — skip if false.
@@ -515,7 +515,7 @@ impl ManifestExecutor {
                             step = step.ordinal,
                             condition = %resolved_cond,
                             skipped = true,
-                            "CNS"
+                            "REG"
                         );
                         step_idx += 1;
                         continue;
@@ -529,7 +529,7 @@ impl ManifestExecutor {
                             target: "reg.skill.convergence.converged",
                             iteration = iteration,
                             reason = "abort action",
-                            "CNS"
+                            "REG"
                         );
                         self.finalize_convergence_report(
                             &mut context,
@@ -551,7 +551,7 @@ impl ManifestExecutor {
                             target: "reg.skill.convergence.escalated",
                             iteration = iteration,
                             reason = %reason,
-                            "CNS"
+                            "REG"
                         );
                         self.finalize_convergence_report(
                             &mut context,
@@ -580,7 +580,7 @@ impl ManifestExecutor {
                                     target: "reg.skill.cascade.step_executed",
                                     iteration = iteration,
                                     choice_jump = target,
-                                    "CNS"
+                                    "REG"
                                 );
                                 continue; // Re-enter loop at target step
                             }
@@ -598,7 +598,7 @@ impl ManifestExecutor {
                                 reason = "matryoshka depth exceeded",
                                 depth = recursion_depth,
                                 limit = matryoshka_limit,
-                                "CNS"
+                                "REG"
                             );
                             self.finalize_convergence_report(
                                 &mut context,
@@ -628,7 +628,7 @@ impl ManifestExecutor {
                             iteration = iteration,
                             loop_target = loop_target,
                             depth = recursion_depth,
-                            "CNS"
+                            "REG"
                         );
 
                         // Check convergence before looping
@@ -650,7 +650,7 @@ impl ManifestExecutor {
                                     target: "reg.skill.convergence.escalated",
                                     iteration = iteration,
                                     reason = "convergence not reached (max_iterations exhausted)",
-                                    "CNS"
+                                    "REG"
                                 );
                                 return Err(TemplateError::Manifest(format!(
                                     "Cascade escalated: convergence not reached after {iteration} iterations (threshold {threshold}, field {field})"
@@ -731,7 +731,7 @@ impl ManifestExecutor {
                                 iteration = iteration,
                                 gas_used = gas_used,
                                 gas_cap = gas_cap,
-                                "CNS"
+                                "REG"
                             );
                             self.finalize_convergence_report(
                                 &mut context,
@@ -756,7 +756,7 @@ impl ManifestExecutor {
                                 gas_used = gas_used,
                                 gas_cap = gas_cap,
                                 pct = (gas_used as f64 / gas_cap as f64) * 100.0,
-                                "CNS"
+                                "REG"
                             );
                         }
                         // Check rJoule exhaustion after select
@@ -766,7 +766,7 @@ impl ManifestExecutor {
                                 iteration = iteration,
                                 rjoule_used = rjoule_used,
                                 rjoule_cap = rjoule_cap,
-                                "CNS"
+                                "REG"
                             );
                             self.finalize_convergence_report(
                                 &mut context,
@@ -791,7 +791,7 @@ impl ManifestExecutor {
                                 rjoule_used = rjoule_used,
                                 rjoule_cap = rjoule_cap,
                                 pct = (rjoule_used / rjoule_cap) * 100.0,
-                                "CNS"
+                                "REG"
                             );
                         }
                     }
@@ -826,7 +826,7 @@ impl ManifestExecutor {
                     iteration = iteration,
                     gas_used = gas_used,
                     gas_cap = gas_cap,
-                    "CNS"
+                    "REG"
                 );
                 self.finalize_convergence_report(
                     &mut context,
@@ -882,7 +882,7 @@ impl ManifestExecutor {
                         target: "reg.skill.convergence.escalated",
                         iteration = iteration,
                         reason = "convergence not reached (max_iterations exhausted)",
-                        "CNS"
+                        "REG"
                     );
                     return Err(TemplateError::Manifest(format!(
                         "Cascade escalated: convergence not reached after {iteration} iterations (threshold {threshold}, field {field})"
@@ -1347,7 +1347,7 @@ impl ManifestExecutor {
             target: "reg.skill.cascade.compute",
             ordinal = step.ordinal,
             compute_ref = compute_ref,
-            "CNS"
+            "REG"
         );
         context.insert(format!("step_{}_result", step.ordinal), result);
 

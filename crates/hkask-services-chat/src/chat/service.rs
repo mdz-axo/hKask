@@ -18,7 +18,7 @@ use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_capability::DelegationAction;
 use hkask_ports::InferencePort;
 use hkask_types::PersonaConstraints;
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
@@ -300,7 +300,7 @@ impl ChatService {
         params.bypass_fusion = chat_bypass;
 
         let request_span = Span::new(
-            SpanNamespace::new("cns.chat").expect("canonical namespace: cns.chat"),
+            SpanNamespace::new("reg.chat").expect("canonical namespace: cns.chat"),
             "request",
         );
         let request_event = RegulationRecord::new(
@@ -340,7 +340,7 @@ impl ChatService {
         })?;
 
         let response_span = Span::new(
-            SpanNamespace::new("cns.chat").expect("canonical namespace: cns.chat"),
+            SpanNamespace::new("reg.chat").expect("canonical namespace: cns.chat"),
             "response",
         );
         let response_event = RegulationRecord::new(

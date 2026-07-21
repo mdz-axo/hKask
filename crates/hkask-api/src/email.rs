@@ -79,10 +79,10 @@ pub async fn send_email(to: &str, subject: &str, body: &str) -> EmailResult<()> 
     }
 
     tracing::info!(
-        target = "cns.email.sent",
+        target = "reg.email.sent",
         to = %to,
         subject = %subject,
-        "CNS"
+        "REG"
     );
     Ok(())
 }

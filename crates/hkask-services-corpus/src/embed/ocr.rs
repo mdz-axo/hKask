@@ -23,7 +23,7 @@ const OCR_SYSTEM_PROMPT: &str = "Extract all text from this document image. Outp
 #[must_use = "result must be used"]
 pub async fn ocr_pdf_bytes(bytes: &[u8], url: &str) -> Result<String, ServiceError> {
     // P9: CNS span
-    tracing::info!(target: "hkask.embed", operation = "ocr_pdf_bytes", url = %url, byte_len = bytes.len(), "CNS");
+    tracing::info!(target: "hkask.embed", operation = "ocr_pdf_bytes", url = %url, byte_len = bytes.len(), "REG");
 
     let ocr_model = std::env::var("HKASK_OCR_MODEL")
         .ok()

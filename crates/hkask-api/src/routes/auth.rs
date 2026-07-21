@@ -342,11 +342,11 @@ pub async fn callback(
             );
         } else {
             tracing::info!(
-                target = "cns.deploy.invite",
+                target = "reg.deploy.invite",
                 operation = "invite_accepted",
                 code = %code,
                 webid = %userpod.webid,
-                "CNS"
+                "REG"
             );
         }
     }
@@ -370,21 +370,21 @@ pub async fn callback(
 
     // CNS: SessionOpen span
     tracing::info!(
-        target = "cns.deploy.session",
+        target = "reg.deploy.session",
         operation = "session_open",
         provider = %provider,
         webid = %userpod.webid,
-        "CNS"
+        "REG"
     );
     // CNS: member activity — emitted on every sign-in so Curator can track server population
     tracing::info!(
-        target = "cns.multi_user.member_active",
+        target = "reg.multi_user.member_active",
         operation = "member_sign_in",
         userpod = %userpod.userpod_name,
         webid = %userpod.webid,
         provider = %provider,
         is_invite_flow = invite_code.is_some(),
-        "CNS"
+        "REG"
     );
 
     // Matrix account registration is deferred out of the OAuth flow.
@@ -593,10 +593,10 @@ pub async fn logout(
         // CNS: SessionClose span (before destroying session, so we can log webid)
         if let Ok(Some(session)) = store.get_session(&session_id) {
             tracing::info!(
-                target = "cns.deploy.session",
+                target = "reg.deploy.session",
                 operation = "session_close",
                 webid = %session.webid,
-                "CNS"
+                "REG"
             );
         }
         let _ = store.logout(&session_id);

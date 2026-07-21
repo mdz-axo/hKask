@@ -66,7 +66,7 @@ impl ServiceDaemonHandler {
         cns_runtime: Option<Arc<RwLock<RegulationLedger>>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
-        tracing::info!(target: "hkask.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_inference = inference_port.is_some(), "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "new_handler", has_cns = cns_runtime.is_some(), has_inference = inference_port.is_some(), "REG");
 
         Self {
             pod_manager,
@@ -82,7 +82,7 @@ impl ServiceDaemonHandler {
 impl DaemonHandler for ServiceDaemonHandler {
     async fn check_auth(&self, userpod: &str) -> (bool, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "check_auth", userpod = %userpod, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "check_auth", userpod = %userpod, "REG");
 
         let has_sessions = {
             let store = match self.user_store.lock() {
@@ -118,7 +118,7 @@ impl DaemonHandler for ServiceDaemonHandler {
 
     async fn check_capability(&self, userpod: &str, tool: &str) -> bool {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "check_capability", userpod = %userpod, tool = %tool, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "check_capability", userpod = %userpod, tool = %tool, "REG");
 
         match self.pod_manager.find_pod_by_name(userpod).await {
             Some(pod_id) => {
@@ -139,7 +139,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         confidence: Option<f64>,
     ) -> (bool, Option<String>, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "store_experience", userpod = %userpod, entity = %entity, attribute = %attribute, confidence = ?confidence, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "store_experience", userpod = %userpod, entity = %entity, attribute = %attribute, confidence = ?confidence, "REG");
 
         let pod_id = match self.pod_manager.find_pod_by_name(userpod).await {
             Some(id) => id,
@@ -247,7 +247,7 @@ impl DaemonHandler for ServiceDaemonHandler {
         input: &serde_json::Value,
     ) -> (bool, Option<serde_json::Value>, Option<String>) {
         // P9: CNS span
-        tracing::info!(target: "hkask.daemon", operation = "dispatch_tool", userpod = %userpod, tool = %tool, "CNS");
+        tracing::info!(target: "hkask.daemon", operation = "dispatch_tool", userpod = %userpod, tool = %tool, "REG");
 
         let pod_id = match self.pod_manager.find_pod_by_name(userpod).await {
             Some(id) => id,
@@ -329,7 +329,7 @@ async fn generate_narrative(
     userpod: &str,
 ) {
     // P9: CNS span
-    tracing::info!(target: "hkask.daemon", operation = "generate_narrative", userpod = %userpod, "CNS");
+    tracing::info!(target: "hkask.daemon", operation = "generate_narrative", userpod = %userpod, "REG");
 
     let pod_id = match pod_manager.find_pod_by_name(userpod).await {
         Some(id) => id,
@@ -508,7 +508,7 @@ fn append_session_entry(userpod: &str, entity: &str, attribute: &str, value: &se
                 tracing::warn!(target: "hkask.daemon.session", userpod = %userpod, path = %session_file.display(), error = %e, "Failed to write session entry");
             } else {
                 // CNS: session recorded — variety signal for algedonic monitoring
-                tracing::info!(target: "hkask.session.recorded", userpod = %userpod, entity = %entity, "CNS");
+                tracing::info!(target: "hkask.session.recorded", userpod = %userpod, entity = %entity, "REG");
             }
         }
         Err(e) => {

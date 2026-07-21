@@ -1,6 +1,6 @@
 //! Wallet-specific CNS span identifiers.
 //!
-//! Moved from `hkask_types::cns::RegulationSpan` during the CNS refactoring.
+//! Moved from `hkask_types::regulation::RegulationSpan` during the CNS refactoring.
 //! Implements [`ObservableSpan`] for use with
 //! `SpanNamespace::from_observable()`.
 
@@ -40,23 +40,23 @@ pub enum WalletSpan {
 }
 
 impl WalletSpan {
-    /// Canonical namespace string (e.g. `"cns.wallet.balance"`).
+    /// Canonical namespace string (e.g. `"reg.wallet.balance"`).
     pub fn as_str(&self) -> &'static str {
         match self {
-            WalletSpan::Balance => "cns.wallet.balance",
-            WalletSpan::Deposit => "cns.wallet.deposit",
-            WalletSpan::DepositShielded => "cns.wallet.deposit_shielded",
-            WalletSpan::Withdrawal => "cns.wallet.withdrawal",
-            WalletSpan::Conversion => "cns.wallet.conversion",
-            WalletSpan::KeyIssued => "cns.wallet.key_issued",
-            WalletSpan::KeyRevoked => "cns.wallet.key_revoked",
-            WalletSpan::KeyExpired => "cns.wallet.key_expired",
-            WalletSpan::KeyExhausted => "cns.wallet.key_exhausted",
-            WalletSpan::ChainError => "cns.wallet.chain_error",
-            WalletSpan::Created => "cns.wallet.created",
-            WalletSpan::Draw => "cns.wallet.draw",
-            WalletSpan::Spend => "cns.wallet.spend",
-            WalletSpan::Exhausted => "cns.wallet.exhausted",
+            WalletSpan::Balance => "reg.wallet.balance",
+            WalletSpan::Deposit => "reg.wallet.deposit",
+            WalletSpan::DepositShielded => "reg.wallet.deposit_shielded",
+            WalletSpan::Withdrawal => "reg.wallet.withdrawal",
+            WalletSpan::Conversion => "reg.wallet.conversion",
+            WalletSpan::KeyIssued => "reg.wallet.key_issued",
+            WalletSpan::KeyRevoked => "reg.wallet.key_revoked",
+            WalletSpan::KeyExpired => "reg.wallet.key_expired",
+            WalletSpan::KeyExhausted => "reg.wallet.key_exhausted",
+            WalletSpan::ChainError => "reg.wallet.chain_error",
+            WalletSpan::Created => "reg.wallet.created",
+            WalletSpan::Draw => "reg.wallet.draw",
+            WalletSpan::Spend => "reg.wallet.spend",
+            WalletSpan::Exhausted => "reg.wallet.exhausted",
         }
     }
 }
@@ -78,20 +78,20 @@ impl std::str::FromStr for WalletSpan {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.wallet.balance" => Ok(WalletSpan::Balance),
-            "cns.wallet.deposit" => Ok(WalletSpan::Deposit),
-            "cns.wallet.deposit_shielded" => Ok(WalletSpan::DepositShielded),
-            "cns.wallet.withdrawal" => Ok(WalletSpan::Withdrawal),
-            "cns.wallet.conversion" => Ok(WalletSpan::Conversion),
-            "cns.wallet.key_issued" => Ok(WalletSpan::KeyIssued),
-            "cns.wallet.key_revoked" => Ok(WalletSpan::KeyRevoked),
-            "cns.wallet.key_expired" => Ok(WalletSpan::KeyExpired),
-            "cns.wallet.key_exhausted" => Ok(WalletSpan::KeyExhausted),
-            "cns.wallet.chain_error" => Ok(WalletSpan::ChainError),
-            "cns.wallet.created" => Ok(WalletSpan::Created),
-            "cns.wallet.draw" => Ok(WalletSpan::Draw),
-            "cns.wallet.spend" => Ok(WalletSpan::Spend),
-            "cns.wallet.exhausted" => Ok(WalletSpan::Exhausted),
+            "reg.wallet.balance" => Ok(WalletSpan::Balance),
+            "reg.wallet.deposit" => Ok(WalletSpan::Deposit),
+            "reg.wallet.deposit_shielded" => Ok(WalletSpan::DepositShielded),
+            "reg.wallet.withdrawal" => Ok(WalletSpan::Withdrawal),
+            "reg.wallet.conversion" => Ok(WalletSpan::Conversion),
+            "reg.wallet.key_issued" => Ok(WalletSpan::KeyIssued),
+            "reg.wallet.key_revoked" => Ok(WalletSpan::KeyRevoked),
+            "reg.wallet.key_expired" => Ok(WalletSpan::KeyExpired),
+            "reg.wallet.key_exhausted" => Ok(WalletSpan::KeyExhausted),
+            "reg.wallet.chain_error" => Ok(WalletSpan::ChainError),
+            "reg.wallet.created" => Ok(WalletSpan::Created),
+            "reg.wallet.draw" => Ok(WalletSpan::Draw),
+            "reg.wallet.spend" => Ok(WalletSpan::Spend),
+            "reg.wallet.exhausted" => Ok(WalletSpan::Exhausted),
             _ => Err(()),
         }
     }

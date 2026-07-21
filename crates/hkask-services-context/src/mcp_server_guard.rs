@@ -74,7 +74,7 @@ impl RegulationLoop for McpServerGuardLoop {
 
         if !dead.is_empty() {
             tracing::warn!(
-                target = "cns.mcp_server_guard",
+                target = "reg.mcp_server_guard",
                 dead_count = dead.len(),
                 dead_servers = ?dead.iter().map(|(id, s)| if s.name != **id { &s.name } else { *id }).collect::<Vec<_>>(),
                 "MCP servers dead or unreachable — operator restart required"

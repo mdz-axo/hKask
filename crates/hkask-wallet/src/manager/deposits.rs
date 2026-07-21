@@ -1,7 +1,7 @@
 //! Deposit monitoring — background polling for transparent and shielded deposits.
 
 use super::*;
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 
 fn repair_max_derivation_index() -> u64 {
     const DEFAULT_MAX_INDEX: u64 = 5;

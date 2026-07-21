@@ -32,7 +32,7 @@ impl WalletManager {
     /// constructed within the wallet but are not wallet-specific.
     pub(super) fn emit_core_span(
         &self,
-        span: hkask_types::cns::RegulationSpan,
+        span: hkask_types::regulation::RegulationSpan,
         verb: &str,
         phase: CyclePhase,
         obs: serde_json::Value,

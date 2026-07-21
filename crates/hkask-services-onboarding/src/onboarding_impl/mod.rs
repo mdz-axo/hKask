@@ -29,7 +29,7 @@ impl OnboardingService {
         tracing::info!(
             target: "hkask.onboarding",
             operation = "secrets_derived",
-            "CNS"
+            "REG"
         );
         Ok(ResolvedSecrets {
             master_key_hex: secrets.master_key_hex,
@@ -56,7 +56,7 @@ impl OnboardingService {
                 source: None,
                 message: e.to_string(),
             })?;
-        tracing::info!(target: "hkask.onboarding", operation = "userpod_registered", name = %name, "CNS");
+        tracing::info!(target: "hkask.onboarding", operation = "userpod_registered", name = %name, "REG");
         Ok(())
     }
 

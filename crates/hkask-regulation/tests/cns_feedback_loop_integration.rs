@@ -17,7 +17,7 @@ fn cns_detects_perturbation() {
     let cns = MockRegulationLedger::new();
     assert!(cns.is_homeostatic(), "CNS should start homeostatic");
 
-    let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
+    let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
     let event = test_event(span, CyclePhase::Sense, None);
     cns.inject(event);
 
@@ -34,7 +34,7 @@ fn cns_restores_homeostasis_after_time() {
     let cns = MockRegulationLedger::new();
 
     // Perturb the system
-    let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
+    let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
     cns.inject(test_event(span, CyclePhase::Sense, None));
     assert!(!cns.is_homeostatic());
 
@@ -66,23 +66,23 @@ fn cns_throttles_tool_on_budget_exceeded() {
 fn cns_tracks_variety_by_domain() {
     let cns = MockRegulationLedger::new();
 
-    cns.record_variety("cns.tool");
-    cns.record_variety("cns.tool");
-    cns.record_variety("cns.inference");
+    cns.record_variety("reg.tool");
+    cns.record_variety("reg.tool");
+    cns.record_variety("reg.inference");
 
-    assert_eq!(cns.variety_for_domain("cns.tool"), 2);
-    assert_eq!(cns.variety_for_domain("cns.inference"), 1);
-    assert_eq!(cns.variety_for_domain("cns.unknown"), 0);
+    assert_eq!(cns.variety_for_domain("reg.tool"), 2);
+    assert_eq!(cns.variety_for_domain("reg.inference"), 1);
+    assert_eq!(cns.variety_for_domain("reg.unknown"), 0);
 }
 
 #[test]
 fn cns_multiple_perturbations_accumulate_signals() {
     let cns = MockRegulationLedger::new();
 
-    let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
+    let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
     cns.inject(test_event(span, CyclePhase::Sense, None));
     cns.inject(test_event(
-        Span::new(SpanNamespace::new("cns.inference").unwrap(), "error"),
+        Span::new(SpanNamespace::new("reg.inference").unwrap(), "error"),
         CyclePhase::Compute,
         None,
     ));

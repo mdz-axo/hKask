@@ -163,7 +163,7 @@ impl CalibratedEnergyEstimator {
     ) {
         if let Some(ref sink) = self.event_sink {
             let span = Span::new(
-                hkask_types::cns::RegulationSpan::Gas
+                hkask_types::regulation::RegulationSpan::Gas
                     .try_into()
                     .expect("canonical span"),
                 "calibrated",
@@ -245,7 +245,7 @@ impl crate::calibrator::Calibrator for CalibratedEnergyEstimator {
     }
 
     fn calibration_target(&self) -> &'static str {
-        "cns.gas.calibration"
+        "reg.gas.calibration"
     }
 }
 
@@ -411,7 +411,7 @@ mod tests {
         let event = sink
             .last_event()
             .expect("calibration span should be emitted");
-        assert_eq!(event.span.as_str(), "cns.gas.calibrated");
+        assert_eq!(event.span.as_str(), "reg.gas.calibrated");
         assert_eq!(event.phase, CyclePhase::Act);
         assert_eq!(
             event

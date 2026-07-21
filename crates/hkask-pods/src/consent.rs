@@ -229,7 +229,7 @@ impl ConsentManager {
             operation = "consent_granted",
             webid = %webid,
             category = ?category,
-            "CNS"
+            "REG"
         );
 
         debug!(
@@ -261,7 +261,7 @@ impl ConsentManager {
                 target: "reg.sovereignty",
                 operation = "consent_revoked",
                 webid = %webid,
-                "CNS"
+                "REG"
             );
             debug!("Revoked consent for WebID: {}", webid);
             Ok(())
@@ -303,7 +303,7 @@ impl ConsentManager {
                 webid = %webid,
                 category = ?category,
                 result = "denied",
-                "CNS"
+                "REG"
             );
             self.emit_consent_denied(webid, category);
         }
@@ -320,7 +320,7 @@ impl ConsentManager {
             let event = RegulationRecord::new(
                 WebID::from_persona(b"consent"),
                 Span::new(
-                    SpanNamespace::new("cns.consent").expect("canonical namespace: cns.consent"),
+                    SpanNamespace::new("reg.consent").expect("canonical namespace: cns.consent"),
                     "denied",
                 ),
                 CyclePhase::Compare,

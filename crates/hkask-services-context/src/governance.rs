@@ -15,7 +15,7 @@ use hkask_regulation::types::loops::{CurationInput, GoalTransitionEvent};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_storage::{EscalationEntry, EscalationQueue};
 use hkask_types::WebID;
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use std::sync::Arc;
 

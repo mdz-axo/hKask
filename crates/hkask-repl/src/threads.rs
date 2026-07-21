@@ -39,10 +39,10 @@ use std::path::PathBuf;
 fn emit_thread_cns(operation: &str, detail: &str) {
     tracing::info!(
         target: "reg",
-        reg_domain = "cns.thread",
+        reg_domain = "reg.thread",
         operation = %operation,
         detail = %detail,
-        "CNS"
+        "REG"
     );
 }
 

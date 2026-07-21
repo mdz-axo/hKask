@@ -44,7 +44,7 @@
 /// infrastructure — both as structured RegulationRecords (persisted + queried) and
 /// as tracing log events (for external consumers like OpenTelemetry exporters).
 ///
-/// A canonical dot-separated namespace string (e.g. `"cns.tool.web_search"`)
+/// A canonical dot-separated namespace string (e.g. `"reg.tool.web_search"`)
 /// identifies the span domain. Call sites choose between three emission paths:
 ///
 /// - `emit()` — log-only, no persistence. For call sites without a sink.
@@ -70,7 +70,7 @@ pub trait ObservableSpan: std::fmt::Display + std::fmt::Debug + Send + Sync + 's
             target: "reg",
             reg_domain = %self.as_str(),
             operation = %operation,
-            "CNS",
+            "REG",
         );
     }
 
@@ -172,8 +172,8 @@ mod tests {
 
     #[test]
     fn cns_span_implements_observable_span() {
-        use crate::cns::RegulationSpan;
+        use crate::regulation::RegulationSpan;
         let span = RegulationSpan::Inference;
-        assert_eq!(span.as_str(), "cns.inference");
+        assert_eq!(span.as_str(), "reg.inference");
     }
 }

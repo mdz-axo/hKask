@@ -12,10 +12,10 @@ pub enum ContractSpan {
 impl ContractSpan {
     pub fn as_str(&self) -> &'static str {
         match self {
-            ContractSpan::ContractProposed => "cns.contract.proposed",
-            ContractSpan::ContractAccepted => "cns.contract.accepted",
-            ContractSpan::ContractRejected => "cns.contract.rejected",
-            ContractSpan::ContractViolated => "cns.contract.violated",
+            ContractSpan::ContractProposed => "reg.contract.proposed",
+            ContractSpan::ContractAccepted => "reg.contract.accepted",
+            ContractSpan::ContractRejected => "reg.contract.rejected",
+            ContractSpan::ContractViolated => "reg.contract.violated",
         }
     }
 }
@@ -30,10 +30,10 @@ impl std::str::FromStr for ContractSpan {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.contract.proposed" => Ok(ContractSpan::ContractProposed),
-            "cns.contract.accepted" => Ok(ContractSpan::ContractAccepted),
-            "cns.contract.rejected" => Ok(ContractSpan::ContractRejected),
-            "cns.contract.violated" => Ok(ContractSpan::ContractViolated),
+            "reg.contract.proposed" => Ok(ContractSpan::ContractProposed),
+            "reg.contract.accepted" => Ok(ContractSpan::ContractAccepted),
+            "reg.contract.rejected" => Ok(ContractSpan::ContractRejected),
+            "reg.contract.violated" => Ok(ContractSpan::ContractViolated),
             _ => Err(()),
         }
     }

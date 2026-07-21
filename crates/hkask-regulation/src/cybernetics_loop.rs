@@ -395,10 +395,10 @@ impl CyberneticsLoop {
                 0,
             );
             if let Err(e) = sink.persist(&event) {
-                tracing::error!(target: "reg.regulation", error = %e, "Failed to persist regulation span");
+                tracing::error!(target: "reg.outcome", error = %e, "Failed to persist regulation span");
             }
         } else {
-            tracing::warn!(target: "reg.regulation", span_kind = ?kind, "Regulation span dropped — no event_sink configured. Wire with_event_sink() for durable regulation observability.");
+            tracing::warn!(target: "reg.outcome", span_kind = ?kind, "Regulation span dropped — no event_sink configured. Wire with_event_sink() for durable regulation observability.");
         }
     }
 
@@ -421,7 +421,7 @@ impl CyberneticsLoop {
             || (has(AdjustEnergyBudget) && has(OverrideEnergyBudget))
         {
             tracing::warn!(
-                target: "reg.regulation.coherence",
+                target: "reg.outcome.coherence",
                 action_count = actions.len(),
                 "Potentially contradictory actions in same tick"
             );
@@ -430,7 +430,7 @@ impl CyberneticsLoop {
         // Both Throttle and CircuitBreak on Inference loop.
         if has_target(Throttle, LoopId::Inference) && has_target(CircuitBreak, LoopId::Inference) {
             tracing::warn!(
-                target: "reg.regulation.coherence",
+                target: "reg.outcome.coherence",
                 "Throttle + CircuitBreak both targeting Inference loop — consider consolidating"
             );
         }
@@ -897,7 +897,7 @@ impl RegulationLoop for CyberneticsLoop {
                 && pred.reliable
             {
                 tracing::info!(
-                    target: "reg.regulation.predictive",
+                    target: "reg.outcome.predictive",
                     metric = dev.signal.metric.as_str(),
                     current = dev.signal.value,
                     set_point = dev.signal.set_point,
@@ -986,7 +986,7 @@ impl RegulationLoop for CyberneticsLoop {
                     false
                 };
                 if !sent {
-                    tracing::warn!(target: "reg.algedonic", domain = %alert.domain, "Well exhaustion alert send failed or channel not connected");
+                    tracing::warn!(target: "reg.alert", domain = %alert.domain, "Well exhaustion alert send failed or channel not connected");
                 }
                 if !sent && let Some(ref sink) = self.event_sink {
                     let event = RegulationRecord::new(
@@ -1075,7 +1075,7 @@ impl RegulationLoop for CyberneticsLoop {
                     if let Some(ref tx) = self.alerts_tx
                         && tx.send(CurationInput::Alert(alert)).is_err()
                     {
-                        tracing::warn!(target: "reg.algedonic", "Well exhaustion alert send failed — channel closed");
+                        tracing::warn!(target: "reg.alert", "Well exhaustion alert send failed — channel closed");
                     }
                 }
             } else {
@@ -1160,12 +1160,12 @@ impl RegulationLoop for CyberneticsLoop {
                             0,
                         );
                         if let Err(e) = sink.persist(&event) {
-                            tracing::error!(target: "reg.algedonic", error = %e, "CRITICAL: Failed to persist algedonic alert — alert lost. Both live channel and persistence failed.");
+                            tracing::error!(target: "reg.alert", error = %e, "CRITICAL: Failed to persist algedonic alert — alert lost. Both live channel and persistence failed.");
                         } else {
-                            tracing::info!(target: "reg.algedonic", deficit = deficit, threshold = threshold, "Algedonic alert persisted to RegulationArchive (Curator inbox unavailable)");
+                            tracing::info!(target: "reg.alert", deficit = deficit, threshold = threshold, "Algedonic alert persisted to RegulationArchive (Curator inbox unavailable)");
                         }
                     } else {
-                        tracing::error!(target: "reg.algedonic", deficit = deficit, threshold = threshold, "CRITICAL: Algedonic alert LOST — neither live channel nor event_sink connected. Feedback loop closure broken.");
+                        tracing::error!(target: "reg.alert", deficit = deficit, threshold = threshold, "CRITICAL: Algedonic alert LOST — neither live channel nor event_sink connected. Feedback loop closure broken.");
                     }
                 }
             }
@@ -1289,7 +1289,7 @@ impl RegulationLoop for CyberneticsLoop {
                         ),
                     };
                     if tx.send(CurationInput::Alert(alert)).is_err() {
-                        tracing::warn!(target: "reg.algedonic", "Plateau alert send failed — channel closed");
+                        tracing::warn!(target: "reg.alert", "Plateau alert send failed — channel closed");
                     }
                 }
                 tracing::warn!(
@@ -1329,7 +1329,7 @@ impl RegulationLoop for CyberneticsLoop {
                         ),
                     };
                     if tx.send(CurationInput::Alert(alert)).is_err() {
-                        tracing::warn!(target: "reg.algedonic", "Block alert send failed — channel closed");
+                        tracing::warn!(target: "reg.alert", "Block alert send failed — channel closed");
                     }
                 }
             }
@@ -1872,7 +1872,7 @@ impl CyberneticsLoop {
             }
             _ => {
                 tracing::debug!(
-                    target: "reg.regulation",
+                    target: "reg.outcome",
                     reason = proposed.reason,
                     "Unknown regulation reason — no action built"
                 );

@@ -129,10 +129,10 @@ pub async fn revoke_invite(
         .revoke_invite(&code, &userpod.user_id)
         .map_err(|e| (StatusCode::NOT_FOUND, format!("Revoke failed: {e}")))?;
     tracing::info!(
-        target = "cns.deploy.invite",
+        target = "reg.deploy.invite",
         operation = "invite_revoked",
         code = %invite.code,
-        "CNS"
+        "REG"
     );
     Ok(Json(invite))
 }
@@ -282,10 +282,10 @@ pub async fn set_member_role(
         .set_user_role(&user_id, role)
         .map_err(|e| (StatusCode::NOT_FOUND, format!("Set role failed: {e}")))?;
     tracing::info!(
-        target = "cns.multi_user.role_changed",
+        target = "reg.multi_user.role_changed",
         user_id = %user_id_str,
         role = %body.role,
-        "CNS"
+        "REG"
     );
     Ok(Json(
         serde_json::json!({"status": "ok", "user_id": user_id_str, "role": body.role}),

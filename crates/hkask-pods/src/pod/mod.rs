@@ -259,7 +259,7 @@ impl AgentPod {
 
         tracing::debug!(
             target: "hkask.pod",
-            span = "cns.agent_pod.activated",
+            span = "reg.pod.activated",
             verb = "activated",
             pod_id = %self.id,
             webid = %self.webid,
@@ -296,7 +296,7 @@ impl AgentPod {
 
         tracing::debug!(
             target: "hkask.pod",
-            span = "cns.agent_pod.deactivated",
+            span = "reg.pod.deactivated",
             verb = "deactivated",
             pod_id = %self.id,
             webid = %self.webid,

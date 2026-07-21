@@ -11,9 +11,9 @@ pub enum QaSpan {
 impl QaSpan {
     pub fn as_str(&self) -> &'static str {
         match self {
-            QaSpan::QaRepairAttempted => "cns.qa.repair_attempted",
-            QaSpan::QaRepairVerified => "cns.qa.repair_verified",
-            QaSpan::QaRepairExhausted => "cns.qa.repair_exhausted",
+            QaSpan::QaRepairAttempted => "reg.qa.repair_attempted",
+            QaSpan::QaRepairVerified => "reg.qa.repair_verified",
+            QaSpan::QaRepairExhausted => "reg.qa.repair_exhausted",
         }
     }
 }
@@ -28,9 +28,9 @@ impl std::str::FromStr for QaSpan {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.qa.repair_attempted" => Ok(QaSpan::QaRepairAttempted),
-            "cns.qa.repair_verified" => Ok(QaSpan::QaRepairVerified),
-            "cns.qa.repair_exhausted" => Ok(QaSpan::QaRepairExhausted),
+            "reg.qa.repair_attempted" => Ok(QaSpan::QaRepairAttempted),
+            "reg.qa.repair_verified" => Ok(QaSpan::QaRepairVerified),
+            "reg.qa.repair_exhausted" => Ok(QaSpan::QaRepairExhausted),
             _ => Err(()),
         }
     }

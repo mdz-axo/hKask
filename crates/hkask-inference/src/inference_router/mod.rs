@@ -16,7 +16,7 @@ use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
 use hkask_regulation::{CyberneticsLoop, GasCost};
 use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::template::LLMParameters;
 use hkask_types::{RegulationSink, WebID};

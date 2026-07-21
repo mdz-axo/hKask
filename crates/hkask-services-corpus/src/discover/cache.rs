@@ -12,7 +12,7 @@ use std::path::Path;
 #[must_use = "result must be used"]
 pub async fn download_and_cache(url: &str, cache_path: &Path) -> Result<(), ServiceError> {
     // P9: CNS span
-    tracing::info!(target: "hkask.discover", operation = "download_and_cache", url = %url, cache = %cache_path.display(), "CNS");
+    tracing::info!(target: "hkask.discover", operation = "download_and_cache", url = %url, cache = %cache_path.display(), "REG");
 
     let resp = reqwest::Client::builder()
         .user_agent(USER_AGENT)

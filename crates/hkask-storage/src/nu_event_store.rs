@@ -264,8 +264,8 @@ impl RegulationArchive {
         .map_err(|e| InfrastructureError::database(e.to_string()))
     }
 
-    /// Query events by span_category prefix (e.g., "cns.guard" matches "cns.guard.input",
-    /// "cns.guard.output", etc.).
+    /// Query events by span_category prefix (e.g., "reg.guard" matches "reg.guard.input",
+    /// "reg.guard.output", etc.).
     ///
     /// The stored `span_category` column holds the short name (e.g., "guard.input",
     /// "regulation", "gas"). Callers pass the short-name prefix (e.g., "guard",
@@ -433,9 +433,9 @@ fn row_to_nu_event(row: &hkask_database::value::DbRow) -> anyhow::Result<Regulat
         .map_err(|e| anyhow::anyhow!("{e}"))?
         .to_utc();
     // Reconstruct Span from stored category + path
-    let namespace_str = format!("cns.{}", span_category);
+    let namespace_str = format!("reg.{}", span_category);
     let namespace = SpanNamespace::parse(&namespace_str)
-        .unwrap_or_else(|| SpanNamespace::new("cns.gas").expect("cns.gas must be canonical"));
+        .unwrap_or_else(|| SpanNamespace::new("reg.gas").expect("reg.gas must be canonical"));
     // Extract the local path part after the namespace prefix.
     let ns_str = namespace.as_str();
     let local_path = if span_path.starts_with(ns_str)
@@ -562,7 +562,7 @@ mod tests {
 
     #[test]
     fn local_path_extraction_does_not_panic_on_short_span_path() {
-        let ns = SpanNamespace::new("cns.gas").unwrap();
+        let ns = SpanNamespace::new("reg.gas").unwrap();
         let span = Span::new(ns, "short");
         let (cat, path) = super::span_to_columns(&span);
         assert_eq!(cat, "gas");
@@ -571,8 +571,8 @@ mod tests {
 
     #[test]
     fn local_path_extraction_does_not_panic_on_exact_namespace_match() {
-        let ns = SpanNamespace::new("cns.gas").unwrap();
-        let span = Span::new(ns.clone(), "cns.gas");
+        let ns = SpanNamespace::new("reg.gas").unwrap();
+        let span = Span::new(ns.clone(), "reg.gas");
         let (cat, path) = super::span_to_columns(&span);
         assert_eq!(cat, "gas");
         assert!(!path.is_empty());
@@ -580,11 +580,11 @@ mod tests {
 
     #[test]
     fn local_path_extraction_succeeds_on_well_formed_path() {
-        let ns = SpanNamespace::new("cns.gas").unwrap();
+        let ns = SpanNamespace::new("reg.gas").unwrap();
         let span = Span::new(ns, "agent_pod.monitor");
         let (cat, path) = super::span_to_columns(&span);
         assert_eq!(cat, "gas");
-        assert_eq!(path, "cns.gas.agent_pod.monitor");
+        assert_eq!(path, "reg.gas.agent_pod.monitor");
     }
 
     #[test]
@@ -600,7 +600,7 @@ mod tests {
         let event = RegulationRecord::new(
             WebID::from_persona(b"listener"),
             Span::new(
-                SpanNamespace::new("cns.communication.message").unwrap(),
+                SpanNamespace::new("reg.communication.message").unwrap(),
                 "observed",
             ),
             CyclePhase::Act,
@@ -622,31 +622,31 @@ mod tests {
 
     #[test]
     fn communication_message_namespace_is_canonical() {
-        let ns = SpanNamespace::new("cns.communication.message").unwrap();
+        let ns = SpanNamespace::new("reg.communication.message").unwrap();
         assert!(ns.as_str().contains("communication"));
     }
 
     #[test]
     fn communication_thread_namespace_is_canonical() {
-        let ns = SpanNamespace::new("cns.communication.thread").unwrap();
+        let ns = SpanNamespace::new("reg.communication.thread").unwrap();
         assert!(ns.as_str().contains("communication"));
     }
 
     #[test]
     fn communication_agent_namespace_is_canonical() {
-        let ns = SpanNamespace::new("cns.communication.agent").unwrap();
+        let ns = SpanNamespace::new("reg.communication.agent").unwrap();
         assert!(ns.as_str().contains("communication"));
     }
 
     #[test]
     fn communication_listener_namespace_is_canonical() {
-        let ns = SpanNamespace::new("cns.communication.listener").unwrap();
+        let ns = SpanNamespace::new("reg.communication.listener").unwrap();
         assert!(ns.as_str().contains("communication"));
     }
 
     #[test]
     fn communication_span_short_name_matches_algedonic_category() {
-        let ns = SpanNamespace::new("cns.communication.message").unwrap();
+        let ns = SpanNamespace::new("reg.communication.message").unwrap();
         assert!(super::ALGEDONIC_SPAN_CATEGORIES.contains(&ns.short_name()));
     }
 

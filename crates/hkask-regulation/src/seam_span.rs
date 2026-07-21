@@ -10,8 +10,8 @@ pub enum SeamSpan {
 impl SeamSpan {
     pub fn as_str(&self) -> &'static str {
         match self {
-            SeamSpan::ArchitectureSeamCoverage => "cns.architecture.seam.coverage",
-            SeamSpan::ArchitectureSeamDrift => "cns.architecture.seam.drift",
+            SeamSpan::ArchitectureSeamCoverage => "reg.architecture.seam.coverage",
+            SeamSpan::ArchitectureSeamDrift => "reg.architecture.seam.drift",
         }
     }
 }
@@ -26,8 +26,8 @@ impl std::str::FromStr for SeamSpan {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.architecture.seam.coverage" => Ok(SeamSpan::ArchitectureSeamCoverage),
-            "cns.architecture.seam.drift" => Ok(SeamSpan::ArchitectureSeamDrift),
+            "reg.architecture.seam.coverage" => Ok(SeamSpan::ArchitectureSeamCoverage),
+            "reg.architecture.seam.drift" => Ok(SeamSpan::ArchitectureSeamDrift),
             _ => Err(()),
         }
     }

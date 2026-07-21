@@ -10,8 +10,8 @@ pub enum AcpSpan {
 impl AcpSpan {
     pub fn as_str(&self) -> &'static str {
         match self {
-            AcpSpan::AcpUserPodMemorySize => "cns.acp.userpod.memory_size",
-            AcpSpan::AcpIdeConnectionState => "cns.acp.ide.connection_state",
+            AcpSpan::AcpUserPodMemorySize => "reg.acp.userpod.memory_size",
+            AcpSpan::AcpIdeConnectionState => "reg.acp.ide.connection_state",
         }
     }
 }
@@ -26,8 +26,8 @@ impl std::str::FromStr for AcpSpan {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "cns.acp.userpod.memory_size" => Ok(AcpSpan::AcpUserPodMemorySize),
-            "cns.acp.ide.connection_state" => Ok(AcpSpan::AcpIdeConnectionState),
+            "reg.acp.userpod.memory_size" => Ok(AcpSpan::AcpUserPodMemorySize),
+            "reg.acp.ide.connection_state" => Ok(AcpSpan::AcpIdeConnectionState),
             _ => Err(()),
         }
     }

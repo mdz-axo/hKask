@@ -150,7 +150,7 @@ impl SetPointCalibrator {
 
         if total_observations < self.min_total_observations {
             info!(
-                target: "reg.regulation.calibration",
+                target: "reg.outcome.calibration",
                 total_observations,
                 min_required = self.min_total_observations,
                 "Set-point calibrator skipped — insufficient data",
@@ -198,7 +198,7 @@ impl SetPointCalibrator {
 
         if !adjustments.is_empty() {
             info!(
-                target: "reg.regulation.calibration",
+                target: "reg.outcome.calibration",
                 since = %since,
                 until = %until,
                 adjustment_count = adjustments.len(),
@@ -233,7 +233,7 @@ impl SetPointCalibrator {
                     let new = new.clamp(MIN_STAGNATION_THRESHOLD, MAX_STAGNATION_THRESHOLD);
                     if new != current {
                         info!(
-                            target: "reg.regulation.calibration",
+                            target: "reg.outcome.calibration",
                             metric = adj.metric,
                             old = current,
                             new = new,
@@ -247,7 +247,7 @@ impl SetPointCalibrator {
                         .clamp(MIN_BLOCK_WORSENING_RATIO, MAX_BLOCK_WORSENING_RATIO);
                     if (new - *block_worsening_ratio).abs() > f64::EPSILON {
                         info!(
-                            target: "reg.regulation.calibration",
+                            target: "reg.outcome.calibration",
                             metric = adj.metric,
                             old = block_worsening_ratio,
                             new = new,
@@ -262,7 +262,7 @@ impl SetPointCalibrator {
                         .max(MIN_SUBSTITUTION_AFTER);
                     if *substitution_after != new {
                         info!(
-                            target: "reg.regulation.calibration",
+                            target: "reg.outcome.calibration",
                             metric = adj.metric,
                             old = substitution_after,
                             new = new,
@@ -288,7 +288,7 @@ impl SetPointCalibrator {
         let apply = Arc::new(apply_fn);
         tokio::spawn(async move {
             info!(
-                target: "reg.regulation.calibration",
+                target: "reg.outcome.calibration",
                 interval_secs = interval.as_secs(),
                 "Set-point calibrator started",
             );
@@ -303,7 +303,7 @@ impl SetPointCalibrator {
                     }
                     Err(e) => {
                         warn!(
-                            target: "reg.regulation.calibration",
+                            target: "reg.outcome.calibration",
                             error = %e,
                             "Calibration tick failed — will retry",
                         );
@@ -335,7 +335,7 @@ mod tests {
     }
 
     fn regulation_event(metric: &str, path: &str) -> RegulationRecord {
-        let ns = SpanNamespace::new("cns.regulation").unwrap();
+        let ns = SpanNamespace::new("reg.outcome").unwrap();
         let span = Span::new(ns, path);
         RegulationRecord::new(
             WebID::from_persona(b"cns"),

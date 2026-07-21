@@ -427,7 +427,7 @@ pub fn temp_dir() -> TempDir {
 ///
 /// # Example
 /// ```ignore
-/// let span = Span::new(SpanNamespace::new("cns.tool"), "invoked");
+/// let span = Span::new(SpanNamespace::new("reg.tool"), "invoked");
 /// let event = test_event(span, CyclePhase::Observation, None);
 /// assert!(event.observer_webid.as_uuid().is_set());
 /// ```
@@ -510,7 +510,7 @@ mod tests {
         let cns = MockRegulationLedger::new();
         assert!(cns.is_homeostatic());
 
-        let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
+        let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
         let event = test_event(span, CyclePhase::Sense, None);
         cns.inject(event);
 
@@ -522,7 +522,7 @@ mod tests {
     #[test]
     fn mock_cns_restores_homeostasis() {
         let cns = MockRegulationLedger::new();
-        let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
+        let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
         cns.inject(test_event(span, CyclePhase::Sense, None));
         assert!(!cns.is_homeostatic());
 
@@ -543,7 +543,7 @@ mod tests {
 
     #[test]
     fn test_event_is_valid() {
-        let span = Span::new(SpanNamespace::new("cns.tool").unwrap(), "invoked");
+        let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
         let event = test_event(span, CyclePhase::Sense, None);
         assert!(!event.id.as_uuid().is_nil());
         assert!(!event.observer_webid.as_uuid().is_nil());

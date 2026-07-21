@@ -388,16 +388,16 @@ impl GasReport {
 }
 fn classify_event_kind(event: &RegulationRecord) -> GasEventKind {
     match event.span.as_str() {
-        "cns.gas.reserved" => GasEventKind::Reserved,
-        "cns.gas.settled" => GasEventKind::Settled,
-        "cns.gas.depleted" => GasEventKind::Depleted,
+        "reg.gas.reserved" => GasEventKind::Reserved,
+        "reg.gas.settled" => GasEventKind::Settled,
+        "reg.gas.depleted" => GasEventKind::Depleted,
         _ => GasEventKind::Reserved,
     }
 }
 
 fn is_gas_event(event: &RegulationRecord) -> bool {
     let s = event.span.as_str();
-    s == "cns.gas.reserved" || s == "cns.gas.settled" || s == "cns.gas.depleted"
+    s == "reg.gas.reserved" || s == "reg.gas.settled" || s == "reg.gas.depleted"
 }
 
 fn extract_server_name(event: &RegulationRecord) -> String {

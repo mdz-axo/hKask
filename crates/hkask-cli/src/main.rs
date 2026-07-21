@@ -115,7 +115,7 @@ fn main() {
         target: "hkask.cli",
         operation = "command_dispatched",
         command = %cli.command.label(),
-        "CNS"
+        "REG"
     );
 
     match cli.command {
@@ -217,5 +217,5 @@ fn main() {
     }
 
     // P9: CNS span
-    tracing::info!(target: "hkask.cli", operation = "command_completed", latency_ms = cns_start.elapsed().as_millis(), "CNS");
+    tracing::info!(target: "hkask.cli", operation = "command_completed", latency_ms = cns_start.elapsed().as_millis(), "REG");
 }

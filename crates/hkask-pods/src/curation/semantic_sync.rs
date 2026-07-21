@@ -224,7 +224,7 @@ impl CuratorSync {
         self.consecutive_failures
             .store(0, std::sync::atomic::Ordering::Relaxed);
         // CNS: curator sync completed — variety signal per agent count
-        tracing::info!(target: "hkask.curator.sync", pod_count = pods.len(), "CNS");
+        tracing::info!(target: "hkask.curator.sync", pod_count = pods.len(), "REG");
 
         // Phase 2: Sync artifact manifests from agent directories.
         // Reads manifest.json files to build the cross-agent artifact index.

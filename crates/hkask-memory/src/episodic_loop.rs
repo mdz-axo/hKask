@@ -14,7 +14,7 @@ use hkask_regulation::types::loops::{
 };
 use hkask_ports::ConsolidationRequest;
 use hkask_types::WebID;
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 
 /// Episodic Loop — monitors episodic storage usage against budget and enforces limits.

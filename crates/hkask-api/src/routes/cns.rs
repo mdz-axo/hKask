@@ -167,7 +167,7 @@ pub(crate) async fn cns_variety(State(state): State<ApiState>) -> axum::Json<Cns
 /// Query parameters for CNS SSE subscription
 #[derive(Debug, Deserialize, IntoParams, ToSchema)]
 pub(crate) struct CnsSubscribeParams {
-    /// Span namespaces to subscribe to (e.g., ["cns.tool", "cns.inference"])
+    /// Span namespaces to subscribe to (e.g., ["reg.tool", "reg.inference"])
     #[serde(default)]
     spans: Vec<String>,
 }

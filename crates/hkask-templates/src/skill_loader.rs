@@ -141,7 +141,7 @@ impl SkillLoader {
                             domain = %skill.domain,
                             visibility = ?skill.visibility,
                             zone = %zone.as_str(),
-                            "CNS"
+                            "REG"
                         );
                         // Validate zone-vs-visibility consistency.
                         if let Some(warning) = Self::check_zone_visibility(&skill, zone) {
@@ -171,7 +171,7 @@ impl SkillLoader {
             operation = "skills_loaded",
             loaded = result.loaded.len(),
             warnings = result.warnings.len(),
-            "CNS"
+            "REG"
         );
 
         result
@@ -266,7 +266,7 @@ impl SkillLoader {
             registry_present = registry_present,
             template_count = template_count,
             broken_paths = broken_paths.len(),
-            "CNS"
+            "REG"
         );
 
         let mut skill = Skill::new(&id, domain)

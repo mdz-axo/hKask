@@ -878,7 +878,7 @@ pub async fn run_script(
         operation = "started",
         manifest = %manifest_id,
         step_count = step_count,
-        "CNS"
+        "REG"
     );
 
     let mut state = RunnerState::new(manifest.gas.as_ref());
@@ -958,7 +958,7 @@ pub async fn run_script(
                 terminal = o.terminal_ordinal,
                 steps = o.steps_executed,
                 gas = o.gas_used,
-                "CNS"
+                "REG"
             );
         }
         Err(e) => {
@@ -968,7 +968,7 @@ pub async fn run_script(
                 operation = "error",
                 manifest = %manifest_id,
                 error = %e,
-                "CNS"
+                "REG"
             );
         }
     }

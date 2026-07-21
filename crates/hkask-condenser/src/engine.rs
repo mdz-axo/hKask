@@ -100,7 +100,7 @@ impl CondenserEngine {
 
         // Diagnostic CNS span — see module docs: these are diagnostic-only,
         // not cybernetic feedback signals.
-        tracing::info!(target: "reg.condenser", operation = "compress", algorithm = %algorithm_name, category = %cat.label(), tool_name = %tool_name, ontology_tier = %tier_label, "CNS");
+        tracing::info!(target: "reg.condenser", operation = "compress", algorithm = %algorithm_name, category = %cat.label(), tool_name = %tool_name, ontology_tier = %tier_label, "REG");
 
         let (compressed_content, health_signals) =
             algo.compress(output, self.profile, cat, Some(&ontology_anchor));
@@ -149,7 +149,7 @@ impl CondenserEngine {
         }
 
         // Diagnostic CNS span
-        tracing::info!(target: "reg.condenser", operation = "compression_ratio", algorithm = %algorithm_name, category = %cat.label(), reduction_pct = %format!("{:.1}", reduction_pct), original_bytes = original_bytes, compressed_bytes = compressed_bytes, latency_ms = start.elapsed().as_millis(), "CNS");
+        tracing::info!(target: "reg.condenser", operation = "compression_ratio", algorithm = %algorithm_name, category = %cat.label(), reduction_pct = %format!("{:.1}", reduction_pct), original_bytes = original_bytes, compressed_bytes = compressed_bytes, latency_ms = start.elapsed().as_millis(), "REG");
 
         CompressedOutput {
             content: compressed_content,
@@ -346,7 +346,7 @@ impl CondenserEngine {
         }
 
         // Diagnostic CNS span — see module docs.
-        tracing::info!(target: "reg.condenser", operation = "health", total_compressions = stats.total_compressions, health_signal_count = signals.len(), "CNS");
+        tracing::info!(target: "reg.condenser", operation = "health", total_compressions = stats.total_compressions, health_signal_count = signals.len(), "REG");
 
         signals
     }

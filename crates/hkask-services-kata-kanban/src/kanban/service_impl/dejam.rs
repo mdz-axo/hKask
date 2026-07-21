@@ -200,7 +200,7 @@ impl KanbanService {
             operation = "task_gas_exhausted",
             task_id = %task_id,
             board_id = %task.board_id,
-            "CNS"
+            "REG"
         );
 
         Ok(task)

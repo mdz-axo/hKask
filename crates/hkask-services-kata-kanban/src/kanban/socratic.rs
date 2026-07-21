@@ -53,7 +53,7 @@ pub fn create_inquiry(
         operation = "socratic_inquiry_created",
         task_id = %task.id,
         topic = %topic,
-        "CNS"
+        "REG"
     );
 
     Ok(task)
@@ -139,7 +139,7 @@ pub fn advance(
         task_id = %task_id,
         from = %from,
         to = %to,
-        "CNS"
+        "REG"
     );
 
     Ok(result)

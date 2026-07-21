@@ -57,7 +57,7 @@ impl InferenceService {
         ctx: &InferenceContext,
         model: &str,
     ) -> Result<Arc<dyn InferencePort>, ServiceError> {
-        tracing::info!(target: "hkask.inference_svc", operation = "resolve_port", model = %model, has_shared = ctx.shared_port.is_some(), "CNS");
+        tracing::info!(target: "hkask.inference_svc", operation = "resolve_port", model = %model, has_shared = ctx.shared_port.is_some(), "REG");
 
         if let Some(ref port) = ctx.shared_port
             && model == ctx.default_model
@@ -71,7 +71,7 @@ impl InferenceService {
 
     #[must_use = "result must be used"]
     pub async fn list_models(ctx: &InferenceContext) -> Result<Vec<ModelInfo>, ServiceError> {
-        tracing::info!(target: "hkask.inference_svc", operation = "list_models", "CNS");
+        tracing::info!(target: "hkask.inference_svc", operation = "list_models", "REG");
         // Lazy TTL cache: first call fetches live (the "start-up" update),
         // subsequent calls within the TTL return cached. See `model_cache`.
         crate::model_cache::ModelCache::list_models(ctx).await
@@ -82,7 +82,7 @@ impl InferenceService {
         ctx: &InferenceContext,
         query: &str,
     ) -> Result<Vec<ModelInfo>, ServiceError> {
-        tracing::info!(target: "hkask.inference_svc", operation = "search_models", query = %query, "CNS");
+        tracing::info!(target: "hkask.inference_svc", operation = "search_models", query = %query, "REG");
         // Search is a filter over the cached full list — one cache, filtered in-memory.
         let all = crate::model_cache::ModelCache::list_models(ctx).await?;
         if query.is_empty() {

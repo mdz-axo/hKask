@@ -101,7 +101,7 @@ pub async fn export_create(
         .map(|m| m.len())
         .unwrap_or(0);
     let duration_ms = start.elapsed().as_millis() as u64;
-    tracing::info!(target = "cns.backup.export", webid = %webid, triple_count = triple_count, bytes = bytes, duration_ms = duration_ms, "CNS");
+    tracing::info!(target = "reg.backup.export", webid = %webid, triple_count = triple_count, bytes = bytes, duration_ms = duration_ms, "REG");
     Ok(Json(ExportResponse {
         archive_path: archive.path().to_string_lossy().to_string(),
         triple_count,
@@ -185,7 +185,7 @@ pub async fn export_upload(
         )
     })?;
     let duration_ms = start.elapsed().as_millis() as u64;
-    tracing::info!(target = "cns.backup.upload", webid = %webid, triple_count = receipt.triple_count, duration_ms = duration_ms, "CNS");
+    tracing::info!(target = "reg.backup.upload", webid = %webid, triple_count = receipt.triple_count, duration_ms = duration_ms, "REG");
     let _ = std::fs::remove_file(&tmp_path);
     Ok(Json(receipt))
 }

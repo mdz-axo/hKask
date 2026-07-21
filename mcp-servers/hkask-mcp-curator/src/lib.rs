@@ -17,7 +17,7 @@ use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_services_context::governance;
 
 use hkask_types::WebID;
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::RegulationSink;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
@@ -369,7 +369,7 @@ impl CuratorServer {
 
             let namespace_info = req.namespace.as_deref().unwrap_or("all");
             RegulationSpan::Tool {
-                subsystem: hkask_types::cns::ToolSubsystem::Curator,
+                subsystem: hkask_types::regulation::ToolSubsystem::Curator,
             }
             .emit("cns_query");
 
@@ -427,7 +427,7 @@ impl CuratorServer {
                 .collect();
 
             RegulationSpan::Tool {
-                subsystem: hkask_types::cns::ToolSubsystem::Curator,
+                subsystem: hkask_types::regulation::ToolSubsystem::Curator,
             }
             .emit("list_tokens");
 

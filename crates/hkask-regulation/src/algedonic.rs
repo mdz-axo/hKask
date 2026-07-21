@@ -8,7 +8,7 @@
 
 use crate::runtime::VarietyTracker;
 use chrono::{DateTime, Utc};
-use hkask_types::cns::LedgerHealth;
+use hkask_types::regulation::LedgerHealth;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tracing::{error, warn};
@@ -214,7 +214,7 @@ impl AlgedonicManager {
 
         if alert.should_escalate() {
             error!(
-                target: "reg.algedonic",
+                target: "reg.alert",
                 domain = %alert.domain,
                 deficit = alert.deficit,
                 threshold = alert.threshold,
@@ -222,7 +222,7 @@ impl AlgedonicManager {
             );
         } else if alert.is_warning() {
             warn!(
-                target: "reg.algedonic",
+                target: "reg.alert",
                 domain = %alert.domain,
                 deficit = alert.deficit,
                 "Variety deficit approaching threshold"

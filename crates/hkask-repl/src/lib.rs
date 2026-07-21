@@ -741,12 +741,12 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
     fn reg_domains(&self) -> Vec<(String, bool)> {
         let alerts = self.alert_count.load(std::sync::atomic::Ordering::Relaxed);
         vec![
-            ("cns.tool".into(), alerts < 5),
-            ("cns.inference".into(), alerts < 3),
-            ("cns.mcp.media.face".into(), true),
-            ("cns.storage".into(), true),
-            ("cns.keystore".into(), true),
-            ("cns.tui".into(), true),
+            ("reg.tool".into(), alerts < 5),
+            ("reg.inference".into(), alerts < 3),
+            ("reg.mcp.media.face".into(), true),
+            ("reg.storage".into(), true),
+            ("reg.keystore".into(), true),
+            ("reg.tui".into(), true),
         ]
     }
 }

@@ -24,7 +24,7 @@ use crate::tool_stats::ToolStats;
 
 use hkask_ports::{BackpressureSignal, LedgerObserver, DepletionSignal};
 use hkask_types::WebID;
-use hkask_types::cns::{LedgerHealth, RegulationHealth};
+use hkask_types::regulation::{LedgerHealth, RegulationHealth};
 use hkask_types::event::{RegulationRecord, RegulationSink, SpanNamespace};
 use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
@@ -991,7 +991,7 @@ impl RegulationLedger {
                 if let Some(alert) = alert {
                     tracing::warn!(
                         target: "reg",
-                        reg_domain = "cns.slo.breach_escalated",
+                        reg_domain = "reg.slo.breach_escalated",
                         slo_id = %eval.slo_id,
                         compliance = %eval.current_compliance,
                         error_budget_pct = %(eval.error_budget_remaining * 100.0),
@@ -1052,7 +1052,7 @@ async fn emit_critical_depletion(runtime: &RegulationLedger, alert: &crate::alge
             "CNS variety depletion: deficit={} threshold={} usage_ratio={:.2}",
             alert.deficit, alert.threshold, signal.usage_ratio
         );
-        cb(&msg, "cns.depletion");
+        cb(&msg, "reg.depletion");
     }
 
     let subscribers = runtime.subscribers.read().await;

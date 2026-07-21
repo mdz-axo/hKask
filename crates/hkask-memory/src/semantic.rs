@@ -13,7 +13,7 @@ use crate::recall_dedup;
 use hkask_storage::{EmbeddingError, EmbeddingStore, HMem, HMemError, HMemStore, SimilarityResult};
 use hkask_types::RegulationSink;
 use hkask_types::Visibility;
-use hkask_types::cns::RegulationSpan;
+use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::visibility::Confidence;
 use std::sync::Arc;

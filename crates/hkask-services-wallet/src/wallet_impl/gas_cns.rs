@@ -29,7 +29,7 @@ impl WalletService {
         wallet_id: WalletId,
     ) -> Result<(), ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "hkask.wallet_svc", operation = "register_wallet_budget", agent = %agent, wallet_id = %wallet_id, "CNS");
+        tracing::info!(target: "hkask.wallet_svc", operation = "register_wallet_budget", agent = %agent, wallet_id = %wallet_id, "REG");
         let loop_ = self
             .cybernetics
             .as_ref()
@@ -68,7 +68,7 @@ impl WalletService {
         spending_limit_rj: RJoule,
     ) -> Result<(), ServiceError> {
         // P9: CNS span
-        tracing::info!(target: "hkask.wallet_svc", operation = "register_wallet_budget_for_key", agent = %agent, wallet_id = %wallet_id, key_id = %key_id, "CNS");
+        tracing::info!(target: "hkask.wallet_svc", operation = "register_wallet_budget_for_key", agent = %agent, wallet_id = %wallet_id, key_id = %key_id, "REG");
         let loop_ = self
             .cybernetics
             .as_ref()

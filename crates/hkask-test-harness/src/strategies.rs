@@ -50,15 +50,15 @@ fn webid_strategy() -> BoxedStrategy<WebID> {
 
 fn span_strategy() -> BoxedStrategy<Span> {
     const NAMESPACES: &[&str] = &[
-        "cns.tool",
-        "cns.inference",
-        "cns.agent_pod",
-        "cns.gas",
-        "cns.curation",
-        "cns.variety",
-        "cns.sovereignty",
-        "cns.spec",
-        "cns.chat",
+        "reg.tool",
+        "reg.inference",
+        "reg.pod",
+        "reg.gas",
+        "reg.curation",
+        "reg.variety",
+        "reg.sovereignty",
+        "reg.spec",
+        "reg.chat",
     ];
     const PATHS: &[&str] = &["invoked", "completed", "error", "sensed", "compared"];
 

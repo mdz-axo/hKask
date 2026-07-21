@@ -241,7 +241,7 @@ impl CurationLoop {
                     reason = "missing_consent",
                     missing_categories = ?missing,
                     curator_webid = %curator_id_str,
-                    "CNS"
+                    "REG"
                 );
                 let _ = self.context.escalation_port().add(
                     TemplateID::new(),
@@ -278,7 +278,7 @@ impl CurationLoop {
                                 consolidated = outcome.consolidated_count,
                             deleted = outcome.deleted_count,
                             failed = outcome.failed_count,
-                            "CNS"
+                            "REG"
                         );
                         if outcome.consolidated_count > 0 {
                             let _ = self.context.escalation_port().add(
@@ -309,7 +309,7 @@ impl CurationLoop {
                             reg_domain = %hkask_regulation::infra_span::InfraSpan::CuratorConsolidation.as_str(),
                                 operation = "failed",
                                 error = %e,
-                            "CNS"
+                            "REG"
                         );
                         let _ = self.context.escalation_port().add(
                             TemplateID::new(),

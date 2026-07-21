@@ -37,7 +37,7 @@ fn test_server_no_store() -> CnsServer {
 /// Insert a single ν-event into the in-memory store for the given namespace.
 fn insert_event(store: &RegulationArchive, namespace: &str, local_path: &str) {
     let ns = SpanNamespace::new(namespace)
-        .unwrap_or_else(|| SpanNamespace::new("cns.gas").expect("cns.gas must be canonical"));
+        .unwrap_or_else(|| SpanNamespace::new("reg.gas").expect("reg.gas must be canonical"));
     let span = Span::new(ns, local_path);
     let event = RegulationRecord::new(
         WebID::from_persona(b"observer"),
@@ -68,7 +68,7 @@ fn error_kind(out: &str) -> Option<String> {
 async fn cns_query_spans_returns_empty_array_when_no_events() {
     let server = test_server();
     let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
-        "namespace": "cns.guard",
+        "namespace": "reg.guard",
         "since_hours": 1.0,
         "limit": 100
     }))
@@ -92,13 +92,13 @@ async fn cns_query_spans_returns_empty_array_when_no_events() {
 
 // REQ: cns_query_spans returns matching events for a populated namespace (P5).
 // expect: after inserting a cns.guard.input event, cns_query_spans with
-// namespace="cns.guard" returns count=1 and the event in the array.
+// namespace="reg.guard" returns count=1 and the event in the array.
 #[tokio::test]
 async fn cns_query_spans_returns_matching_events() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
-    insert_event(&store, "cns.guard.input", "guard.input.violation");
+    insert_event(&store, "reg.guard.input", "guard.input.violation");
 
     let server = CnsServer::new(
         WebID::new(),
@@ -108,7 +108,7 @@ async fn cns_query_spans_returns_matching_events() {
     );
 
     let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
-        "namespace": "cns.guard",
+        "namespace": "reg.guard",
         "since_hours": 1.0,
         "limit": 100
     }))
@@ -119,7 +119,7 @@ async fn cns_query_spans_returns_matching_events() {
     let events = content["events"].as_array().expect("events is array");
     assert_eq!(events.len(), 1, "expected 1 event: {out}");
     assert_eq!(
-        events[0]["namespace"], "cns.guard.input",
+        events[0]["namespace"], "reg.guard.input",
         "namespace should match: {out}"
     );
 }
@@ -163,7 +163,7 @@ async fn cns_query_spans_rejects_whitespace_namespace() {
 async fn cns_query_spans_returns_permission_denied_without_store() {
     let server = test_server_no_store();
     let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
-        "namespace": "cns.guard",
+        "namespace": "reg.guard",
         "since_hours": 1.0,
         "limit": 100
     }))
@@ -180,7 +180,7 @@ async fn cns_query_spans_returns_permission_denied_without_store() {
 async fn cns_query_spans_applies_defaults() {
     let server = test_server();
     let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
-        "namespace": "cns.guard"
+        "namespace": "reg.guard"
     }))
     .expect("deserialize QuerySpansRequest with defaults");
     let out = server.cns_query_spans(Parameters(req)).await;
@@ -200,7 +200,7 @@ async fn cns_query_spans_applies_defaults() {
 async fn cns_span_stats_returns_empty_object_when_no_events() {
     let server = test_server();
     let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
-        "namespace": "cns.regulation",
+        "namespace": "reg.outcome",
         "since_hours": 1.0
     }))
     .expect("deserialize SpanStatsRequest");
@@ -221,15 +221,15 @@ async fn cns_span_stats_returns_empty_object_when_no_events() {
 // REQ: cns_span_stats returns aggregated counts by span_category (P5).
 // expect: after inserting two cns.regulation events with different local paths
 // (both stored under span_category="regulation"), cns_span_stats with
-// namespace="cns.regulation" returns total_events=2 and a categories object
+// namespace="reg.outcome" returns total_events=2 and a categories object
 // mapping "regulation" to 2.
 #[tokio::test]
 async fn cns_span_stats_returns_aggregated_counts() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
-    insert_event(&store, "cns.regulation", "regulation.action_blocked");
-    insert_event(&store, "cns.regulation", "regulation.plateau_detected");
+    insert_event(&store, "reg.outcome", "regulation.action_blocked");
+    insert_event(&store, "reg.outcome", "regulation.plateau_detected");
 
     let server = CnsServer::new(
         WebID::new(),
@@ -239,7 +239,7 @@ async fn cns_span_stats_returns_aggregated_counts() {
     );
 
     let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
-        "namespace": "cns.regulation",
+        "namespace": "reg.outcome",
         "since_hours": 1.0
     }))
     .expect("deserialize SpanStatsRequest");
@@ -281,7 +281,7 @@ async fn cns_span_stats_rejects_empty_namespace() {
 async fn cns_span_stats_returns_permission_denied_without_store() {
     let server = test_server_no_store();
     let req: hkask_mcp_cns::SpanStatsRequest = serde_json::from_value(serde_json::json!({
-        "namespace": "cns.guard",
+        "namespace": "reg.guard",
         "since_hours": 1.0
     }))
     .expect("deserialize SpanStatsRequest");
@@ -291,7 +291,7 @@ async fn cns_span_stats_returns_permission_denied_without_store() {
 }
 
 // REQ: cns_query_spans strips the cns. prefix before querying (P5).
-// expect: querying "cns.guard" finds events stored under span_category="guard.input".
+// expect: querying "reg.guard" finds events stored under span_category="guard.input".
 // This verifies the short-name normalization — the column stores short names,
 // not full cns.* namespaces.
 #[tokio::test]
@@ -299,7 +299,7 @@ async fn cns_query_spans_strips_cns_prefix() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
     let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
-    insert_event(&store, "cns.guard.input", "guard.input.violation");
+    insert_event(&store, "reg.guard.input", "guard.input.violation");
 
     let server = CnsServer::new(
         WebID::new(),
@@ -308,10 +308,10 @@ async fn cns_query_spans_strips_cns_prefix() {
         Some(Arc::new(store)),
     );
 
-    // Query with the full "cns.guard" namespace — should find the event
+    // Query with the full "reg.guard" namespace — should find the event
     // stored under span_category="guard.input".
     let req: hkask_mcp_cns::QuerySpansRequest = serde_json::from_value(serde_json::json!({
-        "namespace": "cns.guard",
+        "namespace": "reg.guard",
         "since_hours": 1.0,
         "limit": 100
     }))

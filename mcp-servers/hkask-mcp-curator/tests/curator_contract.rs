@@ -65,13 +65,13 @@ fn semantic_search_request_parses_without_limit() {
 #[test]
 fn cns_query_request_parses_with_all_fields() {
     let json = serde_json::json!({
-        "namespace": "cns.sovereignty",
+        "namespace": "reg.sovereignty",
         "window_seconds": 3600,
         "limit": 50
     });
     let req: hkask_mcp_curator::types::CnsQueryRequest =
         serde_json::from_value(json).expect("should parse CNS query");
-    assert_eq!(req.namespace, Some("cns.sovereignty".to_string()));
+    assert_eq!(req.namespace, Some("reg.sovereignty".to_string()));
     assert_eq!(req.window_seconds, Some(3600));
     assert_eq!(req.limit, Some(50));
 }

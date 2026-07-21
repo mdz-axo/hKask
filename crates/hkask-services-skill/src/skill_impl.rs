@@ -99,7 +99,7 @@ pub fn discover_skills(zone_dir: &Path) -> Result<Vec<SkillInfo>, ServiceError> 
         operation = "skills_discovered",
         zone_dir = %zone_dir.display(),
         count = skills.len(),
-        "CNS"
+        "REG"
     );
     Ok(skills)
 }
@@ -267,7 +267,7 @@ pub fn publish_skill(root: &Path, name: &str) -> Result<SkillPublishResult, Serv
         name = %name,
         namespaced_name = %namespaced_name,
         namespace = %userpod_name,
-        "CNS"
+        "REG"
     );
 
     Ok(SkillPublishResult {

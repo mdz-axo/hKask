@@ -78,7 +78,7 @@ Comment thread (agent/userpod communication):",
             operation = "coaching_prompt_generated",
             task_id = %task.id,
             title = %task.title,
-            "CNS"
+            "REG"
         );
 
         Ok(format!(
@@ -153,7 +153,7 @@ Recent comments:",
             operation = "improvement_prompt_generated",
             task_id = %task.id,
             title = %task.title,
-            "CNS"
+            "REG"
         );
 
         Ok(format!(
@@ -194,7 +194,7 @@ Recent comments:",
             operation = "practice_prompt_generated",
             task_id = %task.id,
             sub_problem = %sub_problem,
-            "CNS"
+            "REG"
         );
 
         Ok(format!(

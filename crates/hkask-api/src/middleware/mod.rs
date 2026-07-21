@@ -3,7 +3,7 @@
 pub mod admin;
 pub mod api_key_auth;
 pub mod auth;
-pub mod cns;
+pub mod regulation;
 pub mod session;
 
 pub use admin::admin_middleware;

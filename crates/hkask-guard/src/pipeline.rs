@@ -224,7 +224,7 @@ impl ContentGuard {
         if self.canary.is_leaked_in(text) {
             tracing::warn!(
                 target: "reg.guard.canary",
-                "CNS"
+                "REG"
             );
             InfraSpan::GuardViolation.emit("canary_token_leaked");
             true
@@ -267,7 +267,7 @@ impl ContentGuard {
                 target: "reg.guard.input",
                 violation_count = violations.len(),
                 scanners = ?violations.iter().map(|v| &v.scanner).collect::<Vec<_>>(),
-                "CNS"
+                "REG"
             );
             InfraSpan::GuardViolation.emit("content_guard_input_refused");
 
@@ -334,7 +334,7 @@ impl ContentGuard {
                 target: "reg.guard.output",
                 violation_count = violations.len(),
                 scanners = ?violations.iter().map(|v| &v.scanner).collect::<Vec<_>>(),
-                "CNS"
+                "REG"
             );
             InfraSpan::GuardViolation.emit("content_guard_output_violation");
 

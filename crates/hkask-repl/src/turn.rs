@@ -144,7 +144,7 @@ fn run_turn_loop(
     let mut final_response: Option<String> = None;
     let mut inference_error = false;
 
-    tracing::info!(target: "reg", reg_domain = "cns.chat.turn", operation = "started", agent = %display_name, input_len = input.len(), "CNS");
+    tracing::info!(target: "reg", reg_domain = "reg.chat.turn", operation = "started", agent = %display_name, input_len = input.len(), "REG");
 
     loop {
         iteration += 1;
@@ -309,7 +309,7 @@ fn run_turn_loop(
     }
 
     if let Some(ref resp) = final_response {
-        tracing::info!(target: "reg", reg_domain = "cns.chat.turn", operation = "completed", agent = %display_name, response_len = resp.len(), iterations = iteration, "CNS");
+        tracing::info!(target: "reg", reg_domain = "reg.chat.turn", operation = "completed", agent = %display_name, response_len = resp.len(), iterations = iteration, "REG");
     }
 
     (deps.on_cns_update)();

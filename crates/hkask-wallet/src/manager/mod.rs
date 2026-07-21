@@ -28,7 +28,7 @@ use crate::chain::{ChainPort, DepositEvent};
 use crate::price_feed::{PriceFeed, WithdrawalFee};
 
 mod budget;
-mod cns;
+mod regulation;
 mod deposits;
 mod encumbrance;
 mod withdrawals;

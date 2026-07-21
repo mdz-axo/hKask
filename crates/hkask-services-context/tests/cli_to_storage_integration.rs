@@ -153,7 +153,7 @@ async fn cross_store_consent_visible_to_cns_events() {
     let test_event = hkask_types::event::RegulationRecord::new(
         webid,
         hkask_types::event::Span::new(
-            hkask_types::event::SpanNamespace::new("cns.inference").unwrap(),
+            hkask_types::event::SpanNamespace::new("reg.inference").unwrap(),
             "test.integration",
         ),
         hkask_types::event::CyclePhase::Act,

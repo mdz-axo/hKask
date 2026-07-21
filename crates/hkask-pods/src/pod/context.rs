@@ -357,7 +357,7 @@ impl PodContext {
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => {
                 handle.spawn(async move {
-                    cns.increment_variety("cns.semantic.published", &entity)
+                    cns.increment_variety("reg.semantic.published", &entity)
                         .await;
                 });
             }

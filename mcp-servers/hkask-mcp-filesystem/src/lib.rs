@@ -28,7 +28,7 @@ pub mod types;
 use types::*;
 
 use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
-use hkask_types::cns::{RegulationSpan, ToolSubsystem};
+use hkask_types::regulation::{RegulationSpan, ToolSubsystem};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::path::{Path, PathBuf};
 use std::time::Instant;

@@ -319,7 +319,7 @@ impl KataEngine {
                     namespace = %manifest.cns.span_namespace,
                     kata_type = "bundle",
                     bot = %learner_bot,
-                    "CNS"
+                    "REG"
                 );
             }
 
@@ -347,7 +347,7 @@ impl KataEngine {
             selected = %selected,
             manifest = %kata_manifest_name,
             bot = %learner_bot,
-            "CNS"
+            "REG"
         );
 
         // Load and execute the selected kata manifest
@@ -396,7 +396,7 @@ impl KataEngine {
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "improvement",
                         bot = %learner_bot,
-                        "CNS"
+                        "REG"
                     );
                 }
                 let mut result = self.run_improvement(manifest, &mut state).await?;
@@ -418,7 +418,7 @@ impl KataEngine {
                         steps = result.steps_completed,
                         gas = result.gas_consumed,
                         has_signal = result.improvement_signal.is_some(),
-                        "CNS"
+                        "REG"
                     );
                 }
                 Ok(result)
@@ -435,7 +435,7 @@ impl KataEngine {
                         namespace = %manifest.cns.span_namespace,
                         kata_type = "coaching",
                         bot = %learner_bot,
-                        "CNS"
+                        "REG"
                     );
                 }
                 let mut result = self.run_coaching(manifest, &mut state).await?;
@@ -451,7 +451,7 @@ impl KataEngine {
                         namespace = %manifest.cns.span_namespace,
                         questions = result.steps_completed,
                         gas = result.gas_consumed,
-                        "CNS"
+                        "REG"
                     );
                 }
                 Ok(result)
@@ -473,7 +473,7 @@ impl KataEngine {
                         kata_type = "starter",
                         bot = %learner_bot,
                         automaticity_before = auto_before,
-                        "CNS"
+                        "REG"
                     );
                 }
                 let mut result = self.run_starter(manifest, &mut state).await?;
@@ -514,7 +514,7 @@ impl KataEngine {
                         practices = result.steps_completed,
                         automaticity_after = auto_after,
                         automaticity_delta = result.automaticity_delta,
-                        "CNS"
+                        "REG"
                     );
                 }
                 Ok(result)
