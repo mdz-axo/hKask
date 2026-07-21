@@ -5,6 +5,7 @@
 //! Tab toggles between board view and scoped chat.
 
 use crate::bridges::kanban::{KanbanDataBridge, KanbanTaskSummary};
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::window::{Window, WindowId, WindowKind};
@@ -128,7 +129,12 @@ impl Window for KanbanWindow {
 
     fn render(&self, f: &mut Frame, area: Rect, is_focused: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "kanban", f, area),
+            McpTab::Chat => <KanbanWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "kanban",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_board(f, area, is_focused),
         }
     }
@@ -415,30 +421,8 @@ impl KanbanWindow {
     }
 }
 
-impl McpTabbedWindow for KanbanWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-
-    fn mcp_server_name(&self) -> &str {
-        "kanban"
-    }
-
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "kanban", f, area);
-    }
-
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        // Used by McpTabbedWindow default dispatch — but we override render() directly.
-        // Delegate to board render with focused=true for Data tab rendering.
-        self.render_board(f, area, true);
-    }
-}
+impl_mcp_tabbed!(KanbanWindow, "kanban", |this, f, area| {
+    // Used by McpTabbedWindow default dispatch — but we override render() directly.
+    // Delegate to board render with focused=true for Data tab rendering.
+    this.render_board(f, area, true);
+});

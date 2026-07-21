@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through sections + Chat tab.
 
 use crate::bridges::MemoryDataBridge;
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -90,7 +91,12 @@ impl Window for MemoryWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "memory", f, area),
+            McpTab::Chat => <MemoryWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "memory",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -149,95 +155,80 @@ impl Window for MemoryWindow {
     }
 }
 
-impl McpTabbedWindow for MemoryWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "memory"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "memory", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            headers::section(format!(
-                "Memory: {} ([ ] to navigate)",
-                self.section.title()
-            )),
-            Line::from(""),
-        ];
-        if let Some(ref mem) = self.memory {
-            let summary = mem.memory_summary();
-            let episodic = mem.recent_episodic(15);
-            let semantic = mem.recent_semantic(15);
-            let cs = mem.consolidation_status();
-            match self.section {
-                MemorySection::Episodic => {
-                    lines.push(Line::from(format!(
-                        "  Episodic: {} / {} ({:.0}%)",
-                        summary.episodic_count,
-                        summary.episodic_budget,
-                        if summary.episodic_budget > 0 {
-                            (summary.episodic_count as f64 / summary.episodic_budget as f64) * 100.0
-                        } else {
-                            0.0
-                        }
-                    )));
-                    for t in &episodic {
-                        let entity = format!("{}", t.entity);
-                        let attr = format!("{}", t.attribute);
-                        let val = format!("{}", t.value);
-                        lines.push(Line::from(vec![
-                            Span::raw("  "),
-                            Span::styled(entity, Style::default().fg(Color::Cyan)),
-                            Span::raw(" · "),
-                            Span::styled(attr, Style::default().fg(Color::Yellow)),
-                            Span::raw(" = "),
-                            Span::styled(val, Style::default().fg(Color::White)),
-                        ]));
+impl_mcp_tabbed!(MemoryWindow, "memory", |this, f, area| {
+    let mut lines = vec![
+        headers::section(format!(
+            "Memory: {} ([ ] to navigate)",
+            this.section.title()
+        )),
+        Line::from(""),
+    ];
+    if let Some(ref mem) = this.memory {
+        let summary = mem.memory_summary();
+        let episodic = mem.recent_episodic(15);
+        let semantic = mem.recent_semantic(15);
+        let cs = mem.consolidation_status();
+        match this.section {
+            MemorySection::Episodic => {
+                lines.push(Line::from(format!(
+                    "  Episodic: {} / {} ({:.0}%)",
+                    summary.episodic_count,
+                    summary.episodic_budget,
+                    if summary.episodic_budget > 0 {
+                        (summary.episodic_count as f64 / summary.episodic_budget as f64) * 100.0
+                    } else {
+                        0.0
                     }
-                }
-                MemorySection::Semantic => {
-                    lines.push(Line::from(format!(
-                        "  Semantic: {} (low: {})",
-                        summary.semantic_count, summary.semantic_low_confidence
-                    )));
-                    for t in &semantic {
-                        let entity = format!("{}", t.entity);
-                        let attr = format!("{}", t.attribute);
-                        let val = format!("{}", t.value);
-                        lines.push(Line::from(vec![
-                            Span::raw("  "),
-                            Span::styled(entity, Style::default().fg(Color::Green)),
-                            Span::raw(" · "),
-                            Span::styled(attr, Style::default().fg(Color::Yellow)),
-                            Span::raw(" = "),
-                            Span::styled(val, Style::default().fg(Color::White)),
-                        ]));
-                    }
-                }
-                MemorySection::Triples => {
-                    lines.push(Line::from(format!(
-                        "  Episodic: {}   Semantic: {}",
-                        summary.episodic_count, summary.semantic_count
-                    )));
-                    lines.push(Line::from("  Each h_mem: entity, attribute, value, confidence, visibility, owner WebID"));
-                }
-                MemorySection::Consolidation => {
-                    lines.push(Line::from(format!(
-                        "  Candidates: {}   Semantic: {}   Low-conf: {}",
-                        cs.candidate_count, cs.semantic_count, cs.low_confidence_count
-                    )));
+                )));
+                for t in &episodic {
+                    let entity = format!("{}", t.entity);
+                    let attr = format!("{}", t.attribute);
+                    let val = format!("{}", t.value);
+                    lines.push(Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(entity, Style::default().fg(Color::Cyan)),
+                        Span::raw(" · "),
+                        Span::styled(attr, Style::default().fg(Color::Yellow)),
+                        Span::raw(" = "),
+                        Span::styled(val, Style::default().fg(Color::White)),
+                    ]));
                 }
             }
+            MemorySection::Semantic => {
+                lines.push(Line::from(format!(
+                    "  Semantic: {} (low: {})",
+                    summary.semantic_count, summary.semantic_low_confidence
+                )));
+                for t in &semantic {
+                    let entity = format!("{}", t.entity);
+                    let attr = format!("{}", t.attribute);
+                    let val = format!("{}", t.value);
+                    lines.push(Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(entity, Style::default().fg(Color::Green)),
+                        Span::raw(" · "),
+                        Span::styled(attr, Style::default().fg(Color::Yellow)),
+                        Span::raw(" = "),
+                        Span::styled(val, Style::default().fg(Color::White)),
+                    ]));
+                }
+            }
+            MemorySection::Triples => {
+                lines.push(Line::from(format!(
+                    "  Episodic: {}   Semantic: {}",
+                    summary.episodic_count, summary.semantic_count
+                )));
+                lines.push(Line::from(
+                    "  Each h_mem: entity, attribute, value, confidence, visibility, owner WebID",
+                ));
+            }
+            MemorySection::Consolidation => {
+                lines.push(Line::from(format!(
+                    "  Candidates: {}   Semantic: {}   Low-conf: {}",
+                    cs.candidate_count, cs.semantic_count, cs.low_confidence_count
+                )));
+            }
         }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
     }
-}
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});

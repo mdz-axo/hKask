@@ -55,9 +55,12 @@ impl Window for ReplicaWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => {
-                McpTabbedWindow::default_render_chat_tab(&self.chat_state, "replica", f, area)
-            }
+            McpTab::Chat => <ReplicaWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "replica",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }

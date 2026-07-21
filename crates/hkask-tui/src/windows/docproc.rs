@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through Chunks→QA→Index→Chat.
 
 use crate::bridges::DocprocDataBridge;
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -86,7 +87,12 @@ impl Window for DocprocWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "docproc", f, area),
+            McpTab::Chat => <DocprocWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "docproc",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -145,90 +151,73 @@ impl Window for DocprocWindow {
     }
 }
 
-impl McpTabbedWindow for DocprocWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "docproc"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "docproc", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            headers::section(format!(
-                "Docproc: {} ([ ] to navigate)",
-                self.section.title()
-            )),
-            Line::from(""),
-        ];
-        let chunk_data: Vec<(usize, usize, String)> = self
-            .docproc
-            .as_ref()
-            .map(|d| {
-                d.chunk_list()
-                    .iter()
-                    .map(|c| (c.index, c.token_count, c.preview.clone()))
-                    .collect()
-            })
-            .unwrap_or_default();
-        let _qa_data: Vec<(String, String, String)> = self
-            .docproc
-            .as_ref()
-            .map(|d| {
-                d.qa_list()
-                    .iter()
-                    .map(|q| (q.question.clone(), q.answer.clone(), q.level.clone()))
-                    .collect()
-            })
-            .unwrap_or_default();
-        let (indexed, total) = self
-            .docproc
-            .as_ref()
-            .map(|d| d.index_status())
-            .unwrap_or((0, 0));
-        if let Some(ref d) = self.docproc {
-            match self.section {
-                DocprocSection::Chunks => {
-                    lines.push(Line::from(format!("  {} chunk(s)", chunk_data.len())));
-                    for (idx, tokens, preview) in &chunk_data {
-                        lines.push(Line::from(vec![
-                            Span::raw(format!("  [{}] ", idx)),
-                            Span::styled(
-                                format!("{} tokens", tokens),
-                                Style::default().fg(Color::Yellow),
-                            ),
-                            Span::raw(" — "),
-                            Span::styled(preview.as_str(), Style::default().fg(Color::DarkGray)),
-                        ]));
-                    }
-                }
-                DocprocSection::QA => {
-                    let qas = d.qa_list();
-                    lines.push(Line::from(format!("  {} QA pair(s)", qas.len())));
-                    for q in &qas {
-                        lines.push(Line::from(vec![
-                            Span::raw("  Q: "),
-                            Span::styled(q.question.clone(), Style::default().fg(Color::Cyan)),
-                            Span::raw(format!("  [{}]", q.level)),
-                        ]));
-                        lines.push(Line::from(format!("  A: {}", q.answer)));
-                    }
-                }
-                DocprocSection::Index => {
-                    lines.push(Line::from(format!("  Indexed: {} / {}", indexed, total)));
+impl_mcp_tabbed!(DocprocWindow, "docproc", |this, f, area| {
+    let mut lines = vec![
+        headers::section(format!(
+            "Docproc: {} ([ ] to navigate)",
+            this.section.title()
+        )),
+        Line::from(""),
+    ];
+    let chunk_data: Vec<(usize, usize, String)> = this
+        .docproc
+        .as_ref()
+        .map(|d| {
+            d.chunk_list()
+                .iter()
+                .map(|c| (c.index, c.token_count, c.preview.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let _qa_data: Vec<(String, String, String)> = this
+        .docproc
+        .as_ref()
+        .map(|d| {
+            d.qa_list()
+                .iter()
+                .map(|q| (q.question.clone(), q.answer.clone(), q.level.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
+    let (indexed, total) = this
+        .docproc
+        .as_ref()
+        .map(|d| d.index_status())
+        .unwrap_or((0, 0));
+    if let Some(ref d) = this.docproc {
+        match this.section {
+            DocprocSection::Chunks => {
+                lines.push(Line::from(format!("  {} chunk(s)", chunk_data.len())));
+                for (idx, tokens, preview) in &chunk_data {
+                    lines.push(Line::from(vec![
+                        Span::raw(format!("  [{}] ", idx)),
+                        Span::styled(
+                            format!("{} tokens", tokens),
+                            Style::default().fg(Color::Yellow),
+                        ),
+                        Span::raw(" — "),
+                        Span::styled(preview.as_str(), Style::default().fg(Color::DarkGray)),
+                    ]));
                 }
             }
-        } else {
-            lines.push(Line::from("  Use `kask mcp start docproc` to enable."));
+            DocprocSection::QA => {
+                let qas = d.qa_list();
+                lines.push(Line::from(format!("  {} QA pair(s)", qas.len())));
+                for q in &qas {
+                    lines.push(Line::from(vec![
+                        Span::raw("  Q: "),
+                        Span::styled(q.question.clone(), Style::default().fg(Color::Cyan)),
+                        Span::raw(format!("  [{}]", q.level)),
+                    ]));
+                    lines.push(Line::from(format!("  A: {}", q.answer)));
+                }
+            }
+            DocprocSection::Index => {
+                lines.push(Line::from(format!("  Indexed: {} / {}", indexed, total)));
+            }
         }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+    } else {
+        lines.push(Line::from("  Use `kask mcp start docproc` to enable."));
     }
-}
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});

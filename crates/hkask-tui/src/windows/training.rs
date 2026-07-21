@@ -3,6 +3,7 @@
 //! `]` switches to Chat, `[` switches to Data.
 
 use crate::bridges::TrainingDataBridge;
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -54,7 +55,12 @@ impl Window for TrainingWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "training", f, area),
+            McpTab::Chat => <TrainingWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "training",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -91,83 +97,66 @@ impl Window for TrainingWindow {
     }
 }
 
-impl McpTabbedWindow for TrainingWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "training"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "training", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![headers::section("Training ([ ] Chat/Data)"), Line::from("")];
-        if let Some(ref t) = self.training {
-            let adapters = t.adapter_list();
-            let deployments = t.deployment_list();
-            lines.push(Line::from(format!(
-                "  Sessions: {}   Adapters: {}",
-                t.session_count(),
-                t.adapter_count()
-            )));
-            lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  Adapters:",
-                Style::default().fg(Color::Yellow),
-            )));
-            if adapters.is_empty() {
-                lines.push(Line::from("    • None registered"));
-            } else {
-                for a in &adapters {
-                    let name = a.name.clone();
-                    let version = a.version.clone();
-                    lines.push(Line::from(vec![
-                        Span::raw("    • "),
-                        Span::styled(name, Style::default().fg(Color::Magenta)),
-                        Span::styled(
-                            format!("  v{}", version),
-                            Style::default().fg(Color::DarkGray),
-                        ),
-                    ]));
-                    lines.push(Line::from(format!(
-                        "      {}  {}  {} MB",
-                        a.base_model,
-                        a.expertise,
-                        a.size_bytes / 1_000_000
-                    )));
-                }
-            }
-            lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                "  Deployments:",
-                Style::default().fg(Color::Yellow),
-            )));
-            if deployments.is_empty() {
-                lines.push(Line::from("    • No active deployments"));
-            } else {
-                for d in &deployments {
-                    let name = d.adapter_name.clone();
-                    let color = match d.status.as_str() {
-                        "active" => Color::Green,
-                        "provisioning" => Color::Yellow,
-                        _ => Color::Red,
-                    };
-                    lines.push(Line::from(vec![
-                        Span::raw("    • "),
-                        Span::styled(name, Style::default().fg(Color::Cyan)),
-                        Span::raw(format!("  via {:12}", d.provider)),
-                        Span::styled(format!("  [{}]", d.status), Style::default().fg(color)),
-                    ]));
-                }
+impl_mcp_tabbed!(TrainingWindow, "training", |this, f, area| {
+    let mut lines = vec![headers::section("Training ([ ] Chat/Data)"), Line::from("")];
+    if let Some(ref t) = this.training {
+        let adapters = t.adapter_list();
+        let deployments = t.deployment_list();
+        lines.push(Line::from(format!(
+            "  Sessions: {}   Adapters: {}",
+            t.session_count(),
+            t.adapter_count()
+        )));
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Adapters:",
+            Style::default().fg(Color::Yellow),
+        )));
+        if adapters.is_empty() {
+            lines.push(Line::from("    • None registered"));
+        } else {
+            for a in &adapters {
+                let name = a.name.clone();
+                let version = a.version.clone();
+                lines.push(Line::from(vec![
+                    Span::raw("    • "),
+                    Span::styled(name, Style::default().fg(Color::Magenta)),
+                    Span::styled(
+                        format!("  v{}", version),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ]));
+                lines.push(Line::from(format!(
+                    "      {}  {}  {} MB",
+                    a.base_model,
+                    a.expertise,
+                    a.size_bytes / 1_000_000
+                )));
             }
         }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "  Deployments:",
+            Style::default().fg(Color::Yellow),
+        )));
+        if deployments.is_empty() {
+            lines.push(Line::from("    • No active deployments"));
+        } else {
+            for d in &deployments {
+                let name = d.adapter_name.clone();
+                let color = match d.status.as_str() {
+                    "active" => Color::Green,
+                    "provisioning" => Color::Yellow,
+                    _ => Color::Red,
+                };
+                lines.push(Line::from(vec![
+                    Span::raw("    • "),
+                    Span::styled(name, Style::default().fg(Color::Cyan)),
+                    Span::raw(format!("  via {:12}", d.provider)),
+                    Span::styled(format!("  [{}]", d.status), Style::default().fg(color)),
+                ]));
+            }
+        }
     }
-}
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});

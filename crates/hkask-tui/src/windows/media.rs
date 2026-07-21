@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through sections + Chat tab.
 
 use crate::bridges::MediaDataBridge;
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -86,7 +87,12 @@ impl Window for MediaWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "media", f, area),
+            McpTab::Chat => <MediaWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "media",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -145,74 +151,57 @@ impl Window for MediaWindow {
     }
 }
 
-impl McpTabbedWindow for MediaWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "media"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "media", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            headers::section(format!("Media: {} ([ ] to navigate)", self.section.title())),
-            Line::from(""),
-        ];
-        if let Some(ref m) = self.media {
-            let gs = m.gallery_status();
-            let images = m.recent_images(12);
-            match self.section {
-                MediaSection::Gallery => {
-                    if !gs.active {
-                        lines.push(Line::from("  No gallery active."));
-                    } else {
-                        lines.push(Line::from(format!(
-                            "  Gallery: {}  Images: {}",
-                            gs.gallery_id.as_deref().unwrap_or("-"),
-                            gs.image_count
-                        )));
-                    }
-                }
-                MediaSection::Collections => {
-                    lines.push(Line::from(format!("  {} image(s)", images.len())));
-                    for img in &images {
-                        let path = img.path.clone();
-                        lines.push(Line::from(vec![
-                            Span::raw("  📷 "),
-                            Span::styled(path, Style::default().fg(Color::Cyan)),
-                            Span::styled(
-                                format!("  {}×{}  {}", img.width, img.height, img.format),
-                                Style::default().fg(Color::DarkGray),
-                            ),
-                        ]));
-                    }
-                }
-                MediaSection::Recent => {
-                    lines.push(Line::from(format!("  {} recent image(s)", images.len())));
-                    for img in &images {
-                        let path = img.path.clone();
-                        lines.push(Line::from(vec![
-                            Span::raw("  📷 "),
-                            Span::styled(path, Style::default().fg(Color::Cyan)),
-                            Span::styled(
-                                format!("  {}×{}  {}", img.width, img.height, img.format),
-                                Style::default().fg(Color::DarkGray),
-                            ),
-                        ]));
-                    }
+impl_mcp_tabbed!(MediaWindow, "media", |this, f, area| {
+    let mut lines = vec![
+        headers::section(format!("Media: {} ([ ] to navigate)", this.section.title())),
+        Line::from(""),
+    ];
+    if let Some(ref m) = this.media {
+        let gs = m.gallery_status();
+        let images = m.recent_images(12);
+        match this.section {
+            MediaSection::Gallery => {
+                if !gs.active {
+                    lines.push(Line::from("  No gallery active."));
+                } else {
+                    lines.push(Line::from(format!(
+                        "  Gallery: {}  Images: {}",
+                        gs.gallery_id.as_deref().unwrap_or("-"),
+                        gs.image_count
+                    )));
                 }
             }
-        } else {
-            lines.push(Line::from("  No media MCP server connected."));
+            MediaSection::Collections => {
+                lines.push(Line::from(format!("  {} image(s)", images.len())));
+                for img in &images {
+                    let path = img.path.clone();
+                    lines.push(Line::from(vec![
+                        Span::raw("  📷 "),
+                        Span::styled(path, Style::default().fg(Color::Cyan)),
+                        Span::styled(
+                            format!("  {}×{}  {}", img.width, img.height, img.format),
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                    ]));
+                }
+            }
+            MediaSection::Recent => {
+                lines.push(Line::from(format!("  {} recent image(s)", images.len())));
+                for img in &images {
+                    let path = img.path.clone();
+                    lines.push(Line::from(vec![
+                        Span::raw("  📷 "),
+                        Span::styled(path, Style::default().fg(Color::Cyan)),
+                        Span::styled(
+                            format!("  {}×{}  {}", img.width, img.height, img.format),
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                    ]));
+                }
+            }
         }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+    } else {
+        lines.push(Line::from("  No media MCP server connected."));
     }
-}
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});

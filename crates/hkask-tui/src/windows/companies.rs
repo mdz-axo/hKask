@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through Search→Profile→Financials→Portfolio→Chat.
 
 use crate::bridges::CompaniesDataBridge;
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -91,7 +92,12 @@ impl Window for CompaniesWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "companies", f, area),
+            McpTab::Chat => <CompaniesWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "companies",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -150,174 +156,151 @@ impl Window for CompaniesWindow {
     }
 }
 
-impl McpTabbedWindow for CompaniesWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "companies"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "companies", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            headers::section(format!(
-                "Companies: {} ([ ] to navigate)",
-                self.section.title()
-            )),
-            Line::from(""),
-        ];
-        if let Some(ref comp) = self.companies {
-            let results = comp
-                .last_searched()
-                .map(|q| comp.search(&q))
-                .unwrap_or_default();
-            let portfolios = comp.portfolio_list();
-            let financials = comp.financials();
-            match self.section {
-                CompanySection::Search => {
-                    if let Some(ref query) = comp.last_searched() {
-                        lines.push(Line::from(format!("  Last search: {}", query)));
-                        lines.push(Line::from(format!("  {} result(s)", results.len())));
-                        for c in &results {
-                            let symbol = c.symbol.clone();
-                            let name = c.name.clone();
-                            let mcap = c
-                                .market_cap
-                                .map(|m| {
-                                    if m >= 1e12 {
-                                        format!("${:.2}T", m / 1e12)
-                                    } else if m >= 1e9 {
-                                        format!("${:.2}B", m / 1e9)
-                                    } else {
-                                        format!("${:.0}M", m / 1e6)
-                                    }
-                                })
-                                .unwrap_or_default();
-                            lines.push(Line::from(vec![
-                                Span::raw("  • "),
-                                Span::styled(symbol, Style::default().fg(Color::Cyan)),
-                                Span::raw("  "),
-                                Span::styled(name, Style::default().fg(Color::White)),
-                                Span::styled(
-                                    format!("  {}", mcap),
-                                    Style::default().fg(Color::Green),
-                                ),
-                            ]));
-                            if let Some(ref ex) = c.exchange {
-                                lines.push(Line::from(format!("    Exchange: {}", ex)));
-                            }
-                            if let Some(ref ind) = c.industry {
-                                lines.push(Line::from(format!(
-                                    "    Industry: {} / {}",
-                                    ind,
-                                    c.sector.as_deref().unwrap_or("-")
-                                )));
-                            }
+impl_mcp_tabbed!(CompaniesWindow, "companies", |this, f, area| {
+    let mut lines = vec![
+        headers::section(format!(
+            "Companies: {} ([ ] to navigate)",
+            this.section.title()
+        )),
+        Line::from(""),
+    ];
+    if let Some(ref comp) = this.companies {
+        let results = comp
+            .last_searched()
+            .map(|q| comp.search(&q))
+            .unwrap_or_default();
+        let portfolios = comp.portfolio_list();
+        let financials = comp.financials();
+        match this.section {
+            CompanySection::Search => {
+                if let Some(ref query) = comp.last_searched() {
+                    lines.push(Line::from(format!("  Last search: {}", query)));
+                    lines.push(Line::from(format!("  {} result(s)", results.len())));
+                    for c in &results {
+                        let symbol = c.symbol.clone();
+                        let name = c.name.clone();
+                        let mcap = c
+                            .market_cap
+                            .map(|m| {
+                                if m >= 1e12 {
+                                    format!("${:.2}T", m / 1e12)
+                                } else if m >= 1e9 {
+                                    format!("${:.2}B", m / 1e9)
+                                } else {
+                                    format!("${:.0}M", m / 1e6)
+                                }
+                            })
+                            .unwrap_or_default();
+                        lines.push(Line::from(vec![
+                            Span::raw("  • "),
+                            Span::styled(symbol, Style::default().fg(Color::Cyan)),
+                            Span::raw("  "),
+                            Span::styled(name, Style::default().fg(Color::White)),
+                            Span::styled(format!("  {}", mcap), Style::default().fg(Color::Green)),
+                        ]));
+                        if let Some(ref ex) = c.exchange {
+                            lines.push(Line::from(format!("    Exchange: {}", ex)));
                         }
-                    } else {
-                        lines.push(Line::from("  Use `kask mcp start companies` to enable."));
-                    }
-                }
-                CompanySection::Profile => {
-                    if let Some(ref _query) = comp.last_searched() {
-                        if let Some(ref c) = results.first() {
-                            let symbol = c.symbol.clone();
-                            let name = c.name.clone();
-                            lines.push(Line::from(vec![
-                                Span::styled(symbol, Style::default().fg(Color::Cyan).bold()),
-                                Span::raw(" — "),
-                                Span::styled(name, Style::default().fg(Color::White)),
-                            ]));
+                        if let Some(ref ind) = c.industry {
                             lines.push(Line::from(format!(
-                                "  Exchange: {}",
-                                c.exchange.as_deref().unwrap_or("-")
-                            )));
-                            lines.push(Line::from(format!(
-                                "  Industry: {}",
-                                c.industry.as_deref().unwrap_or("-")
-                            )));
-                            lines.push(Line::from(format!(
-                                "  Sector:   {}",
+                                "    Industry: {} / {}",
+                                ind,
                                 c.sector.as_deref().unwrap_or("-")
                             )));
-                            if let Some(mc) = c.market_cap {
-                                lines.push(Line::from(format!("  Mkt Cap:  ${:.2}T", mc / 1e12)));
-                            }
-                        } else {
-                            lines.push(Line::from("  No results."));
                         }
-                    } else {
-                        lines.push(Line::from("  Search for a symbol to see its profile."));
                     }
+                } else {
+                    lines.push(Line::from("  Use `kask mcp start companies` to enable."));
                 }
-                CompanySection::Financials => {
-                    if let Some(ref fin) = financials {
-                        let symbol = fin.symbol.clone();
+            }
+            CompanySection::Profile => {
+                if let Some(ref _query) = comp.last_searched() {
+                    if let Some(ref c) = results.first() {
+                        let symbol = c.symbol.clone();
+                        let name = c.name.clone();
                         lines.push(Line::from(vec![
                             Span::styled(symbol, Style::default().fg(Color::Cyan).bold()),
-                            Span::raw(" — Key Metrics"),
+                            Span::raw(" — "),
+                            Span::styled(name, Style::default().fg(Color::White)),
                         ]));
-                        if let Some(p) = fin.price {
-                            let ch = fin
-                                .change_pct
-                                .map(|c| format!(" ({:+.1}%)", c))
-                                .unwrap_or_default();
-                            let color = if fin.change_pct.unwrap_or(0.0) >= 0.0 {
-                                Color::Green
-                            } else {
-                                Color::Red
-                            };
-                            lines.push(Line::from(vec![
-                                Span::raw("  Price:     "),
-                                Span::styled(
-                                    format!("${:.2}{}", p, ch),
-                                    Style::default().fg(color),
-                                ),
-                            ]));
+                        lines.push(Line::from(format!(
+                            "  Exchange: {}",
+                            c.exchange.as_deref().unwrap_or("-")
+                        )));
+                        lines.push(Line::from(format!(
+                            "  Industry: {}",
+                            c.industry.as_deref().unwrap_or("-")
+                        )));
+                        lines.push(Line::from(format!(
+                            "  Sector:   {}",
+                            c.sector.as_deref().unwrap_or("-")
+                        )));
+                        if let Some(mc) = c.market_cap {
+                            lines.push(Line::from(format!("  Mkt Cap:  ${:.2}T", mc / 1e12)));
                         }
-                        if let Some(pe) = fin.pe_ratio {
-                            lines.push(Line::from(format!("  P/E:       {:.1}", pe)));
-                        }
-                        if let Some(rg) = fin.revenue_growth {
-                            lines.push(Line::from(format!("  Rev Growth: {:.1}%", rg)));
-                        }
-                    } else if comp.last_searched().is_some() {
-                        lines.push(Line::from("  No financial data."));
                     } else {
-                        lines.push(Line::from("  Requires FMP/EODHD keys."));
+                        lines.push(Line::from("  No results."));
                     }
+                } else {
+                    lines.push(Line::from("  Search for a symbol to see its profile."));
                 }
-                CompanySection::Portfolio => {
-                    if portfolios.is_empty() {
-                        lines.push(Line::from("  No portfolios."));
-                    } else {
-                        for p in &portfolios {
-                            let name = p.name.clone();
-                            lines.push(Line::from(vec![
-                                Span::raw("  • "),
-                                Span::styled(name, Style::default().fg(Color::Green)),
-                                Span::raw(format!("  ({} holdings)", p.holdings)),
-                            ]));
-                        }
+            }
+            CompanySection::Financials => {
+                if let Some(ref fin) = financials {
+                    let symbol = fin.symbol.clone();
+                    lines.push(Line::from(vec![
+                        Span::styled(symbol, Style::default().fg(Color::Cyan).bold()),
+                        Span::raw(" — Key Metrics"),
+                    ]));
+                    if let Some(p) = fin.price {
+                        let ch = fin
+                            .change_pct
+                            .map(|c| format!(" ({:+.1}%)", c))
+                            .unwrap_or_default();
+                        let color = if fin.change_pct.unwrap_or(0.0) >= 0.0 {
+                            Color::Green
+                        } else {
+                            Color::Red
+                        };
+                        lines.push(Line::from(vec![
+                            Span::raw("  Price:     "),
+                            Span::styled(format!("${:.2}{}", p, ch), Style::default().fg(color)),
+                        ]));
+                    }
+                    if let Some(pe) = fin.pe_ratio {
+                        lines.push(Line::from(format!("  P/E:       {:.1}", pe)));
+                    }
+                    if let Some(rg) = fin.revenue_growth {
+                        lines.push(Line::from(format!("  Rev Growth: {:.1}%", rg)));
+                    }
+                } else if comp.last_searched().is_some() {
+                    lines.push(Line::from("  No financial data."));
+                } else {
+                    lines.push(Line::from("  Requires FMP/EODHD keys."));
+                }
+            }
+            CompanySection::Portfolio => {
+                if portfolios.is_empty() {
+                    lines.push(Line::from("  No portfolios."));
+                } else {
+                    for p in &portfolios {
+                        let name = p.name.clone();
+                        lines.push(Line::from(vec![
+                            Span::raw("  • "),
+                            Span::styled(name, Style::default().fg(Color::Green)),
+                            Span::raw(format!("  ({} holdings)", p.holdings)),
+                        ]));
                     }
                 }
             }
-        } else {
-            lines.push(Line::from("  No companies MCP server connected."));
         }
-        lines.push(Line::from(""));
-        lines.push(Line::from(Span::styled(
-            "  Financial data via hkask-mcp-companies (FMP + EODHD).",
-            Style::default().fg(Color::DarkGray),
-        )));
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+    } else {
+        lines.push(Line::from("  No companies MCP server connected."));
     }
-}
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "  Financial data via hkask-mcp-companies (FMP + EODHD).",
+        Style::default().fg(Color::DarkGray),
+    )));
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});

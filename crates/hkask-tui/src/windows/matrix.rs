@@ -3,6 +3,7 @@
 //! `]` forward, `[` backward through sections + Chat tab.
 
 use crate::bridges::MatrixDataBridge;
+use crate::impl_mcp_tabbed;
 use crate::mcp_tabbed::{McpChatState, McpTab, McpTabbedWindow};
 use crate::repl_bridge::ReplBridge;
 use crate::widgets::headers;
@@ -86,7 +87,12 @@ impl Window for MatrixWindow {
     }
     fn render(&self, f: &mut Frame, area: Rect, _: bool) {
         match self.active_tab {
-            McpTab::Chat => Self::default_render_chat_tab(&self.chat_state, "matrix", f, area),
+            McpTab::Chat => <MatrixWindow as McpTabbedWindow>::default_render_chat_tab(
+                &self.chat_state,
+                "matrix",
+                f,
+                area,
+            ),
             McpTab::Data => self.render_data_tab(f, area),
         }
     }
@@ -145,89 +151,72 @@ impl Window for MatrixWindow {
     }
 }
 
-impl McpTabbedWindow for MatrixWindow {
-    fn active_tab(&self) -> McpTab {
-        self.active_tab
-    }
-    fn set_active_tab(&mut self, tab: McpTab) {
-        self.active_tab = tab;
-    }
-    fn chat_state_mut(&mut self) -> &mut McpChatState {
-        &mut self.chat_state
-    }
-    fn mcp_server_name(&self) -> &str {
-        "matrix"
-    }
-    fn render_chat_tab(&self, f: &mut Frame, area: Rect) {
-        Self::default_render_chat_tab(&self.chat_state, "matrix", f, area);
-    }
-    fn render_data_tab(&self, f: &mut Frame, area: Rect) {
-        let mut lines = vec![
-            headers::section(format!(
-                "Matrix: {} ([ ] to navigate)",
-                self.section.title()
-            )),
-            Line::from(""),
-        ];
-        if let Some(ref m) = self.matrix {
-            let cs = m.connection_status();
-            let rooms = m.list_rooms();
-            if !cs.connected {
-                lines.push(Line::from("  Not connected to Matrix."));
-            } else {
-                match self.section {
-                    MatrixSection::Rooms => {
-                        lines.push(Line::from(format!("  {} room(s)", rooms.len())));
-                        for r in &rooms {
-                            let title = r.title.clone();
-                            let esc = if r.escalated { " ⚠" } else { "" };
+impl_mcp_tabbed!(MatrixWindow, "matrix", |this, f, area| {
+    let mut lines = vec![
+        headers::section(format!(
+            "Matrix: {} ([ ] to navigate)",
+            this.section.title()
+        )),
+        Line::from(""),
+    ];
+    if let Some(ref m) = this.matrix {
+        let cs = m.connection_status();
+        let rooms = m.list_rooms();
+        if !cs.connected {
+            lines.push(Line::from("  Not connected to Matrix."));
+        } else {
+            match this.section {
+                MatrixSection::Rooms => {
+                    lines.push(Line::from(format!("  {} room(s)", rooms.len())));
+                    for r in &rooms {
+                        let title = r.title.clone();
+                        let esc = if r.escalated { " ⚠" } else { "" };
+                        lines.push(Line::from(vec![
+                            Span::raw("  🏠 "),
+                            Span::styled(title, Style::default().fg(Color::Green)),
+                            Span::styled(esc, Style::default().fg(Color::Red)),
+                        ]));
+                    }
+                }
+                MatrixSection::Messages => {
+                    if let Some(ref first) = rooms.first() {
+                        let msgs = m.recent_messages(&first.id, 10);
+                        lines.push(Line::from(format!(
+                            "  Room: {} — {} recent",
+                            first.title,
+                            msgs.len()
+                        )));
+                        for msg in &msgs {
+                            let sender = msg.sender.clone();
+                            let body: String = if msg.body.len() > 60 {
+                                format!("{}...", &msg.body[..60])
+                            } else {
+                                msg.body.clone()
+                            };
                             lines.push(Line::from(vec![
-                                Span::raw("  🏠 "),
-                                Span::styled(title, Style::default().fg(Color::Green)),
-                                Span::styled(esc, Style::default().fg(Color::Red)),
+                                Span::styled(
+                                    format!("{}", msg.timestamp),
+                                    Style::default().fg(Color::DarkGray),
+                                ),
+                                Span::raw(" "),
+                                Span::styled(sender, Style::default().fg(Color::Cyan)),
+                                Span::raw(": "),
+                                Span::styled(body, Style::default().fg(Color::White)),
                             ]));
                         }
                     }
-                    MatrixSection::Messages => {
-                        if let Some(ref first) = rooms.first() {
-                            let msgs = m.recent_messages(&first.id, 10);
-                            lines.push(Line::from(format!(
-                                "  Room: {} — {} recent",
-                                first.title,
-                                msgs.len()
-                            )));
-                            for msg in &msgs {
-                                let sender = msg.sender.clone();
-                                let body: String = if msg.body.len() > 60 {
-                                    format!("{}...", &msg.body[..60])
-                                } else {
-                                    msg.body.clone()
-                                };
-                                lines.push(Line::from(vec![
-                                    Span::styled(
-                                        format!("{}", msg.timestamp),
-                                        Style::default().fg(Color::DarkGray),
-                                    ),
-                                    Span::raw(" "),
-                                    Span::styled(sender, Style::default().fg(Color::Cyan)),
-                                    Span::raw(": "),
-                                    Span::styled(body, Style::default().fg(Color::White)),
-                                ]));
-                            }
-                        }
-                    }
-                    MatrixSection::Contacts => {
-                        lines.push(Line::from(format!(
-                            "  Connected as: {}",
-                            cs.user_id.as_deref().unwrap_or("unknown")
-                        )));
-                        lines.push(Line::from(format!("  Homeserver: {}", cs.homeserver)));
-                    }
+                }
+                MatrixSection::Contacts => {
+                    lines.push(Line::from(format!(
+                        "  Connected as: {}",
+                        cs.user_id.as_deref().unwrap_or("unknown")
+                    )));
+                    lines.push(Line::from(format!("  Homeserver: {}", cs.homeserver)));
                 }
             }
-        } else {
-            lines.push(Line::from("  Matrix rooms for federated communication."));
         }
-        f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+    } else {
+        lines.push(Line::from("  Matrix rooms for federated communication."));
     }
-}
+    f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+});
