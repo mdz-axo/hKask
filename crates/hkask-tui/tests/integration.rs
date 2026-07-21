@@ -11,7 +11,7 @@ use hkask_tui::{
         BackupWindow, ChatWindow, CnsMonitorWindow, CompaniesWindow, ConfigurationWindow,
         CuratorWindow, DocprocWindow, EditorWindow, KanbanWindow, LogoWindow, MatrixWindow,
         MediaWindow, MemoryWindow, PodsWindow, RegistryWindow, ReplicaWindow, ResearchWindow,
-        SkillsWindow, TerminalWindow, TrainingWindow, WalletWindow,
+        ScenariosWindow, SkillsWindow, TerminalWindow, TrainingWindow, WalletWindow,
     },
 };
 
@@ -167,12 +167,13 @@ fn all_window_kinds() -> Vec<WindowKind> {
         WindowKind::Docproc,
         WindowKind::Replica,
         WindowKind::Logo,
+        WindowKind::Scenarios,
     ]
 }
 
 #[test]
-fn all_21_kinds_exist() {
-    assert_eq!(all_window_kinds().len(), 21);
+fn all_22_kinds_exist() {
+    assert_eq!(all_window_kinds().len(), 22);
 }
 
 #[test]
@@ -234,7 +235,7 @@ fn all_titles_are_distinct() {
         .collect();
     titles.sort_unstable();
     titles.dedup();
-    assert_eq!(titles.len(), 21, "duplicate titles: {:?}", titles);
+    assert_eq!(titles.len(), 22, "duplicate titles: {:?}", titles);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -394,9 +395,10 @@ fn all_windows_render_at_multiple_sizes() {
         Box::new(DocprocWindow::new(window_id(), b.clone())),
         Box::new(ReplicaWindow::new(window_id(), b.clone())),
         Box::new(LogoWindow::new(window_id())),
+        Box::new(ScenariosWindow::new(window_id(), b.clone())),
     ];
 
-    assert_eq!(windows.len(), 21);
+    assert_eq!(windows.len(), 22);
 
     for (w, h) in sizes {
         for window in &windows {

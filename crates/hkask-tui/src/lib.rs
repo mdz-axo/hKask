@@ -198,8 +198,6 @@ impl TuiSession {
             std::thread::sleep(Duration::from_millis(16));
         }
 
-        // Save layout on quit
-        self.save_layout();
         Ok(())
     }
 

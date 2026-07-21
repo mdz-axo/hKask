@@ -1,7 +1,7 @@
 //! TUI domain bridge implementations for `TuiReplBridge`.
 //!
-//! Implements the 9 domain-specific bridge traits from `hkask-tui` so that
-//! TUI windows receive live service data rather than mock fallbacks.
+//! Implements the domain-specific bridge traits from `hkask-tui` so that
+//! TUI windows can receive service data rather than mock fallbacks.
 
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken, derive_signing_key};
 use hkask_ports::ToolPort;
@@ -39,24 +39,27 @@ use crate::TuiReplBridge;
 
 impl ConfigDataBridge for TuiReplBridge {
     fn config_snapshot(&self) -> ConfigSnapshot {
-        let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        let s = &state.repl_settings;
-        let (mcp_loaded, mcp_total) = self.mcp_status();
-        ConfigSnapshot {
-            model: self.model_name().to_string(),
-            temperature: s.temperature,
-            top_p: s.top_p,
-            max_tokens: s.max_tokens,
-            tool_loop_limit: s.tool_loop_limit,
-            context_turns: s.context_turns,
-            gas_heuristic: s.gas_heuristic,
-            gas_cap: s.gas_cap,
-            auto_condense: s.auto_condense,
-            embedding_model: s.embedding_model.clone(),
-            classifier_model: s.classifier_model.clone(),
-            mcp_loaded,
-            mcp_total,
-        }
+        let mut snapshot = {
+            let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+            let s = &state.repl_settings;
+            ConfigSnapshot {
+                model: self.model_name().to_string(),
+                temperature: s.temperature,
+                top_p: s.top_p,
+                max_tokens: s.max_tokens,
+                tool_loop_limit: s.tool_loop_limit,
+                context_turns: s.context_turns,
+                gas_heuristic: s.gas_heuristic,
+                gas_cap: s.gas_cap,
+                auto_condense: s.auto_condense,
+                embedding_model: s.embedding_model.clone(),
+                classifier_model: s.classifier_model.clone(),
+                mcp_loaded: 0,
+                mcp_total: 0,
+            }
+        };
+        (snapshot.mcp_loaded, snapshot.mcp_total) = self.mcp_status();
+        snapshot
     }
 }
 

@@ -196,7 +196,7 @@ mod tests {
     #[test]
     fn axolotl_harness_renders_capabilities_researcher_config() {
         let mut params = TrainingParams {
-            num_epochs: 3,
+            num_epochs: 2,
             batch_size: 1,
             learning_rate: 1e-4,
             ..TrainingParams::default()
@@ -232,6 +232,11 @@ mod tests {
 
         for expected in [
             "peft_init_lora_weights: eva",
+            "num_epochs: 2",
+            "micro_batch_size: 1",
+            "gradient_accumulation_steps: 16",
+            "path: mdz-axo/capabilities-researcher-qa",
+            "data_files: train_chat_full.jsonl",
             "optim: adamw_8bit",
             "eval_batch_size: 1",
             "val_set_size: 0.05",

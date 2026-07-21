@@ -46,6 +46,34 @@ pub struct SavedLeaf {
     pub kind: String,
 }
 
+impl SavedLayout {
+    pub(crate) fn is_valid(&self) -> bool {
+        self.version == 1
+            && !self.tabs.is_empty()
+            && self.active_tab < self.tabs.len()
+            && self.tabs.iter().all(|tab| tab.root.is_valid())
+    }
+}
+
+impl SavedSplit {
+    fn is_valid(&self) -> bool {
+        match self {
+            Self::Leaf(leaf) => window_kind_from_title(&leaf.kind).is_some(),
+            Self::Horizontal { left, right, ratio }
+            | Self::Vertical {
+                top: left,
+                bottom: right,
+                ratio,
+            } => {
+                ratio.is_finite()
+                    && (0.1..=0.9).contains(ratio)
+                    && left.is_valid()
+                    && right.is_valid()
+            }
+        }
+    }
+}
+
 /// Convert a WindowKind to its serialized string.
 pub fn kind_to_string(kind: WindowKind) -> String {
     kind.default_title().to_string()
@@ -83,7 +111,8 @@ fn sanitize(name: &str) -> String {
 /// Load a saved layout from disk. Returns None if no saved layout exists.
 pub fn load(path: &PathBuf) -> Option<SavedLayout> {
     let data = fs::read_to_string(path).ok()?;
-    serde_json::from_str(&data).ok()
+    let layout: SavedLayout = serde_json::from_str(&data).ok()?;
+    layout.is_valid().then_some(layout)
 }
 
 /// Save a layout to disk.
@@ -93,4 +122,61 @@ pub fn save(path: &PathBuf, layout: &SavedLayout) -> std::io::Result<()> {
     }
     let data = serde_json::to_string_pretty(layout)?;
     fs::write(path, data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn valid_layout() -> SavedLayout {
+        SavedLayout {
+            version: 1,
+            tabs: vec![SavedTab {
+                name: "Chat".into(),
+                root: SavedSplit::Leaf(SavedLeaf {
+                    kind: "Chat".into(),
+                }),
+            }],
+            active_tab: 0,
+        }
+    }
+
+    #[test]
+    fn rejects_layout_without_tabs() {
+        let mut layout = valid_layout();
+        layout.tabs.clear();
+        assert!(!layout.is_valid());
+    }
+
+    #[test]
+    fn rejects_out_of_bounds_active_tab() {
+        let mut layout = valid_layout();
+        layout.active_tab = 1;
+        assert!(!layout.is_valid());
+    }
+
+    #[test]
+    fn rejects_unknown_window_kind() {
+        let mut layout = valid_layout();
+        layout.tabs[0].root = SavedSplit::Leaf(SavedLeaf {
+            kind: "Removed Window".into(),
+        });
+        assert!(!layout.is_valid());
+    }
+
+    #[test]
+    fn rejects_invalid_split_ratio() {
+        let leaf = || {
+            Box::new(SavedSplit::Leaf(SavedLeaf {
+                kind: "Chat".into(),
+            }))
+        };
+        let mut layout = valid_layout();
+        layout.tabs[0].root = SavedSplit::Horizontal {
+            left: leaf(),
+            right: leaf(),
+            ratio: f32::NAN,
+        };
+        assert!(!layout.is_valid());
+    }
 }

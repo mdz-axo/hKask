@@ -194,8 +194,9 @@ Summary:
   description.
 - Every proposed regression uses exact YAML format
   (`security/regressions/`) with `surface: training`, concrete
-  `pattern` (grep regex against config content, or Python assertion
-  code for runtime gates), `status: pending`, `gate: G-XX`.
+  `pattern` (grep regex against config content, or a Rust runtime
+  assertion at the owning training boundary), `status: pending`,
+  `gate: G-XX`.
 - No synthetic config quotes; read file before quoting.
 - No synthetic benchmark numbers; only reference paper-reported results
   with explicit citation (paper, table/section).

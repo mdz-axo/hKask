@@ -956,6 +956,10 @@ impl Workspace {
     /// Restore the workspace from a saved layout.
     /// Replaces all tabs and windows with those from the saved layout.
     pub fn restore_layout(&mut self, layout: &crate::layout::SavedLayout) {
+        if !layout.is_valid() {
+            return;
+        }
+
         self.tabs.clear();
         for saved_tab in &layout.tabs {
             let root = self.restore_split(&saved_tab.root);
