@@ -206,25 +206,25 @@ mod tests {
 
     #[test]
     fn estimated_cost_for_hours() {
-        let cm = CostModel::together();
-        assert_eq!(cm.estimated_cost_for_hours(1.0), 1.10);
-        assert_eq!(cm.estimated_cost_for_hours(2.5), 2.75);
+        let cm = CostModel::runpod();
+        assert_eq!(cm.estimated_cost_for_hours(1.0), 0.79);
+        assert_eq!(cm.estimated_cost_for_hours(2.5), 1.975);
         assert_eq!(cm.estimated_cost_for_hours(0.0), 0.0);
     }
 
     #[test]
     fn estimated_setup_cost() {
-        let cm = CostModel::together(); // 3 min setup at $1.10/hr
-        let expected = 1.10 * (3.0 / 60.0);
+        let cm = CostModel::runpod(); // 5 min setup at $0.79/hr
+        let expected = 0.79 * (5.0 / 60.0);
         assert!((cm.estimated_setup_cost() - expected).abs() < 0.001);
     }
 
     #[test]
     fn provider_capability_can_compose() {
-        let tg = ProviderCapability::together();
-        assert!(tg.can_compose("llama-3.3-70b"));
-        assert!(tg.can_compose("qwen2.5-72b"));
-        assert!(!tg.can_compose("mixtral-8x7b"));
+        let rp = ProviderCapability::runpod();
+        assert!(rp.can_compose("llama-3.3-70b"));
+        assert!(rp.can_compose("qwen2.5-72b"));
+        assert!(rp.can_compose("mixtral-8x7b"));
     }
 
     #[test]
@@ -236,11 +236,12 @@ mod tests {
 
     #[test]
     fn static_models_integrity() {
-        let tg = CostModel::together();
-        assert_eq!(tg.provider, ProviderId::Together);
-        assert!(tg.gpu_hourly_rate > 0.0);
-
         let rp = CostModel::runpod();
         assert_eq!(rp.provider, ProviderId::Runpod);
+        assert!(rp.gpu_hourly_rate > 0.0);
+
+        let tk = CostModel::tinker();
+        assert_eq!(tk.provider, ProviderId::Tinker);
+        assert_eq!(tk.gpu_hourly_rate, 0.0);
     }
 }

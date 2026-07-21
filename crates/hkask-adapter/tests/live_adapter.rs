@@ -127,7 +127,7 @@ async fn live_together_adapter_e2e() {
 
     // 2. Estimate composition
     let estimate = router
-        .estimate_composition(adapter.id, ProviderId::Together, &token)
+        .estimate_composition(adapter.id, ProviderId::Runpod, &token)
         .await
         .expect("estimate");
     assert!(estimate.is_compatible, "adapter not compatible");
@@ -138,7 +138,7 @@ async fn live_together_adapter_e2e() {
 
     // 3. Deploy
     let handle = router
-        .create_endpoint(adapter.id, ProviderId::Together, &token)
+        .create_endpoint(adapter.id, ProviderId::Runpod, &token)
         .await
         .expect("create endpoint");
     println!(

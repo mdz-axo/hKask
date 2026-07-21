@@ -12,7 +12,7 @@ mds_categories: [composition]
 
 # hKask CLI Documentation
 
-**hKask** (ℏKask - "A Minimal Viable Container for Replicants") - Command-line interface
+**hKask** (ℏKask - "A Minimal Viable Container for UserPods") - Command-line interface
 
 ## Usage
 
@@ -195,4 +195,4 @@ kask docs all -o docs/
 
 ---
 
-*ℏKask v0.30.0 - A Minimal Viable Container for Replicants*
+*ℏKask v0.30.0 - A Minimal Viable Container for UserPods*

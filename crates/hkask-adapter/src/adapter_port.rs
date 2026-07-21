@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn handle_phase_reflects_lifecycle() {
-        let cost = CostModel::together();
+        let cost = CostModel::runpod();
         let lc = EndpointLifecycle::new(cost.gpu_hourly_rate).expect("lifecycle creation");
         let mut lc_mut = lc.clone();
         lc_mut.transition(EndpointPhase::Ready).expect("transition");
@@ -274,7 +274,7 @@ mod tests {
             endpoint_id: Uuid::new_v4(),
             endpoint_url: "https://example.com/v1".into(),
             model_name: "test-model".into(),
-            provider: ProviderId::Together,
+            provider: ProviderId::Runpod,
             expertise_name: "solidity-audit".into(),
             lifecycle: Arc::new(Mutex::new(lc_mut)),
             cost_model: cost,
@@ -286,14 +286,14 @@ mod tests {
 
     #[test]
     fn handle_is_billable_delegates() {
-        let cost = CostModel::together();
+        let cost = CostModel::runpod();
         let lc = EndpointLifecycle::new(cost.gpu_hourly_rate).expect("lifecycle creation");
 
         let handle = InferenceEndpointHandle {
             endpoint_id: Uuid::new_v4(),
             endpoint_url: "https://example.com/v1".into(),
             model_name: "test-model".into(),
-            provider: ProviderId::Together,
+            provider: ProviderId::Runpod,
             expertise_name: "solidity-audit".into(),
             lifecycle: Arc::new(Mutex::new(lc)),
             cost_model: cost,

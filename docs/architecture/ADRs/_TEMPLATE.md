@@ -131,10 +131,7 @@ grep -r "pattern" crates/ | wc -l
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.23.0*
-```
-
----
+*ℏKask - A Minimal Viable Container for UserPods — v0.23.0*
 
 ## Guidelines
 
@@ -259,5 +256,5 @@ See [`../standards/DOCUMENTATION_STANDARDS.md`](../../specifications/DOCUMENTATI
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.23.0*
+*ℏKask - A Minimal Viable Container for UserPods — v0.23.0*
 *Decisions are the atoms of architecture.*

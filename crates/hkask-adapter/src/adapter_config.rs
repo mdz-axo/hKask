@@ -8,8 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// Parsed contents of adapter_config.json (Hugging Face PEFT format).
 ///
-/// Together AI requires this file alongside adapter_model.safetensors
-/// for adapter upload. vLLM uses it to validate adapter compatibility.
+/// vLLM uses this file to validate adapter compatibility.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AdapterConfig {
     /// Base model name or path the adapter was trained on

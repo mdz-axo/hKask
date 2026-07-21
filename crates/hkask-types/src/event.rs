@@ -409,10 +409,6 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "cns.training.provider.runpod.submit",
     "cns.training.provider.runpod.teardown",
     "cns.training.provider.runpod.upload",
-    "cns.training.provider.together.poll",
-    "cns.training.provider.together.provision",
-    "cns.training.provider.together.teardown",
-    "cns.training.provider.together.upload",
 ];
 
 /// Hierarchical namespace validation — a sub-namespace like

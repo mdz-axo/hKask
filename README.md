@@ -1,7 +1,7 @@
 <p align="center">
   <img src="assets/kask-logo.svg" alt="Kask Logo" width="120"/>
 </p>
-# ℏKask - A Minimal Viable Container for Replicants
+# ℏKask - A Minimal Viable Container for UserPods
 
 **Version:** v0.31.0 |
 
@@ -242,6 +242,6 @@ hKask follows the [Diataxis](https://diataxis.fr/) documentation methodology. Th
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
+*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*
 *Rust is the loom. YAML/Jinja2 is the thread.*
 *CI green. 54 crates. 16 MCP servers. 51 PDCA skill loops. 384 templates. 9 inference providers.*

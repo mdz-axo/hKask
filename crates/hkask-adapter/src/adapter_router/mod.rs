@@ -805,8 +805,9 @@ mod tests {
         let router = AdapterRouter::new(store);
 
         let providers = router.list_compatible_providers(&adapter);
-        // Two adapter-capable backends support llama-3.3-70b (Together + Runpod)
-        assert_eq!(providers.len(), 2);
+        // One adapter-capable backend supports llama-3.3-70b (Runpod only —
+        // Together was removed as an adapter inference backend)
+        assert_eq!(providers.len(), 1);
     }
 
     // Regression: TinkerAdapterBackend was deleted because it used a fabricated
@@ -828,10 +829,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TG_API_KEY"]
+    #[ignore = "requires RUNPOD_API_KEY"]
     fn create_endpoint_returns_handle() {
         unsafe {
-            std::env::set_var("TG_API_KEY", "test-key");
+            std::env::set_var("RUNPOD_API_KEY", "test-key");
         }
         let driver = SqliteDriver::in_memory_driver();
         let store = Arc::new(AdapterStore::from_driver(driver));
@@ -842,19 +843,19 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token(); // test-only token
 
-        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
+        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Runpod, &token))
             .expect("create endpoint");
 
         assert_eq!(handle.expertise_name, "solidity-audit");
-        assert_eq!(handle.provider, ProviderId::Together);
+        assert_eq!(handle.provider, ProviderId::Runpod);
         assert_eq!(handle.phase(), EndpointPhase::Ready);
     }
 
     #[test]
-    #[ignore = "requires TG_API_KEY"]
+    #[ignore = "requires RUNPOD_API_KEY"]
     fn endpoint_status_query() {
         unsafe {
-            std::env::set_var("TG_API_KEY", "test-key");
+            std::env::set_var("RUNPOD_API_KEY", "test-key");
         }
         let driver = SqliteDriver::in_memory_driver();
         let store = Arc::new(AdapterStore::from_driver(driver));
@@ -865,7 +866,7 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token();
 
-        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
+        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Runpod, &token))
             .expect("create endpoint");
 
         let status = router
@@ -873,15 +874,15 @@ mod tests {
             .expect("status");
 
         assert_eq!(status.phase, EndpointPhase::Ready);
-        assert_eq!(status.provider, ProviderId::Together);
+        assert_eq!(status.provider, ProviderId::Runpod);
         assert_eq!(status.expertise_name, "solidity-audit");
     }
 
     #[test]
-    #[ignore = "requires TG_API_KEY"]
+    #[ignore = "requires RUNPOD_API_KEY"]
     fn teardown_endpoint() {
         unsafe {
-            std::env::set_var("TG_API_KEY", "test-key");
+            std::env::set_var("RUNPOD_API_KEY", "test-key");
         }
         let driver = SqliteDriver::in_memory_driver();
         let store = Arc::new(AdapterStore::from_driver(driver));
@@ -892,7 +893,7 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token();
 
-        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
+        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Runpod, &token))
             .expect("create endpoint");
 
         block_on(router.teardown_endpoint(handle.endpoint_id)).expect("teardown");
@@ -914,12 +915,12 @@ mod tests {
         let token = test_token();
 
         let estimate =
-            block_on(router.estimate_composition(adapter.id, ProviderId::Together, &token))
+            block_on(router.estimate_composition(adapter.id, ProviderId::Runpod, &token))
                 .expect("estimate");
 
         assert!(estimate.is_compatible);
         assert!(estimate.estimated_hourly_cost > 0.0);
-        assert_eq!(estimate.provider, ProviderId::Together);
+        assert_eq!(estimate.provider, ProviderId::Runpod);
     }
 
     #[test]
@@ -947,7 +948,7 @@ mod tests {
 
     #[test]
     fn create_endpoint_incompatible_fails() {
-        // This test uses Together backend which has a specific model family allowlist.
+        // This test uses Runpod backend which has a specific model family allowlist.
         // We create an adapter with a base model family NOT in the allowlist.
         let driver = SqliteDriver::in_memory_driver();
         let store = Arc::new(AdapterStore::from_driver(driver));
@@ -993,15 +994,15 @@ mod tests {
         let router = AdapterRouter::new(store);
         let token = test_token();
 
-        let result = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token));
+        let result = block_on(router.create_endpoint(adapter.id, ProviderId::Runpod, &token));
         assert!(result.is_err());
     }
 
     #[test]
-    #[ignore = "requires TG_API_KEY"]
+    #[ignore = "requires RUNPOD_API_KEY"]
     fn drain_all_owner_cleans_up() {
         unsafe {
-            std::env::set_var("TG_API_KEY", "test-key");
+            std::env::set_var("RUNPOD_API_KEY", "test-key");
         }
         let driver = SqliteDriver::in_memory_driver();
         let store = Arc::new(AdapterStore::from_driver(driver));
@@ -1012,7 +1013,7 @@ mod tests {
         let router = AdapterRouter::new(Arc::clone(&store));
         let token = test_token();
 
-        let _handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
+        let _handle = block_on(router.create_endpoint(adapter.id, ProviderId::Runpod, &token))
             .expect("create endpoint");
 
         let count = router.drain_all_owner(adapter.owner).expect("drain");
@@ -1032,12 +1033,9 @@ mod tests {
         let selection = router.select_provider(adapter.id, None).expect("select");
 
         assert_eq!(selection.expertise_name, "solidity-audit");
-        assert_eq!(selection.providers.len(), 2);
-        // Cheapest first: Runpod ($0.79) < Together ($1.10)
-        assert!(
-            selection.providers[0].cost_model.gpu_hourly_rate
-                <= selection.providers[1].cost_model.gpu_hourly_rate
-        );
+        assert_eq!(selection.providers.len(), 1);
+        // Only Runpod remains (Together removed as adapter inference backend)
+        assert!(selection.providers[0].cost_model.gpu_hourly_rate > 0.0);
     }
 
     #[test]
@@ -1052,9 +1050,9 @@ mod tests {
 
         let router = AdapterRouter::new(Arc::clone(&store));
 
-        // With 2 providers, single_candidate is None
+        // With 1 provider, single_candidate is Some (only Runpod remains)
         let selection = router.select_provider(adapter.id, None).expect("select");
-        assert!(selection.single_candidate.is_none());
+        assert!(selection.single_candidate.is_some());
     }
 
     #[test]
@@ -1067,24 +1065,24 @@ mod tests {
 
         let router = AdapterRouter::new(Arc::clone(&store));
 
-        // Budget of $0.80/hr — only Runpod ($0.79) fits
+        // Budget of $0.80/hr — Runpod ($0.79) fits
         let selection = router
             .select_provider(adapter.id, Some(0.80))
             .expect("select");
         assert_eq!(selection.within_budget_count, 1);
 
-        // Budget of $2.00/hr — both fit
+        // Budget of $2.00/hr — Runpod still fits (only provider)
         let selection = router
             .select_provider(adapter.id, Some(2.00))
             .expect("select");
-        assert_eq!(selection.within_budget_count, 2);
+        assert_eq!(selection.within_budget_count, 1);
     }
 
     #[test]
-    #[ignore = "requires TG_API_KEY"]
+    #[ignore = "requires RUNPOD_API_KEY"]
     fn endpoint_guard_teardown_on_drop() {
         unsafe {
-            std::env::set_var("TG_API_KEY", "test-key");
+            std::env::set_var("RUNPOD_API_KEY", "test-key");
         }
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
@@ -1098,7 +1096,7 @@ mod tests {
             let token = test_token();
 
             let handle = router
-                .create_endpoint(adapter.id, ProviderId::Together, &token)
+                .create_endpoint(adapter.id, ProviderId::Runpod, &token)
                 .await
                 .expect("create endpoint");
             let endpoint_id = handle.endpoint_id;
@@ -1115,10 +1113,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TG_API_KEY"]
+    #[ignore = "requires RUNPOD_API_KEY"]
     fn endpoint_guard_explicit_teardown() {
         unsafe {
-            std::env::set_var("TG_API_KEY", "test-key");
+            std::env::set_var("RUNPOD_API_KEY", "test-key");
         }
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
@@ -1132,7 +1130,7 @@ mod tests {
             let token = test_token();
 
             let handle = router
-                .create_endpoint(adapter.id, ProviderId::Together, &token)
+                .create_endpoint(adapter.id, ProviderId::Runpod, &token)
                 .await
                 .expect("create endpoint");
 
@@ -1145,10 +1143,10 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires TG_API_KEY"]
+    #[ignore = "requires RUNPOD_API_KEY"]
     fn end_to_end_store_deploy_status_teardown() {
         unsafe {
-            std::env::set_var("TG_API_KEY", "test-key");
+            std::env::set_var("RUNPOD_API_KEY", "test-key");
         }
         let driver = SqliteDriver::in_memory_driver();
         let store = Arc::new(AdapterStore::from_driver(driver));
@@ -1165,7 +1163,7 @@ mod tests {
         assert!(!selection.providers.is_empty());
 
         // 3. Create endpoint
-        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Together, &token))
+        let handle = block_on(router.create_endpoint(adapter.id, ProviderId::Runpod, &token))
             .expect("create endpoint");
         assert_eq!(handle.expertise_name, "solidity-audit");
         assert!(!handle.endpoint_url.is_empty());
@@ -1177,7 +1175,7 @@ mod tests {
             .endpoint_status(handle.endpoint_id, &token)
             .expect("status");
         assert_eq!(status.phase, EndpointPhase::Ready);
-        assert_eq!(status.provider, ProviderId::Together);
+        assert_eq!(status.provider, ProviderId::Runpod);
 
         // 5. Teardown
         block_on(router.teardown_endpoint(handle.endpoint_id)).expect("teardown");
@@ -1208,11 +1206,11 @@ mod tests {
             .expect("select");
         assert_eq!(selection.within_budget_count, 1);
 
-        // Select with generous budget — both fit
+        // Select with generous budget — Runpod still the only provider
         let selection = router
             .select_provider(adapter.id, Some(2.00))
             .expect("select");
-        assert_eq!(selection.within_budget_count, 2);
+        assert_eq!(selection.within_budget_count, 1);
     }
 
     #[test]

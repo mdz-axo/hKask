@@ -120,4 +120,4 @@ bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/verify-docs.sh      # Tier 1 code-anchored claim verification
 ```
 
-ℏKask — A Minimal Viable Container for Replicants — v0.31.0 — Diataxis-structured documentation portal
+ℏKask — A Minimal Viable Container for UserPods — v0.31.0 — Diataxis-structured documentation portal

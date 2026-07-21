@@ -233,6 +233,6 @@ All Mermaid diagrams are now inline in their parent documents. The former `docs/
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
+*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*
 *Mermaid-First Mandate: Every interaction pattern, data flow, and object model is diagrammed.*
 *All diagrams inline per DOCUMENTATION_STANDARDS §1 — consolidated 2026-07-12.*

@@ -12,7 +12,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for Agentic AI Mediation") v0.31.0
+**Project:** hKask (ℏKask - "A Minimal Viable Container for UserPods") v0.31.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
@@ -1615,7 +1615,7 @@ docs/architecture/
 
 ---
 
-*ℏKask - A Minimal Viable Container for Replicants — v0.31.0*
+*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*
 
 [^ousterhout]: Ousterhout, J. (2018). *A Philosophy of Software Design*. Yaknyam Press.
 [^conway]: Conway, M. E. (1968). "How Do Committees Invent?" Datamation, 14(4), 28-31.
