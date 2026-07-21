@@ -1090,6 +1090,28 @@ fn workspace_renders_status_bar() {
 }
 
 #[test]
+fn workspace_rejects_invalid_layout_without_mutation() {
+    use hkask_tui::layout::SavedLayout;
+
+    let mut ws = {
+        let (s, r) = bridges();
+        Workspace::new_test(s, r)
+    };
+    let original_focus = ws.focused_window();
+    let invalid = SavedLayout {
+        version: 1,
+        tabs: Vec::new(),
+        active_tab: 0,
+    };
+
+    ws.restore_layout(&invalid);
+
+    assert_eq!(ws.tab_count(), 1);
+    assert_eq!(ws.window_count(), 1);
+    assert_eq!(ws.focused_window(), original_focus);
+}
+
+#[test]
 fn workspace_has_single_window_initially() {
     let ws = {
         let (s, r) = bridges();

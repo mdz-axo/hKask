@@ -1,27 +1,25 @@
 # hkask-tui — Terminal UI (ratatui)
 
-Terminal user interface built with ratatui. Provides windowed REPL with live bridge connections to all hKask services: chat, CNS monitor, Curator, pods, wallet, config, backup, registry, skills, memory, kanban (interactive multi-column board), Matrix, media, training, terminal (PTY), and editor.
+Terminal user interface built with Ratatui. The crate owns workspace state, rendering, key routing, window-local state, and presentation-facing bridge traits. Production bridge implementations live in `hkask-repl`; bridge coverage is mixed rather than uniformly live.
 
 **Version:** v0.31.0 | **Crate:** `hkask-tui`
 
 ## Features
 
 - 22 window types via workspace splits
-- 9 domain-specific bridge traits with mock + live implementations
+- 15 optional domain-specific bridge traits with mock and production adapters
 - Interactive kanban board: 5-column layout, keyboard navigation (h/j/k/l), task moving (m), Tab-to-chat
 - PTY-backed interactive shell (`portable-pty`, bash/fish)
 - File editor with open/save (`Ctrl+S`/`Ctrl+O`)
 - Logo window rasterized from SVG at half-block Unicode
-- Live bridges: Chat, CNS, Curator, Pods, Wallet, Config, Backup, Registry, Skills, Memory, Kanban, Matrix, Media, Training
+- Required system/inference bridges plus optional domain adapters; missing adapters degrade individual windows instead of blocking startup
 
 ## Key Controls
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+N` | New window |
+| `Ctrl+N` | New Chat window |
 | `Ctrl+P` | Command palette (fuzzy search 22 window kinds) |
-| `Ctrl+S` | Save file |
-| `Ctrl+O` | Open file |
 | `Tab` | Focus next pane (in Kanban: toggle board/chat) |
 | `Ctrl+Q` | Quit |
 | `?` | Help overlay |
@@ -48,5 +46,7 @@ reverse video. Detail bar shows full task info. The Chat tab connects to the
 
 - `ratatui` — terminal rendering framework
 - `portable-pty` — PTY backend for terminal window
-- `hkask-services-context` — AgentService for live bridge data
-- `hkask-mcp` — MCP runtime for tool dispatch in bridges
+- `crossterm` — terminal events and input
+- `serde` / `serde_json` — validated structural layout persistence
+
+Architecture and current limitations are documented in [`docs/explanation/tui-architecture.md`](../../docs/explanation/tui-architecture.md).

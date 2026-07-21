@@ -1,7 +1,7 @@
 ---
 title: "Install and Configure hKask"
 audience: [operators, developers]
-last_updated: 2026-07-12
+last_updated: 2026-07-20
 version: "0.31.0"
 status: "Active"
 domain: "Core"
@@ -188,7 +188,6 @@ export HKASK_SERPAPI_API_KEY="your-serpapi-key"
 | `HKASK_REPLICANT_PERSONA` | Persona-based WebID resolution | Not set |
 | `HKASK_WEBID` | User's WebID | Generated from persona |
 | `HKASK_MASTER_KEY` | Master encryption key | From OS keychain |
-| `HKASK_TUI` | Force TUI mode (`=1`) | Off |
 | `HKASK_FUSION_DISABLED` | Disable fusion mode | Enabled |
 | `HKASK_GUARD_TOKEN_LIMIT` | Maximum input token budget | `32000` |
 | `HKASK_KEYSTORE_PATH` | Keystore directory | `~/.config/hkask/keystore/` |
@@ -550,7 +549,7 @@ cargo clean
 ## Next Steps
 
 - Start chatting: `kask chat`
-- Launch the TUI: `kask chat --tui` (or `HKASK_TUI=1 kask chat`)
+- Launch the TUI: `kask tui`
 - Start the server: `kask serve`
 - Verify the build: `kask cns health`
 - Read CNS alerts: [Sovereignty and Observability](sovereignty-and-observability.md)

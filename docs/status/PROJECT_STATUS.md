@@ -1,7 +1,7 @@
 ---
 title: "Project Status"
 audience: [architects, developers, agents]
-last_updated: 2026-07-17
+last_updated: 2026-07-20
 last-verified-against: "8d3cf671"
 version: "0.31.0"
 status: "Active"
@@ -13,9 +13,15 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.31.0 — Gas system rename (Energy* → Gas*), budget persistence, escalation, Well/Wallet system with SQLite persistence, auto-draw, stale reservation detection, consumption velocity. 109 CNS tests pass.
+**Current session:** v0.31.0 — Ratatui architecture review. Fixed configuration snapshot recursive locking, splash-time layout overwrite, invalid persisted-layout restoration, and missing Scenarios coverage. `hkask-tui`: 118 tests pass (30 unit + 88 integration); `hkask-repl --features tui` compiles.
 
-**This session (2026-07-17):**
+**This session (2026-07-20):**
+- Added the source-aligned [Terminal UI Architecture](../explanation/tui-architecture.md) explanation and `DIAG-TUI-005` sequence diagram.
+- Recorded open high-risk TUI work: request-owned inference routing, render-loop service isolation, explicit unavailable/error states, UTF-8 cursor safety, and fallible PTY creation.
+- Corrected active TUI launch, keybinding, persistence, bridge-count, and dependency documentation.
+- `cargo test -p hkask-tui`: 118 passed; `cargo check -p hkask-repl --features tui`: passed.
+
+**Previous session (2026-07-17):**
 - Documentation consolidation (diataxis-diagram + grill-me + kata-improvement skills).
 - Root `README.md` rewritten with actual codebase counts: 54 crates, 46 PDCA skills (49 capabilities total: 46 skills + 2 templates + 1 bundle), 83 manifests, 367 templates, ~2,166 tests, 37 CLI subcommands.
 - Stale root `OPEN_QUESTIONS.md` removed (self-declared superseded by `docs/OPEN_QUESTIONS.md`; per DOCUMENTATION_STANDARDS.md §3 lifecycle policy).
@@ -88,7 +94,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | hkask-communication | 25 |
 | hkask-mcp | 38 |
 | hkask-cli | 43 |
-| hkask-tui | 75 |
+| hkask-tui | 118 |
 | hkask-api | 12 |
 | hkask-acp | 4 |
 | hkask-adapter | 51 |

@@ -1,7 +1,7 @@
 ---
 title: "Agents and Pods"
 audience: [operators, developers, users]
-last_updated: 2026-07-12
+last_updated: 2026-07-20
 version: "0.31.0"
 status: "Active"
 domain: "Core"
@@ -170,12 +170,14 @@ On first run, hKask runs onboarding to resolve your identity (WebID), master key
 
 | Flag | Effect |
 |------|--------|
-| `kask chat --tui` | Launch the terminal UI (ratatui-based multi-window interface) |
-| `HKASK_TUI=1 kask chat` | Same as `--tui` via environment variable |
-| `kask chat --agent <name>` | Start with a specific agent (default: Curator) |
-| `kask chat --model <name>` | Start with a specific model |
-| `kask chat --template <id>` | Start with a specific template loaded |
-| `kask chat --input <file>` | Non-interactive: send file content and exit |
+| `kask tui [AGENT]` | Launch the Ratatui workspace (agent defaults to Curator) |
+| `kask tui --model <name>` | Request an initial model for TUI startup |
+| `kask tui --template <id>` | Request an initial template for TUI startup |
+| `kask tui -f <file>` | Non-interactive: send file content and exit without launching Ratatui |
+| `kask chat --agent <name>` | Start the line REPL with a specific agent |
+| `kask chat --model <name>` | Start the line REPL with a specific model |
+| `kask chat --template <id>` | Start the line REPL with a specific template |
+| `kask chat --input <file>` | Non-interactive line-REPL input |
 
 ### All Slash Commands
 
@@ -383,25 +385,33 @@ The TUI is a ratatui-based multi-window workspace. The `tui` feature must be ena
 ### Start the TUI
 
 ```bash
-kask chat --tui
+kask tui
+# Optional launch intent:
+kask tui Curator --model <MODEL> --template <ID>
 ```
 
-The TUI workspace opens with a default layout: chat window (primary), CNS health window (sidebar), and status bar (bottom).
+The workspace opens with Logo and Chat on the left, Curator on the right, and a status bar at the bottom. The interactive TUI currently resolves final agent/model/template state during REPL initialization; treat command-line values as launch intent rather than proof that onboarding selected them.
 
 ### Window Management
 
 | Action | Keybinding |
 |--------|-----------|
-| Focus next window | `Tab` |
-| Focus previous window | `Shift+Tab` |
-| Split vertically | `Ctrl+V` |
-| Split horizontally | `Ctrl+H` |
-| Close focused window | `Ctrl+W` |
-| Toggle fullscreen | `Ctrl+F` |
+| Focus next window | `Tab` (unless the focused window owns Tab) |
+| Focus previous/next | `Ctrl+H` / `Ctrl+L` or `Ctrl+K` / `Ctrl+J` |
+| Split vertically | `Ctrl+Shift+J` |
+| Split horizontally | `Ctrl+Shift+H` |
+| Resize focused split | `Ctrl+=` / `Ctrl+-` |
+| Create Chat window | `Ctrl+N` |
+| Create tab | `Ctrl+T` |
+| Close active tab | `Ctrl+W` |
+| Switch tab | `Ctrl+1` … `Ctrl+9` |
+| Command palette | `Ctrl+P` |
+| Help | `?` |
+| Quit | `Ctrl+Q` |
 
 ### Available Bridges
 
-The TUI connects to 14 data bridges, each providing a dedicated window type:
+The TUI defines 15 optional domain data bridges. Production coverage is mixed: some bridges are live, some are partial or placeholder-backed, and Matrix requires the `communication` feature. A missing bridge degrades its window instead of blocking workspace startup:
 
 | Bridge | Window Content |
 |--------|---------------|
@@ -419,6 +429,7 @@ The TUI connects to 14 data bridges, each providing a dedicated window type:
 | `docproc` | Document processing queue, OCR status |
 | `replica` | Style replicas, prose composition |
 | `skills` | Skill registry, invocation, audit |
+| `scenarios` | Event trees, forecasts, calibration |
 
 ### Command Palette
 
@@ -439,7 +450,9 @@ The TUI displays model information in the status bar:
 
 ### Exit
 
-Press `Ctrl+C` or `Esc` to exit the TUI. The session state is preserved — re-opening the TUI restores your window layout. Window layouts are persisted to `~/.hkask/tui-layout.yaml`. The TUI shares the same inference and memory backends as the REPL — switching between TUI and REPL preserves conversation context.
+Press `Ctrl+Q` to exit. The structural layout—tabs, split tree, window kinds, active tab, and split ratios—is saved to the platform configuration directory under `hkask/agents/<agent>/tui_layout.json`. Chat messages and window-local input buffers are not persisted. Invalid or unsupported layout files are ignored and the default workspace remains active.
+
+See [Terminal UI Architecture](../explanation/tui-architecture.md) for bridge completeness, known implementation risks, and the componentized improvement order.
 
 ---
 

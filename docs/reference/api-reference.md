@@ -1,7 +1,7 @@
 ---
 title: "API Reference"
 audience: [developers]
-last_updated: 2026-07-12
+last_updated: 2026-07-20
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -2144,6 +2144,7 @@ classDiagram
     McpTabbedWindow <|-- DocprocWindow : implements
     McpTabbedWindow <|-- ReplicaWindow : implements
     McpTabbedWindow <|-- SkillsWindow : implements
+    McpTabbedWindow <|-- ScenariosWindow : implements
     Window o-- WindowKind : kind
     Window ..> WindowBridges : created via
     WindowBridges o-- ReplBridge : 1
@@ -2153,9 +2154,9 @@ classDiagram
     KanbanWindow ..> KanbanDataBridge : uses
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-REF-006
-verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+id: DIAG-TUI-001
+verified_date: 2026-07-20
+verified_against: crates/hkask-tui/src/window.rs:18-301, crates/hkask-tui/src/mcp_tabbed.rs:20-160, crates/hkask-tui/src/bridges/mod.rs:7-37, crates/hkask-tui/src/window_catalog.rs:48-240
 status: VERIFIED
 -->
 
@@ -2164,7 +2165,7 @@ status: VERIFIED
 | From | To | Cardinality | Notes |
 |------|----|------------|-------|
 | `Window` trait | 22 concrete windows | 1 implements N | Object-safe trait, `Box<dyn Window>` storage |
-| `McpTabbedWindow` trait | 10 MCP-scoped windows | 1 implements N | Two-tab Chat/Data pattern |
+| `McpTabbedWindow` trait | 11 MCP-scoped windows | 1 implements N | Shared Chat/Data behavior; Scenarios adds section navigation |
 | `WindowBridges` | `ReplBridge` | 1:1 | Required — every window needs chat |
 | `WindowBridges` | Domain bridges | 1:0..1 each | Optional — wired via builder pattern |
 | `ChatWindow` | `ReplBridge` | uses | Async inference + streaming text |
@@ -2175,22 +2176,22 @@ Each of the 15 domain bridge traits exposes ≤7 methods, following deep-module 
 
 | Bridge | Methods | Purpose |
 |--------|---------|---------|
-| `ReplBridge` | 15 | Chat/inference — the primary interaction bridge; exceeds ≤7 |
+| `ReplBridge` | 6 (+9 inherited) | Chat/inference layered on `SystemBridge` |
 | `WalletDataBridge` | 4 | rJoule balance, transactions, conversion rate |
 | `ConfigDataBridge` | 1 | Configuration snapshot |
-| `BackupDataBridge` | 5 | Snapshots, restore, verify, prune |
-| `RegistryDataBridge` | 6 | Templates, skills, styles, bundles |
+| `BackupDataBridge` | 4 | Snapshot and verification status |
+| `RegistryDataBridge` | 6 | Templates, skills, bundles |
 | `MemoryDataBridge` | 4 | Episodic/semantic memory, consolidation |
-| `KanbanDataBridge` | 5 | Task board CRUD + status transitions |
+| `KanbanDataBridge` | 5 | Task board queries + status transitions |
 | `MatrixDataBridge` | 4 | Rooms, messages, connection status |
-| `MediaDataBridge` | 4 | Gallery status, images, audio, video |
+| `MediaDataBridge` | 3 | Gallery status and image queries |
 | `TrainingDataBridge` | 4 | Adapters, sessions, deployments |
-| `CompaniesDataBridge` | 3 | Profiles, financials, portfolios |
+| `CompaniesDataBridge` | 4 | Search, financials, portfolios |
 | `ResearchDataBridge` | 4 | Web search, RSS feeds, extraction |
-| `DocprocDataBridge` | 4 | Chunking, QA pairs, RDF extraction |
-| `ReplicaDataBridge` | 3 | Replica CRUD + generation |
-| `SkillsDataBridge` | 4 | Skill list, install, activate, execute |
-| `ScenariosDataBridge` | 5 | Event trees, forecasts, calibration |
+| `DocprocDataBridge` | 3 | Chunks, QA pairs, index status |
+| `ReplicaDataBridge` | 2 | Replica list and count |
+| `SkillsDataBridge` | 3 | Skill list, execution, count |
+| `ScenariosDataBridge` | 3 | Event trees, forecasts, calibration |
 
 ---
 
@@ -2266,9 +2267,9 @@ flowchart TD
     L1 --> L2 --> L3 --> L4 --> L5
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-REF-007
-verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+id: DIAG-TUI-002
+verified_date: 2026-07-20
+verified_against: crates/hkask-tui/src/lib.rs:126-221, crates/hkask-tui/src/workspace.rs:541-635, crates/hkask-tui/src/window.rs:66-265
 status: VERIFIED
 -->
 
@@ -2293,7 +2294,7 @@ status: VERIFIED
 
 ## Cybernetic Notes
 
-The event dispatch loop is a **negative feedback loop**: input → render → tick (model update) → render. The key routing exception for MCP-tabbed windows (hardcoded list, Finding #5 in architecture review) creates a **variety deficit** — new MCP-tabbed window kinds won't receive Tab key routing unless the list is updated.
+The event dispatch loop is a **negative feedback loop**: input → render → tick (model update) → render. Tab ownership is declared in `WindowKind::META`; `Workspace` routes from `uses_internal_tab()`, and tests cover the known internal-Tab windows. Adding a window still requires updating metadata and the factory, so those two sources must remain synchronized.
 
 ---
 
@@ -2366,9 +2367,9 @@ stateDiagram-v2
     end note
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-REF-008
-verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+id: DIAG-TUI-003
+verified_date: 2026-07-20
+verified_against: crates/hkask-tui/src/workspace.rs:342-390, crates/hkask-tui/src/workspace.rs:541-973, crates/hkask-tui/src/layout.rs:14-112
 status: VERIFIED
 -->
 
@@ -2398,7 +2399,7 @@ Workspace
 | `close_tab` | Multi-tab | N-1 tabs | Focus moves to first window in remaining tab |
 | `focus_next` | Focused leaf | Next leaf in tree* | `on_blur` on old, `on_focus` on new |
 | `resize_focused` | Any split | Split with adjusted ratio | Ratio clamped to [0.1, 0.9] |
-| `restore_layout` | Any | Reconstructed from JSON | All windows recreated, old tabs/windows dropped |
+| `restore_layout` | Valid version 1 layout | Reconstructed from JSON | Invalid layouts leave the current workspace unchanged; valid layouts recreate windows |
 
 \* Focus order follows depth-first leaf enumeration (`collect_ids`).
 
@@ -2534,9 +2535,9 @@ flowchart TD
     C -.-> IMPL
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-REF-009
-verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+id: DIAG-TUI-004
+verified_date: 2026-07-20
+verified_against: crates/hkask-cli/src/commands/tui.rs:16-92, crates/hkask-repl/src/lib.rs:285-374, crates/hkask-tui/src/lib.rs:73-227, crates/hkask-tui/src/workspace.rs:280-409, crates/hkask-tui/src/window_catalog.rs:48-240
 status: VERIFIED
 -->
 

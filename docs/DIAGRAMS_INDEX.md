@@ -162,10 +162,11 @@ The `docs/architecture/core/FUNCTIONAL_SPECIFICATION.md` contains 14 inline Merm
 
 | Diagram ID | Type | Description | Now Inline In | Verified Against | Status |
 |------------|------|-------------|---------------|------------------|--------|
-| DIAG-TUI-001 | class | Window trait hierarchy, bridge traits, 22 window types | `reference/api-reference.md` | `crates/hkask-tui/src/window.rs`, `bridges/`, `mcp_tabbed.rs`, `window_catalog.rs` | ✅ VERIFIED 2026-07-10 |
-| DIAG-TUI-002 | flowchart | Event dispatch pipeline: crossterm → global → palette → window | `reference/api-reference.md` | `crates/hkask-tui/src/lib.rs:145-218`, `workspace.rs:543-646` | ✅ VERIFIED 2026-07-10 |
-| DIAG-TUI-003 | state | Workspace lifecycle: init → splash → running → splits → quit | `reference/api-reference.md` | `crates/hkask-tui/src/workspace.rs`, `layout.rs`, `window.rs` | ✅ VERIFIED 2026-07-10 |
-| DIAG-TUI-004 | flowchart | Bridge wiring: CLI → `with_bridges!` → `WorkspaceBridges` → `create_window` → window | `reference/api-reference.md` | `crates/hkask-tui/src/bridges/mod.rs`, `window_catalog.rs`, `crates/hkask-repl/src/tui_bridges.rs` | ✅ VERIFIED 2026-07-10 |
+| DIAG-TUI-001 | class | Window trait hierarchy, bridge traits, 22 window types | `reference/api-reference.md` | `crates/hkask-tui/src/window.rs`, `bridges/`, `mcp_tabbed.rs`, `window_catalog.rs` | ✅ VERIFIED 2026-07-20 |
+| DIAG-TUI-002 | flowchart | Event dispatch pipeline: crossterm → global → palette → window | `reference/api-reference.md` | `crates/hkask-tui/src/lib.rs:126-221`, `workspace.rs:541-635` | ✅ VERIFIED 2026-07-20 |
+| DIAG-TUI-003 | state | Workspace lifecycle: init → splash → running → splits → quit | `reference/api-reference.md` | `crates/hkask-tui/src/workspace.rs`, `layout.rs`, `window.rs` | ✅ VERIFIED 2026-07-20 |
+| DIAG-TUI-004 | flowchart | Bridge wiring: CLI → `with_bridges!` → `WorkspaceBridges` → `create_window` → window | `reference/api-reference.md` | `crates/hkask-tui/src/bridges/mod.rs`, `window_catalog.rs`, `crates/hkask-repl/src/tui_bridges.rs` | ✅ VERIFIED 2026-07-20 |
+| DIAG-TUI-005 | sequence | Runtime boundary: CLI → REPL assembly → bridge injection → workspace/window → service | `explanation/tui-architecture.md` | `crates/hkask-cli/src/commands/tui.rs`, `crates/hkask-repl/src/lib.rs`, `crates/hkask-tui/src/lib.rs`, `workspace.rs`, `window_catalog.rs` | ✅ VERIFIED 2026-07-20 |
 
 ## 11. Additional Inlined Diagrams (Not Previously Indexed)
 

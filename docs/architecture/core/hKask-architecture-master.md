@@ -768,7 +768,7 @@ All ReplSettings fields are equally exposed across:
 
 All three surfaces read/write the same `~/.config/hkask/settings.json` file. No settings are hidden, admin-gated, or surface-restricted.
 
-**TUI launch:** `kask chat --tui` or `HKASK_TUI=1` (when built with the `tui` feature).
+**TUI launch:** `kask tui` (the `tui` feature is enabled by default in `hkask-cli`).
 
 ### Voice Interaction (Talk + Listen)
 
