@@ -1278,7 +1278,9 @@ fn workspace_help_toggles() {
         Workspace::new_test(s, r)
     };
 
-    ws.handle_global_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+    // On a standard keyboard, '?' is Shift+'/', so crossterm reports SHIFT.
+    // This is the real terminal behavior — NONE rarely fires in practice.
+    ws.handle_global_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::SHIFT));
     // Help overlay renders — verify no panic and content appears
     let mut term = test_terminal(80, 24);
     term.draw(|f| ws.render(f)).expect("render with help");

@@ -670,7 +670,10 @@ impl Workspace {
                 true
             }
 
-            (KeyModifiers::NONE, Char('?')) => {
+            // Match both NONE and SHIFT: on a standard keyboard, '?' is Shift+/,
+            // so crossterm reports KeyModifiers::SHIFT for the physical key press.
+            // Matching only NONE would never fire in a real terminal.
+            (KeyModifiers::NONE | KeyModifiers::SHIFT, Char('?')) => {
                 self.toggle_help();
                 true
             }

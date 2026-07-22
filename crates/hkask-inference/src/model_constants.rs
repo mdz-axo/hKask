@@ -31,10 +31,9 @@ pub const DEFAULT_EMBEDDING_MODEL: &str = "DI/Qwen/Qwen3-Embedding-0.6B";
 pub const DEFAULT_OCR_MODEL: &str = "RP/kask-ocr";
 
 /// Fallback model when no other model is configured.
-/// Prefixed with `KC/` so it routes to KiloCode (which hosts this exact id);
-/// an unprefixed value would fall through to the default provider, where the
-/// id differs (e.g. DeepInfra exposes it as `deepseek-ai/DeepSeek-V4-Pro`).
-pub const DEFAULT_FALLBACK_MODEL: &str = "KC/deepseek-v4-pro";
+/// Prefixed with `KC/` so it routes to KiloCode (which hosts this exact id).
+/// Matches `InferenceConfig::from_env()` default and onboarding display.
+pub const DEFAULT_FALLBACK_MODEL: &str = "KC/z-ai/glm-5.2";
 
 // ── Test fixtures (arbitrary identifiers, no network calls) ──────────────
 

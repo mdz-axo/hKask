@@ -330,11 +330,15 @@ pub(super) fn init_repl_state(
         }
     };
 
+    // Resolve the system default model from InferenceConfig (respects
+    // HKASK_DEFAULT_MODEL env var, defaults to KC/z-ai/glm-5.2). This is
+    // the same default shown during onboarding — no hardcoded DeepSeek.
+    let inference_config = hkask_inference::InferenceConfig::from_env();
     let initial_model_str = onboarding_outcome
         .selected_model
         .as_deref()
         .or(initial_model)
-        .unwrap_or("deepseek-ai/DeepSeek-V4-Pro");
+        .unwrap_or(&inference_config.default_model);
 
     // ── Phase 2: Settings + Condensation Env ───────────────────────────────
     let repl_settings: crate::handlers::ReplSettings = hkask_services_core::load_settings();
