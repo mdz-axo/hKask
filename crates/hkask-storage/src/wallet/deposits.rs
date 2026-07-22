@@ -3,7 +3,7 @@ use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{InfrastructureError, WalletId};
-use hkask_wallet_types::{ChainId, DepositAddress, DepositReference, PrivacyMode, WalletError};
+use hkask_types::{ChainId, DepositAddress, DepositReference, PrivacyMode, WalletError};
 use std::str::FromStr;
 
 // ── Row type for query mapping ─────────────────────────────────────────────────

@@ -3,7 +3,7 @@ use crate::database::driver::query_row;
 use crate::database::value::DbValue;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{ApiKeyId, InfrastructureError, WalletId};
-use hkask_wallet_types::{Encumbrance, EncumbranceStatus, RJoule, WalletError};
+use hkask_types::{Encumbrance, EncumbranceStatus, RJoule, WalletError};
 use std::str::FromStr;
 
 // ── Encumbrance methods ────────────────────────────────────────────────────────

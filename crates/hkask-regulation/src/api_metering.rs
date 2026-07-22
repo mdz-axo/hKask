@@ -13,7 +13,7 @@
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::ApiKeyId;
-use hkask_wallet_types::Encumbrance;
+use hkask_types::Encumbrance;
 use std::collections::HashMap;
 use std::sync::{
     Arc,

@@ -16,7 +16,7 @@ mod tests;
 pub mod transactions;
 
 use crate::define_driver_store;
-use hkask_wallet_types::WalletError;
+use hkask_types::WalletError;
 
 define_driver_store!(WalletStore);
 

@@ -10,7 +10,7 @@
 //! - API keys are Ed25519-signed OCAP capability tokens `[OUGHT-DECL]`
 
 use chrono::{DateTime, Utc};
-use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
+use crate::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
@@ -330,8 +330,8 @@ impl From<InfrastructureError> for WalletError {
     }
 }
 
-impl From<hkask_types::DbError> for WalletError {
-    fn from(e: hkask_types::DbError) -> Self {
+impl From<crate::DbError> for WalletError {
+    fn from(e: crate::DbError) -> Self {
         WalletError::Infra(InfrastructureError::from(e))
     }
 }

@@ -3,4 +3,4 @@
 //! These types live in hkask-wallet-types to avoid circular dependencies between
 //! hkask-wallet and hkask-storage.
 
-pub use hkask_wallet_types::{DepositAddress, DepositReference, TxHash};
+pub use hkask_types::{DepositAddress, DepositReference, TxHash};

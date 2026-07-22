@@ -4532,7 +4532,6 @@ dependencies = [
  "hex",
  "hkask-capability",
  "hkask-types",
- "hkask-wallet-types",
  "serde",
  "serde_json",
  "serde_yaml_neo",
@@ -4554,7 +4553,6 @@ dependencies = [
  "hkask-test-harness",
  "hkask-types",
  "hkask-wallet",
- "hkask-wallet-types",
  "parking_lot",
  "proptest",
  "serde",
@@ -4695,7 +4693,6 @@ dependencies = [
  "hkask-ports",
  "hkask-storage",
  "hkask-types",
- "hkask-wallet-types",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4886,7 +4883,6 @@ dependencies = [
  "hkask-ports",
  "hkask-test-harness",
  "hkask-types",
- "hkask-wallet-types",
  "proptest",
  "r2d2",
  "r2d2_sqlite",
@@ -4994,7 +4990,6 @@ dependencies = [
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
- "hkask-wallet-types",
  "hmac",
  "proptest",
  "prost 0.13.5",
@@ -5009,17 +5004,6 @@ dependencies = [
  "tracing",
  "wiremock",
  "zeroize",
-]
-
-[[package]]
-name = "hkask-wallet-types"
-version = "0.31.0"
-dependencies = [
- "chrono",
- "hkask-types",
- "serde",
- "thiserror 2.0.18",
- "uuid",
 ]
 
 [[package]]

@@ -10,7 +10,7 @@
 use crate::error::{DomainKind, ErrorKind, ServiceError};
 use hkask_storage::database::types::DbProvider;
 use hkask_inference::InferenceConfig;
-use hkask_wallet_types::WalletConfig;
+use hkask_types::WalletConfig;
 
 // ── Default values ──────────────────────────────────────────────────────────
 // Centralized here so all three constructors share the same defaults.

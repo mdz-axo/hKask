@@ -39,7 +39,7 @@ use thiserror::Error;
 use hkask_ports::{EmbeddingGenerationError, InferenceError};
 use hkask_types::InfrastructureError;
 use hkask_types::McpErrorKind;
-use hkask_wallet_types::WalletError;
+use hkask_types::WalletError;
 
 // ── Helper implementation modules ─────────────────────────────────────
 
@@ -770,10 +770,10 @@ mod tests {
     /// From<WalletError> round-trips through the Domain variant.
     #[test]
     fn from_wallet_error_produces_domain_with_wallet_kind() {
-        use hkask_wallet_types::WalletError;
+        use hkask_types::WalletError;
         let inner = WalletError::InsufficientBalance {
-            have: hkask_wallet_types::RJoule(0),
-            need: hkask_wallet_types::RJoule(100),
+            have: hkask_types::RJoule(0),
+            need: hkask_types::RJoule(100),
         };
         let e = ServiceError::from(inner);
         assert_eq!(e.domain(), DomainKind::Wallet);

@@ -19,7 +19,7 @@ use crate::energy::{GasCost, GasError};
 use chrono::Utc;
 use hkask_ports::WalletBudgetPort;
 use hkask_types::id::{ApiKeyId, WalletId};
-use hkask_wallet_types::{ApiKeyCapability, RJoule};
+use hkask_types::{ApiKeyCapability, RJoule};
 use std::sync::Arc;
 
 /// Health status of an API key tracked by a wallet-backed budget.
@@ -215,7 +215,7 @@ mod tests {
     use hkask_types::crypto::Ed25519PublicKey;
     use hkask_wallet::price_feed::StaticPriceFeed;
     use hkask_wallet::{GAS_PER_RJOULE, WalletConfig, WalletManager};
-    use hkask_wallet_types::{ChainId, PrivacyMode, TransactionType};
+    use hkask_types::{ChainId, PrivacyMode, TransactionType};
 
     // WalletBackedBudget tests require a real WalletManager with an in-memory DB.
     // These are integration-style tests — they validate the gas→rJoule→debit pipeline.

@@ -9,7 +9,7 @@
 //! wallet — an abstract interface, not the concrete type.
 
 use hkask_types::id::{ApiKeyId, WalletId};
-use hkask_wallet_types::{ApiKeyCapability, Encumbrance, RJoule};
+use hkask_types::{ApiKeyCapability, Encumbrance, RJoule};
 
 /// Errors produced by wallet budget operations.
 #[derive(Debug, thiserror::Error)]
@@ -55,7 +55,7 @@ pub trait WalletBudgetPort: Send + Sync {
     fn get_balance(
         &self,
         wallet_id: WalletId,
-    ) -> Result<hkask_wallet_types::WalletBalance, WalletBudgetError>;
+    ) -> Result<hkask_types::WalletBalance, WalletBudgetError>;
 
     /// Get the current gas→rJoule conversion rate.
     fn gas_per_rjoule(&self) -> u64;

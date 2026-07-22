@@ -331,7 +331,7 @@ impl hkask_ports::WalletBudgetPort for WalletManager {
     fn get_balance(
         &self,
         wallet_id: WalletId,
-    ) -> Result<hkask_wallet_types::WalletBalance, hkask_ports::WalletBudgetError> {
+    ) -> Result<hkask_types::WalletBalance, hkask_ports::WalletBudgetError> {
         WalletManager::get_balance(self, wallet_id)
             .map_err(|e| hkask_ports::WalletBudgetError::Wallet(e.to_string()))
     }

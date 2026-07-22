@@ -9,7 +9,6 @@ description = "SQLite + SQLCipher storage for hKask"
 
 hkask-capability = { path = "../hkask-capability" }
 hkask-types = { path = "../hkask-types", features = ["sql"] }
-hkask-wallet-types = { path = "../hkask-wallet-types" }
 hkask-ports = { path = "../hkask-ports" }
 
 hkask-goal = { path = "../hkask-goal" }

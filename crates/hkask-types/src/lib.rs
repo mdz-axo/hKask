@@ -29,7 +29,7 @@ pub mod time;
 pub mod tool_taint;
 pub mod transcript;
 pub mod visibility;
-// NOTE: Wallet types (RJoule, WalletConfig, ChainId, etc.) moved to hkask-wallet-types.
+pub mod wallet_types;
 
 #[cfg(feature = "sql")]
 pub mod sql_impls;
@@ -66,3 +66,10 @@ pub use template_type::TemplateType;
 pub use tool_taint::ToolTaint;
 pub use transcript::{TimedWord, TranscriptBundle, TranscriptSegment};
 pub use visibility::{Confidence, Dimension, Visibility};
+
+pub use wallet_types::{
+    ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Encumbrance,
+    EncumbranceStatus, GAS_PER_RJOULE, PriceFeedConfig, PrivacyMode, RJ_PER_USDC, RJoule,
+    RateLimitConfig, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError,
+    WalletTransaction,
+};
