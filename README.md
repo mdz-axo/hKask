@@ -1,36 +1,127 @@
 <p align="center">
   <img src="assets/kask-logo.svg" alt="Kask Logo" width="120"/>
 </p>
-# ℏKask - A Minimal Viable Container for UserPods
 
-**Version:** v0.31.0 |
+# ℏKask — A Sovereign Chat Client for Human Users
 
----
+**Binary:** `kask` · **Crate prefix:** `hkask-` · **Version:** v0.31.0 · **License:** MIT
 
-## Logo & Brand
-
-The Kask logo synthesizes four elements into a single mark:
-
-| Element | Represents | Visual Form |
-|---------|-----------|-------------|
-| **The Kask (Container)** | Typed container, governed surface | Rectangular amphora with handles |
-| **Calligraphy (Art)** | Human craft, temporal mark | Varied stroke width, pressure-sensitive |
-| **Curator's Eye (Vision)** | Observation, governance, loyalty | Almond eye with iris, pupil, reflection |
-| **Bitemporal Shadow (Perspective)** | Valid-time + transaction-time | Offset shadow, reduced opacity |
-
-> *A simple container, drawn by hand, watching from within, remembering in two times.*
-
-**Core principles:** Recognition <400ms | Scalable 16px–16ft | Monochrome-first | No gradients/effects
-
-Full design principles → [`assets/LOGO-DESIGN-PRINCIPLES.md`](assets/LOGO-DESIGN-PRINCIPLES.md)
+> A human user runs `kask tui`, authenticates, and gets a sovereign chat session
+> with AI skills, 16 MCP servers, and multi-provider LLM access — all under their
+> own keys, their own memory, and their own governance. Userpods, federation, and
+> Matrix transport exist as opt-in infrastructure that supports this experience,
+> not as the headline.[^arch-master]
 
 ---
 
-## Vision
+## What hKask Is
 
-hKask is the minimal viable unit of an agent platform from which a full agent ecosystem can be reconstructed.
+hKask is a **sovereign chat client for a single human user**. It is not an agent
+platform, an agent framework, or a multi-tenant SaaS. The unit of concern is the
+person at the keyboard, running `kask` on their own machine against their own
+secrets.
 
-**Design Philosophy:** Austere and efficient recombinatorial system. Rust is the loom (fixed logic). YAML/Jinja2 is the thread (mutable content).
+Three things sit between the user and a model:
+
+1. **Skills** — 51 iterative PDCA loops (`.agents/skills/`) that compose
+   Jinja2 templates into Plan-Do-Check-Act cycles with convergence thresholds,
+   gas budgets, and escalation. Where other systems give you a prompt, hKask
+   gives you a *process*.[^skills-model]
+2. **MCP servers** — 16 built-in Model Context Protocol servers (research,
+   memory, codegraph, media, filesystem, regulation, …) exposed as tools
+   through `rmcp`.[^mcp]
+3. **Inference routing** — one router across 9 providers (Cline, DeepInfra,
+   fal.ai, KiloCode, Ollama, OpenAI, OpenRouter, Runpod, Together), with
+   fusion, circuit breakers, and per-call gas accounting.
+
+Everything else in the codebase — pods, federation, Matrix, wallet, ledger,
+regulation, keystore — exists to keep that chat session **sovereign**: the
+user's keys, the user's data, the user's consent, and the user's budget.
+
+### What hKask Is Not
+
+- Not an agent framework. There is no autonomous agent loop by default; the
+  human is in the loop and skills escalate *to the user*, not away from them.
+- Not multi-tenant. `hkask-identity` models one human user and their OAuth
+  providers; pods are a local identity construct, not a hosting surface.
+- Not a hosted product. Deployment (`kask deploy`, Matrix sidecar, K3s) is
+  opt-in infrastructure for users who want it, not the primary mode.
+
+---
+
+## Architecture Overview
+
+```mermaid
+flowchart TD
+    User["Human user<br/>kask login"]
+    Kask["kask binary<br/>22 subcommands"]
+    Tui["kask tui<br/>REPL + ratatui workspace"]
+    Serve["kask serve<br/>HTTP API + OpenAPI"]
+    Daemon["kask daemon<br/>socket, Regulation monitor"]
+
+    User --> Kask
+    Kask --> Tui
+    Kask --> Serve
+    Kask --> Daemon
+
+    subgraph Runtime["Chat runtime"]
+        Skills["Skills<br/>51 PDCA loops"]
+        Manifest["ManifestExecutor<br/>FlowDef cascade"]
+        Mcp["16 MCP servers<br/>rmcp dispatch"]
+        Guard["hkask-guard<br/>LLM boundary scan"]
+        Inference["Inference router<br/>9 providers"]
+    end
+
+    Tui --> Skills
+    Tui --> Mcp
+    Skills --> Manifest
+    Manifest --> Inference
+    Mcp --> Guard
+    Guard --> Inference
+    Inference --> Providers["LLM + media providers<br/>Cline, DeepInfra, fal.ai, ..."]
+
+    subgraph Sovereignty["Sovereignty layer"]
+        Ocap["OCAP capability tokens"]
+        Keystore["Keystore<br/>OS keychain, AES-256-GCM"]
+        Regulation["Regulation<br/>reg.* spans, variety"]
+    end
+
+    Tui --> Ocap
+    Tui --> Keystore
+    Manifest --> Regulation
+
+    subgraph Persistence["Persistence"]
+        Storage["SQLite + SQLCipher"]
+        Memory["Memory<br/>episodic + semantic"]
+        GitCas["Git CAS<br/>BLAKE3 objects"]
+    end
+
+    Tui --> Storage
+    Storage --> Memory
+    Storage --> GitCas
+
+    subgraph Economy["Economy"]
+        Wallet["Wallet + Ledger<br/>rJoule gas"]
+    end
+
+    Inference --> Wallet
+    Wallet --> Regulation
+
+    subgraph Infra["Opt-in infrastructure"]
+        Pods["hkask-pods<br/>WebID identity"]
+        Federation["Federation + Matrix"]
+    end
+
+    Tui -. opt-in .-> Pods
+    Pods -. opt-in .-> Federation
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-README-001
+verified_date: 2026-07-21
+verified_against: Cargo.toml (workspace members); crates/hkask-cli/src/cli/mod.rs (Commands enum); crates/hkask-inference/src/ (9 backends); .agents/skills/ (51); mcp-servers/ (16)
+status: VERIFIED
+-->
 
 ---
 
@@ -38,130 +129,136 @@ hKask is the minimal viable unit of an agent platform from which a full agent ec
 
 | # | Anchor | Implementation |
 |---|--------|----------------|
-| 1 | **Agent Enablement** | Bots + UserPods in pods with WebID, A2A, Episodic and Semantic Memory and kask services |
-| 2 | **Essential Tools** | 16 MCP servers + Inference Router (DeepInfra, fal.ai, Together AI, Runpod, OpenRouter, KiloCode, Ollama, Cline, Tinker) |
-| 3 | **User Sovereignty** | OCAP, SQLCipher, keystore, private/public gating |
-| 4 | **Regulation** | `reg.*` spans, variety counters, algedonic alerts |
-| 5 | **Composition** | Templates + manifests compose into iterative PDCA Skill loops (51 skills, 2 templates, 1 bundle) |
+| 1 | **Human sovereignty** | OCAP capability tokens, SQLCipher-at-rest, OS keychain, private/public gating — Magna Carta P1–P4[^magna-carta] |
+| 2 | **Skills & composition** | 51 PDCA skill loops compose 88 registry manifests + Jinja2 templates into iterative cycles[^skills-model] |
+| 3 | **Tools** | 16 MCP servers + inference router over 9 LLM/media providers[^mcp] |
+| 4 | **Regulation** | `reg.*` span registry, variety counters, algedonic escalation — the cybernetic nervous system[^regulation] |
+| 5 | **Economy** | rJoule gas accounting (1 rJ = 250 000 gas cycles), double-entry ledger, per-call circuit breakers |
 
 ---
 
-## Skills & Composition
+## The Skills Model — WordAct / FlowDef / KnowAct
 
 hKask distinguishes two layers that other systems conflate:
 
-- **Templates** (`.j2` Jinja2 files, 384 total) — One-shot prompt executions. These are what Claude, ChatGPT, and most agent platforms call "skills." In hKask, they are raw material: a template runs once, returns output, and exits.
-- **Skills** (51 total) — Iterative PDCA (Plan-Do-Check-Act) loops that compose multiple templates into autonomous search, learning, and implementation cycles. A Skill has a FlowDef manifest with `convergence.threshold > 0`, a `gas.cap`, and a `loop` action. It runs until it converges on a quality threshold, exhausts its energy budget, or escalates to the Curator.
+- **Templates** (Jinja2 `.j2`) — one-shot prompt executions. What Claude,
+  ChatGPT, and most agent platforms call "skills." In hKask these are raw
+  material: render once, return output, exit.
+- **Skills** (51 PDCA loops) — iterative cycles that compose templates into
+  autonomous search, learning, and implementation loops. A skill has a
+  `manifest.yaml` with `convergence.threshold > 0`, a `gas.cap`, and a `loop`
+  action. It runs until it converges on a quality threshold, exhausts its
+  energy budget, or escalates to the user.
 
-Where other systems give you a prompt, hKask gives you a process.
+The tripartite template type system mirrors human cognition:[^skills-model]
+
+| Type | Format | Governs |
+|------|--------|---------|
+| **WordAct** | Jinja2 `.j2` | "What to say" — system prompts, personas, performative utterances |
+| **FlowDef** | YAML `.yaml` | "What to do" — `select → populate → execute` cascade, choice/escalate/abort/delegate verbs |
+| **KnowAct** | Jinja2 `.j2` | "How to think" — classification, reflection, calibration |
 
 | Layer | Format | Count | Behavior |
 |-------|--------|-------|----------|
-| **Templates** | `*.j2` (Jinja2) | 384 | One-shot: execute → return output |
-| **Skill manifests** | `manifest.yaml` | 86 | FlowDef: contracts, convergence criteria, gas budget |
-| **Skills** | `.agents/skills/` | 51 | PDCA loops: compose templates → iterate → converge \| max_out \| escalate |
+| Templates | `*.j2` (Jinja2) | — | One-shot: execute → return output |
+| Skill manifests | `manifest.yaml` | 88 | FlowDef contracts, convergence, gas budget |
+| Skills | `.agents/skills/` | 51 | PDCA loops: compose → iterate → converge \| max_out \| escalate |
 
-Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa run --script`, planned). The skill system includes discovery, bundling, translation, lifecycle management, and adversarial logic auditing. A Bundle composes multiple Skills but is not itself a PDCA loop.
+The canonical source of truth for every skill is its **registry crate**
+(`registry/templates/<name>/manifest.yaml` + `*.j2`). The `SKILL.md` file in
+`.agents/skills/` is a generated companion for the Zed coding agent, not a
+co-equal artifact.[^skills-model]
 
 ---
 
 ## Crate Structure
 
-### Foundation (14 crates)
+53 core crates + 16 MCP servers = 69 workspace members (excluding fuzz).
+
+### Foundation
 | Crate | Purpose |
 |-------|--------|
 | `hkask-types` | ID types, regulation-record, vocabulary, visibility, Regulation spans |
-| `hkask-storage` | SQLite + SQLCipher, triples, embeddings, blobs, Git CAS |
-| `hkask-storage-core` | Storage foundation — Database, Store trait, lock helpers, path sanitization |
-| `hkask-database` | Provider-agnostic database driver abstraction (SQLite, PostgreSQL) |
-| `hkask-memory` | Semantic/episodic pipelines (consolidation: episodic → semantic) |
-| `hkask-regulation` | Cybernetic Nervous System |
+| `hkask-storage-core` | Storage foundation — `Database`, `Store` trait, locks, path sanitization |
+| `hkask-storage` | SQLite + SQLCipher, triples, embeddings, blobs |
+| `hkask-database` | Provider-agnostic database driver (SQLite, PostgreSQL) |
+| `hkask-memory` | Semantic / episodic pipelines (consolidation: episodic → semantic) |
+| `hkask-regulation` | Cybernetic nervous system — `reg.*` spans, loops, variety |
 | `hkask-templates` | Registry, vocabulary, cascade, resolver |
-| `hkask-agents` | Pods, ACP, bot/userpod, Curator |
+| `hkask-pods` | Pod identity, WebID, bot/userpod, Curator persona |
 | `hkask-keystore` | OS keychain, AES-256-GCM |
 | `hkask-mcp` | MCP runtime, dispatch, security |
-| `hkask-cli` | CLI (37 subcommands + REPL) |
-| `hkask-api` | HTTP API, utoipa OpenAPI (21 route groups) |
 | `hkask-capability` | OCAP delegation tokens |
 | `hkask-ports` | Hexagonal port traits |
+| `hkask-cli` | CLI — 22 subcommands + REPL host |
+| `hkask-api` | HTTP API, utoipa OpenAPI |
 
-### Infrastructure (16 crates)
+### Infrastructure
 | Crate | Purpose |
 |-------|--------|
-| `hkask-inference` | Inference router (provider dispatch, model selection, Fal.ai workflow DAG execution) |
+| `hkask-inference` | Inference router — 9 provider backends, fusion, circuit breakers, fal.ai workflow DAGs |
 | `hkask-communication` | Matrix transport, agent registry, 7R7 listener |
-| `hkask-improv` | Constructive interaction protocol (plussing, yes-and, yes-but, freestyling, riffing) |
-| `hkask-condenser` | Context condensation engine (7 tools, 90 tests) |
-| `hkask-codegraph` | Native code understanding engine (tree-sitter, FTS5, recursive CTE traversal, context assembly) |
-| `hkask-acp` | Agent Client Protocol — IDE integration for coding agents |
-| `hkask-adapter` | Trained adapter lifecycle — store, expertise, endpoint lifecycle, provider cost model |
-| `hkask-test-harness` | Test infrastructure (TestDb, TestWebId, mocks, strategies) |
-| `hkask-mcp-cloud-gateway` | Cloud MCP gateway for remote tool dispatch |
-| `hkask-guard` | Content safety guard — mandatory LLM boundary scanning, OWASP LLM Top 10 aligned |
-| `hkask-repl` | Interactive REPL — slash-command dispatch, tab completion, fuzzy matching |
-| `hkask-forecast` | Superforecasting computation engine (Fermi decomposition, Bayesian updating, Brier scoring) |
-| `hkask-storage-guard` | Autonomous disk space management loop — monitors /data volume, prunes old exports |
-| `hkask-git-cas` | Git content-addressable storage (BLAKE3-hashed object store) |
+| `hkask-condenser` | Context condensation engine |
+| `hkask-codegraph` | Native code understanding (tree-sitter, FTS5, recursive CTE, context assembly) |
+| `hkask-acp` | Agent Client Protocol — IDE integration |
+| `hkask-adapter` | Trained adapter lifecycle — store, expertise, endpoint, provider cost model |
+| `hkask-guard` | Content safety — mandatory LLM boundary scanning, OWASP LLM Top 10 aligned |
+| `hkask-repl` | Interactive REPL — slash commands, tab completion, fuzzy matching |
+| `hkask-forecast` | Superforecasting engine (Fermi decomposition, Bayesian update, Brier scoring) |
+| `hkask-storage-guard` | Autonomous disk-space loop — monitors `/data`, prunes old exports |
+| `hkask-git-cas` | Git content-addressable storage (BLAKE3 object store) |
 | `hkask-goal` | Goal specification and completion verification |
-| `hkask-identity` | Human identity & access-control user records (HumanUser, OAuth providers, roles) — Loop 6 Access Guard |
+| `hkask-identity` | Human identity & access control (`HumanUser`, OAuth, roles) |
+| `hkask-test-harness` | Test infrastructure (`TestDb`, `TestWebId`, mocks, strategies) |
+| `hkask-mcp-cloud-gateway` | Cloud MCP gateway for remote tool dispatch |
+| `hkask-tui` | Terminal UI (ratatui-based interactive workspace) |
 
-### Services (14 crates)
+### Services
 | Crate | Purpose |
 |-------|--------|
-| `hkask-services-core` | Service-layer foundation — ServiceError, ServiceConfig, HkaskSettings |
-| `hkask-services-context` | AgentService context, Regulation runtime, cybernetic loops |
-| `hkask-services-runtime` | Runtime services — text classification, provider intelligence, daemon handler |
+| `hkask-services-core` | Service-layer foundation — `ServiceError`, `ServiceConfig`, `HkaskSettings` |
+| `hkask-services-context` | `AgentService` context, Regulation runtime, cybernetic loops |
+| `hkask-services-runtime` | Runtime services — text classification, provider intelligence, daemon |
 | `hkask-services-chat` | Chat session management and history |
-| `hkask-services-compose` | Style composition — exemplar retrieval, prose generation, centroid-distance validation against an author's voice |
+| `hkask-services-compose` | Style composition — exemplar retrieval, prose generation, centroid-distance voice validation |
 | `hkask-services-corpus` | Document corpus management and indexing |
-| `hkask-services-inference` | Inference provider intelligence and dispatch services |
-| `hkask-services-kata-kanban` | Toyota Kata coaching/improvement + Kanban board coordination |
+| `hkask-services-inference` | Inference provider intelligence and dispatch |
+| `hkask-services-kata-kanban` | Toyota Kata coaching/improvement + Kanban coordination |
 | `hkask-services-onboarding` | First-run and user onboarding |
-| `hkask-services-research` | Research pipeline services (web search, extraction, feed management) |
-| `hkask-services-self-heal` | Autonomous self-healing loop services |
-| `hkask-services-skill` | Skill discovery, publishing, hashing, auditing, and bundle composition |
-| `hkask-services-verification` | Magna Carta verification — manifest-driven structural audits of codebase sovereignty/consent provisions |
+| `hkask-services-research` | Research pipeline (web search, extraction, feed management) |
+| `hkask-services-self-heal` | Autonomous self-healing loop |
+| `hkask-services-skill` | Skill discovery, publishing, hashing, auditing, bundle composition |
+| `hkask-services-verification` | Magna Carta verification — manifest-driven structural audits |
 | `hkask-services-wallet` | Gas budgeting, price feeds, Regulation integration |
 
-### Wallet, Identity & Ledger (3 crates)
+### Wallet, Identity & Ledger
 | Crate | Purpose |
 |-------|--------|
-| `hkask-wallet` | rJoule wallet — self-custody multi-chain deposits, API key issuance, Hinkal privacy |
+| `hkask-wallet` | rJoule wallet — self-custody deposits, API key issuance |
 | `hkask-wallet-types` | Wallet value types and data structures |
 | `hkask-ledger` | Double-entry accounting ledger (cost, crypto, securities) |
 
-### Ontology & Interface (2 crates)
+### Ontology & Interface
 | Crate | Purpose |
 |-------|--------|
-| `hkask-federation` | Cross-instance agent federation protocol |
-| `hkask-tui` | Terminal UI (ratatui-based interactive console) |
+| `hkask-federation` | Cross-instance federation protocol (opt-in) |
 
-### Ontology Bridges (5 crates)
+### Ontology Bridges
 | Crate | Purpose |
 |-------|--------|
-| `hkask-bridge-dublincore` | Dublin Core + BIBO + CiTO vocabulary bridge (bibliographic metadata, resource typing, citation relationships) |
-| `hkask-bridge-eso` | Epistemic Science Ontology bridge (hypotheses, evidence, theories, models, falsification, uncertainty) |
-| `hkask-bridge-fibo` | Financial Industry Business Ontology bridge (competitive advantage, valuation, capital allocation, risk, economic profit) |
-| `hkask-bridge-golem` | GOLEM narrative/literary ontology bridge (characters, events, themes, literary devices, interpretive relationships) |
-| `hkask-bridge-pko` | Procedural Knowledge Ontology bridge (procedures, steps, actions, executions, issues, feedback) |
+| `hkask-bridge-dublincore` | Dublin Core + BIBO + CiTO (bibliographic metadata, citations) |
+| `hkask-bridge-eso` | Epistemic Science Ontology (hypotheses, evidence, falsification) |
+| `hkask-bridge-fibo` | Financial Industry Business Ontology (valuation, capital, risk) |
+| `hkask-bridge-golem` | GOLEM narrative/literary ontology (characters, themes, devices) |
+| `hkask-bridge-pko` | Procedural Knowledge Ontology (procedures, steps, executions, feedback) |
 
-### MCP Servers (16 crates)
-- `hkask-mcp-condenser` — Context condensation (thin wrapper around hkask-condenser)
-- `hkask-mcp-research` — Web search, extraction, and feed-based research
-- `hkask-mcp-skill` — Skill invocation (exposes registered skills as callable MCP tools)
-- `hkask-mcp-curator` — Curator daemon tools (algedonic log, escalations, memory recall, semantic search)
-- `hkask-mcp-companies` — Company financial data (FMP + EODHD dual-provider)
-- `hkask-mcp-communication` — Thin MCP wrapper over core communication crate
-- `hkask-mcp-media` — Media generation (image, video, audio, 3D, workflows via fal.ai)
-- `hkask-mcp-replica` — Authorial style embedding and prose composition
-- `hkask-mcp-docproc` — Unified document processing (format conversion, OCR, chunking, QA generation)
-- `hkask-mcp-memory` — Unified episodic + semantic memory with cloud backup
-- `hkask-mcp-training` — Model training (QA pairs and training data for fine-tuning pipelines)
-- `hkask-mcp-kata-kanban` — Kata-Kanban workflow coordination
-- `hkask-mcp-filesystem` — OCAP-governed filesystem + shell access (7 tools: fs.read/write/…, shell.exec)
-- `hkask-mcp-codegraph` — Code understanding tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code)
-- `hkask-mcp-scenarios` — Scenario planning (MAIA event-tree forecasting, Fermi decomposition, Bayesian calibration)
-- `hkask-mcp-regulation` — Regulation monitoring and observability (spans, variety counters, algedonic alerts)
+### MCP Servers (16)
+`hkask-mcp-codegraph` · `hkask-mcp-communication` · `hkask-mcp-companies` ·
+`hkask-mcp-condenser` · `hkask-mcp-curator` · `hkask-mcp-docproc` ·
+`hkask-mcp-filesystem` · `hkask-mcp-kata-kanban` · `hkask-mcp-media` ·
+`hkask-mcp-memory` · `hkask-mcp-regulation` · `hkask-mcp-replica` ·
+`hkask-mcp-research` · `hkask-mcp-scenarios` · `hkask-mcp-skill` ·
+`hkask-mcp-training`
 
 ---
 
@@ -169,24 +266,26 @@ Skills execute through the `kask chat` runtime or via the QA pipeline (`kask qa 
 
 | Metric | Value |
 |--------|-------|
-| **Core LOC (crates/src/)** | ~184,100 |
-| **MCP Server LOC (src/)** | ~49,500 |
-| **Total LOC** | ~233,500 |
-| **Core Crates** | 54 (14 foundation + 16 infra + 14 services + 3 wallet/identity/ledger + 2 ontology/interface + 5 bridges) |
-| **MCP Servers** | 16 |
-| **Workspace Members** | 70 (54 crates + 16 MCP servers, excluding fuzz targets) |
-| **Tests** | ~2,300 (`#[test]` + `#[tokio::test]` annotations across workspace) |
-| **CLI Subcommands** | 22 |
-| **API Route Groups** | 27 |
-| **Build/Clippy/Fmt/Test/UnusedDeps** | All passing |
-| **Skills** | 51 (86 registry manifests, 384 Jinja2 templates) |
-| **Inference Providers** | 9 (DeepInfra, fal.ai, Together AI, Runpod, OpenRouter, KiloCode, Ollama, Cline, Tinker) |
-| **Codegraph** | 11 MCP tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) |
-| **QA Pipeline** | Fuzz triage, mutation analysis, autonomous script runner |
+| Core crates | 53 |
+| MCP servers | 16 |
+| Workspace members (excl. fuzz) | 69 |
+| Skills | 51 (88 registry manifests) |
+| CLI subcommands | 22 (`kask tui` is the primary entry point) |
+| Inference providers | 9 (Cline, DeepInfra, fal.ai, KiloCode, Ollama, OpenAI, OpenRouter, Runpod, Together) |
+| Codegraph MCP tools | 11 (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) |
+| QA pipeline | Fuzz triage, mutation analysis, autonomous script runner |
+| Build / clippy / fmt / test / unused-deps | All passing |
 
 ---
 
 ## Commands
+
+The primary entry point is `kask tui`, which embeds the REPL inside a ratatui
+workspace. `kask serve` exposes the HTTP API; `kask daemon` runs the Unix-socket
+auth + Regulation monitor. The remaining subcommands are administrative
+(`pod`, `mcp`, `sovereignty`, `git`, `backup`, `federation`, `token`,
+`userpod`, `keystore`, `skill`, `doctor`, `onboard`, `settings`, `init`,
+`export`, `wallet`, `matrix`, `repair`, `deploy`).
 
 ```bash
 # Verification
@@ -207,20 +306,21 @@ bash docs/ci/check-links.sh
 
 ## Documentation
 
-hKask follows the [Diataxis](https://diataxis.fr/) documentation methodology. The documentation portal at [`docs/README.md`](docs/README.md) is the canonical entry point.
+hKask follows the [Diataxis](https://diataxis.fr/) documentation methodology —
+tutorials, how-to guides, reference, and explanation.[^diataxis] The portal at
+[`docs/README.md`](docs/README.md) is the canonical entry point.
 
-- [`AGENTS.md`](AGENTS.md) — Agent operating guide (capability catalog, tooling policy, prohibitions)
-- [`docs/README.md`](docs/README.md) — Documentation portal (Diataxis index of all active docs)
-- [`docs/how-to/getting-started.md`](docs/how-to/getting-started.md) — End-to-end walkthrough: clone → build → chat → skill invoke
-- [`docs/how-to/`](docs/how-to/) — Task-oriented guides: install, configure, bootstrap MCP, invoke skills, audit sovereignty
-- [`docs/reference/`](docs/reference/) — API reference, skill registry, Regulation span registry, Magna Carta
-- [`docs/explanation/`](docs/explanation/) — Architecture decisions: hexagonal ports, Regulation loop, OCAP dispatch, ν-events
-- [`docs/architecture/`](docs/architecture/) — ADRs, master architecture, provider/federation/database architecture
-- [`docs/specifications/DOCUMENTATION_STANDARDS.md`](docs/specifications/DOCUMENTATION_STANDARDS.md) — Documentation standards (metadata, citations, diagrams, lifecycle)
-- [`docs/OPEN_QUESTIONS.md`](docs/OPEN_QUESTIONS.md) — Underspecified aspects and open design decisions
-- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — CI pipeline (fmt → clippy + unused-deps + build → test + doc → invariants)
-- [`.github/workflows/audit.yml`](.github/workflows/audit.yml) — Weekly dependency audit (cargo-deny + cargo-audit)
-- [`docs/ci/verify-docs.sh`](docs/ci/verify-docs.sh) — Documentation health check (10-step verification, runs in CI)
+| Path | Contents |
+|------|----------|
+| [`AGENTS.md`](AGENTS.md) | Agent operating guide — capability catalog, tooling policy, prohibitions |
+| [`docs/README.md`](docs/README.md) | Documentation portal (Diataxis index) |
+| [`docs/how-to/`](docs/how-to/) | Task-oriented guides: install, configure, bootstrap MCP, invoke skills, audit sovereignty |
+| [`docs/reference/`](docs/reference/) | API reference, skill registry, Regulation span registry, Magna Carta |
+| [`docs/explanation/`](docs/explanation/) | Architecture decisions: hexagonal ports, Regulation loop, OCAP dispatch |
+| [`docs/architecture/`](docs/architecture/) | ADRs, master architecture, provider/federation/database architecture |
+| [`docs/specifications/DOCUMENTATION_STANDARDS.md`](docs/specifications/DOCUMENTATION_STANDARDS.md) | Documentation standards — metadata, citations, diagrams, lifecycle |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | CI pipeline (fmt → clippy + unused-deps + build → test + doc → invariants) |
+| [`.github/workflows/audit.yml`](.github/workflows/audit.yml) | Weekly dependency audit (cargo-deny + cargo-audit) |
 
 ---
 
@@ -228,20 +328,49 @@ hKask follows the [Diataxis](https://diataxis.fr/) documentation methodology. Th
 
 **As simple as possible, but no simpler.**
 
-- **No silent draws on reserve** — Every change cited
-- **No hallucinations** — All features traceable to spec
-- **No speculation** — Code not needed today is debt
-- **No ceremony** — Direct, technical, concise
+- **No silent draws on reserve** — every change cited.
+- **No hallucinations** — all features traceable to spec.
+- **No speculation** — code not needed today is debt.
+- **No ceremony** — direct, technical, concise.
 
-**The Loom and the Thread:**
+**The loom and the thread:**
 
 | Layer | Technology | Mutability |
 |-------|------------|------------|
-| **Hard (Kernel)** | Rust | Fixed, stable |
-| **Soft (Material)** | YAML, Jinja2, MD | Mutable, evolving |
+| Hard (kernel) | Rust | Fixed, stable |
+| Soft (material) | YAML, Jinja2, Markdown | Mutable, evolving |
+
+Rust is the loom. YAML/Jinja2 is the thread. The human user is the weaver.
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*
-*Rust is the loom. YAML/Jinja2 is the thread.*
-*CI green. 54 crates. 16 MCP servers. 51 PDCA skill loops. 384 templates. 9 inference providers.*
+## Logo & Brand
+
+The Kask logo synthesizes four elements into a single mark:
+
+| Element | Represents | Visual form |
+|---------|-----------|-------------|
+| **The Kask (container)** | Typed container, governed surface | Rectangular amphora with handles |
+| **Calligraphy (art)** | Human craft, temporal mark | Varied stroke width, pressure-sensitive |
+| **Curator's eye (vision)** | Observation, governance, loyalty | Almond eye with iris, pupil, reflection |
+| **Bitemporal shadow (perspective)** | Valid-time + transaction-time | Offset shadow, reduced opacity |
+
+> *A simple container, drawn by hand, watching from within, remembering in two times.*
+
+Core principles: recognition < 400 ms · scalable 16 px–16 ft · monochrome-first ·
+no gradients/effects. Full design principles →
+[`assets/LOGO-DESIGN-PRINCIPLES.md`](assets/LOGO-DESIGN-PRINCIPLES.md).
+
+---
+
+[^arch-master]: `docs/architecture/core/hKask-architecture-master.md` — "Primary user story" (v0.31.0).
+[^skills-model]: `docs/architecture/core/hKask-architecture-master.md` § Pattern A — The Skills Model (WordAct / FlowDef / KnowAct).
+[^mcp]: [Model Context Protocol specification](https://modelcontextprotocol.io/); runtime via the [`rmcp`](https://crates.io/crates/rmcp) crate.
+[^magna-carta]: `docs/reference/magna-carta.md` — four inviolable sovereignty principles (P1–P4).
+[^regulation]: `docs/reference/regulation-spans.md` — `reg.*` span catalog and canonical namespaces.
+[^diataxis]: [Diátaxis documentation framework](https://diataxis.fr/) by Daniele Procida — four quadrants: tutorials, how-to guides, reference, explanation.
+
+---
+
+*ℏKask — A Sovereign Chat Client for Human Users — v0.31.0*
+*Rust is the loom. YAML/Jinja2 is the thread. The human is the weaver.*

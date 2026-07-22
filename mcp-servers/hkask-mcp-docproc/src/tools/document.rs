@@ -639,6 +639,7 @@ impl DocProcServer {
             medium_max_tokens,
             fine_max_tokens,
             index,
+            target_pages,
         }): Parameters<ChunkRequest>,
     ) -> String {
         if let Some(input_dir) = input_dir {
@@ -688,7 +689,15 @@ impl DocProcServer {
                 && !file_path.is_empty()
             {
                 // Use shared extract_text for format detection + text extraction
-                match extract_text(file_path).await? {
+                let mut extract_outcome = extract_text(file_path).await?;
+                if let Some(spec) = target_pages.as_deref().filter(|s| !s.trim().is_empty()) {
+                    let target: std::collections::HashSet<usize> = crate::ocr::triage::parse_target_pages(spec)
+                        .map_err(|e| McpToolError::invalid_argument(e.to_string()))?
+                        .into_iter()
+                        .collect();
+                    extract_outcome = filter_outcome_to_pages(extract_outcome, &target);
+                }
+                match extract_outcome {
                     ExtractOutcome::Success {
                         text: extracted,
                         structure: Some(doc_structure),
@@ -1227,6 +1236,10 @@ pub struct ChunkRequest {
     /// If true, automatically index passages for later query via docproc_query (default true).
     #[serde(default = "default_true")]
     pub index: bool,
+    /// Target pages to parse (1-based) when `path` is a PDF, e.g. "1-5,10,15-20".
+    /// Pages outside the set are skipped before chunking. Mirrors `docproc_convert`.
+    #[serde(default)]
+    pub target_pages: Option<String>,
 }
 
 pub(crate) fn default_true() -> bool {

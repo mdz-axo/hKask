@@ -96,6 +96,16 @@ PDF → [Decimate] → PageQueue → [Score → Route → OCR] → [Verify] → 
 | `HKASK_OCR_SAMPLE_RATE` | 0.10 | Dual-routing sample rate for Moderate pages |
 | `HKASK_OCR_TUNEABLE` | true | Whether CNS calibration may suggest threshold adjustments |
 
+### Page Triage Thresholds (per-page pre-OCR complexity detection)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HKASK_OCR_TRIAGE_TEXT_NATIVE_MIN` | 20 | Per-page word count at/above which a page is text-native (no OCR) |
+| `HKASK_OCR_TRIAGE_MIN_IMAGE_PT` | 25.0 | Min image side (points) to count as a substantial image |
+| `HKASK_OCR_TRIAGE_FULL_PAGE_PT` | 500.0 | Image dims (pt) at/above which a no-text page is classified `Scanned` |
+| `HKASK_OCR_TRIAGE_EMBEDDED_IMAGE_PT` | 150.0 | Min image side (pt) to flag `EmbeddedImages` on a text page |
+| `HKASK_OCR_TRIAGE_TUNEABLE` | true | Whether CNS calibration may suggest triage threshold adjustments |
+
 ## CNS Observability
 
 The server emits CNS spans under these targets for cybernetic feedback:
