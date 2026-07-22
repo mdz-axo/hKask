@@ -22,9 +22,9 @@ discovered_by: kali-audit | manual   # who found it
 discovered_at: YYYY-MM-DD
 severity: critical | high | medium | low
 detection:
-  kind: grep | cargo-test | skill-probe | cns-span
-  pattern: "regex or test name"      # for grep: regex; for cargo-test: test path; for cns-span: span target pattern
-  include: "glob pattern"            # for grep: file scope; for cns-span: observation window
+  kind: grep | cargo-test | skill-probe | reg-span
+  pattern: "regex or test name"      # for grep: regex; for cargo-test: test path; for reg-span: span target pattern
+  include: "glob pattern"            # for grep: file scope; for reg-span: observation window
 mitigation: "what the fix looks like"
 ci_gate: scripts/check-kali-regressions.sh  # the script that enforces it
 status: pending | enforced           # pending = known bug, not yet fixed; enforced = fixed, CI catches re-introduction
@@ -55,7 +55,7 @@ entries as output:
   license conflicts, SBOM visibility).
 - **`runtime-posture-monitor`** — proposes `surface: runtime` entries for
   runtime threat findings (endpoint abuse, bot traffic, LLM usage anomalies).
-  Uses `kind: cns-span` detection (not `kind: grep`).
+  Uses `kind: reg-span` detection (not `kind: grep`).
 - **`attack-taxonomy-mapper`** — adds `taxonomy_mapping` field to existing
   `surface: supply-chain` entries (OSC&R tactic + technique mapping).
 

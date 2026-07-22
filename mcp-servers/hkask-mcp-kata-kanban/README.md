@@ -1,6 +1,6 @@
 # hkask-mcp-kata-kanban
 
-Kata-Kanban workflow coordination MCP server — task management with WIP limits, authenticated self-claim, kata prompts, and CNS observability.
+Kata-Kanban workflow coordination MCP server — task management with WIP limits, authenticated self-claim, kata prompts, and Regulation observability.
 
 ## Tools (18)
 
@@ -57,9 +57,9 @@ Kata-Kanban workflow coordination MCP server — task management with WIP limits
 | `HKASK_KANBAN_DB` | Per-agent kanban database file (defaults to `agents/{userpod}/kanban.db`) |
 | `HKASK_DB_PASSPHRASE` | SQLCipher encryption passphrase |
 
-## CNS Spans
+## Regulation Spans
 
-All tools emit `cns.tool.*` spans through the MCP framework. Kanban board/task operations additionally emit `cns.kanban` spans from `KanbanService`. Kata operations emit `cns.kata` spans when routed through `KataEngine`.
+All tools emit `reg.tool.*` spans through the MCP framework. Kanban board/task operations additionally emit `reg.kanban` spans from `KanbanService`. Kata operations emit `reg.kata` spans when routed through `KataEngine`.
 
 ## Quick Start
 

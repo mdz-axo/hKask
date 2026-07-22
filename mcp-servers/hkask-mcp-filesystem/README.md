@@ -8,7 +8,7 @@ Filesystem and shell access MCP server — OCAP-governed agent tools.
 |-----------|-------------|
 | `FileSystemServer` | Server struct with WebID, userpod identity, and project root |
 | Path sandbox | All file I/O canonicalized and verified against `project_root` |
-| CNS spans | `cns.tool.filesystem.*` — `file.read`, `file.written`, `file.deleted`, `command.completed`, `command.failed`, `path.rejected` |
+| Regulation spans | `reg.tool.filesystem.*` — `file.read`, `file.written`, `file.deleted`, `command.completed`, `command.failed`, `path.rejected` |
 
 ## Tools (7)
 
@@ -32,13 +32,13 @@ All file I/O is sandboxed to the configured `project_root`. Paths are canonicali
 kask mcp start filesystem
 ```
 
-## CNS Observability
+## Regulation Observability
 
 | Span | When |
 |------|------|
-| `cns.tool.filesystem.file.read` | Any read operation (fs_read, fs_list, fs_search) |
-| `cns.tool.filesystem.file.written` | File write or edit |
-| `cns.tool.filesystem.file.deleted` | File deletion |
-| `cns.tool.filesystem.command.completed` | Shell command exit code 0 |
-| `cns.tool.filesystem.command.failed` | Shell command non-zero exit or timeout |
-| `cns.tool.filesystem.path.rejected` | Path traversal attempt blocked |
+| `reg.tool.filesystem.file.read` | Any read operation (fs_read, fs_list, fs_search) |
+| `reg.tool.filesystem.file.written` | File write or edit |
+| `reg.tool.filesystem.file.deleted` | File deletion |
+| `reg.tool.filesystem.command.completed` | Shell command exit code 0 |
+| `reg.tool.filesystem.command.failed` | Shell command non-zero exit or timeout |
+| `reg.tool.filesystem.path.rejected` | Path traversal attempt blocked |

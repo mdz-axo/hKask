@@ -87,11 +87,11 @@ Grounded in: docproc source read end-to-end this session (`tools/document.rs`, `
 | Screenshot output | **No** — page images rendered for OCR then discarded | `lit screenshot` — PNG renders at configurable DPI, first-class output for LLM agents | Page images extractable |
 | Encrypted PDFs | **No** | `--password` | Yes |
 | Self-verification | **Yes** — page-count, empty-page, word-count-delta ±50% (`verification.rs`) | Complexity stats + overlap filter | Job status/result |
-| Calibration / self-tuning | **Yes, distinctive** — cross-validation accumulation, ≥100 samples >95% similarity → CNS drift alert, **never auto-adjusts** (P4 consent) (`calibration.rs`) | None | None |
-| CNS / governance observability | **Yes, distinctive** — `cns.pipeline.*` spans, affirmative-consent thresholds | None | None |
+| Calibration / self-tuning | **Yes, distinctive** — cross-validation accumulation, ≥100 samples >95% similarity → Regulation drift alert, **never auto-adjusts** (P4 consent) (`calibration.rs`) | None | None |
+| Regulation / governance observability | **Yes, distinctive** — `reg.pipeline.*` spans, affirmative-consent thresholds | None | None |
 | Format coverage (local) | PDF/MD/HTML/TXT + DOCX/XLSX/PPTX (native Rust) | PDF (native) + DOCX/XLSX/PPTX/images via LibreOffice conversion | Cloud 130+ |
 
-**Learning:** docproc's **calibration + CNS governance is a genuine advantage** neither Llama system has — it's the cybernetic layer that fits hKask's model. LiteParse wins on operational features docproc lacks: page-range, screenshots, encrypted-PDF, and per-page complexity as a standalone tool. Screenshots are the one to think about carefully: docproc's downstream (QA-generation, RAG) consumes text, not images — so a screenshot tool needs a consumer to justify it (the embarrassing-if-true risk).
+**Learning:** docproc's **calibration + Regulation governance is a genuine advantage** neither Llama system has — it's the cybernetic layer that fits hKask's model. LiteParse wins on operational features docproc lacks: page-range, screenshots, encrypted-PDF, and per-page complexity as a standalone tool. Screenshots are the one to think about carefully: docproc's downstream (QA-generation, RAG) consumes text, not images — so a screenshot tool needs a consumer to justify it (the embarrassing-if-true risk).
 
 ### 1.7 Architecture & API shape
 
@@ -114,17 +114,17 @@ Grounded in: docproc source read end-to-end this session (`tools/document.rs`, `
 
 3. **Cloud agentic vs. local heuristic.** LlamaParse's `tier="agentic"` uses LLMs for hard layouts (dense tables, charts, handwriting). LiteParse and docproc are local-heuristic. docproc *does* have an LLM-vision OCR backend, but uses it only for OCR text extraction, not for layout/structure understanding.
 
-4. **Governance vs. none.** docproc's calibration + CNS + affirmative-consent thresholds have no equivalent in either Llama system. This is hKask-specific and should be preserved through any enhancement.
+4. **Governance vs. none.** docproc's calibration + Regulation + affirmative-consent thresholds have no equivalent in either Llama system. This is hKask-specific and should be preserved through any enhancement.
 
 ---
 
 ## 3. What docproc can learn — proposed improvements, prioritized
 
-Prioritized by (value to hKask's corpus pipeline) ÷ (implementation cost & risk), and filtered through hKask's constraints: **Rust-only, local-first (P1), simplicity (P5), deep modules (P7), CNS observability, affirmative consent.**
+Prioritized by (value to hKask's corpus pipeline) ÷ (implementation cost & risk), and filtered through hKask's constraints: **Rust-only, local-first (P1), simplicity (P5), deep modules (P7), Regulation observability, affirmative consent.**
 
 ### Tier 1 — High value, low/medium cost, fits constraints (do these)
 
-**P1. Per-page complexity triage with typed reasons.** Replace the single doc-level `word_count vs 100` check with a per-page classifier emitting a `TriageVerdict` with reasons `{Scanned, NoText, SparseText, EmbeddedImages, Garbled, VectorText}`. This **directly fixes the demonstrated silent-loss bug** and is the foundation for selective OCR. *Cost:* medium — needs per-page text extraction (`pdftotext -f N -l N` per page, or split whole-doc output on form-feed `\x0c` to avoid N subprocess spawns). *Constraint fit:* yes; expose as a `docproc_is_complex` MCP tool for composability (LiteParse's `lit is-complex` pattern). Emit `cns.pipeline.triage` spans. Put triage thresholds under the existing `ThresholdConfig` calibration regime (≥100 samples, human approval).
+**P1. Per-page complexity triage with typed reasons.** Replace the single doc-level `word_count vs 100` check with a per-page classifier emitting a `TriageVerdict` with reasons `{Scanned, NoText, SparseText, EmbeddedImages, Garbled, VectorText}`. This **directly fixes the demonstrated silent-loss bug** and is the foundation for selective OCR. *Cost:* medium — needs per-page text extraction (`pdftotext -f N -l N` per page, or split whole-doc output on form-feed `\x0c` to avoid N subprocess spawns). *Constraint fit:* yes; expose as a `docproc_is_complex` MCP tool for composability (LiteParse's `lit is-complex` pattern). Emit `reg.pipeline.triage` spans. Put triage thresholds under the existing `ThresholdConfig` calibration regime (≥100 samples, human approval).
 
 **P2. Page-range support (`target_pages`).** Accept `"1-5,10,15-20"`; skip pages outside the range in extraction + decimation. *Cost:* small. *Constraint fit:* trivially yes. High ROI for large docs where an agent needs one section.
 
@@ -155,8 +155,8 @@ Prioritized by (value to hKask's corpus pipeline) ÷ (implementation cost & risk
 
 These are things docproc has that the Llama systems don't — any enhancement must not regress them:
 
-1. **Calibration with affirmative consent** (`calibration.rs`) — cross-validation-driven threshold drift detection, ≥100 samples, CNS alert, never auto-adjusts. LiteParse has hardcoded thresholds (`UNCOVERED_VECTOR_AREA_THRESHOLD=400`, etc.).
-2. **CNS observability** (`cns.pipeline.*` spans) — cybernetic feedback for the Regulation layer. Neither Llama system has governance observability.
+1. **Calibration with affirmative consent** (`calibration.rs`) — cross-validation-driven threshold drift detection, ≥100 samples, Regulation alert, never auto-adjusts. LiteParse has hardcoded thresholds (`UNCOVERED_VECTOR_AREA_THRESHOLD=400`, etc.).
+2. **Regulation observability** (`reg.pipeline.*` spans) — cybernetic feedback for the Regulation layer. Neither Llama system has governance observability.
 3. **Typed, sealed pipeline outcome** (`PipelineOutcome`) — no partial state escapes; verification report with computed `passed`.
 4. **MCP-native** — agent-callable tools, not a CLI/library a user must wire. Fits hKask's userpod model.
 5. **Dual-backend cross-validation** — Moderate-tier 10% dual-routing to compare Tesseract vs LLM-vision is a calibration data source LiteParse lacks.
