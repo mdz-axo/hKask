@@ -6,7 +6,7 @@
 //! live `Peer<RoleClient>` connections. `shutdown_all()` terminates
 //! all managed processes.
 
-use hkask_ports::ToolInfo;
+use hkask_capability::ToolInfo;
 use rmcp::model::CallToolRequestParams;
 use rmcp::service::{Peer, RoleClient, ServiceExt};
 use rmcp::transport::TokioChildProcess;
@@ -438,14 +438,14 @@ impl Default for McpRuntime {
 // When governance is not configured, it calls the tool directly (for tests
 // and lightweight embedders). One tool, one path — no wrapper layers.
 
-impl hkask_ports::ToolPort for McpRuntime {
+impl hkask_capability::ToolPort for McpRuntime {
     fn invoke<'a>(
         &'a self,
         server: &'a str,
         tool: &'a str,
         args: Value,
         token: &'a hkask_capability::DelegationToken,
-    ) -> hkask_ports::ToolFuture<'a, Result<Value, hkask_ports::ToolPortError>> {
+    ) -> hkask_capability::ToolFuture<'a, Result<Value, hkask_capability::ToolPortError>> {
         Box::pin(async move {
             // Governance gate: OCAP verify + gas reserve + span emit.
             // Skipped when governance is not configured (tests, lightweight embedders).
@@ -456,7 +456,7 @@ impl hkask_ports::ToolPort for McpRuntime {
                 let agent = token.delegated_to;
                 // OCAP: verify token signature + authority.
                 if !token.verify() {
-                    return Err(hkask_ports::ToolPortError::CapabilityDenied(
+                    return Err(hkask_capability::ToolPortError::CapabilityDenied(
                         "token signature verification failed".into(),
                     ));
                 }
@@ -466,7 +466,7 @@ impl hkask_ports::ToolPort for McpRuntime {
                     hkask_capability::DelegationAction::Execute,
                 ) || self.verify_capability_domain(token, tool).await;
                 if !authorized {
-                    return Err(hkask_ports::ToolPortError::CapabilityDenied(format!(
+                    return Err(hkask_capability::ToolPortError::CapabilityDenied(format!(
                         "token does not authorize tool: {}",
                         tool
                     )));
@@ -476,7 +476,7 @@ impl hkask_ports::ToolPort for McpRuntime {
                 let estimated = hkask_regulation::GasCost(est.estimate_cost(server, tool, &args));
                 let cyber_lock = cyber.read().await;
                 if !cyber_lock.can_proceed(&agent, estimated).await {
-                    return Err(hkask_ports::ToolPortError::EnergyBudgetExceeded(format!(
+                    return Err(hkask_capability::ToolPortError::EnergyBudgetExceeded(format!(
                         "gas budget exceeded for {:?}, tool {}, cost {}",
                         agent, tool, estimated.0
                     )));
@@ -519,14 +519,14 @@ impl hkask_ports::ToolPort for McpRuntime {
         })
     }
 
-    fn discover_tools<'a>(&'a self) -> hkask_ports::ToolFuture<'a, Vec<String>> {
+    fn discover_tools<'a>(&'a self) -> hkask_capability::ToolFuture<'a, Vec<String>> {
         Box::pin(async move { McpRuntime::discover_tools(self).await })
     }
 
     fn get_tool_info<'a>(
         &'a self,
         tool_name: &'a str,
-    ) -> hkask_ports::ToolFuture<'a, Option<hkask_ports::ToolInfo>> {
+    ) -> hkask_capability::ToolFuture<'a, Option<hkask_capability::ToolInfo>> {
         Box::pin(async move { McpRuntime::get_tool_info(self, tool_name).await })
     }
 }
@@ -555,29 +555,29 @@ impl McpRuntime {
         server: &str,
         tool: &str,
         args: Value,
-    ) -> Result<Value, hkask_ports::ToolPortError> {
+    ) -> Result<Value, hkask_capability::ToolPortError> {
         if self.get_peer(server).await.is_some() {
             let arguments = args.as_object().cloned().unwrap_or_default();
             let result = self
                 .call_tool(server, tool, arguments)
                 .await
-                .map_err(|e| hkask_ports::ToolPortError::InvocationFailed(e.to_string()))?;
+                .map_err(|e| hkask_capability::ToolPortError::InvocationFailed(e.to_string()))?;
             if result.is_error.unwrap_or(false) {
-                return Err(hkask_ports::ToolPortError::InvocationFailed(
+                return Err(hkask_capability::ToolPortError::InvocationFailed(
                     extract_text_content(&result),
                 ));
             }
             return Ok(parse_call_result(&result));
         }
         if !self.tool_exists(tool).await {
-            return Err(hkask_ports::ToolPortError::NotFound(
+            return Err(hkask_capability::ToolPortError::NotFound(
                 hkask_types::NotFound {
                     entity_type: "tool".to_string(),
                     id: format!("Tool '{}' not found in MCP runtime", tool),
                 },
             ));
         }
-        Err(hkask_ports::ToolPortError::InvocationFailed(format!(
+        Err(hkask_capability::ToolPortError::InvocationFailed(format!(
             "Server '{}' registered but not connected — call start_server() first",
             server
         )))

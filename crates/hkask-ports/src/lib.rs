@@ -20,7 +20,6 @@ pub mod git_cas;
 pub mod inference_port;
 pub mod inference_types;
 pub mod registry;
-pub mod tool;
 pub mod wallet_budget_port;
 
 pub use embedding::EmbeddingGenerationError;
@@ -40,5 +39,4 @@ pub use regulation::{
     BackpressureSignal, CircuitBreakerPort, ConsolidationOutcome, ConsolidationRequest,
     DecayConfig, DepletionSignal, LedgerObserver, LedgerStoragePort, WeightedEvent,
 };
-pub use tool::{ToolFuture, ToolInfo, ToolPort, ToolPortError};
 pub use wallet_budget_port::{WalletBudgetError, WalletBudgetPort};

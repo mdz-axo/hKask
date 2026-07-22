@@ -20,7 +20,7 @@
 
 use axum::extract::Extension;
 use axum::{Json, extract::State};
-use hkask_ports::ToolPort;
+use hkask_capability::ToolPort;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;

@@ -8,6 +8,7 @@ pub mod auth;
 pub mod resources;
 pub mod token_types;
 pub mod tokens;
+pub mod tool_port;
 pub mod verification;
 
 pub use auth::{AuthContext, derive_signing_key};
@@ -24,3 +25,4 @@ pub use verification::{
     VerificationOutcome, require_read_access, require_write_access, token_err_insufficient_access,
     token_err_tool_access_denied, verify_delegation_token, verify_delegation_token_now,
 };
+pub use tool_port::{ToolFuture, ToolInfo, ToolPort, ToolPortError};

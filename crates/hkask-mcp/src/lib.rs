@@ -42,7 +42,7 @@ pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
 
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
 
-pub use hkask_ports::ToolInfo;
+pub use hkask_capability::ToolInfo;
 pub use runtime::{McpRuntime, McpServer, McpTool, ServerStartError};
 pub use server::{
     CapabilityTier, CredentialRequirement, ExperienceCallback, McpError, ServerContext,

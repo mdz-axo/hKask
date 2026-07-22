@@ -4530,7 +4530,6 @@ dependencies = [
  "chrono",
  "futures-util",
  "hex",
- "hkask-capability",
  "hkask-types",
  "serde",
  "serde_json",
