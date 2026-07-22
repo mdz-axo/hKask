@@ -99,10 +99,6 @@ pub(crate) const OCR_FALLBACK_WORD_THRESHOLD: usize = 100;
 /// Default owner persona for h_mems stored by corpus pipeline tools.
 const DEFAULT_OWNER: &str = "john-brooks";
 
-/// System prompt for OCR vision requests.
-const OCR_SYSTEM_PROMPT: &str =
-    "Extract all text from this image. Output only the extracted text, nothing else.";
-
 /// OCR pipeline concurrency — env var HKASK_OCR_CONCURRENCY, default 4.
 /// Controls how many pages are sent to the vision model in parallel.
 /// Set to 1 for sequential mode (interactive use), higher for batch processing.
@@ -491,7 +487,9 @@ pub(crate) fn filter_outcome_to_pages(
         return outcome;
     }
     match outcome {
-        ExtractOutcome::Success { text, structure, .. } => {
+        ExtractOutcome::Success {
+            text, structure, ..
+        } => {
             let kept: Vec<String> = text
                 .split('\x0c')
                 .enumerate()

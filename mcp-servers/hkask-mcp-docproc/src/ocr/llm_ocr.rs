@@ -19,11 +19,30 @@ use std::time::Instant;
 
 use crate::ocr::pipeline::{OcrError, OcrExecutor};
 
-/// System prompt for OCR extraction — instructs the model to extract text faithfully.
-/// Applied to all page types including Kindle book pages.
-const OCR_SYSTEM_PROMPT: &str = "\
-Extract all readable text from this page image. Output the text verbatim with these rules:\n\
-1. Output ONLY the extracted text — no commentary, no markdown, no descriptions.\n2. Preserve paragraph breaks as blank lines between paragraphs.\n3. Preserve chapter headings, section breaks, and dialogue formatting.\n4. IGNORE page numbers, running headers, footers, and reader UI elements.\n5. IGNORE any embedded images, diagrams, or illustrations.\n6. If the page is blank or contains only non-text content, output the word BLANK.\n7. Do not summarize, paraphrase, or edit. Transcribe exactly what you see.\n8. Preserve punctuation, capitalization, and special characters as they appear.";
+/// Fallback prompt used when the `docproc/ocr-extract.j2` template is missing.
+/// Kept minimal — vision OCR models (OLMOCR-2 et al.) are trained to extract
+/// structured markdown faithfully; restating what they already do is
+/// over-engineering (hkask P5: simplicity).
+const OCR_FALLBACK_PROMPT: &str = "Extract all text from this page image as Markdown. Preserve headings, tables, equations, and reading order. If the page is blank or contains no text, output BLANK.";
+
+/// Build the OCR prompt, preferring the `docproc/ocr-extract.j2` template
+/// (tunable without recompile) and falling back to `OCR_FALLBACK_PROMPT` when
+/// the template is absent or fails to render.
+///
+/// `anchored_text` optionally supplies native text blocks from the page's text
+/// layer (document anchoring — improves reading order on complex layouts).
+pub(crate) fn build_ocr_prompt(anchored_text: Option<&str>) -> String {
+    let mut vars = std::collections::HashMap::new();
+    if let Some(t) = anchored_text {
+        vars.insert("anchored_text", t.to_string());
+    }
+    let rendered = crate::render_docproc_template("ocr-extract", &vars);
+    if rendered.is_empty() {
+        OCR_FALLBACK_PROMPT.to_string()
+    } else {
+        rendered
+    }
+}
 
 /// Circuit breaker for rate-limit resilience.
 ///
@@ -185,7 +204,7 @@ impl OcrExecutor for LlmOcrExecutor {
 
         let result = self
             .router
-            .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(&model))
+            .generate_vision(&build_ocr_prompt(None), &[b64_data], &params, Some(&model))
             .await
             .map_err(|e| {
                 let err_str = e.to_string();

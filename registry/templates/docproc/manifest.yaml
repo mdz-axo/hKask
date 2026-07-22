@@ -10,6 +10,13 @@ crate:
     and RAG-based question answering.
 
 templates:
+  - id: docproc/ocr-extract
+    name: "Extract page text as Markdown via a vision OCR LLM (OLMOCR-2 et al.)"
+    path: ocr-extract.j2
+    type: KnowAct
+    lexicon_terms: [extract, ocr, markdown]
+    description: Extract page text as Markdown via a vision OCR LLM. Minimal by design — the model produces structure natively. Supports optional document anchoring via `anchored_text`.
+
   - id: docproc/extract-hmems
     name: "Extract RDF triples (h_mems) from text with confidence scores"
     path: extract-hmems.j2

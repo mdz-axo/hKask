@@ -120,13 +120,7 @@ impl DocProcServer {
             });
             tokio::spawn(async move {
                 match daemon_clone
-                    .store_experience(
-                        &userpod,
-                        "ocr_pipeline",
-                        "verification",
-                        &data,
-                        Some(0.85),
-                    )
+                    .store_experience(&userpod, "ocr_pipeline", "verification", &data, Some(0.85))
                     .await
                 {
                     Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
@@ -221,7 +215,12 @@ impl DocProcServer {
 
         let result = self
             .inference_router
-            .generate_vision(OCR_SYSTEM_PROMPT, &[b64_data], &params, Some(model))
+            .generate_vision(
+                &crate::ocr::llm_ocr::build_ocr_prompt(None),
+                &[b64_data],
+                &params,
+                Some(model),
+            )
             .await
             .map_err(|e| OcrError::InferenceFailed(e.to_string()))?;
 
