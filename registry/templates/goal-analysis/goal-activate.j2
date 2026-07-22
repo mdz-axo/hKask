@@ -10,7 +10,7 @@ contract:
     goal: object
   output:
     activation_status: string
-    cns_span_emitted: boolean
+    reg_span_emitted: boolean
     goal_id: string
 energy_cap: 2048
 visibility: Public
@@ -36,7 +36,7 @@ Return JSON only:
 ```json
 {
   "activation_status": "active",
-  "cns_span_emitted": true,
+  "reg_span_emitted": true,
   "goal_id": "goal-{{ goal.goal_text | default('unnamed') | lower | replace(' ', '-') | truncate(40, true, '') }}",
   "goal_text": "{{ goal.goal_text | default('') }}",
   "criteria": {{ goal.criteria | default([]) | tojson }},

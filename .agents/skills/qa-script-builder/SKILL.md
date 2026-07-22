@@ -91,7 +91,7 @@ in manifests for future integration but have no runtime effect:
 - `gas.alert_threshold` — only `cap` and `hard_limit` are enforced
 - `rjoule` section — reserved for future gas/rJoule integration
 - `iteration_delay_secs` on loop steps
-- `default_next`, `cns_span` on individual steps
+- `default_next`, `reg_span` on individual steps
 
 ### Step Actions
 
@@ -335,7 +335,7 @@ steps:
 | **Testing UIs** | The runner can't inject keystrokes or read terminal buffers | Use `cargo test` to run existing integration tests; the QA script orchestrates failure response |
 | **Infinite loops** | Loop without `loop_exhausted` branch | Always add a `loop_exhausted` branch |
 | **Unreachable steps** | Steps with ordinals above the max branch target | Reorder or remove |
-| **Unsupported fields** | `iteration_delay_secs`, `cns_span`, `default_next` — silently ignored by the runner | Remove them; the runner only uses fields it deserializes |
+| **Unsupported fields** | `iteration_delay_secs`, `reg_span`, `default_next` — silently ignored by the runner | Remove them; the runner only uses fields it deserializes |
 | **Missing `classifier_unavailable`** | Classify step without fallback when API key is missing | Always add `classifier_unavailable` branch targeting a WARN terminal step |
 | **Wrong API key env var** | `DEEPINFRA_API_KEY` doesn't match `.env` | Use `DI_API_KEY` |
 

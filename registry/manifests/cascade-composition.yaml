@@ -110,7 +110,7 @@ gas:
 
   # Tracking
   tracking:
-    emit_cns_spans: true
+    emit_reg_spans: true
     track_per_stage: true
     log_budget_remaining: false
 

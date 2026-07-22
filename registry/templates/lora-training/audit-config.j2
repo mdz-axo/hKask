@@ -18,7 +18,7 @@ contract:
     findings: array
     gate_results: object
     parameters_extracted: array
-    cns_span_emitted: boolean
+    reg_span_emitted: boolean
 energy_cap: 8192
 visibility: Public
 ---
@@ -282,7 +282,7 @@ OUTPUT FORMAT
 JSON object with `config_paths`, `parameters_extracted`, `selected_method`,
 `method_recommendations`, `findings` (the normalized schema unchanged),
 `gate_results`, `readiness_state`, `userpod_host`, `source_citations`, and
-`cns_span_reference`.
+`reg_span_reference`.
 
 5W1H GATE CHECK (P5): Who = operator / userpod_host; What = phase-aware
 training contract audit; Where = declared workspace paths; When = static,

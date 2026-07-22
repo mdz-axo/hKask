@@ -61,7 +61,7 @@ OUTPUT FORMAT (JSON):
 blockers: [...], defense_layers_firing, defense_layers_silent,
 existing_regressions_count, proposed_regressions_count, unresolved_critical,
 unresolved_high, taxonomy_coverage, residual_runtime_risk, userpod_host,
-cns_span_emitted: true}`.
+reg_span_emitted: true}`.
 
 5W1H GATE (P5 — minimal): Who = userpod host; What = convergence metric;
 Where = deployed runtime environment / observation window; When = monitoring
@@ -117,6 +117,6 @@ from previous monitoring cycle if persistence is enabled by user). If no
 previous cycle, assumes `previous_metric = 1.0` (initial state) — explicit
 assumption, not hidden.
 Regulation SPAN EMITTED: `reg.runtime.convergence` is registered, so the span is
-always emitted. Output states `cns_span_emitted: true`.
+always emitted. Output states `reg_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.

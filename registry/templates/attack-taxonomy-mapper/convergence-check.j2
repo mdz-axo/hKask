@@ -55,7 +55,7 @@ blockers: [...], oscr_tactics_covered, oscr_tactics_missing,
 oscr_techniques_covered,
 existing_taxonomy_mappings_count, proposed_taxonomy_mappings_count,
 unmapped_critical, unmapped_high, taxonomy_coverage, residual_unmapped_risk,
-userpod_host, cns_span_emitted: true}`.
+userpod_host, reg_span_emitted: true}`.
 
 5W1H GATE (P5 — minimal): Who = userpod host; What = convergence metric;
 Where = audit cycle / workspace; When = scan cycle; Why = P9 observable
@@ -111,7 +111,7 @@ previous audit cycle if persistence is enabled by user). If no previous
 cycle, assumes `previous_metric = 1.0` (initial state) — explicit
 assumption, not hidden.
 Regulation SPAN EMITTED: `reg.taxonomy.convergence` is registered, so the span is
-always emitted. Output states `cns_span_emitted: true`.
+always emitted. Output states `reg_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.
 OSC&R VERIFICATION GATE: The OSC&R tactic and technique names referenced

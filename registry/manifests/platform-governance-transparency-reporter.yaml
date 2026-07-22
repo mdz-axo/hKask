@@ -2,7 +2,7 @@
 # ℏKask v0.31.0 — Sovereignty verification: governance transparency
 # Functional Role: FlowDef (process orchestration)
 # Implementation: YAML manifest
-# Steps: query_cns_spans, classify_governance_events, synthesize_report, convergence_check
+# Steps: query_reg_spans, classify_governance_events, synthesize_report, convergence_check
 
 manifest:
   id: platform-governance-transparency-reporter

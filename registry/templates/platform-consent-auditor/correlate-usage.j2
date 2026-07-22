@@ -7,7 +7,7 @@ lexicon_terms:
 contract:
   input:
     tokens: object
-    cns_spans: string
+    reg_spans: string
   output:
     correlated_tokens: array
     unused_tokens: array
@@ -33,7 +33,7 @@ Tokens:
 {{ tokens | tojson }}
 ```
 Regulation spans:
-{{ cns_spans | default('No span data available.') }}
+{{ reg_spans | default('No span data available.') }}
 
 ## Output
 For each token, match against Regulation spans by token ID. Return correlated_tokens (with usage count, last_used) and unused_tokens (tokens never used — potential hygiene issue).

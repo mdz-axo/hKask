@@ -25,7 +25,7 @@ capabilities:
 
 rights:
   - read: all_public_semantic_memory
-  - read: cns_spans_all
+  - read: reg_spans_all
   - read: variety_counters_all
   - read: bot_reports_all
   - read: system_health_metrics
@@ -108,7 +108,7 @@ readiness_probe:
   endpoint: curator::metacognition_status
   expected:
     bot_reports_available: true
-    cns_spans_accessible: true
+    reg_spans_accessible: true
     metacognition_templates_loaded: true
   timeout_seconds: 15
   retry_count: 3

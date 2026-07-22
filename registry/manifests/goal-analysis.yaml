@@ -100,7 +100,7 @@ steps:
     timeout_seconds: 30
     input_mapping:
       goal: "{{ step_1_result }}"
-    cns_spans:
+    reg_spans:
       - reg.goal.create
 
   - ordinal: 3
@@ -139,7 +139,7 @@ steps:
       confidence: "{{ step_3_result.confidence }}"
       reason: "{{ step_3_result.reason }}"
       goal: "{{ step_1_result }}"
-    cns_spans:
+    reg_spans:
       - reg.goal.verify
       - reg.goal.complete
       - reg.goal.block

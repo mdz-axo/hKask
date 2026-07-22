@@ -89,7 +89,7 @@ posture convergence metric.
 > `hkask-mcp-regulation` MCP server. Use the `regulation_query_spans` tool to query Regulation
 > span history by namespace prefix (e.g. `namespace="reg.guard"`,
 > `namespace="reg.regulation"`, `namespace="hkask"`) within a time window,
-> and `cns_span_stats` to aggregate counts by span_category. Both tools
+> and `reg_span_stats` to aggregate counts by span_category. Both tools
 > accept `since_hours` (default 1.0) and return JSON. When the store is
 > unavailable (no `HKASK_DB_PASSPHRASE`), the tools return
 > `permission_denied` — treat this as a degraded posture finding, not a
@@ -246,7 +246,7 @@ CONSTRAINT — Evidence integrity (P8):
    cycle. If not improved by ≥5%, identify blocker.
 5. Return JSON: `{convergence_metric, dimensions, rationale, blockers,
    defense_layers_firing, defense_layers_silent, existing_regressions,
-   proposed_regressions, cns_span_emitted: true}`.
+   proposed_regressions, reg_span_emitted: true}`.
 6. Emit `reg.runtime.convergence` Regulation span (registered in
    `CANONICAL_NAMESPACES` — emitted unconditionally).
 

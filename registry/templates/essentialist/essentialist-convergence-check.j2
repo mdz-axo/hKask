@@ -36,7 +36,7 @@ Regulation SPAN (P9):
 OUTPUT FORMAT (JSON):
 `{convergence_metric, previous_metric, improvement_pct, converged: bool,
 blockers: [...], gates_failed, gates_passed, items_removed, total_items,
-items_not_removed, userpod_host, cns_span_emitted: true}`.
+items_not_removed, userpod_host, reg_span_emitted: true}`.
 
 5W1H GATE (P5 — minimal): Who = userpod host; What = convergence metric;
 Where = essentialist audit cycle; When = after 3-gate evaluation; Why = P9
@@ -77,6 +77,6 @@ from actual `gates_failed`, `items_not_removed`. No synthetic gate results.
 CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 `essentialist-flow.j2` logic. Uses gate results from the flow template.
 Regulation SPAN EMITTED: `reg.skill` is registered, so the span is always emitted.
-Output states `cns_span_emitted: true`.
+Output states `reg_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.

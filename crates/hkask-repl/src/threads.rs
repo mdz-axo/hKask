@@ -36,7 +36,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 /// Emit a Regulation span for thread operations.
-fn emit_thread_cns(operation: &str, detail: &str) {
+fn emit_thread_reg(operation: &str, detail: &str) {
     tracing::info!(
         target: "reg",
         reg_domain = "reg.thread",
@@ -159,7 +159,7 @@ impl ThreadRegistry {
         self.active_thread_id = Some(id.clone());
         write_active_file(agent_name, Some(&id));
         self.seeded = false;
-        emit_thread_cns("created", &id);
+        emit_thread_reg("created", &id);
         self.threads.get(&id).expect("just inserted")
     }
 
@@ -190,7 +190,7 @@ impl ThreadRegistry {
                 thread.turns.remove(0);
             }
             if thread.turns.len() == MAX_THREAD_TURNS {
-                emit_thread_cns("turns_pruned", &thread.id);
+                emit_thread_reg("turns_pruned", &thread.id);
             }
 
             write_thread_file(agent_name, thread);
@@ -243,7 +243,7 @@ impl ThreadRegistry {
             write_thread_file(agent_name, thread);
         }
         if !to_save.is_empty() {
-            emit_thread_cns("archived", &format!("{} threads", to_save.len()));
+            emit_thread_reg("archived", &format!("{} threads", to_save.len()));
         }
         to_save.len()
     }
@@ -277,7 +277,7 @@ impl ThreadRegistry {
             self.active_thread_id = Some(thread_id.to_string());
             write_active_file(agent_name, Some(thread_id));
             self.seeded = false;
-            emit_thread_cns("switched", thread_id);
+            emit_thread_reg("switched", thread_id);
             if let Some(thread) = self.threads.get_mut(thread_id) {
                 thread.last_active_at = chrono::Utc::now().to_rfc3339();
                 write_thread_file(agent_name, thread);

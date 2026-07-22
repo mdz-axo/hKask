@@ -78,7 +78,7 @@ async fn loop_with_depleted_budget() -> (Arc<RwLock<RegulationLedger>>, Cybernet
 ///     AdjustEnergyBudget (or Escalate if AdjustEnergyBudget is also stale).
 #[tokio::test]
 async fn try_substitute_fires_on_ineffective_energy_actions() {
-    let (_cns, loop_instance, _agent) = loop_with_depleted_budget().await;
+    let (_reg, loop_instance, _agent) = loop_with_depleted_budget().await;
 
     // Tick 1: establishes baseline — budget is low (ratio 0.1), deviation detected,
     // actions produced, verify_impact marks them as Stage (delta = 0, stage_ratio = 0.0).
@@ -147,7 +147,7 @@ async fn try_substitute_fires_on_ineffective_energy_actions() {
 ///   - On Tick 3: actions revert (ladder exhausted), counter hits 2 ≥ 2 → plateau
 #[tokio::test]
 async fn regulatory_plateau_fires_after_ineffective_cycles() {
-    let (_cns, loop_instance, _agent) = loop_with_depleted_budget().await;
+    let (_reg, loop_instance, _agent) = loop_with_depleted_budget().await;
 
     // Ineffective cycle 1: both Throttle and AdjustEnergyBudget get Stage.
     loop_instance.tick().await;
@@ -411,7 +411,7 @@ async fn full_pipeline_produces_meaningful_quality_after_ticks() {
 /// match deviations), and effectiveness reflects the stagnation.
 #[tokio::test]
 async fn loop_quality_reflects_regulation_activity() {
-    let (_cns, loop_instance, _agent) = loop_with_depleted_budget().await;
+    let (_reg, loop_instance, _agent) = loop_with_depleted_budget().await;
 
     // Run several ticks to accumulate regulatory activity.
     for _ in 0..5 {

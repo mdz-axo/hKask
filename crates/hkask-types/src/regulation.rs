@@ -374,7 +374,7 @@ mod reg_span_tests {
     use std::str::FromStr;
 
     #[test]
-    fn cnsspan_display_produces_canonical_strings() {
+    fn regspan_display_produces_canonical_strings() {
         assert_eq!(
             RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Other
@@ -391,7 +391,7 @@ mod reg_span_tests {
     }
 
     #[test]
-    fn cnsspan_from_str_rejects_invalid() {
+    fn regspan_from_str_rejects_invalid() {
         assert!(RegulationSpan::from_str("reg.nonexistent").is_err());
         assert!(RegulationSpan::from_str("invalid").is_err());
         assert!(RegulationSpan::from_str("").is_err());
@@ -399,7 +399,7 @@ mod reg_span_tests {
     }
 
     #[test]
-    fn cnsspan_from_str_round_trips() {
+    fn regspan_from_str_round_trips() {
         let variants = vec![
             "reg.tool",
             "reg.tool.web_search",
@@ -431,7 +431,7 @@ mod reg_span_tests {
     }
 
     #[test]
-    fn cnsspan_tool_subsystem_produces_correct_string() {
+    fn regspan_tool_subsystem_produces_correct_string() {
         assert_eq!(
             RegulationSpan::Tool {
                 subsystem: ToolSubsystem::WebSearch
@@ -449,7 +449,7 @@ mod reg_span_tests {
     }
 
     #[test]
-    fn cnsspan_exhaustive_match_covers_all_canonical() {
+    fn regspan_exhaustive_match_covers_all_canonical() {
         let all_variants = vec![
             RegulationSpan::Tool {
                 subsystem: ToolSubsystem::Other,

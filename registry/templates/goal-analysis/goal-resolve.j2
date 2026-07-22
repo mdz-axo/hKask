@@ -13,7 +13,7 @@ contract:
     goal: object
   output:
     resolution: string
-    cns_spans: array
+    reg_spans: array
     escalate_to_human: boolean
     escalate_reason: string
 energy_cap: 2048
@@ -54,11 +54,11 @@ Emit appropriate Regulation spans based on resolution:
 - escalate (blocked) → ["reg.goal.verify", "reg.goal.block", "reg.goal.alert.escalate"]
 - escalate (low confidence) → ["reg.goal.verify", "reg.goal.alert.escalate"]
 
-Return JSON only — select the correct cns_spans for the resolution:
+Return JSON only — select the correct reg_spans for the resolution:
 ```json
 {
   "resolution": "complete",
-  "cns_spans": ["reg.goal.verify", "reg.goal.complete"],
+  "reg_spans": ["reg.goal.verify", "reg.goal.complete"],
   "escalate_to_human": false,
   "escalate_reason": ""
 }

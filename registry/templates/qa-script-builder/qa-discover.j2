@@ -51,7 +51,7 @@ This test scenario was generated from a persona-driven perspective rotation:
 - **Failure response strategy:** {{ scenario.failure_response }}
 - **Alert posture:** {{ scenario.alert_posture }}
 - **Gas environment:** {{ scenario.gas_environment }}
-- **Suggested Regulation spans:** {{ scenario.cns_spans | join(", ") }}
+- **Suggested Regulation spans:** {{ scenario.reg_spans | join(", ") }}
 
 Use this persona context to narrow the discovery. The persona has already identified the testing angle, tool, and failure mode — your job is to resolve these to concrete QA system capabilities, validate that the suggested tool and classifiers exist, and surface any ambiguities the persona missed.
 {% endif %}
@@ -109,7 +109,7 @@ Respond with a JSON object:
   "failure_modes": ["Panic", "Assertion", "Flake"],
   "test_tool": "cargo bolero test",
   "test_command": "cargo bolero test -p hkask-types-fuzz --timeout 30s",
-  "existing_fuzz_targets": ["fuzz_cns_span_parse_never_panics", "fuzz_queue_depth_is_monotonic"],
+  "existing_fuzz_targets": ["fuzz_reg_span_parse_never_panics", "fuzz_queue_depth_is_monotonic"],
   "available_classifiers": ["qa-triage", "qa-feedback"],
   "gas_constraints": {
     "environment": "ci",

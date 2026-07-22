@@ -15,7 +15,7 @@ contract:
     agent_name: string
     agent_webid: string
     session_id: string
-    cns_span_id: string
+    reg_span_id: string
   output:
     episodic_triples: array
 ---
@@ -82,7 +82,7 @@ Episodic memory captures what the agent **experienced** and **did** — not gene
 **Agent:** {{ agent_name }}
 **WebID:** {{ agent_webid }}
 **Session:** {{ session_id }}
-**Regulation span:** {{ cns_span_id }}
+**Regulation span:** {{ reg_span_id }}
 
 ### Decimated Sentences
 
@@ -109,7 +109,7 @@ Return JSON with episodic triples:
     "agent": "{{ agent_name }}",
     "perspective": "{{ agent_webid }}",
     "session": "{{ session_id }}",
-    "cns_span_ref": "{{ cns_span_id }}",
+    "reg_span_ref": "{{ reg_span_id }}",
     "memory_type": "episodic",
     "visibility": "private",
     "ontology_anchor": "pko"

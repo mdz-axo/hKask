@@ -200,7 +200,7 @@ error_handling:
     - failed_component
     - dependency_tree
     - readiness_probe_output
-    - cns_span_ref
+    - reg_span_ref
 
 # Regulation Integration
 ledger:

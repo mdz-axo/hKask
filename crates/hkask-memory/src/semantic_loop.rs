@@ -181,7 +181,7 @@ impl SemanticLoop {
     }
 
     /// Emit a Regulation RegulationRecord through the memory's event sink.
-    fn emit_cns(&self, verb: &str, observation: serde_json::Value) {
+    fn emit_reg(&self, verb: &str, observation: serde_json::Value) {
         if let Some(sink) = self.memory.event_sink() {
             let span = Span::new(
                 SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
@@ -493,7 +493,7 @@ impl RegulationLoop for SemanticLoop {
                                         "Semantic condensation completed"
                                     );
 
-                                    self.emit_cns(
+                                    self.emit_reg(
                                         "semantic_condensed",
                                         serde_json::json!({
                                             "total_candidates": total,

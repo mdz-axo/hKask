@@ -63,7 +63,7 @@ manifest:
 #       timeout_ms: 1000
 #       retry_on_failure: false
 
-#     - name: emit_cns_span
+#     - name: emit_reg_span
 #       timeout_ms: 500
 #       retry_on_failure: true
 

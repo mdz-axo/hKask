@@ -52,7 +52,7 @@ OUTPUT FORMAT (JSON):
 blockers: [...], defense_layers_present, defense_layers_missing,
 existing_regressions_count, proposed_regressions_count, unresolved_critical,
 unresolved_high, taxonomy_coverage, residual_dependency_risk, userpod_host,
-cns_span_emitted: true}`.
+reg_span_emitted: true}`.
 
 5W1H GATE (P5 — minimal): Who = userpod host; What = convergence metric;
 Where = audit cycle / workspace; When = scan cycle; Why = P9 observable
@@ -117,7 +117,7 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 cycle if persistence is enabled by user). If no previous cycle, assumes
 `previous_metric = 1.0` (initial state) — explicit assumption, not hidden.
 Regulation SPAN EMITTED: `reg.supply_chain.convergence` is registered, so the
-span is always emitted. Output states `cns_span_emitted: true`.
+span is always emitted. Output states `reg_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict
-OUTPUT FORMAT (JSON): {convergence_metric, previous_metric, improvement_pct, converged: bool, blockers: [...], defense_layers_present, defense_layers_missing, existing_regressions_count, proposed_regressions_count, unresolved_critical, unresolved_high, taxonomy_coverage, residual_dependency_risk, userpod_host, cns_span_emitted: true}
+OUTPUT FORMAT (JSON): {convergence_metric, previous_metric, improvement_pct, converged: bool, blockers: [...], defense_layers_present, defense_layers_missing, existing_regressions_count, proposed_regressions_count, unresolved_critical, unresolved_high, taxonomy_coverage, residual_dependency_risk, userpod_host, reg_span_emitted: true}
 

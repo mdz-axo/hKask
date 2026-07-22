@@ -35,20 +35,20 @@ Composable interaction grammar for hKask agents. Five improv modes — Plussing,
 3. Build constructively on the top 3 selected seeds, extending with new dimensions, implications, or next steps.
 4. Never explicitly negate. Criticism is deletion-by-omission.
 5. If nothing is agreeable, redirect constructively without referencing the disagreeable content.
-6. Return `{selected_seeds, build, discarded_count, cns_span}`.
+6. Return `{selected_seeds, build, discarded_count, reg_span}`.
 
 ### Yes And (`improv-yes-and`)
 1. Accept the whole contribution unchanged; acknowledge it explicitly.
 2. Extend with a novel additive layer — a new dimension, implication, example, or next step.
 3. Signal that the extension is additive, not substitutive; the accepted base must remain intact and visible.
-4. Return `{accepted_base, extension, cns_span}`.
+4. Return `{accepted_base, extension, reg_span}`.
 
 ### Yes But (`improv-yes-but`)
 1. Accept the whole contribution unchanged; acknowledge it explicitly.
 2. Identify a boundary condition that narrows scope: resource constraint, compatibility requirement, risk to mitigate, or sequencing consideration.
 3. Frame as additive guidance ("yes, and let's also account for…"), not rejection. Do not say "no," "wrong," "can't," or "impossible."
 4. Ensure the constraint narrows without contradicting the accepted base.
-5. Return `{accepted_base, constraint, cns_span}`.
+5. Return `{accepted_base, constraint, reg_span}`.
 
 ### Freestyling (`improv-freestyling`)
 1. Initiate the session with a declared time bound and participant list.
@@ -56,20 +56,20 @@ Composable interaction grammar for hKask agents. Five improv modes — Plussing,
 3. Track time remaining; when the time bound is reached, signal session end and summarize emergent themes.
 4. Record all turns for Regulation coherence analysis.
 5. Mark each turn `[freestyle turn N by AGENT] content`.
-6. Return `{turn, time_remaining, next_speaker, session_summary, cns_span}`.
+6. Return `{turn, time_remaining, next_speaker, session_summary, reg_span}`.
 
 ### Riffing (`improv-riffing`)
 1. Diverge from the seed contribution; identify an interesting dimension, implication, or "what if."
 2. Explore the tangent independently — go deep, wide, or weird without group constraint.
 3. Resolve per return policy: `ReturnToGroup` (synthesize and bridge back), `SpawnThread` (create new thread), or `ReturnAfterSteps { max_steps }` (explore up to N steps then return).
 4. The riff must resolve — it cannot hang indefinitely.
-5. Return `{tangent, outcome, synthesis, thread_id, steps_remaining, cns_span}`.
+5. Return `{tangent, outcome, synthesis, thread_id, steps_remaining, reg_span}`.
 
 ### Convergence Check (`improv-convergence-check`)
 1. Start the metric at 1.0.
 2. Subtract 0.3 if mode is present and in {plussing, yes-and, yes-but, freestyling, riffing}.
 3. Subtract 0.4 if response content is present and mode-appropriate.
-4. Subtract 0.2 if application output includes coherent Regulation signaling (e.g., `cns_spans` or `cns_span`).
+4. Subtract 0.2 if application output includes coherent Regulation signaling (e.g., `reg_spans` or `reg_span`).
 5. If evidence indicates explicit contradiction/negation instead of constructive extension, keep metric ≥ 0.7.
 6. Clamp to [0,1].
 7. Return `{convergence_metric, convergence_method, rationale, blockers, unresolved_signals}`.

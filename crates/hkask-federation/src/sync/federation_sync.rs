@@ -118,7 +118,7 @@ impl FederationSync {
                     Ok((_from, FederationMessage::SyncResponse { deltas, .. })) => {
                         let latency = start.elapsed().as_millis() as u64;
                         self.merge_deltas(&deltas).await;
-                        self.emit_cns(
+                        self.emit_reg(
                             FederationSpan::CrdtMerge,
                             json!({"from": peer, "triples_added": deltas.triples_added, "latency_ms": latency}),
                         );
@@ -173,7 +173,7 @@ impl FederationSync {
         }
     }
 
-    fn emit_cns(&self, span: FederationSpan, metadata: serde_json::Value) {
+    fn emit_reg(&self, span: FederationSpan, metadata: serde_json::Value) {
         let s = Span::new(
             SpanNamespace::from_observable(&span).expect("domain span must be canonical"),
             "federation",

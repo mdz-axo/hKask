@@ -126,7 +126,7 @@ templates:
 
 # FlowDef orchestrator — chains all 8 stages with convergence criteria.
 # Regulation spans (reg.prompt.{select,render,outcome}) are emitted automatically
-# by the flow engine for WordAct populate steps; no explicit cns_spans needed.
+# by the flow engine for WordAct populate steps; no explicit reg_spans needed.
 flowdef:
   manifest: registry/manifests/superforecasting.yaml
   description: >

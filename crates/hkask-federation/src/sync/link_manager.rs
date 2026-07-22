@@ -76,7 +76,7 @@ impl FederationLinkManager {
             message: None,
         };
         let _ = self.transport.send(&peer, msg).await;
-        self.emit_cns(FederationSpan::InviteSent, &peer);
+        self.emit_reg(FederationSpan::InviteSent, &peer);
         Ok(())
     }
 
@@ -96,7 +96,7 @@ impl FederationLinkManager {
             reason: None,
         };
         let _ = self.transport.send(&peer, msg).await;
-        self.emit_cns(FederationSpan::LinkEstablished, &peer);
+        self.emit_reg(FederationSpan::LinkEstablished, &peer);
         Ok(())
     }
 
@@ -114,7 +114,7 @@ impl FederationLinkManager {
             reason: Some("rejected by admin".into()),
         };
         let _ = self.transport.send(&peer, msg).await;
-        self.emit_cns(FederationSpan::InviteRejected, &peer);
+        self.emit_reg(FederationSpan::InviteRejected, &peer);
         Ok(())
     }
 
@@ -129,7 +129,7 @@ impl FederationLinkManager {
             reason,
             initiated_by: self.local_replica.clone(),
         })?;
-        self.emit_cns(FederationSpan::LinkPaused, &peer);
+        self.emit_reg(FederationSpan::LinkPaused, &peer);
         Ok(())
     }
 
@@ -142,7 +142,7 @@ impl FederationLinkManager {
         link.transition_to(LinkState::Linked {
             established_at: Utc::now(),
         })?;
-        self.emit_cns(FederationSpan::LinkResumed, &peer);
+        self.emit_reg(FederationSpan::LinkResumed, &peer);
         Ok(())
     }
 
@@ -158,7 +158,7 @@ impl FederationLinkManager {
             initiated_by: self.local_replica.clone(),
             scope: crate::sync::link::RevocationScope::SingleMember,
         })?;
-        self.emit_cns(FederationSpan::MemberRevoked, &peer);
+        self.emit_reg(FederationSpan::MemberRevoked, &peer);
         Ok(())
     }
 
@@ -174,7 +174,7 @@ impl FederationLinkManager {
                     initiated_by: self.local_replica.clone(),
                     scope: crate::sync::link::RevocationScope::VoluntaryDeparture,
                 })?;
-                self.emit_cns(FederationSpan::MemberLeft, replica);
+                self.emit_reg(FederationSpan::MemberLeft, replica);
             }
         }
         Ok(())
@@ -196,7 +196,7 @@ impl FederationLinkManager {
             .collect()
     }
 
-    fn emit_cns(&self, span: FederationSpan, peer: &ReplicaId) {
+    fn emit_reg(&self, span: FederationSpan, peer: &ReplicaId) {
         let s = Span::new(
             SpanNamespace::from_observable(&span).expect("domain span must be canonical"),
             "federation",

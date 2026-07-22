@@ -213,7 +213,7 @@ CONSTRAINT — Evidence integrity (P8):
    cycle.
 5. Return JSON: `{convergence_metric, dimensions, rationale, blockers,
    oscr_categories_covered, oscr_categories_missing, existing_taxonomy_mappings,
-   proposed_taxonomy_mappings, cns_span_emitted: true}`.
+   proposed_taxonomy_mappings, reg_span_emitted: true}`.
 6. Emit `reg.taxonomy.convergence` Regulation span (registered in
    `CANONICAL_NAMESPACES` — emitted unconditionally).
 

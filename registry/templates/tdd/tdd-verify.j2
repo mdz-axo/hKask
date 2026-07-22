@@ -25,13 +25,13 @@ contract:
     functional_gaps: array
    violations: array
      contract_expectations_valid: array
-     cns_spans_emitted: array
+     reg_spans_emitted: array
      passed: boolean
 ---
 {# Template: tdd/tdd-verify.j2 #}
 {# Functional Role: KnowAct — TDD cycle verification with functional coverage check #}
 {# Implementation: Jinja2 prompt #}
-{# Produces: all_tests_pass, clippy_clean, no_todo_stubs, behavior_coverage, functional_gaps, violations, contract_expectations_valid, cns_spans_emitted, passed #}
+{# Produces: all_tests_pass, clippy_clean, no_todo_stubs, behavior_coverage, functional_gaps, violations, contract_expectations_valid, reg_spans_emitted, passed #}
 
 [inference]
 temperature = 0.1
@@ -140,7 +140,7 @@ Respond with a JSON object:
       "semantic_match_assessment": "aligned|ambiguous|contradiction|vacuous"
     }
   ],
-  "cns_spans_emitted": [
+  "reg_spans_emitted": [
     {
       "span_id": "reg.contract.violated:uuid",
       "violation_type": "missing-user-expectation|missing-goal-principle|missing-constraining-annotation|expectation-postcondition-mismatch",

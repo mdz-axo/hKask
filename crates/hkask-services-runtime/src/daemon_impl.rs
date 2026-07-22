@@ -66,7 +66,7 @@ impl ServiceDaemonHandler {
         ledger_runtime: Option<Arc<RwLock<RegulationLedger>>>,
         inference_port: Option<Arc<dyn InferencePort>>,
     ) -> Self {
-        tracing::info!(target: "hkask.daemon", operation = "new_handler", has_cns = ledger_runtime.is_some(), has_inference = inference_port.is_some(), "REG");
+        tracing::info!(target: "hkask.daemon", operation = "new_handler", has_reg = ledger_runtime.is_some(), has_inference = inference_port.is_some(), "REG");
 
         Self {
             pod_manager,

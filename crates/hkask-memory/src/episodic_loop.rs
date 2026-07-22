@@ -77,7 +77,7 @@ impl EpisodicLoop {
     }
 
     /// Emit a Regulation RegulationRecord through the memory's event sink.
-    fn emit_cns(&self, verb: &str, observation: serde_json::Value) {
+    fn emit_reg(&self, verb: &str, observation: serde_json::Value) {
         if let Some(sink) = self.memory.event_sink() {
             let span = Span::new(
                 SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
@@ -191,7 +191,7 @@ impl RegulationLoop for EpisodicLoop {
                                 },
                             ) {
                                 Ok(outcome) if outcome.consolidated_count > 0 => {
-                                    self.emit_cns(
+                                    self.emit_reg(
                                         "episodic_consolidated",
                                         serde_json::json!({
                                             "consolidated": outcome.consolidated_count,
@@ -204,7 +204,7 @@ impl RegulationLoop for EpisodicLoop {
                                     // No-op: consolidation fired but no h_mems to consolidate
                                 }
                                 Err(e) => {
-                                    self.emit_cns(
+                                    self.emit_reg(
                                         "episodic_consolidation_failed",
                                         serde_json::json!({
                                             "error": e.to_string(),
@@ -214,7 +214,7 @@ impl RegulationLoop for EpisodicLoop {
                                 }
                             }
                         } else {
-                            self.emit_cns(
+                            self.emit_reg(
                                 "episodic_budget_exceeded_no_bridge",
                                 serde_json::json!({
                                     "overage": overage
@@ -222,7 +222,7 @@ impl RegulationLoop for EpisodicLoop {
                             );
                         }
                     } else {
-                        self.emit_cns(
+                        self.emit_reg(
                             "episodic_calibrate",
                             serde_json::json!({
                                 "action_type": format!("{:?}", action.action_type),
@@ -232,7 +232,7 @@ impl RegulationLoop for EpisodicLoop {
                     }
                 }
                 _ => {
-                    self.emit_cns(
+                    self.emit_reg(
                         "episodic_regulate",
                         serde_json::json!({
                             "action_type": format!("{:?}", action.action_type),

@@ -100,7 +100,7 @@ steps:
     timeout_seconds: 60
     input_mapping:
       tokens: "{{ step_1_result }}"
-      cns_spans: "{{ cns_spans | default('') }}"
+      reg_spans: "{{ reg_spans | default('') }}"
 
   - ordinal: 3
     action: select

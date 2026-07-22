@@ -32,7 +32,7 @@ capabilities:
   - "tool:filesystem:shell"
 
 rights:
-  - read: cns_spans_all
+  - read: reg_spans_all
   - read: variety_counters_all
   - read: slo_evaluations_all
   - read: delegation_tokens_all

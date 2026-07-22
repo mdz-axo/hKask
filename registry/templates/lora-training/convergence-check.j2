@@ -27,7 +27,7 @@ contract:
     post_training_verified: boolean
     blockers: array
     gate_results_summary: object
-    cns_span_emitted: boolean
+    reg_span_emitted: boolean
 energy_cap: 4096
 visibility: Public
 ---
@@ -143,7 +143,7 @@ post_training_verified, blockers, gate_results_summary: {states,
 applicable_gates, excluded_gates, family_risks, normalized_weights},
 existing_regressions_count, proposed_regressions_count,
 unresolved_critical, unresolved_high, qlora_mode, corda_mode,
-userpod_host, cns_span_emitted: true}`.
+userpod_host, reg_span_emitted: true}`.
 
 5W1H GATE (P5): Who = mandatory userpod host; What = phase-aware
 convergence; Where = current audit/training workspace; When = declared
@@ -215,7 +215,7 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 gate results. `previous_metric` is optional comparable evidence; when
 absent, improvement_pct is null and threshold convergence still applies.
 Regulation SPAN EMITTED: `reg.lora.convergence` is registered, so the span
-is always emitted. Output states `cns_span_emitted: true`.
+is always emitted. Output states `reg_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 and blockers — no extra synthesis (that is `report.j2`
 responsibility).
