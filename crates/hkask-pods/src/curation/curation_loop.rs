@@ -16,12 +16,12 @@
 //! formats them for human operators.
 
 use chrono::Utc;
-use hkask_regulation::types::loops::{
-    CommunicationEvent, CurationInput, Deviation, RegulationLoop, RegulatoryAction, LoopId, Signal,
-    SignalMetric,
-};
 use hkask_memory::ConsolidationBridge;
 use hkask_ports::ConsolidationRequest;
+use hkask_regulation::types::loops::{
+    CommunicationEvent, CurationInput, Deviation, LoopId, RegulationLoop, RegulatoryAction, Signal,
+    SignalMetric,
+};
 use hkask_types::DataCategory;
 use hkask_types::curator::{CuratorDirective, CuratorHandle};
 use hkask_types::{BotID, TemplateID};
@@ -494,21 +494,27 @@ impl RegulationLoop for CurationLoop {
                     actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::RegulatoryActionParams::reason("goals_stale"),
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason(
+                            "goals_stale",
+                        ),
                     ));
                 }
                 SignalMetric::GoalExpiredCount if dev.signal.value > 0.0 => {
                     actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::RegulatoryActionParams::reason("goals_expired"),
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason(
+                            "goals_expired",
+                        ),
                     ));
                 }
                 SignalMetric::GoalExpiredCount if dev.signal.value > 0.0 => {
                     actions.push(RegulatoryAction::new(
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::RegulatoryActionParams::reason("goals_expired"),
+                        hkask_regulation::types::loops::RegulatoryActionParams::reason(
+                            "goals_expired",
+                        ),
                     ));
                 }
                 _ => {}

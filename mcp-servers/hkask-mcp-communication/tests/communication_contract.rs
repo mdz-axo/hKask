@@ -91,13 +91,7 @@ async fn lookup_unregistered_returns_none() {
 fn test_server() -> CommunicationServer {
     let matrix = Arc::new(MatrixTransport::new("http://localhost:0"));
     let registry = Arc::new(AgentRegistry::new());
-    CommunicationServer::new(
-        WebID::new(),
-        "test-userpod".into(),
-        None,
-        matrix,
-        registry,
-    )
+    CommunicationServer::new(WebID::new(), "test-userpod".into(), None, matrix, registry)
 }
 
 /// Parse the success envelope `{"content": <value>}`; falls back to the raw

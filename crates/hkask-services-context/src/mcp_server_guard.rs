@@ -4,10 +4,11 @@
 //! dependency — it needs both `McpRuntime` from `hkask-mcp` and the `RegulationLoop`
 //! trait from `hkask-regulation`. Both are available here.
 
-use hkask_regulation::types::loops::{
-    ActionType, Deviation, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId, Signal, SignalMetric,
-};
 use hkask_mcp::McpRuntime;
+use hkask_regulation::types::loops::{
+    ActionType, Deviation, LoopId, RegulationLoop, RegulatoryAction, RegulatoryActionParams,
+    Signal, SignalMetric,
+};
 use std::sync::Arc;
 
 pub struct McpServerGuardLoop {

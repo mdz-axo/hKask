@@ -86,8 +86,11 @@ impl KataEngine {
                 );
             }
 
-            self.increment_ledger_variety(&manifest.ledger.span_namespace, "kata.practices.completed")
-                .await;
+            self.increment_ledger_variety(
+                &manifest.ledger.span_namespace,
+                "kata.practices.completed",
+            )
+            .await;
         }
 
         Ok(KataResult {

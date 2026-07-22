@@ -2,7 +2,7 @@
 
 use crate::ports::{EscalationBatch, EscalationEntry};
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, RegulationLoop, RegulatoryAction, LoopId, Signal, SignalMetric,
+    ActionType, Deviation, LoopId, RegulationLoop, RegulatoryAction, Signal, SignalMetric,
 };
 use hkask_types::BotID;
 use tracing::{info, warn};

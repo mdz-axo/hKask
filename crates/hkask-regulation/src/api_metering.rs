@@ -657,7 +657,10 @@ mod tests {
     }
 
     impl RegulationSink for CaptureSink {
-        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
+        fn persist(
+            &self,
+            event: &RegulationRecord,
+        ) -> Result<(), hkask_types::InfrastructureError> {
             *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
             Ok(())
         }

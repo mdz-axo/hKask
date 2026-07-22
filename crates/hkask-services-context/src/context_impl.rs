@@ -24,6 +24,11 @@
 
 use std::sync::Arc;
 
+use hkask_capability::CapabilityChecker;
+use hkask_database::sqlite::SqliteDriver;
+use hkask_federation::sync::FederationLinkManager;
+use hkask_federation::sync::FederationSync;
+use hkask_federation::sync::transport::InMemoryFederationTransport;
 use hkask_pods::CuratorContext;
 use hkask_pods::InferenceLoop;
 use hkask_pods::LoopScheduler;
@@ -33,25 +38,20 @@ use hkask_pods::curation::sync_port::SemanticIndexSyncPort;
 use hkask_pods::curator_agent::CuratorAgent;
 use hkask_pods::pod::ActivePods;
 use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_capability::CapabilityChecker;
 use hkask_regulation::types::loops::CuratorHandle;
 use hkask_regulation::types::loops::RegulationLoop;
 use hkask_regulation::types::loops::{CurationInput, CuratorDirective};
 use hkask_regulation::{
-    CalibratedEnergyEstimator, RegulationLedger, CyberneticsLoop, EnergyEstimator, SeamSummary,
+    CalibratedEnergyEstimator, CyberneticsLoop, EnergyEstimator, RegulationLedger, SeamSummary,
     SeamWatcher, load_set_points,
 };
-use hkask_database::sqlite::SqliteDriver;
-use hkask_federation::sync::FederationLinkManager;
-use hkask_federation::sync::FederationSync;
-use hkask_federation::sync::transport::InMemoryFederationTransport;
 
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
 use hkask_ports::federation::{FederationDispatch, FederationSyncPort};
-use hkask_ports::{LedgerStoragePort, ConsolidationOutcome, ConsolidationRequest, InferencePort};
+use hkask_ports::{ConsolidationOutcome, ConsolidationRequest, InferencePort, LedgerStoragePort};
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::regulation_store::RegulationArchive;
@@ -72,9 +72,9 @@ use hkask_services_wallet::WalletService;
 mod matrix;
 mod seam_monitor;
 
-use crate::regulation;
 use crate::governance;
 use crate::infra;
+use crate::regulation;
 use crate::storage;
 
 /// Agent operational context — canonical composition root for hKask.
@@ -346,7 +346,8 @@ impl AgentService {
             },
         )?;
 
-        let per_agent_memory = Self::build_per_agent_memory(db, Some(Arc::clone(&self.ledger.events)));
+        let per_agent_memory =
+            Self::build_per_agent_memory(db, Some(Arc::clone(&self.ledger.events)));
         per_agent_memory
             .consolidation_service
             .consolidate(&target_webid, request)

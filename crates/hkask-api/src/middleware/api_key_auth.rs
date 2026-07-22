@@ -72,7 +72,10 @@ impl ApiKeyAuthService {
     /// Attach an API rate limiter. When set, per-key rate limits are enforced
     /// in the middleware after authentication succeeds.
     #[must_use]
-    pub fn with_api_meter(mut self, meter: Arc<std::sync::RwLock<hkask_regulation::ApiMeter>>) -> Self {
+    pub fn with_api_meter(
+        mut self,
+        meter: Arc<std::sync::RwLock<hkask_regulation::ApiMeter>>,
+    ) -> Self {
         self.api_meter = Some(meter);
         self
     }

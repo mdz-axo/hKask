@@ -79,8 +79,8 @@ pub use energy_budget_management::GasBudgetManager;
 pub use energy_estimator::EnergyEstimator;
 pub use gas_report::{AgentGasReport, AgentGasSummary, GasReport, GasTotals, ToolGasBreakdown};
 
-pub use hkask_types::regulation::QueueDepth;
 pub use hkask_types::curator::CurationThresholdConfig;
+pub use hkask_types::regulation::QueueDepth;
 pub use infra_span::InfraSpan;
 pub use qa_span::QaSpan;
 pub use runtime::NoopEventSink;

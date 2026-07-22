@@ -57,7 +57,10 @@ impl WalletGasCalibrator {
     /// post: returns WalletGasCalibrator seeded with the manager's current gas_per_rjoule rate
     /// post: first calibration will look back `DEFAULT_WALLET_INITIAL_LOOKBACK`
     /// post: no event sink attached until `with_event_sink` is called
-    pub fn new(store: Arc<dyn LedgerStoragePort>, wallet_manager: Arc<dyn WalletBudgetPort>) -> Self {
+    pub fn new(
+        store: Arc<dyn LedgerStoragePort>,
+        wallet_manager: Arc<dyn WalletBudgetPort>,
+    ) -> Self {
         let initial_rate = wallet_manager.gas_per_rjoule();
         Self {
             store,
@@ -257,7 +260,10 @@ mod tests {
     }
 
     impl RegulationSink for CaptureSink {
-        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
+        fn persist(
+            &self,
+            event: &RegulationRecord,
+        ) -> Result<(), hkask_types::InfrastructureError> {
             *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
             Ok(())
         }
@@ -313,7 +319,8 @@ mod tests {
             .persist(&settled_event(agent, 100, 200))
             .expect("persist settled event");
 
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let calibrator = Arc::new(WalletGasCalibrator::new(store, Arc::clone(&wallet_manager)));
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(adjusted, "ratio 2.0 should adjust rate");
@@ -336,7 +343,8 @@ mod tests {
             .persist(&settled_event(agent, 100, 200))
             .expect("persist settled event");
 
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let calibrator = Arc::new(
             WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
                 .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),
@@ -365,7 +373,8 @@ mod tests {
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let calibrator = Arc::new(
             WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
                 .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),
@@ -384,7 +393,8 @@ mod tests {
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
 
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let calibrator = Arc::new(WalletGasCalibrator::new(store, Arc::clone(&wallet_manager)));
         let adjusted = calibrator.calibrate().await.unwrap();
         assert!(!adjusted);
@@ -397,7 +407,8 @@ mod tests {
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
 
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let _calibrator = WalletGasCalibrator::new(store, Arc::clone(&wallet_manager))
             .with_initial_lookback(ChronoDuration::minutes(30));
         // Construction succeeds; internal state is not directly observable.

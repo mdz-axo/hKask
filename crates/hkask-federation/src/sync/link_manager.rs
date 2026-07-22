@@ -300,7 +300,10 @@ mod tests {
 
     struct NoopSink;
     impl RegulationSink for NoopSink {
-        fn persist(&self, _event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
+        fn persist(
+            &self,
+            _event: &RegulationRecord,
+        ) -> Result<(), hkask_types::InfrastructureError> {
             Ok(())
         }
     }

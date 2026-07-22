@@ -24,7 +24,7 @@
 
 use hkask_regulation::RegulationLoop;
 use hkask_types::loops::{
-    ActionType, Deviation, RegulatoryAction, RegulatoryActionParams, LoopId, Signal, SignalMetric,
+    ActionType, Deviation, LoopId, RegulatoryAction, RegulatoryActionParams, Signal, SignalMetric,
 };
 use std::path::Path;
 use std::sync::Arc;

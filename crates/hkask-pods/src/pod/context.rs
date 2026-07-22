@@ -11,10 +11,10 @@
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
 use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
-use hkask_regulation::ExperienceClassification;
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
 use hkask_ports::ToolPort;
+use hkask_regulation::ExperienceClassification;
 use hkask_types::DataCategory;
 use hkask_types::{Confidence, WebID};
 use std::sync::Arc;
@@ -357,7 +357,8 @@ impl PodContext {
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => {
                 handle.spawn(async move {
-                    ledger.increment_variety("reg.semantic.published", &entity)
+                    ledger
+                        .increment_variety("reg.semantic.published", &entity)
                         .await;
                 });
             }

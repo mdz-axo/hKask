@@ -101,8 +101,11 @@ impl KataEngine {
                 obs(&manifest.ledger.span_namespace, step.ordinal, &step.action);
             }
 
-            self.increment_ledger_variety(&manifest.ledger.span_namespace, "kata.practices.completed")
-                .await;
+            self.increment_ledger_variety(
+                &manifest.ledger.span_namespace,
+                "kata.practices.completed",
+            )
+            .await;
         }
 
         Ok(KataResult {

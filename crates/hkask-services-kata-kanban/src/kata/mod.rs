@@ -14,8 +14,8 @@
 //! Manifests are loaded from `registry/manifests/*.yaml`. Templates are rendered
 //! via the hKask template registry (Jinja2). Inference uses the centralized router.
 
-use hkask_regulation::RegulationLedger;
 use hkask_ports::InferencePort;
+use hkask_regulation::RegulationLedger;
 use hkask_services_core::HkaskSettings;
 use hkask_storage::KataHistoryStore;
 use hkask_templates::SqliteRegistry;
@@ -41,7 +41,7 @@ pub use history::{
     ImprovementDirection, ImprovementSignal, KataHistory, PracticeEntry, StepExperience,
 };
 pub use manifest::{
-    CoachQuestion, ErrorHandling, KataAuditConfig, KataLedgerConfig, KataGasConfig, KataManifest,
+    CoachQuestion, ErrorHandling, KataAuditConfig, KataGasConfig, KataLedgerConfig, KataManifest,
     KataStep, ManifestMeta, MetricDef, Outcome, PracticeRoutine, StarterOutcome,
 };
 pub use state::{KataResult, KataState};

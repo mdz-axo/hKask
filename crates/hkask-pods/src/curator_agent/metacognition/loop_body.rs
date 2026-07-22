@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use crate::ports::EscalationEntry;
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, Loop, RegulatoryAction, RegulatoryActionParams, LoopId,
-    SignalMetric,
+    ActionType, Deviation, DeviationDirection, Loop, LoopId, RegulatoryAction,
+    RegulatoryActionParams, SignalMetric,
 };
 use hkask_types::WebID;
 use hkask_types::curator::CuratorDirective;
@@ -273,7 +273,10 @@ impl MetacognitionLoop {
         default
     }
 
-    pub(super) async fn act_on_throttle(&self, action: &RegulatoryAction) -> Option<EscalationEntry> {
+    pub(super) async fn act_on_throttle(
+        &self,
+        action: &RegulatoryAction,
+    ) -> Option<EscalationEntry> {
         let domain = Self::param_str(action, "domain", "");
         let new_threshold = Self::param_u64(
             action,
@@ -313,7 +316,10 @@ impl MetacognitionLoop {
     // authority DAG: Curation (L5) owns the escalation queue as its algedonic
     // regulation mechanism. This does NOT bypass the Communication Loop because
     // the queue is not a loop-to-loop message channel.
-    pub(super) async fn act_on_escalate(&self, action: &RegulatoryAction) -> Option<EscalationEntry> {
+    pub(super) async fn act_on_escalate(
+        &self,
+        action: &RegulatoryAction,
+    ) -> Option<EscalationEntry> {
         let metric = Self::param_str(action, "metric", "");
         let target = Self::param_str(action, "target", "");
         match metric {
@@ -624,7 +630,10 @@ impl MetacognitionLoop {
     }
 
     /// Fallback: Rust threshold comparison (standalone CLI, no executor).
-    pub(super) fn compute_with_thresholds(&self, deviations: &[Deviation]) -> Vec<RegulatoryAction> {
+    pub(super) fn compute_with_thresholds(
+        &self,
+        deviations: &[Deviation],
+    ) -> Vec<RegulatoryAction> {
         let mut actions = Vec::new();
         for dev in deviations {
             match dev.signal.metric {

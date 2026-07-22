@@ -11,10 +11,10 @@ use hkask_services_chat::TokenUsage;
 
 use super::ReplState;
 use super::TalkMode;
-#[cfg(feature = "tui")]
-use super::reg_display;
 use super::deps::{TurnConfig, TurnDeps, TurnInput};
 use super::handlers::speak_response;
+#[cfg(feature = "tui")]
+use super::reg_display;
 
 // ── TurnSink: output abstraction ─────────────────────────────────────
 

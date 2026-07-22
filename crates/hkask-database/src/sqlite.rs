@@ -173,7 +173,9 @@ impl DatabaseDriver for SqliteDriver {
             .map_err(|e| DbError::Database(e.to_string()));
         let duration_us = start.elapsed().as_micros() as u64;
         match &result {
-            Ok(rows) => crate::regulation::emit_storage_span("execute", table, duration_us, *rows, false),
+            Ok(rows) => {
+                crate::regulation::emit_storage_span("execute", table, duration_us, *rows, false)
+            }
             Err(_) => crate::regulation::emit_storage_span("execute", table, duration_us, 0, true),
         }
         result

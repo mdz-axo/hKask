@@ -24,8 +24,8 @@ pub mod metacognition;
 use crate::curation::context::CuratorContext;
 use crate::curation::curation_loop::CurationLoop;
 use crate::pod::CommunicationPosture;
-use hkask_regulation::types::loops::CurationInput;
 use hkask_memory::ConsolidationBridge;
+use hkask_regulation::types::loops::CurationInput;
 use std::sync::Arc;
 
 /// Curator Agent — the persona layer of Curation (Loop 5).

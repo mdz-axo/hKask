@@ -7,7 +7,7 @@
 //! - P9 (Homeostatic Self-Regulation): the Regulation must detect perturbations and restore homeostasis
 //! - P8 (Semantic Grounding): every test asserts a stated behavioral property
 
-use hkask_test_harness::{MockRegulationLedger, MockCnsState, MockToolState, test_event};
+use hkask_test_harness::{MockCnsState, MockRegulationLedger, MockToolState, test_event};
 use hkask_types::event::{CyclePhase, Span, SpanNamespace};
 
 // The Regulation detects perturbations and restores homeostasis.
@@ -21,7 +21,10 @@ fn reg_detects_perturbation() {
     let event = test_event(span, CyclePhase::Sense, None);
     ledger.inject(event);
 
-    assert!(!ledger.is_homeostatic(), "Ledger should detect perturbation");
+    assert!(
+        !ledger.is_homeostatic(),
+        "Ledger should detect perturbation"
+    );
     let signals = ledger.recent_signals();
     assert!(
         signals.iter().any(|s| s.is_negative_valence()),

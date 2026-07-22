@@ -28,9 +28,9 @@ use crate::chain::{ChainPort, DepositEvent};
 use crate::price_feed::{PriceFeed, WithdrawalFee};
 
 mod budget;
-mod regulation;
 mod deposits;
 mod encumbrance;
+mod regulation;
 mod withdrawals;
 
 /// Optional hook for centralized self-healing policies.

@@ -34,11 +34,7 @@ pub(crate) fn verify_output(
 
     let error_count = errors.len();
 
-    VerificationReport::new(
-        page_count_match,
-        empty_pages,
-        error_count,
-    )
+    VerificationReport::new(page_count_match, empty_pages, error_count)
 }
 
 #[cfg(test)]
@@ -124,5 +120,4 @@ mod tests {
         assert_eq!(report.empty_pages, vec![1]);
         assert!(!report.passed, "empty page should cause failure");
     }
-
 }

@@ -22,10 +22,10 @@ use crate::set_points::DEFAULT_VARIETY_MAX_DEFICIT;
 use crate::slo_manager::{SloDataProvider, SloManager};
 use crate::tool_stats::ToolStats;
 
-use hkask_ports::{BackpressureSignal, LedgerObserver, DepletionSignal};
+use hkask_ports::{BackpressureSignal, DepletionSignal, LedgerObserver};
 use hkask_types::WebID;
-use hkask_types::regulation::{LedgerHealth, RegulationHealth};
 use hkask_types::event::{RegulationRecord, RegulationSink, SpanNamespace};
+use hkask_types::regulation::{LedgerHealth, RegulationHealth};
 use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -1034,7 +1034,10 @@ impl RegulationSink for NoopEventSink {
 }
 
 /// Build and broadcast a `DepletionSignal` for a critical algedonic alert.
-async fn emit_critical_depletion(runtime: &RegulationLedger, alert: &crate::algedonic::RuntimeAlert) {
+async fn emit_critical_depletion(
+    runtime: &RegulationLedger,
+    alert: &crate::algedonic::RuntimeAlert,
+) {
     let signal = DepletionSignal {
         agent: WebID::default(),
         remaining: alert.threshold.saturating_sub(alert.deficit),

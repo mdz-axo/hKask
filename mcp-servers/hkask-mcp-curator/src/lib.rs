@@ -17,8 +17,8 @@ use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_services_context::governance;
 
 use hkask_types::WebID;
-use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::RegulationSink;
+use hkask_types::regulation::RegulationSpan;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde_json::json;
 use std::sync::Arc;
@@ -115,7 +115,8 @@ impl CuratorServer {
                     "RegulationArchive not available",
                 ));
             };
-            let events: Arc<dyn RegulationSink> = Arc::clone(events_store) as Arc<dyn RegulationSink>;
+            let events: Arc<dyn RegulationSink> =
+                Arc::clone(events_store) as Arc<dyn RegulationSink>;
             match governance::resolve_direct(queue.as_ref(), &events, &req.id, &self.userpod) {
                 Ok(()) => Ok(json!({"resolved": true, "id": req.id})),
                 Err(e) => Err(McpToolError::internal(format!("{e}"))),
@@ -140,7 +141,8 @@ impl CuratorServer {
                     "RegulationArchive not available",
                 ));
             };
-            let events: Arc<dyn RegulationSink> = Arc::clone(events_store) as Arc<dyn RegulationSink>;
+            let events: Arc<dyn RegulationSink> =
+                Arc::clone(events_store) as Arc<dyn RegulationSink>;
             match governance::dismiss_direct(queue.as_ref(), &events, &req.id, &self.userpod) {
                 Ok(()) => Ok(json!({"dismissed": true, "id": req.id})),
                 Err(e) => Err(McpToolError::internal(format!("{e}"))),

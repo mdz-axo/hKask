@@ -387,7 +387,10 @@ mod reg_span_tests {
         assert_eq!(RegulationSpan::Gas.to_string(), "reg.gas");
         assert_eq!(RegulationSpan::Curation.to_string(), "reg.curation");
         assert_eq!(RegulationSpan::SelfHeal.to_string(), "reg.heal");
-        assert_eq!(RegulationSpan::MemoryEncode.to_string(), "reg.memory.encode");
+        assert_eq!(
+            RegulationSpan::MemoryEncode.to_string(),
+            "reg.memory.encode"
+        );
     }
 
     #[test]

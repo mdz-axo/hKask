@@ -8,14 +8,14 @@ use std::sync::Arc;
 
 use crate::consolidation::ConsolidationBridge;
 use crate::episodic::EpisodicMemory;
-use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId,
-    Signal, SignalMetric,
-};
 use hkask_ports::ConsolidationRequest;
+use hkask_regulation::types::loops::{
+    ActionType, Deviation, DeviationDirection, LoopId, RegulationLoop, RegulatoryAction,
+    RegulatoryActionParams, Signal, SignalMetric,
+};
 use hkask_types::WebID;
-use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
+use hkask_types::regulation::RegulationSpan;
 
 /// Episodic Loop — monitors episodic storage usage against budget and enforces limits.
 ///
@@ -83,7 +83,8 @@ impl EpisodicLoop {
                 SpanNamespace::try_from(RegulationSpan::MemoryEncode).expect("canonical span"),
                 verb,
             );
-            let event = RegulationRecord::new(self.perspective, span, CyclePhase::Act, observation, 0);
+            let event =
+                RegulationRecord::new(self.perspective, span, CyclePhase::Act, observation, 0);
             let _ = sink.persist(&event);
         }
     }

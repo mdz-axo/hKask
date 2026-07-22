@@ -7,16 +7,16 @@
 //!
 //! Escalation CRUD lives here — the data and the behavior co-locate.
 
+use hkask_capability::CapabilityChecker;
 use hkask_pods::a2a::A2ARuntime;
 use hkask_pods::consent::ConsentManager;
-use hkask_capability::CapabilityChecker;
 use hkask_regulation::types::loops::{CurationInput, GoalTransitionEvent};
 
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_storage::{EscalationEntry, EscalationQueue};
 use hkask_types::WebID;
-use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
+use hkask_types::regulation::RegulationSpan;
 use std::sync::Arc;
 
 // ── Escalation response type ──────────────────────────────────────────

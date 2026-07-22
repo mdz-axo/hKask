@@ -7,7 +7,7 @@
 //! into the canonical `BundleManifest` type.
 
 use crate::bundle::{
-    BundleAuditConfig, BundleLedgerConfig, BundleComplementarity, BundleConflict, BundleGasConfig,
+    BundleAuditConfig, BundleComplementarity, BundleConflict, BundleGasConfig, BundleLedgerConfig,
     BundleManifest, BundleManifestStep, BundleSkill, ConvergenceConfig, ErrorHandlingConfig,
     OcapConfig, RjouleConfig,
 };

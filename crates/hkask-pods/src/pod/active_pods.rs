@@ -193,8 +193,6 @@ impl ActivePods {
         self.get_pod_webid(pod_id).await
     }
 
-
-
     pub async fn has_capability(&self, pod_id: &PodID, tool: &str) -> bool {
         self.deployments
             .read()
@@ -342,9 +340,8 @@ impl ActivePods {
         // Extract the SemanticIndex (set by create_pod when PodKind::Curator)
         let index = {
             let ci = self.curator_index.read().await;
-            ci.clone().ok_or_else(|| {
-                AgentPodError::SemanticIndexMissing
-            })?
+            ci.clone()
+                .ok_or_else(|| AgentPodError::SemanticIndexMissing)?
         };
 
         let registry = Arc::new(PodRegistry::new(data_dir));
@@ -446,7 +443,6 @@ impl ActivePods {
             .collect()
     }
 
-
     /// Export a pod as a container build context (delegates to PodFactory).
     pub fn export_container(
         &self,
@@ -457,7 +453,6 @@ impl ActivePods {
             .export_container(pod_id, output_dir)
             .map_err(|e| super::AgentPodError::DeployError(e.to_string()))
     }
-
 }
 
 #[derive(Debug, Clone)]

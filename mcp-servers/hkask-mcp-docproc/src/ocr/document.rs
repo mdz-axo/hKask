@@ -107,17 +107,11 @@ impl VerificationReport {
     /// A report passes when: page count matches, no empty pages, and zero
     /// errors. (The word-count-delta check was removed — see verification.rs.)
     pub fn compute_passed(&mut self) {
-        self.passed = self.page_count_match
-            && self.empty_pages.is_empty()
-            && self.error_count == 0;
+        self.passed = self.page_count_match && self.empty_pages.is_empty() && self.error_count == 0;
     }
 
     /// Create a report and compute `passed` inline.
-    pub fn new(
-        page_count_match: bool,
-        empty_pages: Vec<usize>,
-        error_count: usize,
-    ) -> Self {
+    pub fn new(page_count_match: bool, empty_pages: Vec<usize>, error_count: usize) -> Self {
         let mut report = Self {
             page_count_match,
             empty_pages,
@@ -128,7 +122,6 @@ impl VerificationReport {
         report
     }
 }
-
 
 // ── Pipeline Outcome ──────────────────────────────────────────────────────
 

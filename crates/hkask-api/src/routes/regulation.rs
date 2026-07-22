@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures_util::stream::Stream;
-use hkask_ports::{BackpressureSignal, LedgerObserver, DepletionSignal};
+use hkask_ports::{BackpressureSignal, DepletionSignal, LedgerObserver};
 use hkask_types::event::{RegulationRecord, SpanNamespace};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -24,7 +24,10 @@ use crate::ApiState;
 pub fn regulation_router() -> OpenApiRouter<ApiState> {
     OpenApiRouter::new()
         .routes(routes!(regulation_health))
-        .route("/api/regulation/alerts", axum::routing::get(regulation_alerts))
+        .route(
+            "/api/regulation/alerts",
+            axum::routing::get(regulation_alerts),
+        )
         .routes(routes!(regulation_variety))
         .routes(routes!(regulation_subscribe))
 }
@@ -80,16 +83,22 @@ impl LedgerObserver for SseObserver {
         let interested =
             self.interest_mask.is_empty() || self.interest_mask.contains(&event.span.namespace);
         if interested {
-            let _ = self.sender.send(RegulationSseEvent::RegulationRecord(event.clone()));
+            let _ = self
+                .sender
+                .send(RegulationSseEvent::RegulationRecord(event.clone()));
         }
     }
 
     async fn on_depletion(&self, signal: &DepletionSignal) {
-        let _ = self.sender.send(RegulationSseEvent::Depletion(signal.clone()));
+        let _ = self
+            .sender
+            .send(RegulationSseEvent::Depletion(signal.clone()));
     }
 
     async fn on_backpressure(&self, signal: &BackpressureSignal) {
-        let _ = self.sender.send(RegulationSseEvent::Backpressure(signal.clone()));
+        let _ = self
+            .sender
+            .send(RegulationSseEvent::Backpressure(signal.clone()));
     }
 }
 
@@ -105,7 +114,9 @@ impl LedgerObserver for SseObserver {
         (status = 500, description = "Internal server error"),
     ),
 )]
-pub(crate) async fn regulation_health(State(state): State<ApiState>) -> axum::Json<LedgerHealthResponse> {
+pub(crate) async fn regulation_health(
+    State(state): State<ApiState>,
+) -> axum::Json<LedgerHealthResponse> {
     let health = state.agent_service.ledger().health().await;
 
     axum::Json(LedgerHealthResponse {
@@ -131,7 +142,9 @@ async fn regulation_alerts(State(_state): State<ApiState>) -> axum::Json<Vec<Str
         (status = 500, description = "Internal server error"),
     ),
 )]
-pub(crate) async fn regulation_variety(State(state): State<ApiState>) -> axum::Json<RegulationVarietyResponse> {
+pub(crate) async fn regulation_variety(
+    State(state): State<ApiState>,
+) -> axum::Json<RegulationVarietyResponse> {
     let variety_data = state.agent_service.ledger().variety().await;
 
     let domains: Vec<String> = variety_data

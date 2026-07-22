@@ -20,10 +20,10 @@
 //! | SQLite      | ✅    | ✅    | rusqlite    | r2d2 (8)  | sqlite-vec | SQLCipher  |
 //! | PostgreSQL  | —     | ✅    | sqlx        | sqlx pool | pgvector   | pgcrypto   |
 
-pub(crate) mod regulation;
 pub mod driver;
 pub mod encrypt;
 pub mod postgres;
+pub(crate) mod regulation;
 pub mod sqlite;
 pub mod transaction;
 pub mod types;

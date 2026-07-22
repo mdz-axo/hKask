@@ -12,8 +12,8 @@ use hkask_storage::{HMem, HMemError, HMemStore};
 use hkask_types::RegulationSink;
 use hkask_types::Visibility;
 use hkask_types::WebID;
-use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
+use hkask_types::regulation::RegulationSpan;
 use std::sync::Arc;
 use thiserror::Error;
 

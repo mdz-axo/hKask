@@ -3,13 +3,13 @@
 //!
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
-use hkask_pods::pod::ActivePods;
-use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_regulation::{SeamSummary, SeamWatcher, WalletGasCalibrator};
 use hkask_communication::matrix::MatrixTransport;
 use hkask_mcp::McpRuntime;
+use hkask_pods::pod::ActivePods;
+use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_ports::InferencePort;
 use hkask_ports::federation::FederationDispatch;
+use hkask_regulation::{SeamSummary, SeamWatcher, WalletGasCalibrator};
 use hkask_services_runtime::ServiceDaemonHandler;
 use hkask_services_wallet::WalletService;
 use std::sync::Arc;

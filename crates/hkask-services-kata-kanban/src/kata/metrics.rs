@@ -106,7 +106,11 @@ impl KataEngine {
 
     pub(super) async fn increment_ledger_variety(&self, domain: &str, state_name: &str) {
         if let Some(ref ledger) = self.ledger_runtime {
-            ledger.read().await.increment_variety(domain, state_name).await;
+            ledger
+                .read()
+                .await
+                .increment_variety(domain, state_name)
+                .await;
         }
     }
 

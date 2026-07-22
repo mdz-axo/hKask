@@ -36,8 +36,8 @@ pub mod loop_trait;
 pub use channels::{CommunicationEvent, CurationInput, GoalTransitionEvent, ToolConsumptionEvent};
 pub use hkask_types::loops::{
     ActionDecision, ActionType, BudgetOption, Deviation, DeviationDirection,
-    ExperienceClassification, ImpactReport, RegulatoryAction, RegulatoryActionParams, LoopId, LoopMetrics,
-    RegulationData, Signal, SignalMetric, TriggerOrigin,
+    ExperienceClassification, ImpactReport, LoopId, LoopMetrics, RegulationData, RegulatoryAction,
+    RegulatoryActionParams, Signal, SignalMetric, TriggerOrigin,
 };
 
 // The Loop trait stays in hkask-regulation (orphan rule — external crates impl it for foreign types).

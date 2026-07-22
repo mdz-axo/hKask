@@ -387,7 +387,9 @@ fn db_error(e: String) -> hkask_database::types::DbError {
 }
 
 /// Reconstruct a RegulationRecord from a database row.
-fn row_to_regulation_record(row: &hkask_database::value::DbRow) -> anyhow::Result<RegulationRecord> {
+fn row_to_regulation_record(
+    row: &hkask_database::value::DbRow,
+) -> anyhow::Result<RegulationRecord> {
     let id: String = row
         .get_str(0)
         .map_err(|e| anyhow::anyhow!("{e}"))?

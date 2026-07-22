@@ -154,9 +154,9 @@ pub fn parse_target_pages(spec: &str) -> Result<Vec<usize>, TriageError> {
             }
             pages.extend(lo..=hi);
         } else {
-            let p: usize = part.parse().map_err(|_| {
-                TriageError::InvalidPageSpec(format!("invalid page '{}'", part))
-            })?;
+            let p: usize = part
+                .parse()
+                .map_err(|_| TriageError::InvalidPageSpec(format!("invalid page '{}'", part)))?;
             if p == 0 {
                 return Err(TriageError::PdftotextFailed(
                     "target_pages are 1-based; page 0 is invalid".into(),
@@ -466,5 +466,4 @@ mod tests {
         assert!(parse_target_pages("a-b").is_err());
         assert!(parse_target_pages("x").is_err());
     }
-
 }

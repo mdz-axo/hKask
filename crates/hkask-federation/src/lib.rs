@@ -9,7 +9,7 @@
 
 pub use hkask_ports::ReplicaId;
 
-pub mod reg_span;
 pub mod crdt;
+pub mod reg_span;
 pub mod service;
 pub mod sync;

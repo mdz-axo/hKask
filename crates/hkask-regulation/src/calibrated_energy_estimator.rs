@@ -280,7 +280,10 @@ mod tests {
     }
 
     impl RegulationSink for CaptureSink {
-        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
+        fn persist(
+            &self,
+            event: &RegulationRecord,
+        ) -> Result<(), hkask_types::InfrastructureError> {
             *self.last_event.lock().unwrap_or_else(|e| e.into_inner()) = Some(event.clone());
             Ok(())
         }
@@ -309,7 +312,8 @@ mod tests {
 
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
 
         let estimator = Arc::new(CalibratedEnergyEstimator::new(store));
 
@@ -336,7 +340,8 @@ mod tests {
 
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let estimator = Arc::new(CalibratedEnergyEstimator::new(store));
 
         let server_a = "hkask-mcp-media";
@@ -372,7 +377,8 @@ mod tests {
     fn with_initial_lookback_changes_first_window() {
         let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
 
         let estimator = CalibratedEnergyEstimator::new(store)
             .with_initial_lookback(ChronoDuration::minutes(30));
@@ -395,7 +401,8 @@ mod tests {
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let estimator = Arc::new(
             CalibratedEnergyEstimator::new(store)
                 .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),
@@ -428,7 +435,8 @@ mod tests {
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 
-        let store: Arc<dyn LedgerStoragePort> = Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
+        let store: Arc<dyn LedgerStoragePort> =
+            Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
         let estimator = Arc::new(
             CalibratedEnergyEstimator::new(store)
                 .with_event_sink(Arc::clone(&sink) as Arc<dyn RegulationSink>),

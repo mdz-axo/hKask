@@ -7,7 +7,7 @@
 //!
 //! The data types (Signal, Deviation, RegulatoryAction, etc.) are in hkask-types.
 
-use hkask_types::loops::{Deviation, RegulatoryAction, LoopId, Signal};
+use hkask_types::loops::{Deviation, LoopId, RegulatoryAction, Signal};
 
 /// A self-regulating loop — sense → compare → compute → act → verify.
 ///

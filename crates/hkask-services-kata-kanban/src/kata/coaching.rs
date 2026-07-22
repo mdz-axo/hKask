@@ -123,11 +123,18 @@ impl KataEngine {
             });
 
             if let Some(ref obs) = self.ledger_observer {
-                obs(&manifest.ledger.span_namespace, q.number, "coaching_question");
+                obs(
+                    &manifest.ledger.span_namespace,
+                    q.number,
+                    "coaching_question",
+                );
             }
 
-            self.increment_ledger_variety(&manifest.ledger.span_namespace, "kata.practices.completed")
-                .await;
+            self.increment_ledger_variety(
+                &manifest.ledger.span_namespace,
+                "kata.practices.completed",
+            )
+            .await;
         }
 
         Ok(KataResult {

@@ -9,8 +9,8 @@
 
 use hkask_regulation::sensor_provider::SensorBus;
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId,
-    RegulationData, Signal, SignalMetric,
+    ActionType, Deviation, DeviationDirection, LoopId, RegulationData, RegulationLoop,
+    RegulatoryAction, RegulatoryActionParams, Signal, SignalMetric,
 };
 use std::sync::Arc;
 use std::sync::atomic::Ordering;

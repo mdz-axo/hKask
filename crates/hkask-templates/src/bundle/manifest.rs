@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use super::cascade::CascadePhase;
 use super::composition::{BundleComplementarity, BundleConflict};
 use super::config::{
-    BundleAuditConfig, BundleLedgerConfig, BundleGasConfig, ConvergenceConfig, ErrorHandlingConfig,
+    BundleAuditConfig, BundleGasConfig, BundleLedgerConfig, ConvergenceConfig, ErrorHandlingConfig,
     OcapConfig, RjouleConfig,
 };
 use hkask_types::SkillPolarity;

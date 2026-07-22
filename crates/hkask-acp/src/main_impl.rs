@@ -115,8 +115,7 @@ impl HkaskAcpAgent {
             (None, None)
         } else {
             let daemon_client = DaemonClient::new();
-            match verify_startup_gates(&daemon_client, &userpod, "acp", &["inference:call"]).await
-            {
+            match verify_startup_gates(&daemon_client, &userpod, "acp", &["inference:call"]).await {
                 Ok(gate_result) => {
                     info!(
                         target: "hkask.acp",

@@ -18,10 +18,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use hkask_pods::pod::ActivePods;
-use hkask_regulation::RegulationLedger;
 use hkask_mcp::daemon::DaemonHandler;
+use hkask_pods::pod::ActivePods;
 use hkask_ports::InferencePort;
+use hkask_regulation::RegulationLedger;
 use hkask_storage::user_store::UserStore;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
@@ -114,7 +114,6 @@ impl DaemonHandler for ServiceDaemonHandler {
             (false, None)
         }
     }
-
 
     async fn check_capability(&self, userpod: &str, tool: &str) -> bool {
         // P9: Regulation span

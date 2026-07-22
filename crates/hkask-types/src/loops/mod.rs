@@ -16,7 +16,9 @@ pub mod core;
 pub mod episodic;
 pub mod signals;
 
-pub use actions::{ActionType, BudgetOption, RegulatoryAction, RegulatoryActionParams, RegulationData};
+pub use actions::{
+    ActionType, BudgetOption, RegulationData, RegulatoryAction, RegulatoryActionParams,
+};
 pub use core::{ActionDecision, ImpactReport, LoopId, LoopMetrics, TriggerOrigin};
 pub use episodic::ExperienceClassification;
 pub use signals::{Deviation, DeviationDirection, Signal, SignalMetric};

@@ -2,12 +2,12 @@
 
 use super::types::TokenUsage;
 use crate::memory::MemoryService;
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken, derive_signing_key};
 use hkask_pods::ports::memory_storage::MemoryPortError;
 use hkask_pods::ports::memory_storage::RecalledEpisode;
 use hkask_pods::ports::{
     EpisodicStoragePort, RecallRequest, RecalledSemantic, SemanticStoragePort, StorageRequest,
 };
-use hkask_capability::{DelegationAction, DelegationResource, DelegationToken, derive_signing_key};
 use hkask_regulation::types::loops::ExperienceClassification;
 use hkask_types::{Confidence, WebID};
 use std::sync::Arc;

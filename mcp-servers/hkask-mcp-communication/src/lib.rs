@@ -343,8 +343,7 @@ impl CommunicationServer {
                 }
             };
             let mention = format!("@{} {}", user_id.as_str(), body);
-            let structured =
-                serde_json::json!({"tag": {"target": userpod_id, "type": "mention"}});
+            let structured = serde_json::json!({"tag": {"target": userpod_id, "type": "mention"}});
             match self
                 .matrix
                 .send_message(&RoomId::new(&room_id), &mention, Some(structured))

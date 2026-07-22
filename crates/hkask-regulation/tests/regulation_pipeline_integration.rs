@@ -16,7 +16,9 @@ use hkask_regulation::cybernetics_loop::CyberneticsLoop;
 use hkask_regulation::energy::{GasBudget, GasCost};
 use hkask_regulation::runtime::RegulationLedger;
 use hkask_regulation::set_points::{InferenceThrottleMode, SetPoints};
-use hkask_regulation::types::loops::{ActionDecision, ActionType, RegulationLoop, LoopId, SignalMetric};
+use hkask_regulation::types::loops::{
+    ActionDecision, ActionType, LoopId, RegulationLoop, SignalMetric,
+};
 use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -264,7 +266,9 @@ async fn action_decision_block_fires_on_severe_worsening() {
     // worsening=0.25 ≥ block_ratio=0.20 → Block.
 
     // Produce a mock action as compute would, carrying the pre-action ratio.
-    use hkask_regulation::types::loops::{RegulatoryAction, RegulatoryActionParams, RegulationData};
+    use hkask_regulation::types::loops::{
+        RegulationData, RegulatoryAction, RegulatoryActionParams,
+    };
     let mock_action = RegulatoryAction::new(
         LoopId::Inference,
         ActionType::Throttle,

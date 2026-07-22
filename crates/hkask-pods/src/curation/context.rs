@@ -3,9 +3,9 @@
 use crate::a2a::A2ARuntime;
 use crate::consent::ConsentManager;
 use crate::ports::EscalationPort;
+use hkask_ports::LedgerStoragePort;
 use hkask_regulation::RegulationLedger;
 use hkask_regulation::types::loops::CommunicationEvent;
-use hkask_ports::LedgerStoragePort;
 use hkask_templates::ManifestExecutor;
 use hkask_types::DataCategory;
 use hkask_types::curator::{CuratorDirective, CuratorHandle};

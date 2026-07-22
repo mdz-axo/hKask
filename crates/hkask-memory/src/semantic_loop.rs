@@ -14,12 +14,12 @@ use std::sync::Arc;
 
 use crate::semantic::SemanticMemory;
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId,
-    Signal, SignalMetric,
+    ActionType, Deviation, DeviationDirection, LoopId, RegulationLoop, RegulatoryAction,
+    RegulatoryActionParams, Signal, SignalMetric,
 };
 use hkask_storage::HMem;
-use hkask_types::regulation::RegulationSpan;
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
+use hkask_types::regulation::RegulationSpan;
 
 /// Default storage budget for semantic h_mem count.
 pub const DEFAULT_SEMANTIC_STORAGE_BUDGET: usize = 25_000;

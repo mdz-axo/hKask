@@ -6,8 +6,8 @@
 //! **Authority DAG:** Curation → Cybernetics → {Inference, Episodic, Semantic}
 //! Snapshot loop runs independently on its own schedule.
 
-use hkask_regulation::types::loops::RegulationLoop;
 use hkask_regulation::types::loops::LoopId;
+use hkask_regulation::types::loops::RegulationLoop;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;

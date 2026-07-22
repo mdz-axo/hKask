@@ -4,9 +4,9 @@ use super::WalletService;
 use hkask_services_core::{DomainKind, ServiceError};
 use hkask_storage::WalletStore;
 use hkask_types::WebID;
-use hkask_types::regulation::{RegulationSpan, ToolSubsystem};
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::WalletId;
+use hkask_types::regulation::{RegulationSpan, ToolSubsystem};
 use hkask_wallet::GAS_PER_RJOULE;
 use hkask_wallet::price_feed::StaticPriceFeed;
 use hkask_wallet::{ApiKeyIssuer, PriceFeed, WalletManager};
@@ -29,7 +29,10 @@ mod test_support {
     }
 
     impl RegulationSink for CaptureSink {
-        fn persist(&self, event: &RegulationRecord) -> Result<(), hkask_types::InfrastructureError> {
+        fn persist(
+            &self,
+            event: &RegulationRecord,
+        ) -> Result<(), hkask_types::InfrastructureError> {
             self.events.lock().expect("lock").push(event.clone());
             Ok(())
         }

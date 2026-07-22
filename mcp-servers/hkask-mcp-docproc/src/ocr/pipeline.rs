@@ -338,13 +338,7 @@ async fn run_pipeline_parallel(
     // enrich via PipelineOutcome if needed.
     let _ = embedding_router;
 
-    finalize_outcome_inner(
-        results,
-        cross_validations,
-        errors,
-        expected_pages,
-        start,
-    )
+    finalize_outcome_inner(results, cross_validations, errors, expected_pages, start)
 }
 
 /// Process a single page: score, route, execute, cross-validate.
@@ -581,13 +575,7 @@ async fn finalize_outcome(
     // doesn't store (it stores backend identifiers and confidences). Enrichment is
     // done inline in the sequential loop where text is available, and skipped here.
     let _ = embedding_router;
-    finalize_outcome_inner(
-        results,
-        cross_validations,
-        errors,
-        expected_pages,
-        start,
-    )
+    finalize_outcome_inner(results, cross_validations, errors, expected_pages, start)
 }
 
 /// Shared outcome finalization: verification + Regulation tracing.

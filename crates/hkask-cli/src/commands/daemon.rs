@@ -114,7 +114,10 @@ async fn run_daemon() -> Result<(), CliError> {
         daemon_socket_path().display(),
         loop_ids.len()
     );
-    println!("Regulation contract monitoring active (interval: {}s)", interval);
+    println!(
+        "Regulation contract monitoring active (interval: {}s)",
+        interval
+    );
     println!("Press Ctrl+C to stop.");
 
     tokio::select! {

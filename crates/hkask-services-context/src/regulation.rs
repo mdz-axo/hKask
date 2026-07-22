@@ -4,9 +4,9 @@
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
 use hkask_pods::loop_system::LoopScheduler;
-use hkask_regulation::{CalibratedEnergyEstimator, RegulationLedger, CyberneticsLoop, ToolStats};
-use hkask_types::regulation::LedgerHealth;
+use hkask_regulation::{CalibratedEnergyEstimator, CyberneticsLoop, RegulationLedger, ToolStats};
 use hkask_types::event::{RegulationSink, SpanNamespace};
+use hkask_types::regulation::LedgerHealth;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;

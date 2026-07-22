@@ -573,18 +573,16 @@ impl DocProcServer {
                 ));
             }
             let cfg = crate::ocr::TriageConfig::from_env();
-            let mut verdicts = crate::ocr::triage::triage_pdf(
-                std::path::Path::new(&path),
-                &cfg,
-            )
-            .await
-            .map_err(|e| McpToolError::internal(format!("triage failed: {e}")))?;
+            let mut verdicts = crate::ocr::triage::triage_pdf(std::path::Path::new(&path), &cfg)
+                .await
+                .map_err(|e| McpToolError::internal(format!("triage failed: {e}")))?;
 
             if let Some(spec) = target_pages.as_deref().filter(|s| !s.trim().is_empty()) {
-                let target: std::collections::HashSet<usize> = crate::ocr::triage::parse_target_pages(spec)
-                    .map_err(|e| McpToolError::invalid_argument(e.to_string()))?
-                    .into_iter()
-                    .collect();
+                let target: std::collections::HashSet<usize> =
+                    crate::ocr::triage::parse_target_pages(spec)
+                        .map_err(|e| McpToolError::invalid_argument(e.to_string()))?
+                        .into_iter()
+                        .collect();
                 verdicts.retain(|v| target.contains(&v.page_number));
             }
 
@@ -592,12 +590,14 @@ impl DocProcServer {
             let ocr_page_count = verdicts.iter().filter(|v| v.needs_ocr).count();
             let pages: Vec<serde_json::Value> = verdicts
                 .iter()
-                .map(|v| serde_json::json!({
-                    "page": v.page_number,
-                    "word_count": v.word_count,
-                    "needs_ocr": v.needs_ocr,
-                    "reasons": v.reasons.iter().map(|r| r.as_str()).collect::<Vec<_>>(),
-                }))
+                .map(|v| {
+                    serde_json::json!({
+                        "page": v.page_number,
+                        "word_count": v.word_count,
+                        "needs_ocr": v.needs_ocr,
+                        "reasons": v.reasons.iter().map(|r| r.as_str()).collect::<Vec<_>>(),
+                    })
+                })
                 .collect();
             tracing::info!(
                 target: "reg.pipeline.triage",
@@ -691,10 +691,11 @@ impl DocProcServer {
                 // Use shared extract_text for format detection + text extraction
                 let mut extract_outcome = extract_text(file_path).await?;
                 if let Some(spec) = target_pages.as_deref().filter(|s| !s.trim().is_empty()) {
-                    let target: std::collections::HashSet<usize> = crate::ocr::triage::parse_target_pages(spec)
-                        .map_err(|e| McpToolError::invalid_argument(e.to_string()))?
-                        .into_iter()
-                        .collect();
+                    let target: std::collections::HashSet<usize> =
+                        crate::ocr::triage::parse_target_pages(spec)
+                            .map_err(|e| McpToolError::invalid_argument(e.to_string()))?
+                            .into_iter()
+                            .collect();
                     extract_outcome = filter_outcome_to_pages(extract_outcome, &target);
                 }
                 match extract_outcome {
@@ -736,9 +737,9 @@ impl DocProcServer {
                                 .await
                             {
                                 Ok(ocr_text) if !ocr_text.is_empty() => {
-                                    source_structure = Some(
-                                        crate::backend::markdown_to_structure(&ocr_text, "pdf"),
-                                    );
+                                    source_structure = Some(crate::backend::markdown_to_structure(
+                                        &ocr_text, "pdf",
+                                    ));
                                     source_text = ocr_text;
                                 }
                                 _ => {
@@ -774,9 +775,9 @@ impl DocProcServer {
                                 .await
                             {
                                 Ok(ocr_text) if !ocr_text.is_empty() => {
-                                    source_structure = Some(
-                                        crate::backend::markdown_to_structure(&ocr_text, "pdf"),
-                                    );
+                                    source_structure = Some(crate::backend::markdown_to_structure(
+                                        &ocr_text, "pdf",
+                                    ));
                                     source_text = ocr_text;
                                 }
                                 _ => source_text = partial,

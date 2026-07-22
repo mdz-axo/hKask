@@ -13,7 +13,8 @@
 //! after successful snapshot actions.
 
 use crate::types::loops::{
-    ActionType, Deviation, RegulationLoop, RegulatoryAction, RegulatoryActionParams, LoopId, Signal, SignalMetric,
+    ActionType, Deviation, LoopId, RegulationLoop, RegulatoryAction, RegulatoryActionParams,
+    Signal, SignalMetric,
 };
 use hkask_ports::git_cas::{
     CasRetentionPolicy, CasRetentionTier, CommitHash, GitCASPort, RepoId, RepoSnapshotPolicy,
