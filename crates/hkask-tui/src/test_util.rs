@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::repl_bridge::{
     InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SessionBridge,
-    SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult,
+    SettingsBridge, SystemBridge, TuiModelInfo,
 };
 
 /// A minimal mock bridge that returns defaults for all methods.
