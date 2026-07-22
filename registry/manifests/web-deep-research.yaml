@@ -123,7 +123,7 @@ steps:
       Emit research outcome to Regulation. Track variety and coverage metrics.
     renderer: null
     template_ref: null
-    mcp: null # Regulation is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (RegulationRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
@@ -131,7 +131,7 @@ steps:
       result_count: integer
       pages_extracted: integer
     output_schema:
-      cns_event_id: string
+      reg_event_id: string
 
 error_handling:
   on_gas_exceeded: abort
@@ -170,4 +170,4 @@ audit:
   include_input: true
   include_output: true
   include_gas_cost: true
-  include_cns_events: true
+  include_reg_events: true

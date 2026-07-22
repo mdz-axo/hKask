@@ -60,14 +60,14 @@ steps:
       Emit news search outcome to Regulation.
     renderer: null
     template_ref: null
-    mcp: null # Regulation is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (RegulationRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
       result_count: integer
       recency_distribution: object
     output_schema:
-      cns_event_id: string
+      reg_event_id: string
 
 error_handling:
   on_gas_exceeded: abort

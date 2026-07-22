@@ -124,7 +124,7 @@ steps:
       slo_compliance: "{{ step_1_result }}"
       contract_health: "{{ step_2_result }}"
       test_health: "{{ step_3_result }}"
-      cns_health: "{{ step_4_result }}"
+      reg_health: "{{ step_4_result }}"
 
   - ordinal: 6
     action: select

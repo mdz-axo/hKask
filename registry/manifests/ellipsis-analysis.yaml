@@ -88,7 +88,7 @@ steps:
       ellipsis-to-leak ratio for variety monitoring.
     renderer: null
     template_ref: null
-    mcp: null # Regulation is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (RegulationRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
@@ -97,7 +97,7 @@ steps:
       domain: string
     output_schema:
       variety_counter: integer
-      cns_event_id: string
+      reg_event_id: string
 
 # Error Handling
 error_handling:
@@ -142,4 +142,4 @@ audit:
   include_input: true
   include_output: true
   include_gas_cost: true
-  include_cns_events: true
+  include_reg_events: true

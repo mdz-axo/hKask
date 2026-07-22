@@ -38,7 +38,7 @@ rights:
   - escalate_to: hKask-Administrator
 
 responsibilities:
-  - monitor: system_health_via_cns
+  - monitor: system_health_via_regulation
   - synthesize: bot_reports_into_system_state
   - perform: metacognition_on_system_performance
   - calibrate: bot_gas_budgets_and_thresholds

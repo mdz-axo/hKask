@@ -132,7 +132,7 @@ gas:
 #     cache_validated_duration_ms: 5000
 
 # Regulation feedback
-# cns_feedback: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
+# reg_feedback: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   # Span emission
 #   spans:
 #     emit_on_stage_start: true

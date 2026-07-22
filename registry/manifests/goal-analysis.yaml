@@ -174,7 +174,7 @@ error_handling:
       escalate_span: reg.goal.alert.storage_failure
       description: "After 2 fallback retries with judge_simple, escalate to human rather than looping indefinitely"
     - error_type: storage_error
-      action: emit_cns_alert
+      action: emit_reg_alert
       span: reg.goal.alert.storage_failure
 
 ocap:

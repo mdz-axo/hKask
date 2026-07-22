@@ -67,7 +67,7 @@ steps:
       variety_delta: integer
       extraction_confidence: float
     output_schema:
-      cns_event_id: string
+      reg_event_id: string
       outcome_recorded: boolean
 
 # Error Handling
@@ -114,5 +114,5 @@ audit:
   include_input: true
   include_output: true
   include_gas_cost: true
-  include_cns_events: true
+  include_reg_events: true
   include_extraction_metrics: true

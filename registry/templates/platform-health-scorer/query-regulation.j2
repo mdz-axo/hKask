@@ -8,13 +8,13 @@ contract:
   input:
     window_days: integer
   output:
-    cns_metrics: object
+    reg_metrics: object
 energy_cap: 3000
 visibility: Public
 ---
 {# Template: platform-health-scorer/query-reg.j2 #}
 {# KnowAct — a platform health scorer for hKask #}
-{# Produces: cns_metrics #}
+{# Produces: reg_metrics #}
 
 [inference]
 temperature = 0.1
@@ -29,12 +29,12 @@ You are a platform health scorer for hKask. Query Regulation variety metrics: ov
 Window: {{ window_days | default(30) }} days
 
 ## Output
-Return cns_metrics object with: score (0-1), details, trend, concerns.
+Return reg_metrics object with: score (0-1), details, trend, concerns.
 
 Return JSON only:
 ```json
 {
-  "cns_metrics": {}
+  "reg_metrics": {}
 }
 ```
 

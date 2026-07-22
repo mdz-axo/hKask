@@ -60,14 +60,14 @@ steps:
       Track token usage and model performance.
     renderer: null
     template_ref: null
-    mcp: null # Regulation is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (RegulationRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
       variety_delta: integer
       tokens_consumed: integer
     output_schema:
-      cns_event_id: string
+      reg_event_id: string
       outcome_recorded: boolean
 
 # Error Handling
@@ -114,5 +114,5 @@ audit:
   include_input: true
   include_output: true
   include_gas_cost: true
-  include_cns_events: true
+  include_reg_events: true
   include_model_metrics: true

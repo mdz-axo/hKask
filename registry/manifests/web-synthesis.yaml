@@ -79,14 +79,14 @@ steps:
       Emit synthesis outcome to Regulation.
     renderer: null
     template_ref: null
-    mcp: null # Regulation is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (RegulationRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
       result_count: integer
       pages_extracted: integer
     output_schema:
-      cns_event_id: string
+      reg_event_id: string
 
 error_handling:
   on_gas_exceeded: abort

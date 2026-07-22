@@ -87,7 +87,7 @@ error_handling:
 
   # Error escalation
   escalation:
-    on_max_retries_exceeded: emit_cns_alert
+    on_max_retries_exceeded: emit_reg_alert
     on_stage_panic: escalate_to_curator
     on_channel_failure: fallback_to_sync
 

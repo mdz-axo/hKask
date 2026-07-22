@@ -19,7 +19,7 @@ contract:
   output:
     forecast_record: object
     tracking_id: string
-    cns_event_id: string
+    reg_event_id: string
 energy_cap: 2048
 visibility: Public
 ---
@@ -94,6 +94,6 @@ Respond with a JSON object containing:
     key_assumptions: array of strings
   }
 - tracking_id: string (unique identifier for this forecast)
-- cns_event_id: string (reference to Regulation event record)
+- reg_event_id: string (reference to Regulation event record)
 
 After recording, preserve the tracking ID and resolved outcome so the forecast can be scored later with the scenarios server's `scenario_score` tool.

@@ -19,7 +19,7 @@ contract:
     existing_fuzz_targets: array
     available_classifiers: array
     gas_constraints: object
-    cns_requirements: object
+    reg_requirements: object
     ambiguities: array
 energy_cap: 4096
 visibility: Public
@@ -116,8 +116,8 @@ Respond with a JSON object:
     "suggested_cap": 5000,
     "cost_sensitive": true
   },
-  "cns_alert": "qa.hkask-types.fuzz",
-  "cns_requirements": {
+  "reg_alert": "qa.hkask-types.fuzz",
+  "reg_requirements": {
     "emit_spans": true,
     "suggested_namespace": "reg.qa.my_script",
     "relevant_spans": ["reg.qa.bolero_failure", "reg.qa.repair_attempted"]

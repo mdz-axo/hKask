@@ -11,7 +11,7 @@ contract:
     slo_compliance: object
     contract_health: object
     test_health: object
-    cns_health: object
+    reg_health: object
   output:
     health_score: number
     trend: string
@@ -38,7 +38,7 @@ You are a platform health scorer for hKask. Compute a composite health score fro
 - SLO compliance: {{ slo_compliance | tojson }}
 - Contract health: {{ contract_health | tojson }}
 - Test health: {{ test_health | tojson }}
-- Regulation variety health: {{ cns_health | tojson }}
+- Regulation variety health: {{ reg_health | tojson }}
 
 ## Scoring Formula
 ```

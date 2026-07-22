@@ -317,7 +317,7 @@ steps:
       works discovered, concepts extracted, and methods inferred.
     renderer: null
     template_ref: null
-    mcp: null # Regulation is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (RegulationRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
@@ -327,7 +327,7 @@ steps:
       methods_inferred: integer
       sources_used: array
     output_schema:
-      cns_event_id: string
+      reg_event_id: string
       outcome_recorded: boolean
 
 error_handling:
@@ -377,4 +377,4 @@ audit:
   include_input: true
   include_output: true
   include_gas_cost: true
-  include_cns_events: true
+  include_reg_events: true

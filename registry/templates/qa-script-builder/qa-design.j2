@@ -14,7 +14,7 @@ contract:
     step_topology: array
     terminal_states: array
     loop_configs: array
-    cns_alert: string
+    reg_alert: string
     design_rationale: string
     mermaid_diagram: string
 energy_cap: 5120
@@ -137,7 +137,7 @@ Respond with a JSON object:
       "command": "grep -c 'FAILED' /tmp/fuzz-output.txt || echo 0"
     }
   ],
-  "cns_alert": "qa.hkask-types.fuzz",
+  "reg_alert": "qa.hkask-types.fuzz",
   "design_rationale": "Standard fuzz→classify→branch pattern. High-confidence failures get auto-repaired. Medium and low go to escalation. Flakes retry up to 3 times.",
   "mermaid_diagram": "flowchart TD\n    S1[Step 1: cargo bolero test] -->|success| S2[Step 2: classify]\n    S1 -->|failure| S6[Step 6: fuzz failure]\n    S2 -->|high_confidence| S3[Step 3: auto-repair]\n    S2 -->|medium_confidence| S4[Step 4: escalate]\n    S2 -->|low_confidence| S4\n    S2 -->|flake| S5[Step 5: retry loop]\n    S5 -->|success| S1\n    S5 -->|loop_exhausted| S4"
 }

@@ -22,7 +22,7 @@ charter:
 capabilities:
   - "tool:regulation:observe"
   - "tool:regulation:query"
-  - "tool:curator:cns_query"
+  - "tool:curator:reg_query"
   - "tool:curator:list_tokens"
   - "tool:registry:index"
   - "tool:registry:discover"
