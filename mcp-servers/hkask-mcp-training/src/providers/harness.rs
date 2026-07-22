@@ -280,7 +280,7 @@ impl HarnessAdapter for LudwigHarness {
                 "load_in_4bit".to_string(),
                 serde_json::json!(p.quantization.load_in_4bit),
             ),
-            ("lora_r"._string(), serde_json::json!(lo.r)),
+            ("lora_r".to_string(), serde_json::json!(lo.r)),
             ("lora_alpha".to_string(), serde_json::json!(lo.alpha)),
             ("lora_dropout".to_string(), serde_json::json!(lo.dropout)),
             (

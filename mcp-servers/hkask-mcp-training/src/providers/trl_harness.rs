@@ -60,13 +60,12 @@ impl HarnessAdapter for TrlHarness {
 }
 
 impl TrlHarness {
-    /// Render a TRL SFTTrainer Python script from canonical `TrainingParams`.
+    /// Build the base template context shared by SFT and preference scripts.
     ///
-    /// The script is rendered via `registry/templates/training/trl-sft.j2`
-    /// (parallel to `registry/templates/training/axolotl-lora.j2`). The template
-    /// is the single source of truth for the script structure — Rust only
-    /// assembles the context, same as `AxolotlHarness::render_config`.
-    fn render_sft_script(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+    /// Contains all fields common to both script types: base model, LoRA
+    /// params, optimization params, dataset paths, and output dir. Each
+    /// render method calls this then adds its specific fields.
+    fn build_base_context(&self, job: &TrainingJob) -> serde_json::Map<String, serde_json::Value> {
         let p = &job.params;
         let lo = &p.lora;
         let opt = &p.optimization;
@@ -81,8 +80,6 @@ impl TrlHarness {
             })
             .unwrap_or_else(|| (job.dataset_path.display().to_string(), String::new()));
 
-        // Build the template context — mirrors AxolotlHarness field-for-field
-        // where the TRL SFTConfig has a direct equivalent.
         let mut context = serde_json::Map::from_iter([
             ("base_model".to_string(), serde_json::json!(job.base_model)),
             (
@@ -119,7 +116,7 @@ impl TrlHarness {
 
         // Optional fields — always inserted (with empty defaults) so the
         // template's {% if field %} checks work with minijinja Strict
-        // undefined behavior. This mirrors the AxolotlHarness pattern.
+        // undefined behavior.
         context.insert(
             "peft_init_lora_weights".to_string(),
             serde_json::json!(
@@ -161,161 +158,82 @@ impl TrlHarness {
             serde_json::json!(opt.weight_decay),
         );
 
-        // TRL-specific fields (no axolotl equivalent).
-        // packing: TRL SFTConfig.packing — enables example packing for efficiency.
+        // Quantization params — rendered from QuantizationParams, not hardcoded.
         context.insert(
-            "packing".to_string(),
-            serde_json::json!(p.sequence.sample_packing),
+            "bnb_4bit_quant_type".to_string(),
+            serde_json::json!(
+                p.quantization
+                    .bnb_4bit_quant_type
+                    .clone()
+                    .unwrap_or_default()
+            ),
+        );
+        context.insert(
+            "bnb_4bit_compute_dtype".to_string(),
+            serde_json::json!(
+                p.quantization
+                    .bnb_4bit_compute_dtype
+                    .clone()
+                    .unwrap_or_default()
+            ),
+        );
+        context.insert(
+            "bnb_4bit_use_double_quant".to_string(),
+            serde_json::json!(p.quantization.bnb_4bit_use_double_quant),
         );
 
-        let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| {
-                let working_directory_root = PathBuf::from("registry");
-                if working_directory_root.is_dir() {
-                    working_directory_root
-                } else {
-                    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                        .join("../..")
-                        .join("registry")
-                }
-            });
+        context
+    }
 
+    /// Render a TRL SFTTrainer Python script from canonical `TrainingParams`.
+    ///
+    /// The script is rendered via `registry/templates/training/trl-sft.j2`.
+    fn render_sft_script(&self, job: &TrainingJob) -> Result<String, ProviderError> {
+        let mut context = self.build_base_context(job);
+
+        // TRL-specific: packing — enables example packing for efficiency.
+        context.insert(
+            "packing".to_string(),
+            serde_json::json!(job.params.sequence.sample_packing),
+        );
+
+        let template_root = Self::template_root();
         let template_path = template_root.join("templates/training/trl-sft.j2");
         self.render_template(&template_path, context, "TRL SFT")
     }
 
     /// Render a TRL preference optimization script (DPO/KTO/ORPO/Reward).
-    ///
-    /// All preference trainers share a common script structure — they differ
-    /// only in the trainer class, config class, and dataset format. A single
-    /// template (`trl-preference.j2`) handles all four, parameterized by the
-    /// `trainer_name` field in the context.
-    ///
-    /// The preference trainers use the same LoRA config as SFT (PEFT is
-    /// trainer-agnostic), but the dataset format differs:
-    /// - DPO: `{"prompt": ..., "chosen": ..., "rejected": ...}`
-    /// - KTO: `{"prompt": ..., "completion": ..., "label": bool}`
-    /// - ORPO: `{"chosen": ..., "rejected": ...}` (prompt implicit)
-    /// - Reward: `{"chosen": ..., "rejected": ...}` (prompt implicit)
-    ///
-    /// References:
-    /// - DPO: https://huggingface.co/docs/trl/main/en/dpo_trainer
-    /// - KTO: https://huggingface.co/docs/trl/main/en/kto_trainer
-    /// - ORPO: https://huggingface.co/docs/trl/main/en/orpo_trainer
-    /// - Reward: https://huggingface.co/docs/trl/main/en/reward_trainer
     fn render_preference_script(
         &self,
         job: &TrainingJob,
         trainer_name: &str,
     ) -> Result<String, ProviderError> {
-        let p = &job.params;
-        let lo = &p.lora;
-        let opt = &p.optimization;
-        let (dataset_path, data_files) = job
-            .artifacts
-            .as_ref()
-            .map(|artifacts| {
-                (
-                    artifacts.dataset.repository.clone(),
-                    artifacts.dataset.path.clone(),
-                )
-            })
-            .unwrap_or_else(|| (job.dataset_path.display().to_string(), String::new()));
-
         let trainer = job.params.trl_trainer.unwrap_or_default();
+        let mut context = self.build_base_context(job);
 
-        let mut context = serde_json::Map::from_iter([
-            ("base_model".to_string(), serde_json::json!(job.base_model)),
-            (
-                "load_in_4bit".to_string(),
-                serde_json::json!(p.quantization.load_in_4bit),
-            ),
-            ("lora_r".to_string(), serde_json::json!(lo.r)),
-            ("lora_alpha".to_string(), serde_json::json!(lo.alpha)),
-            ("lora_dropout".to_string(), serde_json::json!(lo.dropout)),
-            (
-                "lora_target_modules".to_string(),
-                serde_json::json!(lo.target_modules),
-            ),
-            ("dataset_path".to_string(), serde_json::json!(dataset_path)),
-            ("data_files".to_string(), serde_json::json!(data_files)),
-            ("num_epochs".to_string(), serde_json::json!(p.num_epochs)),
-            (
-                "learning_rate".to_string(),
-                serde_json::json!(p.learning_rate),
-            ),
-            (
-                "micro_batch_size".to_string(),
-                serde_json::json!(p.batch_size),
-            ),
-            (
-                "gradient_accumulation_steps".to_string(),
-                serde_json::json!(opt.gradient_accumulation_steps),
-            ),
-            (
-                "output_dir".to_string(),
-                serde_json::json!(self.output_dir(&job.id).display().to_string()),
-            ),
-            // Preference trainer parameters.
-            ("trainer_name".to_string(), serde_json::json!(trainer_name)),
-            (
-                "trainer_class".to_string(),
-                serde_json::json!(trainer.trainer_class()),
-            ),
-            (
-                "config_class".to_string(),
-                serde_json::json!(trainer.config_class()),
-            ),
-            (
-                "expected_dataset_format".to_string(),
-                serde_json::json!(trainer.expected_dataset_format()),
-            ),
-        ]);
-
-        // Optional fields — same pattern as render_sft_script.
+        // Preference trainer parameters.
+        context.insert("trainer_name".to_string(), serde_json::json!(trainer_name));
         context.insert(
-            "peft_init_lora_weights".to_string(),
-            serde_json::json!(
-                lo.init_lora_weights
-                    .as_ref()
-                    .map(|init| init.as_config_value())
-            ),
+            "trainer_class".to_string(),
+            serde_json::json!(trainer.trainer_class()),
         );
         context.insert(
-            "optim".to_string(),
-            serde_json::json!(opt.optimizer.clone()),
+            "config_class".to_string(),
+            serde_json::json!(trainer.config_class()),
         );
         context.insert(
-            "lr_scheduler".to_string(),
-            serde_json::json!(opt.lr_scheduler.clone()),
-        );
-        context.insert(
-            "sequence_len".to_string(),
-            serde_json::json!(p.sequence.sequence_len.map(|v| v.to_string())),
-        );
-        context.insert(
-            "warmup_steps".to_string(),
-            serde_json::json!(opt.warmup_steps.map(|v| v.to_string())),
-        );
-        context.insert(
-            "max_grad_norm".to_string(),
-            serde_json::json!(opt.max_grad_norm.map(|v| v.to_string())),
-        );
-        context.insert(
-            "use_rslora".to_string(),
-            serde_json::json!(lo.use_rslora.to_string()),
-        );
-        context.insert(
-            "use_dora".to_string(),
-            serde_json::json!(lo.use_dora.to_string()),
-        );
-        context.insert(
-            "weight_decay".to_string(),
-            serde_json::json!(opt.weight_decay),
+            "expected_dataset_format".to_string(),
+            serde_json::json!(trainer.expected_dataset_format()),
         );
 
-        let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
+        let template_root = Self::template_root();
+        let template_path = template_root.join("templates/training/trl-preference.j2");
+        self.render_template(&template_path, context, "TRL preference")
+    }
+
+    /// Resolve the template root directory.
+    fn template_root() -> PathBuf {
+        std::env::var_os("HKASK_TEMPLATE_ROOT")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
                 let working_directory_root = PathBuf::from("registry");
@@ -326,15 +244,10 @@ impl TrlHarness {
                         .join("../..")
                         .join("registry")
                 }
-            });
-
-        let template_path = template_root.join("templates/training/trl-preference.j2");
-        self.render_template(&template_path, context, "TRL preference")
+            })
     }
 
     /// Render a Jinja template with the given context.
-    ///
-    /// Shared helper for SFT and preference script rendering.
     fn render_template(
         &self,
         template_path: &std::path::Path,

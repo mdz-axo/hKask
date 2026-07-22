@@ -143,17 +143,21 @@ fn parse_markdown_blocks(markdown: &str) -> Vec<Block> {
             continue;
         }
 
-        // Ordered list: "1. ", "2. ", etc.
-        if let Some(rest) = trimmed.strip_prefix(|c: char| c.is_ascii_digit()) {
-            if let Some(rest) = rest.strip_prefix(|c: char| c.is_ascii_digit()) {
-                if let Some(text) = rest.strip_prefix(". ") {
-                    flush_paragraph(&mut paragraph_lines, &mut blocks);
-                    blocks.push(Block::List {
-                        ordered: true,
-                        items: vec![text.trim().to_string()],
-                    });
-                    continue;
-                }
+        // Ordered list: "1. ", "2. ", etc. — one or more digits followed by ". "
+        let digits_end = trimmed
+            .char_indices()
+            .take_while(|(_, c)| c.is_ascii_digit())
+            .last()
+            .map(|(i, _)| i + 1)
+            .unwrap_or(0);
+        if digits_end > 0 {
+            if let Some(text) = trimmed[digits_end..].strip_prefix(". ") {
+                flush_paragraph(&mut paragraph_lines, &mut blocks);
+                blocks.push(Block::List {
+                    ordered: true,
+                    items: vec![text.trim().to_string()],
+                });
+                continue;
             }
         }
 

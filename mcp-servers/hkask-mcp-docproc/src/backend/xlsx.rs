@@ -2,7 +2,7 @@
 //! `DocStructure` directly (each sheet becomes a `Table` block).
 
 use super::{BackendError, DocumentBackend};
-use calamine::{open_workbook_auto, Data, Reader};
+use calamine::{Data, Reader, open_workbook_auto};
 use hkask_types::document::{Block, DocStructure, Page};
 
 /// XLSX/XLS/ODS spreadsheet backend.
@@ -14,12 +14,11 @@ impl DocumentBackend for XlsxBackend {
     }
 
     fn parse(&self, path: &str) -> Result<DocStructure, BackendError> {
-        let mut workbook =
-            open_workbook_auto(path).map_err(|e| BackendError::Parse {
-                format: "xlsx",
-                path: path.to_string(),
-                message: e.to_string(),
-            })?;
+        let mut workbook = open_workbook_auto(path).map_err(|e| BackendError::Parse {
+            format: "xlsx",
+            path: path.to_string(),
+            message: e.to_string(),
+        })?;
 
         let sheet_names = workbook.sheet_names().to_vec();
         let mut blocks = Vec::new();
@@ -31,11 +30,7 @@ impl DocumentBackend for XlsxBackend {
             };
             let rows: Vec<Vec<String>> = range
                 .rows()
-                .map(|row| {
-                    row.iter()
-                        .map(|cell| cell_to_string(cell))
-                        .collect()
-                })
+                .map(|row| row.iter().map(|cell| cell_to_string(cell)).collect())
                 .collect();
             if !rows.is_empty() {
                 blocks.push(Block::Table { rows });
@@ -79,7 +74,6 @@ fn cell_to_string(cell: &Data) -> String {
         }
         Data::Bool(b) => b.to_string(),
         Data::Error(e) => format!("#ERR:{:?}", e),
-        Data::Duration(d) => d.to_string(),
     }
 }
 

@@ -28,8 +28,8 @@ base64.workspace = true
 reqwest.workspace = true
 
 # Office format backends (S2: backend/pipeline separation)
-# docx-parser: DOCX reader → markdown (wraps docx-rust, MIT/Apache-2.0)
-docx-parser = "0.1"
+# docx-rs: DOCX reader (paragraphs, tables, lists, headings)
+docx-rs = "0.4"
 # calamine: XLSX/XLS/ODS reader (pure Rust, MIT)
 calamine = "0.34"
 # pptx-to-md: PPTX/ODP reader (extracts slide text to markdown)

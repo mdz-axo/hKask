@@ -1,11 +1,12 @@
-//! PPTX backend — uses `pptx-to-md` to extract slide text as markdown, then
-//! converts to `DocStructure` via the shared `markdown_to_structure` parser.
+//! PPTX backend — uses `pptx-to-md` (0.1.x API) to extract slide text as
+//! markdown, then converts to `DocStructure` via the shared
+//! `markdown_to_structure` parser.
 
 use super::{BackendError, DocumentBackend, markdown_to_structure};
 use hkask_types::document::DocStructure;
-use pptx_to_md::{ImageHandlingMode, ParserConfig, PresentationContainer};
+use pptx_to_md::PptxContainer;
 
-/// PPTX/ODP presentation backend.
+/// PPTX presentation backend.
 pub struct PptxBackend;
 
 impl DocumentBackend for PptxBackend {
@@ -14,20 +15,28 @@ impl DocumentBackend for PptxBackend {
     }
 
     fn parse(&self, path: &str) -> Result<DocStructure, BackendError> {
-        let config = ParserConfig::builder()
-            .image_handling_mode(ImageHandlingMode::Skip)
-            .build();
-        let mut container = PresentationContainer::open(std::path::Path::new(path), config)
-            .map_err(|e| BackendError::Parse {
+        let mut container =
+            PptxContainer::open(std::path::Path::new(path)).map_err(|e| BackendError::Parse {
                 format: "pptx",
                 path: path.to_string(),
                 message: e.to_string(),
             })?;
-        let markdown = container.convert_to_md().map_err(|e| BackendError::Parse {
+        let slides = container.parse_all().map_err(|e| BackendError::Parse {
             format: "pptx",
             path: path.to_string(),
             message: e.to_string(),
         })?;
+
+        let mut markdown = String::new();
+        for slide in slides {
+            if let Some(md) = slide.convert_to_md() {
+                if !markdown.is_empty() {
+                    markdown.push_str("\n\n");
+                }
+                markdown.push_str(&md);
+            }
+        }
+
         if markdown.trim().is_empty() {
             return Err(BackendError::Parse {
                 format: "pptx",
