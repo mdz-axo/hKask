@@ -12,7 +12,7 @@
 //!
 //! Deleted tools (2026-07-19 cleanup, second pass):
 //! - training_deploy / training_deployment_status / training_teardown — replaced by
-//!   `hkask_adapter::AdapterPort::{create_endpoint, endpoint_status, teardown_endpoint}`.
+//!   `crate::adapter::AdapterPort::{create_endpoint, endpoint_status, teardown_endpoint}`.
 //!   The MCP server was a thin wrapper; deployment now goes through the canonical
 //!   AdapterPort surface directly.
 //! - training_list_adapters / training_delete_adapter — `AdapterPort::list_adapters` and
@@ -67,6 +67,7 @@
 
 #![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
 
+pub mod adapter;
 pub mod adapters;
 pub mod dataset;
 pub mod huggingface;
@@ -77,6 +78,10 @@ pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
+use crate::adapter::AdapterRouter;
+use crate::adapter::adapter_store::Checksum;
+use crate::adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
+use crate::adapter::{AdapterSource, TrainedLoRAAdapter};
 use crate::adapters::{AdapterMetrics, JobStore};
 use crate::dataset::DatasetPipeline;
 use crate::huggingface::HuggingFaceTraining;
@@ -85,10 +90,6 @@ use crate::providers::{
     TrainingJobStatus, create_host,
 };
 use crate::types::*;
-use hkask_adapter::AdapterRouter;
-use hkask_adapter::adapter_store::Checksum;
-use hkask_adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
-use hkask_adapter::{AdapterSource, TrainedLoRAAdapter};
 use hkask_inference::{InferenceConfig, InferenceRouter};
 
 use hkask_mcp::server::{McpToolError, execute_tool};
@@ -113,7 +114,7 @@ hkask_mcp::mcp_server!(
         pub host_id: TrainingHostId,
         pub harness_id: TrainingHarnessId,
         pub pipeline: Mutex<DatasetPipeline>,
-        pub adapter_store: Arc<hkask_adapter::AdapterStore>,
+        pub adapter_store: Arc<crate::adapter::AdapterStore>,
         pub job_store: Option<JobStore>,
         pub adapter_router: Option<Arc<AdapterRouter>>,
         pub inference_config: InferenceConfig,
@@ -1581,10 +1582,10 @@ pub async fn run(
                             h_mem_store,
                             embedding_store,
                         ));
-                        // Canonical adapter store: hkask_adapter::AdapterStore stores
+                        // Canonical adapter store: crate::adapter::AdapterStore stores
                         // TrainedLoRAAdapter in trained_adapters + active_endpoints + lora_blobs.
                         // Schema initialized by from_driver().
-                        let store = hkask_adapter::AdapterStore::from_driver(hmem_driver);
+                        let store = crate::adapter::AdapterStore::from_driver(hmem_driver);
 
                         // Build the canonical adapter router (used by AdapterPort for
                         // deployment, status, teardown — the MCP server no longer wraps these).
@@ -1600,7 +1601,7 @@ pub async fn run(
                             .map_err(|e| anyhow::anyhow!("in-memory pool: {e}"))?;
                         let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
                             Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
-                        let store = hkask_adapter::AdapterStore::from_driver(driver);
+                        let store = crate::adapter::AdapterStore::from_driver(driver);
                         (None, Arc::new(store), None, None)
                     }
                 };

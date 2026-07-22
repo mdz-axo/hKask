@@ -3,9 +3,9 @@
 //! Every operation is OCAP-gated via `DelegationToken`. No ambient access.
 //! The trait is the seam for provider backends — new providers add without changing the router (P7).
 
-use crate::TrainedLoRAAdapter;
-use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
-use crate::provider_cost::{CostModel, ProviderInfo};
+use crate::adapter::TrainedLoRAAdapter;
+use crate::adapter::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
+use crate::adapter::provider_cost::{CostModel, ProviderInfo};
 use hkask_capability::DelegationToken;
 use hkask_inference::ProviderId;
 use hkask_ports::InferenceError;
@@ -239,7 +239,7 @@ pub enum AdapterError {
     },
 
     #[error("Adapter store error: {0}")]
-    Store(#[from] crate::AdapterStoreError),
+    Store(#[from] crate::adapter::AdapterStoreError),
 
     #[error("Inference error: {0}")]
     Inference(#[from] InferenceError),
@@ -260,8 +260,8 @@ impl From<NotFound> for AdapterError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::endpoint_lifecycle::EndpointLifecycle;
-    use crate::provider_cost::CostModel;
+    use crate::adapter::endpoint_lifecycle::EndpointLifecycle;
+    use crate::adapter::provider_cost::CostModel;
 
     #[test]
     fn handle_phase_reflects_lifecycle() {

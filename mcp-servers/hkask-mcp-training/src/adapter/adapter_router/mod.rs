@@ -17,15 +17,15 @@
 mod openai;
 mod runpod;
 
-use crate::AdapterStore;
-use crate::adapter_config::AdapterConfig;
-use crate::adapter_port::{
+use crate::adapter::AdapterStore;
+use crate::adapter::adapter_config::AdapterConfig;
+use crate::adapter::adapter_port::{
     AdapterError, AdapterPort, CompositionEstimate, EndpointStatus, InferenceEndpointHandle,
     ProviderSelection, SingleCandidate,
 };
-use crate::adapter_store::TrainedLoRAAdapter;
-use crate::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
-use crate::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
+use crate::adapter::adapter_store::TrainedLoRAAdapter;
+use crate::adapter::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
+use crate::adapter::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
 use hkask_capability::DelegationToken;
 use hkask_database::value::DbValue;
 use hkask_inference::ProviderId;
@@ -711,9 +711,9 @@ impl Drop for EndpointGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::adapter_store::AdapterSource;
-    use crate::adapter_store::Checksum;
-    use crate::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
+    use crate::adapter::adapter_store::AdapterSource;
+    use crate::adapter::adapter_store::Checksum;
+    use crate::adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
     use hkask_capability::DelegationAction;
     use hkask_capability::DelegationResource;
     use hkask_capability::auth::derive_signing_key;

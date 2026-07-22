@@ -61,23 +61,27 @@
 
 ## Phase 2: Larger single-consumer merges
 
-### T6: Merge hkask-tui → hkask-repl
-- [ ] Read structure
-- [ ] Move source files
-- [ ] Update Cargo.toml
-- [ ] Fix imports
-- [ ] Remove from workspace
-- [ ] Build + clippy
-- [ ] Record delta
+### T6: Merge hkask-tui → hkask-repl ✅
+- [x] Read structure (16 files, feature-gated optional dep)
+- [x] Move source (→ src/tui/)
+- [x] Update Cargo.toml (add ratatui+crossterm as optional, update feature)
+- [x] Fix imports (crate:: → crate::tui::, hkask_tui:: → crate::tui::)
+- [x] Remove from workspace + delete
+- [x] Build + clippy (default + tui feature) — ✅
+- [x] Also fixed orphaned #[derive] in mcp-codegraph (HEAD commit cleanup)
+- [x] Record delta: 62 → 61
 
-### T7: Merge hkask-adapter → hkask-mcp-training
-- [ ] Read structure
-- [ ] Move source files
-- [ ] Update Cargo.toml
-- [ ] Fix imports
-- [ ] Remove from workspace
-- [ ] Build + clippy
-- [ ] Record delta
+### T7: Merge hkask-adapter → hkask-mcp-training ✅
+- [x] Read structure (10 files, adapter_router/ subdir)
+- [x] Move source (→ src/adapter/)
+- [x] Update Cargo.toml (add hkask-storage-core, remove hkask-adapter)
+- [x] Fix imports (crate:: → crate::adapter::, hkask_adapter:: → crate::adapter::)
+- [x] Move test file (live_adapter.rs)
+- [x] Remove from workspace + delete
+- [x] Build + clippy — ✅
+- [x] Record delta: 61 → 60
+
+**Phase 1+2 total: 69 → 60 workspace members (-9 nodes)**
 
 ## Phase 3: Structural evaluation
 - [ ] T8: Evaluate 2-consumer crates

@@ -150,6 +150,9 @@ pub struct StatsRequest {
     include_meta: bool,
 }
 
+// ── Tools ─────────────────────────────────────────────────────────
+
+#[tool_router(server_handler)]
 impl CodeGraphServer {
     #[tool(
         description = "Search the codebase for symbols, or look up a specific symbol by name (set 'name' field)"
@@ -385,7 +388,6 @@ impl CodeGraphServer {
             }))
         }).await
     }
-
 }
 
 pub async fn run(

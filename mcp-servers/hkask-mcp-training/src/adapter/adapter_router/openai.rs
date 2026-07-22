@@ -3,7 +3,7 @@
 //! Called by each provider backend's `infer` method. Handles the common
 //! HTTP request/response pattern for OpenAI-compatible chat completions.
 
-use crate::adapter_port::AdapterError;
+use crate::adapter::adapter_port::AdapterError;
 use hkask_ports::{InferenceResult, InferenceUsage};
 use hkask_types::template::LLMParameters;
 

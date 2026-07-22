@@ -4,10 +4,10 @@
 
 use super::AdapterProviderBackend;
 use super::openai::openai_compatible_infer;
-use crate::adapter_config::AdapterConfig;
-use crate::adapter_port::AdapterError;
-use crate::adapter_store::TrainedLoRAAdapter;
-use crate::provider_cost::{CostModel, ProviderCapability};
+use crate::adapter::adapter_config::AdapterConfig;
+use crate::adapter::adapter_port::AdapterError;
+use crate::adapter::adapter_store::TrainedLoRAAdapter;
+use crate::adapter::provider_cost::{CostModel, ProviderCapability};
 use hkask_ports::InferenceResult;
 use hkask_types::template::LLMParameters;
 

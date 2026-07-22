@@ -3702,30 +3702,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hkask-adapter"
-version = "0.31.0"
-dependencies = [
- "async-trait",
- "chrono",
- "dotenvy",
- "hkask-capability",
- "hkask-database",
- "hkask-inference",
- "hkask-ports",
- "hkask-storage-core",
- "hkask-types",
- "r2d2_sqlite",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "hkask-api"
 version = "0.31.0"
 dependencies = [
@@ -4504,7 +4480,6 @@ dependencies = [
  "blake3",
  "chrono",
  "hf-hub",
- "hkask-adapter",
  "hkask-bridge-dublincore",
  "hkask-bridge-pko",
  "hkask-capability",
@@ -4514,6 +4489,7 @@ dependencies = [
  "hkask-memory",
  "hkask-ports",
  "hkask-storage",
+ "hkask-storage-core",
  "hkask-types",
  "minijinja",
  "r2d2",

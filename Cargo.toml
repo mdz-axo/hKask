@@ -45,7 +45,6 @@ members = [
     "crates/hkask-api",
     "crates/hkask-communication",
     "crates/hkask-test-harness",
-    "crates/hkask-adapter",
     "crates/hkask-acp",
     "crates/hkask-federation",
     "crates/hkask-mcp-cloud-gateway",

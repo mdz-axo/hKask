@@ -15,8 +15,8 @@
 //!   HKASK_LIVE_BASE_MODEL=llama-3.3-70b \
 //!   cargo test -p hkask-adapter --test live_adapter -- --ignored
 
-use hkask_adapter::adapter_store::Checksum;
-use hkask_adapter::{
+use hkask_mcp_training::adapter::adapter_store::Checksum;
+use hkask_mcp_training::adapter::{
     AdapterLifecycle, AdapterPort, AdapterRouter, AdapterSource, AdapterStore, Expertise,
     MdsDomain, TrainedLoRAAdapter, TrainingProvenance,
 };

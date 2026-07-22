@@ -6,7 +6,7 @@
 //! Follows the `hkask-storage` pattern: `Database` + migrations + CRUD.
 //! Adapter weights live on disk; only metadata is stored in SQLite.
 
-use crate::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
+use crate::adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
 use hkask_database::driver::{query_map, query_row};
 use hkask_database::value::DbValue;
 use hkask_storage_core::define_driver_store;

@@ -1,6 +1,6 @@
 //! Training job persistence and adapter metrics.
 //!
-//! Adapter metadata is now stored via `hkask_adapter::AdapterStore` (canonical).
+//! Adapter metadata is now stored via `crate::adapter::AdapterStore` (canonical).
 //! This module retains `JobStore` (training job persistence) and `AdapterMetrics`
 //! (metrics struct serialized into `TrainedLoRAAdapter.expertise.training_source.training_metrics`).
 
