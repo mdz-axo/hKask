@@ -22,7 +22,7 @@ This is a broad IS-mode claim that requires refinement before resources are comm
 |---|---|---|
 | **Feasible** | 7 | docproc is Rust; LiteParse is Rust (83.8%). Patterns are portable. However: L3 (bounding boxes) requires changes to `OcrResult` (`mcp-servers/hkask-mcp-docproc/src/ocr/document.rs:9-22`), `DocStructure`/`Block` (`crates/hkask-types/src/document.rs:101-112`), and downstream chunking/tagging — non-trivial. L4 (merge not replace) requires a merge stage that doesn't exist in `run_pipeline` (`mcp-servers/hkask-mcp-docproc/src/ocr/pipeline.rs:98-132`). L5 (grid projection) is a new heuristic stage. |
 | **Interesting** | 8 | docproc's downstream QA-generation pipeline (the `qa-generation` skill, John Brooks persona) would benefit from spatial provenance in citations. But hKask's userpod model may not need LLM-agent screenshots (L6) — the QA pipeline consumes text, not images. |
-| **Novel** | 6 | **Lowest dimension.** The patterns themselves are not novel — LiteParse ships them. The novelty is adapting them to hKask's cybernetic-governance model (CNS spans, calibration discipline, affirmative consent for threshold changes). No prior art exists for "LiteParse patterns under Regulation observability." |
+| **Novel** | 6 | **Lowest dimension.** The patterns themselves are not novel — LiteParse ships them. The novelty is adapting them to hKask's cybernetic-governance model (Regulation spans, calibration discipline, affirmative consent for threshold changes). No prior art exists for "LiteParse patterns under Regulation observability." |
 | **Ethical** | 9 | Local execution, no cloud dependency (P1 user sovereignty preserved). L2 (pluggable HTTP OCR) introduces a network surface — must be opt-in only and is gated by P5 (simplicity). No human-subjects concerns. |
 | **Relevant** | 8 | docproc's OCR is the entry point for the entire corpus pipeline. Efficiency gains compound downstream. But relevance depends on corpus composition — if most docs are text-native PDFs, L1 (triage) is the only high-ROI change. |
 
@@ -30,7 +30,7 @@ This is a broad IS-mode claim that requires refinement before resources are comm
 
 The refined question must move beyond "copy LiteParse" toward "which LiteParse patterns, adapted to hKask's cybernetic model, produce measurable OCR efficiency gains without violating P5 (simplicity) or P7 (deep module)?"
 
-The novelty is reframed as: **cybernetic-governance adaptation of standalone parser patterns** — every adopted pattern must emit `cns.pipeline.*` spans, every threshold change must follow the calibration discipline (≥100 samples, >95% agreement, human approval, never auto-adjust), and every new tool must be opt-in.
+The novelty is reframed as: **cybernetic-governance adaptation of standalone parser patterns** — every adopted pattern must emit `reg.pipeline.*` spans, every threshold change must follow the calibration discipline (≥100 samples, >95% agreement, human approval, never auto-adjust), and every new tool must be opt-in.
 
 ---
 
@@ -47,7 +47,7 @@ The novelty is reframed as: **cybernetic-governance adaptation of standalone par
 
 ## 4. Synthesized Research Question
 
-> "In hKask's docproc OCR pipeline, which subset of LiteParse-derived patterns — when adapted to preserve CNS observability and affirmative-consent calibration — produces a measurable reduction in OCR wall-clock time per document without degrading extraction accuracy on text-native, scanned, and mixed PDFs?"
+> "In hKask's docproc OCR pipeline, which subset of LiteParse-derived patterns — when adapted to preserve Regulation observability and affirmative-consent calibration — produces a measurable reduction in OCR wall-clock time per document without degrading extraction accuracy on text-native, scanned, and mixed PDFs?"
 
 **Question type:** Intervention (multi-pattern adoption study).
 
@@ -67,7 +67,7 @@ The novelty is reframed as: **cybernetic-governance adaptation of standalone par
 
 ## 7. Null Hypothesis (H₀)
 
-> In PDF documents processed by `docproc_convert`, there is no difference in OCR wall-clock time per document or extraction word-count accuracy between the current pipeline and any subset of LiteParse-derived patterns adapted under CNS observability and affirmative-consent calibration.
+> In PDF documents processed by `docproc_convert`, there is no difference in OCR wall-clock time per document or extraction word-count accuracy between the current pipeline and any subset of LiteParse-derived patterns adapted under Regulation observability and affirmative-consent calibration.
 
 ---
 
@@ -86,7 +86,7 @@ The novelty is reframed as: **cybernetic-governance adaptation of standalone par
 
 ### Secondary aim
 
-Characterize the cybernetic-governance overhead (CNS span emission, calibration discipline) of each adopted pattern, to quantify the cost of the novelty dimension.
+Characterize the cybernetic-governance overhead (Regulation span emission, calibration discipline) of each adopted pattern, to quantify the cost of the novelty dimension.
 
 ---
 

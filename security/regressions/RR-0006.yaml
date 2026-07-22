@@ -14,7 +14,7 @@ detection:
   # The canary token type and check_canary method must be present.
   pattern: 'pub struct CanaryToken'
   include: "crates/hkask-guard/src/**/*.rs"
-mitigation: "Generate a per-session CanaryToken, embed in system prompt, check output with check_canary(). Emits cns.guard.canary on detection."
+mitigation: "Generate a per-session CanaryToken, embed in system prompt, check output with check_canary(). Emits reg.guard.canary on detection."
 source: "https://www.toxsec.com/p/canary-tokens-for-prompt-injection — OWASP LLM07:2025"
 ci_gate: scripts/check-kali-regressions.sh
 status: enforced

@@ -8,9 +8,9 @@ Foundation type system for the hKask agent platform. Provides canonical ID types
 |--------|---------|
 | `id` | Strongly-typed IDs: `WebID`, `BotID`, `HMemId`, `GoalID`, `TemplateID` |
 | `error` | `InfrastructureError`, `McpErrorKind`, `DatabaseErrorKind` |
-| `event` | `NuEvent`, `NuEventSink` — CNS event model |
+| `event` | `NuEvent`, `NuEventSink` — Regulation event model |
 | `agent_registry` | `AgentDefinition`, `Charter`, `RegisteredAgent`, `UserProfile` |
-| `cns` | `CircuitState`, `CnsHealth`, `QueueDepth` |
+| `regulation` | `CircuitState`, `LedgerHealth`, `RegulationHealth` |
 | `curator` | `CuratorDirective`, `CuratorHandle`, `CurationThresholdConfig` |
 | `curation` | `BoundaryClassification`, `DataSovereigntyBoundary` |
 | `observable_span` | `ObservableSpan` trait and domain span enums |
@@ -29,10 +29,10 @@ Foundation type system for the hKask agent platform. Provides canonical ID types
 | `HMemId` | Memory triple identifier |
 | `GoalID` / `TemplateID` / `BotID` | Domain-specific typed IDs |
 | `InfrastructureError` | Universal error type for all infrastructure failures |
-| `NuEvent` | CNS event with namespace, category, observation |
+| `NuEvent` | Regulation event with namespace, category, observation |
 | `AgentDefinition` | Agent charter, rights, responsibilities, contacts |
 | `CuratorDirective` | Curator-issued instruction (budget, escalation) |
-| `ObservableSpan` | Trait for domain spans that emit CNS events |
+| `ObservableSpan` | Trait for domain spans that emit Regulation events |
 | `LLMParameters` | Temperature, top_p, max_tokens configuration |
 | `ToolTaint` | FIDES IFC label for MCP tools (Source/Sink/Pure/Endorser) |
 

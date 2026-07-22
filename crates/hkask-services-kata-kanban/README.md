@@ -38,7 +38,7 @@ Plan → Backlog | Do → InProgress | Check → Review | Act → Done
 
 - **PDCA → Kanban mapping:** Improvement Kata cycles execute as kanban task state transitions
 - **Coaching integration:** 5-question Coaching Kata prompts available as task primitives
-- **CNS observability:** `cns.kata.*` spans for kata execution, `cns.kanban` spans for board/task operations
+- **Regulation observability:** `reg.kata.*` spans for kata execution, `reg.kanban` spans for board/task operations
 - **Gas/rJoule tracking:** Per-task resource budgets with exhaustion completion path
 - **WIP limits:** Column-level limits per Anderson (2010)
 - **Consent gates:** Task assignment requires agent consent (P1)
@@ -49,10 +49,10 @@ Plan → Backlog | Do → InProgress | Check → Review | Act → Done
 ## Dependencies
 
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`
-- `hkask-regulation` — CNS span emission
+- `hkask-regulation` — Regulation span emission
 - `hkask-storage` — TripleStore, kata history persistence
 - `hkask-templates` — Jinja2 template rendering
-- `hkask-types` — ID types, CNS spans, WebID
+- `hkask-types` — ID types, Regulation spans, WebID
 - `hkask-ports` — Hexagonal port traits
 - `hkask-inference` — Inference router
 - `hkask-pods` — ActivePods for sub-userpod spawning

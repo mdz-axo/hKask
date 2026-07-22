@@ -83,4 +83,4 @@ DI_API_KEY=your-key HKASK_CODEGRAPH_DB=/path/to/codegraph.db hkask-mcp-codegraph
 - `hkask-inference` — `EmbeddingRouter` for embedding generation
 - `rmcp` — MCP protocol
 - `minijinja` — Jinja2 templates for embedding prompts
-- `tracing` — CNS event emission
+- `tracing` — Regulation event emission

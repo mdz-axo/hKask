@@ -27,6 +27,6 @@ Foundation crate for the hKask service layer. Defines shared types, configuratio
 
 ## Dependencies
 
-- `hkask-types` — CNS spans, WebID, nu-event
+- `hkask-types` — Regulation spans, WebID, nu-event
 - `hkask-ports` — hexagonal port traits
 - `hkask-keystore` — credential management

@@ -17,7 +17,7 @@ Provides an interactive agent session with slash-command dispatch, tab completio
 ## Features
 
 - `tui` feature gate for ratatui-based interactive console
-- CNS display for observability
+- Regulation display for observability
 - Builtin MCP server management
 
 ## Dependencies

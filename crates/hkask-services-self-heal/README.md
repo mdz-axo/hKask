@@ -25,10 +25,10 @@ Two-stage autonomous error-recovery engine. Maps error patterns to recovery stra
 
 ## Dependencies
 
-- `hkask-types` — `CnsSpan::SelfHeal` for CNS span emission
+- `hkask-types` — `RegulationSpan::SelfHeal` for Regulation span emission
 - `minijinja` — Stage-2 template rendering
 - `serde` / `serde_json` — strategy + instruction (de)serialization
 - `thiserror` — `HealError`
-- `tracing` — CNS span emission
+- `tracing` — Regulation span emission
 - `dotenvy` — `LoadDotEnv` action
 - `dirs` — default config search paths

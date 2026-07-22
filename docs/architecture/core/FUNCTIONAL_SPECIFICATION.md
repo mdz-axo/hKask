@@ -87,7 +87,7 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 
 ### 1.5.1 AgentService Structure
 
-`AgentService` is the canonical service layer owning all shared infrastructure. All **9 fields** are **private** — four nested sub-context structs (`InfraContext`, `GovernanceContext`, `CnsContext`, `StorageContext`) consolidate domain-coherent infrastructure, while five cross-cutting fields hold WebID, curator signal, config, inference loop, and governed tool state. `AgentService::build(config)` assembles all shared infrastructure once at startup.
+`AgentService` is the canonical service layer owning all shared infrastructure. All **9 fields** are **private** — four nested sub-context structs (`InfraContext`, `GovernanceContext`, `RegulationContext`, `StorageContext`) consolidate domain-coherent infrastructure, while five cross-cutting fields hold WebID, curator signal, config, inference loop, and governed tool state. `AgentService::build(config)` assembles all shared infrastructure once at startup.
 
 #### Sub-Contexts
 
@@ -95,7 +95,7 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 |-------------|-------|----------|
 | `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
 | `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
-| `CnsContext` | `regulation` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
+| `RegulationContext` | `ledger` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
 
 #### Public Methods (20)
 
@@ -104,7 +104,7 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 | `build(config)` | `Result<Self, ServiceError>` (async) | Construction |
 | `infra()` | `&InfraContext` | Context accessor |
 | `governance()` | `&GovernanceContext` | Context accessor |
-| `regulation()` | `&CnsContext` | Context accessor |
+| `ledger()` | `&RegulationContext` | Context accessor |
 | `storage()` | `&StorageContext` | Context accessor |
 | `config()` | `&ServiceConfig` | Identity |
 | `webid()` | `&WebID` | Identity |
@@ -201,7 +201,7 @@ The service layer was extracted from duplicated surface logic using the **strang
 |---------|---------------|------|------------|
 | `hkask-storage` (backup was absorbed, v0.31.0) | former monolithic service crate | v0.27.0 | P5 (Essentialism — parallel compilation benefit) |
 | `AgentService` (9-field consolidation, 4 nested sub-contexts) | CLI + API duplicate chains | v0.28.0 | P7 (Evolutionary Architecture — seam emerged from real usage) |
-| Nested sub-context pattern (`InfraContext`, `GovernanceContext`, `CnsContext`, `StorageContext`) | Flat 28-field struct with individual accessors | v0.31.0 | P5 (Essentialism — deep modules, callers navigate sub-context fields directly) |
+| Nested sub-context pattern (`InfraContext`, `GovernanceContext`, `RegulationContext`, `StorageContext`) | Flat 28-field struct with individual accessors | v0.31.0 | P5 (Essentialism — deep modules, callers navigate sub-context fields directly) |
 | `AgentService::consolidate_agent_memory` | `hkask-memory::consolidation_ops` direct DB open bypass | v0.30.0 | P2 (Affirmative Consent) + P4 (Clear Boundaries) — single consent-checked, OCAP-gated entry point |
 
 ### 1.5.5 Pod Export & K8s Deployment (v0.31.0)
@@ -281,7 +281,7 @@ Key deployment-related spans added in v0.31.0:
 
 ### Memory Verb Contracts
 
-> **Incorporated from:** `docs/architecture/core/CNS_MEMORY_VERB_CONTRACTS.md`
+> **Incorporated from:** `docs/architecture/core/REGULATION_MEMORY_VERB_CONTRACTS.md`
 
 13 Regulation `MemoryEncode` RegulationRecords emitted by autonomous memory operations:
 
@@ -867,7 +867,7 @@ rights:
   - escalate_to: hKask-Administrator
 
 responsibilities:
-  - monitor: system_health_via_cns
+  - monitor: system_health_via_regulation
   - synthesize: bot_reports_into_system_state
   - perform: metacognition_on_system_performance
   - emit: reg.prompt.metacognition
@@ -1191,7 +1191,7 @@ The crate uses `expect:` + `[P{N}]` annotations across its surface. This is the 
 
 Representative domains:
 - `AgentLifecycleService` — agent creation, monitoring, teardown
-- `CnsService` — Regulation health, alerts, variety, budget queries
+- `RegulationService` — Regulation health, alerts, variety, budget queries
 - `KeystoreService` — key management and signing operations
 - `WalletService` — wallet operation orchestration
 - `BackupService`, `BundleService`, `ChatService`, `ComposeService`, `CuratorService`, `DiscoverService`, `EmbedService`, `KataEngine`, `OnboardingService`, `SkillService`, `SovereigntyService`, `VerificationService`

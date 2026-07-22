@@ -86,5 +86,5 @@ println!("{}", ctx.text);
 - `blake3` — Content hashing for incremental indexing
 - `walkdir` — Directory traversal
 - `uuid` — Context ID generation
-- `tracing` — CNS event emission
+- `tracing` — Regulation event emission
 - `thiserror` — Error types

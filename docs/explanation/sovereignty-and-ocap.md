@@ -492,10 +492,10 @@ stateDiagram-v2
         OutputCheck --> SecretStripped : pem_leak
     }
 
-    InputRefused --> CNSLog
-    SecretStripped --> CNSLog
+    InputRefused --> RegLog
+    SecretStripped --> RegLog
 
-    CNSLog --> [*]
+    RegLog --> [*]
 
     note left of InputRefused
         Regulation: reg.guard.violation
@@ -510,7 +510,7 @@ stateDiagram-v2
         OWASP LLM06 (Info Disclosure)
     end note
 
-    note left of CNSLog
+    note left of RegLog
         Violation recorded
         Content refused (input)
         or sanitized (output)

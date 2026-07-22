@@ -13,7 +13,7 @@ Chat orchestration service: session management, memory recall, turn handling, an
 
 ## Dependencies
 
-- `hkask-types` — WebID, CNS spans, nu-event
+- `hkask-types` — WebID, Regulation spans, nu-event
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`, `Goal`
 - `hkask-services-context` — `AgentService` context
 - `hkask-pods` — Pod and agent types
@@ -22,4 +22,4 @@ Chat orchestration service: session management, memory recall, turn handling, an
 - `chat/improv.rs` (in this crate) - Constructive interaction protocol (Plussing, Yes And, Yes But, Freestyling, Riffing); the standalone `hkask-improv` crate was folded in during v0.31.0
 - `hkask-capability` — OCAP delegation tokens
 - `hkask-ports` — Hexagonal port traits
-- `hkask-regulation` — CNS span emission
+- `hkask-regulation` — Regulation span emission

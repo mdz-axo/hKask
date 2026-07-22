@@ -1,6 +1,6 @@
 # hkask-mcp-curator — Curator Daemon MCP Server
 
-MCP server exposing Curator daemon tools: algedonic monitoring, escalation management, CNS health, metacognition, and semantic memory recall.
+MCP server exposing Curator daemon tools: algedonic monitoring, escalation management, Regulation health, metacognition, and semantic memory recall.
 
 **Version:** v0.31.0 | **Crate:** `hkask-mcp-curator`
 
@@ -12,8 +12,8 @@ MCP server exposing Curator daemon tools: algedonic monitoring, escalation manag
 | `curator_list_escalations` | List all pending escalations requiring review |
 | `curator_resolve_escalation` | Resolve an escalation by ID |
 | `curator_dismiss_escalation` | Dismiss an escalation as not actionable |
-| `curator_metacognition` | Run metacognition cycle — requires live daemon for CNS data |
-| `curator_cns_status` | Live CNS status — variety per domain |
+| `curator_metacognition` | Run metacognition cycle — requires live daemon for Regulation data |
+| `curator_reg_status` | Live Regulation status — variety per domain |
 | `curator_bot_health` | Per-bot health — gas consumption vs. energy budget |
 | `curator_spec_drift` | Check specs for drift from registered verbs |
 | `curator_semantic_search` | Query the Curator's semantic memory by entity name |

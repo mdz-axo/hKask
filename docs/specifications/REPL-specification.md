@@ -171,7 +171,7 @@ classDiagram
         +governed_tool(webid) Arc
         +inference_port() Option
         +per_agent_memory(name) Result
-        +regulation() CnsContext
+        +ledger() RegulationContext
         +gas_remaining() Option
         +gas_cap() Option
     }
@@ -387,15 +387,15 @@ flowchart TD
     Nudge --> DisplayFinal
     DisplayFinal --> AppendThread[Append turn to thread history]
     AppendThread --> MarkSeeded[Mark thread as seeded]
-    MarkSeeded --> CnsUpdate[Run on_reg_update closure]
-    CnsUpdate --> ReturnSuccess[Return TurnOutcome success=true]
+    MarkSeeded --> RegUpdate[Run on_reg_update closure]
+    RegUpdate --> ReturnSuccess[Return TurnOutcome success=true]
     CheckTools -->|No| DisplayText[Display text portion via sink.agent_text]
     DisplayText --> InvokeTools[For each tool_call: deps.tools.invoke]
     InvokeTools --> FormatResults[format_tool_results]
     FormatResults --> SetInput[current_input = response]
     SetInput --> CheckMax{iteration > max_loops?}
     CheckMax -->|Yes| WarnMax[Warn: max iterations reached]
-    WarnMax --> CnsUpdate
+    WarnMax --> RegUpdate
     CheckMax -->|No| LoopBack[Continue loop]
     LoopBack --> Reserve
 ```

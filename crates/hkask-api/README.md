@@ -12,7 +12,7 @@ HTTP API with utoipa OpenAPI for hKask.
 | `agent`, `bots`, `pods`, `userpod` | Agent lifecycle |
 | `templates`, `bundles` | Template and bundle management |
 | `mcp` | MCP server management |
-| `cns`, `consolidation` | CNS and memory |
+| `regulation`, `consolidation` | Regulation and memory |
 | `sovereignty`, `auth` | Sovereignty and authentication |
 | `backup`, `git` | Storage and backup |
 | `spec` | Specification management |

@@ -3,7 +3,7 @@
 CLI for hKask — admin, config, startup, shutdown, and the single `tui` runtime launch.
 
 **Design rule:** CLI = admin, config, startup, shutdown. Runtime operations
-(skills, bundles, templates, kata, kanban, goals, adapters, CNS queries,
+(skills, bundles, templates, kata, kanban, goals, adapters, Regulation queries,
 curator escalations, consolidation, style, web search) live in the TUI's
 REPL slash commands or are invoked via MCP tools from within the runtime.
 The CLI does not expose side-doors to MCP tools.
@@ -34,4 +34,4 @@ The CLI does not expose side-doors to MCP tools.
 
 ## Observability
 
-CLI CNS spans log the **command group only** (e.g., `backup`, `deploy`) to avoid leaking sensitive arguments such as passphrases.
+CLI Regulation spans log the **command group only** (e.g., `backup`, `deploy`) to avoid leaking sensitive arguments such as passphrases.

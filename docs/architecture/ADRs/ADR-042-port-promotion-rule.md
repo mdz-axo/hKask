@@ -59,7 +59,7 @@ natural domain home closer to both consumers.
 | `SemanticStoragePort` | `hkask-pods` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
 | `MCPRuntimePort` | `hkask-pods` | 1 consumer | Stays in `hkask-pods` |
 | `InferencePort` | `hkask-services-chat` + `hkask-services-runtime` + `hkask-regulation` | 3 consumers, cross-domain | `hkask-ports` |
-| `CnsObserver` | `hkask-regulation` + `hkask-services-runtime` | 2 consumers, cross-domain | `hkask-ports` |
+| `LedgerObserver` | `hkask-regulation` + `hkask-services-runtime` | 2 consumers, cross-domain | `hkask-ports` |
 
 ### New type: `MemoryPortError`
 

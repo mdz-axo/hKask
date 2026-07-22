@@ -811,7 +811,7 @@ New Regulation spans:
 | `hkask-templates` | — | `registry.rs` (bootstrap loads 7 platform manifests) |
 | `hkask-pods` | — | `ports/memory_storage.rs`, `ports/mod.rs` (MemoryPortError re-export fix) |
 | `hkask-services-chat` | — | `chat.rs` (test mock fix) |
-| `hkask-mcp-curator` | — | `lib.rs` (+reg_query, +list_tokens tools), `types.rs` (+CnsQueryRequest, +TokenListRequest) |
+| `hkask-mcp-curator` | — | `lib.rs` (+reg_query, +list_tokens tools), `types.rs` (+RegQueryRequest, +TokenListRequest) |
 
 **Registry artifacts created:**
 
@@ -841,7 +841,7 @@ No production dependency from Regulation → Storage.
 | Gap | Status | Where |
 |-----|:---:|-------|
 | Platform manifests registered at startup | ✅ | `main.rs` — 7 manifests via `include_str!` + `load_manifest_from_yaml` + `register_bundle` |
-| `SloDataProvider` wired to `CyberneticsLoop` | ✅ | `build_loops()` — `CnsStoreSloProvider` from `Foundation.regulation_store` via `.with_slo_provider()` |
+| `SloDataProvider` wired to `CyberneticsLoop` | ✅ | `build_loops()` — `RegStoreSloProvider` from `Foundation.regulation_store` via `.with_slo_provider()` |
 | `TokenRegistryStore` wired to curator MCP | ✅ | `open_curator_stores()` — schema init from curator DB, wired to `CuratorServer` |
 
 **Test coverage:**

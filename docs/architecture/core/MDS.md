@@ -527,7 +527,7 @@ bash docs/ci/check-links.sh    # Zero broken cross-references
 
 `AgentService` is the **single source of truth** for all shared infrastructure in hKask. **Boundary:** In-process only. MCP servers do NOT depend on `AgentService` (P1 Prohibition — out-of-process isolation).
 
-All 9 fields are **private** and exposed through **20 public methods** grouped by concern. Four nested sub-context structs (`InfraContext`, `GovernanceContext`, `CnsContext`, `StorageContext`) consolidate domain-coherent infrastructure; the remaining 5 fields hold cross-cutting state (WebID, curator signal, config, inference loop, governed tool).
+All 9 fields are **private** and exposed through **20 public methods** grouped by concern. Four nested sub-context structs (`InfraContext`, `GovernanceContext`, `RegulationContext`, `StorageContext`) consolidate domain-coherent infrastructure; the remaining 5 fields hold cross-cutting state (WebID, curator signal, config, inference loop, governed tool).
 
 #### Sub-Contexts
 
@@ -535,7 +535,7 @@ All 9 fields are **private** and exposed through **20 public methods** grouped b
 |-------------|-------|----------|
 | `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
 | `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
-| `CnsContext` | `regulation` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
+| `RegulationContext` | `ledger` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
 
 #### Public Methods (20)
 
@@ -544,7 +544,7 @@ All 9 fields are **private** and exposed through **20 public methods** grouped b
 | `build(config)` | `Result<Self, ServiceError>` (async) | Construction |
 | `infra()` | `&InfraContext` | Context accessor |
 | `governance()` | `&GovernanceContext` | Context accessor |
-| `regulation()` | `&CnsContext` | Context accessor |
+| `ledger()` | `&RegulationContext` | Context accessor |
 | `storage()` | `&StorageContext` | Context accessor |
 | `config()` | `&ServiceConfig` | Identity |
 | `webid()` | `&WebID` | Identity |

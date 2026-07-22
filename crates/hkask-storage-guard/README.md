@@ -10,7 +10,7 @@ Implements the HkaskLoop (sense → compare → compute → act) cycle to monito
 
 - **Sense:** Measure disk usage percentage on the data directory
 - **Compare:** Detect deviations from configurable thresholds (warn 80%, critical 95%)
-- **Compute:** At warn level → log CNS span. At critical level → produce Prune action.
+- **Compute:** At warn level → log Regulation span. At critical level → produce Prune action.
 - **Act:** Prune old export archives. If pruning is insufficient, escalate to Curator.
 - **Verify:** Re-check after dampener cooldown (5 min). If still critical → escalate.
 

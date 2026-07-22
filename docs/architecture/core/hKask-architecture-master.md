@@ -539,7 +539,7 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 **Deeper reason: least action.** Energy tracking is the computational expression of the least action principle. Every operation costs gas because every operation has an action cost — the "distance" the system moves in configuration space. Rate limiting was a lossy projection of action tracking — energy tracking is the direct measurement.
 
-**Consequence:** `RateLimiter`, `CnsTokenBucket`, and sliding window types were removed. Remaining external-boundary rate limiting (API gateway WAF, OAuth, IP bans) are system infrastructure, not architecture.
+**Consequence:** `RateLimiter`, `RegTokenBucket`, and sliding window types were removed. Remaining external-boundary rate limiting (API gateway WAF, OAuth, IP bans) are system infrastructure, not architecture.
 
 ##### Crate-to-Loop Mapping
 

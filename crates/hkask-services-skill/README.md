@@ -35,5 +35,5 @@ Skill discovery, publishing, hashing, auditing, and bundle composition. Powers t
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`
 - `hkask-services-context` — `AgentService` context
 - `hkask-templates` — template registry, `SkillLoader`, `BundleManifest`
-- `hkask-types` — `Visibility`, CNS span types
+- `hkask-types` — `Visibility`, Regulation span types
 - `hkask-ports` — `Skill`, `SkillZone`, `InferencePort`, `SkillRegistryIndex`

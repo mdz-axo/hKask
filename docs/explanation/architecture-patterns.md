@@ -279,7 +279,7 @@ The four components that comprise the Regulation's internal model — `SetPoints
 - **Outcome**: `outcome_warning_threshold` (0.50), `outcome_critical_threshold` (0.25)
 - **Guard**: `guard_violation_rate_max` (0.20 — per OWASP LLM Top 10)
 
-These set points are loaded from YAML via `HKASK_CNS_CONFIG` environment variable, falling back to validated defaults. The `SetPointsConfig` type (line 232) allows partial configuration — any omitted field uses its default, making the model self-healing against misconfiguration.
+These set points are loaded from YAML via `HKASK_REG_CONFIG` environment variable, falling back to validated defaults. The `SetPointsConfig` type (line 232) allows partial configuration — any omitted field uses its default, making the model self-healing against misconfiguration.
 
 The regulator's model is validated on load: `validate()` at line 398 enforces 13 invariants — ratio fields must be in `[0.0, 1.0]`, warning thresholds must exceed critical thresholds, federation latencies must be ordered warning < critical, `stage_worsening_ratio` < `block_worsening_ratio`, and `variety_max_deficit` must be positive.
 
@@ -376,7 +376,7 @@ MCP servers provide the operational capabilities: web search, condenser, media, 
 
 System 2 is the anti-oscillation layer — it prevents autonomous units from conflicting with each other through coordination signals. In hKask, this is the `SetPoints` struct at `crates/hkask-regulation/src/set_points.rs:139` and the `SloManager` at `crates/hkask-regulation/src/slo_manager.rs:82`.
 
-`SetPoints` defines 25 configurable reference values. These are loaded from YAML via `HKASK_CNS_CONFIG` or fall back to defaults validated by `SetPoints::validate()`. `SloManager` defines service level objectives that are evaluated against ν-event data. Each `SloDefinition` has compliance targets; `SloEvaluation` reports whether an SLO is in breach. Breached SLOs feed the algedonic pathway — the pain channel that surfaces S2 coordination failures to higher VSM levels. These set points prevent oscillation by establishing explicit coordination contracts: when a pod's variety deficit exceeds the threshold, the system does not just oscillate — it escalates.
+`SetPoints` defines 25 configurable reference values. These are loaded from YAML via `HKASK_REG_CONFIG` or fall back to defaults validated by `SetPoints::validate()`. `SloManager` defines service level objectives that are evaluated against ν-event data. Each `SloDefinition` has compliance targets; `SloEvaluation` reports whether an SLO is in breach. Breached SLOs feed the algedonic pathway — the pain channel that surfaces S2 coordination failures to higher VSM levels. These set points prevent oscillation by establishing explicit coordination contracts: when a pod's variety deficit exceeds the threshold, the system does not just oscillate — it escalates.
 
 #### S3: Control — The Curator Agent
 
@@ -584,7 +584,7 @@ flowchart TD
 
     AS --> INFRA["InfraContext\n(inference, memory, MCP, pods,\nwallet, daemon, matrix, seams,\ngas calibration, federation)"]
     AS --> GOV["GovernanceContext\n(OCAP, consent, dispatch, A2A,\nescalations)"]
-    AS --> CNS_CTX["CnsContext\n(variety, regulation,\nloop orchestration, events)"]
+    AS --> CNS_CTX["RegulationContext\n(variety, cybernetics,\nloop orchestration, events)"]
     AS --> STOR["StorageContext\n(registry, goals, agents, users,\nsovereignty, wallet store)"]
 ```
 <!-- DIAGRAM_ALIGNMENT
@@ -868,7 +868,7 @@ classDiagram
         class AgentService {
             -infra: InfraContext
             -governance: GovernanceContext
-            -regulation: CnsContext
+            -ledger: RegulationContext
             -storage: StorageContext
             -system_webid: WebID
             +build(config) AgentService
@@ -876,7 +876,7 @@ classDiagram
             +webid() &WebID
             +governance() &GovernanceContext
             +infra() &InfraContext
-            +regulation() &CnsContext
+            +ledger() &RegulationContext
             +storage() &StorageContext
             +identity() (&WebID, &A2ARuntime)
             +curator_ready() Result
@@ -1508,7 +1508,7 @@ classDiagram
             source: Option~BoxErr~
             message: String
         }
-        class Cns {
+        class Reg {
             source: Option~BoxErr~
             message: String
         }

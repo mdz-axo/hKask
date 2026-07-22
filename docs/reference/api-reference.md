@@ -533,7 +533,7 @@ CLI commands for hKask.
 
 **Global Flags:** `--verbose`/`-v`, `--json-logs`, `--registry`/`-r` (Optional PathBuf).
 
-**Subcommands (36+ variants in `Commands` enum):** `Chat`, `Template`, `Bot`, `Pod`, `Mcp`, `Cns`, `Sovereignty`, `Goal`, `Git`, `Backup`, `Docs`, `Agent`, `Curator`, `Federation`, `Token`, `UserPod`, `Keystore`, `Bundle`, `Skill`, `Style`, `Kata`, `Kanban`, `Adapter`, `Models`, `Doctor`, `Onboard`, `Settings`, `Consolidate`, `Loops`, `Daemon`, `Test`, `WebSearch`, `Serve` (`api` feature), `Init`, `Export`, `Wallet`, `List`, `Rm`, `Transcript` (`tui` feature), `Matrix`, `Repair`, `Qa`.
+**Subcommands (36+ variants in `Commands` enum):** `Chat`, `Template`, `Bot`, `Pod`, `Mcp`, `Sovereignty`, `Goal`, `Git`, `Backup`, `Docs`, `Agent`, `Curator`, `Federation`, `Token`, `UserPod`, `Keystore`, `Bundle`, `Skill`, `Style`, `Kata`, `Kanban`, `Adapter`, `Models`, `Doctor`, `Onboard`, `Settings`, `Consolidate`, `Loops`, `Daemon`, `Test`, `WebSearch`, `Serve` (`api` feature), `Init`, `Export`, `Wallet`, `List`, `Rm`, `Transcript` (`tui` feature), `Matrix`, `Repair`, `Qa`.
 
 **Environment Variables:** `HKASK_DB_PATH`, `HKASK_DB_PASSPHRASE`, `HKASK_FUSION_JUDGE_MODEL`, `HKASK_FUSION_PANEL_MODELS`, `HKASK_MCP_HOST`, `HKASK_GUARD_TOKEN_LIMIT`.
 
@@ -870,7 +870,7 @@ Shared test fixtures and harness for hKask — temp DBs, keystores, WebID factor
 | `strategies` | Test strategies |
 | `test_runner` | `ExpectProposal` |
 
-**Key Public Types:** `TestDb`, `TestKeystore`, `TestWebId`, `MockCnsState`, `MockAlgedonicSignal`, `SignalValence` (enum), `MockRegulationLedger`, `MockToolState` (enum).
+**Key Public Types:** `TestDb`, `TestKeystore`, `TestWebId`, `MockRegState`, `MockAlgedonicSignal`, `SignalValence` (enum), `MockRegulationLedger`, `MockToolState` (enum).
 
 **Public Functions:** `temp_dir()`, `test_event()`, `test_h_mem()`.
 
@@ -1006,8 +1006,8 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 
 | Module | Purpose |
 |--------|---------|
-| `regulation` | `CnsContext` — Regulation context (runtime, cybernetics, loops, events, energy, tool_stats) |
-| `reg_store_slo_provider` | `CnsStoreSloProvider` — SLO data provider backed by `RegulationArchive` |
+| `regulation` | `RegulationContext` — Regulation context (runtime, cybernetics, loops, events, energy, tool_stats) |
+| `reg_store_slo_provider` | `RegStoreSloProvider` — SLO data provider backed by `RegulationArchive` |
 | `governance` | `GovernanceContext` — OCAP, consent, dispatch, A2A, escalations, curation signals |
 | `infra` | `InfraContext` — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas calibration, federation |
 | `mcp_server_guard` | MCP server guard integration |
@@ -1021,7 +1021,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 |-------|------|---------|
 | `infra` | `InfraContext` | Infrastructure — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas, federation |
 | `governance` | `GovernanceContext` | Governance — OCAP, consent, dispatch, A2A, escalations |
-| `regulation` | `CnsContext` | Regulation — variety sensing, regulation, loops, events, energy estimation |
+| `ledger` | `RegulationContext` | Regulation — variety sensing, regulation, loops, events, energy estimation |
 | `storage` | `StorageContext` | Storage — registry, goals, agents, users, sovereignty, wallet store |
 | `system_webid` | `WebID` | System WebID for signing capabilities |
 | `curator_ready` | `Option<oneshot::Receiver<()>>` | Signals CuratorPod activation |
@@ -1036,7 +1036,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 | `build` | `async (config: ServiceConfig) -> Result<Self, ServiceError>` | Canonical construction from ServiceConfig |
 | `config` | `(&self) -> &ServiceConfig` | Access configuration |
 | `webid` | `(&self) -> &WebID` | System WebID |
-| `regulation` | `(&self) -> &CnsContext` | Regulation context |
+| `ledger` | `(&self) -> &RegulationContext` | Regulation context |
 | `storage` | `(&self) -> &StorageContext` | Storage context |
 | `seam_summary` | `async (&self) -> Option<SeamSummary>` | Public seam watcher |
 | `governance` | `(&self) -> &GovernanceContext` | Governance context |
@@ -1056,7 +1056,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 
 `PerAgentMemory` — Per-agent memory infrastructure. Fields: `episodic_storage: Arc<dyn EpisodicStoragePort>`, `semantic_storage: Arc<dyn SemanticStoragePort>`, `consolidation_service` (all sharing the same DB).
 
-`CnsContext` — Regulation context. Methods: `new()`, `health()`, `variety()`.
+`RegulationContext` — Regulation context. Methods: `new()`, `health()`, `variety()`.
 
 **Re-exports at Crate Root:** `AgentService`, `PerAgentMemory`.
 
@@ -1964,7 +1964,7 @@ Current behavior is limited to call-driven indexing. `finalize()` resets the sta
 
 **Type:** class diagram | **Target:** `hkask-tui` window architecture | **Diataxis quadrant:** Reference
 
-The `hkask-tui` crate uses a single `Window` trait (9 methods) implemented by 22 concrete window types. Windows that connect to an MCP server additionally implement `McpTabbedWindow` for two-tab Chat/Data layout. All data flows through 15 domain-specific bridge traits, each providing a focused surface for one service domain.
+The `hkask-tui` crate uses a single `Window` trait (9 methods) implemented by 21 concrete window types. Windows that connect to an MCP server additionally implement `McpTabbedWindow` for two-tab Chat/Data layout. All data flows through 15 domain-specific bridge traits, each providing a focused surface for one service domain.
 
 ## Diagram
 
@@ -1999,7 +1999,6 @@ classDiagram
         class WindowKind {
             <<enumeration>>
             Chat
-            CnsMonitor
             Backup
             Registry
             Pods
@@ -2066,7 +2065,6 @@ classDiagram
     }
     namespace windows {
         class ChatWindow
-        class CnsMonitorWindow
         class CuratorWindow
         class KanbanWindow
         class WalletWindow
@@ -2089,7 +2087,6 @@ classDiagram
         class LogoWindow
     }
     Window <|-- ChatWindow : implements
-    Window <|-- CnsMonitorWindow : implements
     Window <|-- CuratorWindow : implements
     Window <|-- KanbanWindow : implements
     Window <|-- WalletWindow : implements
@@ -2141,7 +2138,7 @@ status: VERIFIED
 
 | From | To | Cardinality | Notes |
 |------|----|------------|-------|
-| `Window` trait | 22 concrete windows | 1 implements N | Object-safe trait, `Box<dyn Window>` storage |
+| `Window` trait | 21 concrete windows | 1 implements N | Object-safe trait, `Box<dyn Window>` storage |
 | `McpTabbedWindow` trait | 11 MCP-scoped windows | 1 implements N | Shared Chat/Data behavior; Scenarios adds section navigation |
 | `WindowBridges` | `ReplBridge` | 1:1 | Required — every window needs chat |
 | `WindowBridges` | Domain bridges | 1:0..1 each | Optional — wired via builder pattern |

@@ -15,7 +15,7 @@ Separated from `hkask-wallet` to prevent circular dependencies. The types crate 
 
 - Wallet services to depend on types without depending on wallet implementation
 - API layer to serialize wallet state without pulling in chain adapters
-- CNS spans to reference wallet concepts without importing wallet runtime
+- Regulation spans to reference wallet concepts without importing wallet runtime
 
 ## See Also
 

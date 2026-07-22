@@ -22,5 +22,5 @@ The cache mutex is recovered (not panicked) if a prior holder panicked (`unwrap_
 - `hkask-inference` — `InferenceConfig`, `InferenceRouter`, `ProviderId`, `RouterModelEntry`
 - `hkask-ports` — `InferencePort`
 - `hkask-services-core` — `ServiceError` (the one remaining foundation dep)
-- `tracing` — CNS span emission
+- `tracing` — Regulation span emission
 - (dev) `tokio` — `#[tokio::test]` for the cache-lifecycle/poison-recovery test

@@ -90,7 +90,7 @@ documents:
       [
         crates/hkask-wallet,
         crates/hkask-wallet-types,
-        crates/hkask-cns,
+        crates/hkask-regulation,
         crates/hkask-ledger,
       ]
     disposition: keep
@@ -104,7 +104,7 @@ documents:
     mds_categories: [trust]
     staleness_signal: stale
     drift_verdict: stale
-    code_artifacts: [crates/hkask-cns, crates/hkask-keystore]
+    code_artifacts: [crates/hkask-regulation, crates/hkask-keystore]
     disposition: keep
 
   - path: docs/architecture/ADRs/ADR-035-userpod-server-mode.md
@@ -205,7 +205,7 @@ documents:
     mds_categories: [domain, composition, trust, lifecycle, curation]
     staleness_signal: stale
     drift_verdict: stale
-    code_artifacts: [crates/hkask-types, crates/hkask-ports, crates/hkask-cns]
+        code_artifacts: [crates/hkask-types, crates/hkask-ports, crates/hkask-regulation]
     disposition: keep
 
   - path: docs/architecture/core/TEMPLATE_AUTHORSHIP.md
@@ -238,7 +238,7 @@ documents:
     mds_categories: [domain, composition, trust, lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-types, crates/hkask-ports, crates/hkask-cns]
+        code_artifacts: [crates/hkask-types, crates/hkask-ports, crates/hkask-regulation]
     disposition: keep
 
   # ── Architecture — Federation ─────────────────────────────────────────────
@@ -310,7 +310,7 @@ documents:
     mds_categories: [composition, trust]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-mcp, crates/hkask-cns]
+    code_artifacts: [crates/hkask-mcp, crates/hkask-regulation]
     disposition: keep
 
   - path: docs/diagrams/state-adapter-lifecycle.md
@@ -541,7 +541,7 @@ documents:
     mds_categories: [trust, lifecycle, domain]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-cns, crates/hkask-ledger]
+    code_artifacts: [crates/hkask-regulation, crates/hkask-ledger]
     disposition: keep
 
   # ── User Guides ───────────────────────────────────────────────────────────
@@ -605,7 +605,7 @@ documents:
     mds_categories: [domain, lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-wallet, crates/hkask-cns]
+    code_artifacts: [crates/hkask-wallet, crates/hkask-regulation]
     disposition: keep
 
   - path: docs/how-to/skills-and-composition.md

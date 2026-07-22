@@ -29,7 +29,7 @@ Style-based prose generation with cognition configuration: exemplar retrieval fr
 
 ## Dependencies
 
-- `hkask-types` — CNS spans, inference types
+- `hkask-types` — Regulation spans, inference types
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`, `InferenceContext`
 - `hkask-inference` — Inference router for embedding/retrieval
 - `hkask-memory` — Semantic memory for context retrieval

@@ -109,7 +109,7 @@ flowchart TD
     Executor --> Ocap
     Pod --> Ocap
 
-    subgraph CNS["Regulation - cybernetic nervous system"]
+    subgraph Regulation["Regulation system"]
         Regulation["reg.* spans<br/>variety, algedonic escalation"]
     end
 

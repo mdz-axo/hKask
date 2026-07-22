@@ -250,7 +250,7 @@ flowchart TD
         C -->|"converged or\nmax iterations"| A
     end
 
-    subgraph CNSLevel["Regulation PDCA (regulatory level)"]
+    subgraph RegLevel["Regulation PDCA (regulatory level)"]
         S2["sense"]
         C2["compare"]
         CO2["compute"]

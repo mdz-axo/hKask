@@ -92,14 +92,14 @@ match output.output {
 - **Mandatory by design** — scanners cannot be disabled, only tuned via `GuardConfig`
 - **Input pipeline**: `TokenLimit` → `RoleOverride` → `BanSubstrings` → `Deobfuscate`
 - **Output pipeline**: `Secrets` (detect + redact) + `CanaryToken` (exfiltration check)
-- **CNS integration**: Violations emit `InfraSpan::GuardViolation` with `cns.guard.input` / `cns.guard.output` / `cns.guard.canary` tracing targets
+- **Regulation integration**: Violations emit `InfraSpan::GuardViolation` with `reg.guard.input` / `reg.guard.output` / `reg.guard.canary` tracing targets
 
 ## Dependencies
 
-- `hkask-regulation` — CNS span emission
+- `hkask-regulation` — Regulation span emission
 - `hkask-types` — `InfrastructureError`
 - `llm-guard` — Core scanning primitives (BanSubstrings, Deobfuscate, Secrets, TokenLimit, RoleOverride)
-- `tracing` — CNS event logging
+- `tracing` — Regulation event logging
 - `rand` — Random marker generation for Spotlighter and CanaryToken
 - `hex` — Hex encoding for markers and canary tokens
 - `base64` — Base64 encoding for SpotlightMode::Encode

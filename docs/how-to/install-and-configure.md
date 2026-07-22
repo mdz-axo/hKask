@@ -608,15 +608,15 @@ flowchart TD
     InitLog --> CreateRt[Create Tokio runtime]
     CreateRt --> ChkFusion[Check fusion model config]
     ChkFusion --> InitReg[Init SqliteRegistry]
-    InitReg --> CnsOpen[Open Regulation span: command_dispatched]
-    CnsOpen --> Cmd{Command type?}
+    InitReg --> RegOpen[Open Regulation span: command_dispatched]
+    RegOpen --> Cmd{Command type?}
 
     Cmd -->|Serve| SvCfg[ServiceConfig::from_env]
     Cmd -->|Chat/Curator| Lightweight[Create McpRuntime if needed]
     Cmd -->|Other| Dispatch[Route to handler]
     Lightweight --> Dispatch
-    Dispatch --> CnsClose[Close Regulation span]
-    CnsClose --> End([Process exit])
+    Dispatch --> RegClose[Close Regulation span]
+    RegClose --> End([Process exit])
 
     SvCfg --> ResolveSecrets[Resolve secrets from keystore]
     ResolveSecrets --> BuildAgent[AgentService::build]
@@ -625,8 +625,8 @@ flowchart TD
         BuildAgent --> OpenDb[Database::open SQLCipher]
         OpenDb --> NuEvt[RegulationArchive Regulation event sink]
         NuEvt --> Stores[Create 7 stores]
-        Stores --> CnsRt[RegulationLedger with threshold]
-        CnsRt --> SeamW[SeamWatcher load + drift check]
+        Stores --> RegRt[RegulationLedger with threshold]
+        RegRt --> SeamW[SeamWatcher load + drift check]
     end
 
     subgraph PhaseB["Phase B: Loops"]
@@ -671,7 +671,7 @@ flowchart TD
 
     Surf -->|CLI| BuildRepl[Build ReplState]
     BuildRepl --> ChatLoop[Enter chat/REPL loop]
-    ChatLoop --> CnsClose
+    ChatLoop --> RegClose
 
     Surf -->|API| McpSrv[Start API MCP servers]
     McpSrv --> ApiState[ApiState::from_service_context]

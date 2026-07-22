@@ -6,12 +6,12 @@ Hexagonal architecture port traits for infrastructure abstractions. Enables doma
 
 | Module | Purpose |
 |--------|---------|
-| `cns` | CNS observer, storage, backpressure, circuit breaker ports |
+| `regulation` | Regulation observer, storage, backpressure, circuit breaker ports |
 | `inference_port` | `InferencePort` — LLM inference abstraction |
 | `inference_types` | `InferenceResult`, `StructuredToolCall`, `TokenProbability` |
 | `embedding_port` | `EmbeddingPort` — vector embedding store/search |
 | `consent_port` | Consent storage and query port |
-| `escalation` | Escalation queue port for CNS algedonic signals |
+| `escalation` | Escalation queue port for Regulation algedonic signals |
 | `federation` | `FederationDispatch` — inter-replica federation operations |
 | `registry_port` | Agent registry port |
 | `git_cas` | Git content-addressed storage port |
@@ -25,12 +25,12 @@ Hexagonal architecture port traits for infrastructure abstractions. Enables doma
 |------|-------------|
 | `InferencePort` | LLM inference abstraction (generate + stream) |
 | `EmbeddingPort` | Vector embedding store and similarity search |
-| `CnsObserver` | CNS event observer trait |
-| `CnsStoragePort` | CNS persistence (replay, algedonic query) |
+| `LedgerObserver` | Regulation event observer trait |
+| `LedgerStoragePort` | Regulation persistence (replay, algedonic query) |
 | `CircuitBreakerPort` | Circuit breaker state machine |
 | `FederationDispatch` | Inter-replica federation lifecycle |
 | `ToolPort` / `ToolInfo` | MCP tool invocation and metadata (includes `ToolTaint` label for FIDES IFC) |
-| `BackpressureSignal` | CNS backpressure communication |
+| `BackpressureSignal` | Regulation backpressure communication |
 | `RegistryPort` | Agent registration and lookup |
 
 ## Dependencies

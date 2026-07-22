@@ -110,11 +110,11 @@ The engine stores up to 200 `CompressionRecord` observations in a bounded ring b
 - `history_records` — number of stored compression observations
 - `history_stats` — per-algorithm and per-category compression ratio summaries
 
-## CNS Spans
+## Regulation Spans
 
-The `cns.condenser` tracing spans (compress, compression_ratio, health) are **diagnostic logging** for human inspection via log output — NOT cybernetic feedback signals. They are not consumed by any regulation policy or feedback loop.
+The `reg.condenser` tracing spans (compress, compression_ratio, health) are **diagnostic logging** for human inspection via log output — NOT cybernetic feedback signals. They are not consumed by any regulation policy or feedback loop.
 
-The actual feedback channel is the daemon's `store_experience` call, enriched with compression quality data (algorithm, category, profile, compression_ratio, health_signal_count). This data is available to the CNS runtime for observability and analysis.
+The actual feedback channel is the daemon's `store_experience` call, enriched with compression quality data (algorithm, category, profile, compression_ratio, health_signal_count). This data is available to the Regulation runtime for observability and analysis.
 
 ## Two-Phase Condensation
 

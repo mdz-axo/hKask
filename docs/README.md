@@ -35,13 +35,13 @@ flowchart TD
     HowTo --> HowToGuides["7 guides<br/>install, skills, training..."]
 
     Reference --> RefAPI["api-reference.md<br/>54 crates catalogued"]
-    Reference --> RefCNS["regulation-spans.md<br/>Span registry"]
+    Reference --> RefReg["regulation-spans.md<br/>Span registry"]
     Reference --> RefMC["magna-carta.md<br/>P1-P4 principles"]
     Reference --> RefMCP["mcp-servers/<br/>16 MCP servers"]
     Reference --> RefSkills["skills/<br/>Skills registry"]
 
     Explanation --> ExplArch["architecture-patterns.md<br/>Hexagonal ports, VSM"]
-    Explanation --> ExplCNS["regulation-and-loops.md<br/>Homeostatic regulation"]
+    Explanation --> ExplReg["regulation-and-loops.md<br/>Homeostatic regulation"]
     Explanation --> ExplSov["sovereignty-and-ocap.md<br/>OCAP dispatch"]
     Explanation --> ExplFed["federation-and-transport.md<br/>Federation protocol"]
     Explanation --> ExplEnergy["energy-and-economy.md<br/>Gas + ledger system"]

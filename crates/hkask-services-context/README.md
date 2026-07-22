@@ -12,7 +12,7 @@ Assembles all shared infrastructure into four sub-contexts.
 | `AgentService` | Central runtime context — 4 sub-contexts + 3 properties |
 | `PerAgentMemory` | Episodic + semantic memory handle per agent |
 | `GovernanceContext` | OCAP, consent, dispatch, A2A, escalations, curation |
-| `CnsContext` | Variety sensing, cybernetics, loops, events, energy |
+| `RegulationContext` | Variety sensing, cybernetics, loops, events, energy |
 | `StorageContext` | Registry, goals, specs, agents, users, sovereignty, wallet |
 | `InfraContext` | Inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas, federation |
 
@@ -22,7 +22,7 @@ Assembles all shared infrastructure into four sub-contexts.
 AgentService
 ├── infra: InfraContext          (11 fields — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas, federation)
 ├── governance: GovernanceContext (6 fields — checker, consent, dispatcher, a2a, escalations, curation_tx)
-├── cns: CnsContext              (5 fields — runtime, cybernetics, loops, events, energy)
+├── ledger: RegulationContext    (5 fields — runtime, cybernetics, loops, events, energy)
 ├── storage: StorageContext      (7 fields — registry, goals, specs, agents, users, sovereignty, wallet)
 ├── system_webid: WebID
 ├── curator_ready: Option<oneshot::Receiver<()>>
@@ -34,7 +34,7 @@ AgentService
 | Method | Returns |
 |--------|---------|
 | `config()` | `&ServiceConfig` |
-| `cns()` | `&CnsContext` |
+| `ledger()` | `&RegulationContext` |
 | `storage()` | `&StorageContext` |
 | `governance()` | `&GovernanceContext` |
 | `infra()` | `&InfraContext` |

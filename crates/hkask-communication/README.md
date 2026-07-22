@@ -1,6 +1,6 @@
 # hkask-communication
 
-Core Matrix transport, agent registry, 7R7 listener, and CNS bridge for hKask.
+Core Matrix transport, agent registry, 7R7 listener, and Regulation bridge for hKask.
 
 ## Architecture
 
@@ -28,8 +28,8 @@ Matrix message (Conduit)
 
 - **Matrix transport** — full matrix-sdk integration: login, send/receive messages, create rooms, invite users, list rooms, upload/send files
 - **Agent registry** — WebID ↔ Matrix UserId mapping with thread watchlists
-- **7R7 listener** — passive room observer, polls rooms, persists CNS NuEvents for curation awareness
-- **CNS bridge** — communication events flow into the NuEvent store with `communication.message` and `communication.thread` algedonic categories
+- **7R7 listener** — passive room observer, polls rooms, persists Regulation NuEvents for curation awareness
+- **Regulation bridge** — communication events flow into the NuEvent store with `communication.message` and `communication.thread` algedonic categories
 - **CAT engagement** — Communication Accommodation Theory gate: `convergence_bias` scalar decides speak/silent per agent
 
 ## Configuration

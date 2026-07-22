@@ -7,7 +7,7 @@ embedding, QA generation, caching, and semantic query. Supersedes the former
 ## Architecture
 
 ```
-lib.rs           — Server struct, CNS observer, shared helpers (extract_text,
+lib.rs           — Server struct, Regulation observer, shared helpers (extract_text,
                    embedding model resolution, normalize_concept)
 helpers.rs        — Math/text helpers (cosine_similarity, tokens_to_words, chunk_word_bounds,
                    serialize_passages)
@@ -33,7 +33,7 @@ ocr/ (11 modules)
   llm_ocr.rs     — Vision LLM OCR via hkask-inference
   tesseract.rs   — Classical OCR via tesseract CLI (TSV confidence parsing)
   verification.rs — Post-pipeline quality checks (page count, word count, empty pages)
-  calibration.rs — Threshold drift analysis with CNS alerting (human approval required)
+  calibration.rs — Threshold drift analysis with Regulation alerting (human approval required)
   mod.rs         — Re-exports
 convert.rs        — Format detection, HTML stripping, markdown frontmatter removal
 template.rs       — Cached minijinja environment for docproc prompt templates
@@ -74,7 +74,7 @@ PDF → [Decimate] → PageQueue → [Score → Route → OCR] → [Verify] → 
 - **Routing:** Simple pages → Tesseract. Complex pages → LLM vision OCR. Moderate pages → Tesseract with 10% dual-routing for cross-validation.
 - **Backends:** Tesseract (CLI with TSV confidence parsing) and LLM vision (via `hkask-inference`, quality heuristic confidence scoring).
 - **Verification:** Page count matching, empty page detection, word count estimation (±50% guardrail).
-- **Calibration:** Accumulates cross-validation data. When ≥100 samples show >95% agreement between backends, suggests raising routing thresholds via CNS alert. **Never auto-adjusts** — P4 affirmative consent required.
+- **Calibration:** Accumulates cross-validation data. When ≥100 samples show >95% agreement between backends, suggests raising routing thresholds via Regulation alert. **Never auto-adjusts** — P4 affirmative consent required.
 
 ## Configuration
 
@@ -85,7 +85,7 @@ PDF → [Decimate] → PageQueue → [Score → Route → OCR] → [Verify] → 
 | `HKASK_TEMPLATE_ROOT` | Root containing `templates/docproc/`. Default: `registry` (relative to CWD). |
 | `HKASK_QA_MODEL` | Default provider-prefixed QA model. A request-level `model` wins; otherwise the router uses `HKASK_QA_MODEL`, then `HKASK_DEFAULT_MODEL`. |
 | `HKASK_USE_FAL_DOCRES` | Set to `true` to enable fal.ai docres binarization enhancement (opt-in, ~40s latency). Requires `FA_API_KEY`. |
-| `HKASK_MCP_HOST` | UserPod identity for CNS narrative memory. |
+| `HKASK_MCP_HOST` | UserPod identity for Regulation narrative memory. |
 
 ### OCR Thresholds (via env vars or `settings.json`)
 
@@ -94,7 +94,7 @@ PDF → [Decimate] → PageQueue → [Score → Route → OCR] → [Verify] → 
 | `HKASK_OCR_SIMPLE_MAX` | 0.05 | Edge-density threshold for Simple tier |
 | `HKASK_OCR_MODERATE_MAX` | 0.15 | Edge-density threshold for Moderate tier |
 | `HKASK_OCR_SAMPLE_RATE` | 0.10 | Dual-routing sample rate for Moderate pages |
-| `HKASK_OCR_TUNEABLE` | true | Whether CNS calibration may suggest threshold adjustments |
+| `HKASK_OCR_TUNEABLE` | true | Whether Regulation calibration may suggest threshold adjustments |
 
 ### Page Triage Thresholds (per-page pre-OCR complexity detection)
 
@@ -104,23 +104,23 @@ PDF → [Decimate] → PageQueue → [Score → Route → OCR] → [Verify] → 
 | `HKASK_OCR_TRIAGE_MIN_IMAGE_PT` | 25.0 | Min image side (points) to count as a substantial image |
 | `HKASK_OCR_TRIAGE_FULL_PAGE_PT` | 500.0 | Image dims (pt) at/above which a no-text page is classified `Scanned` |
 | `HKASK_OCR_TRIAGE_EMBEDDED_IMAGE_PT` | 150.0 | Min image side (pt) to flag `EmbeddedImages` on a text page |
-| `HKASK_OCR_TRIAGE_TUNEABLE` | true | Whether CNS calibration may suggest triage threshold adjustments |
+| `HKASK_OCR_TRIAGE_TUNEABLE` | true | Whether Regulation calibration may suggest triage threshold adjustments |
 
-## CNS Observability
+## Regulation Observability
 
-The server emits CNS spans under these targets for cybernetic feedback:
+The server emits Regulation spans under these targets for cybernetic feedback:
 
 | Target | When |
 |--------|------|
-| `cns.pipeline.ocr` | Pipeline verification (every run) |
-| `cns.pipeline.ocr.verification_failed` | Verification report fails |
-| `cns.pipeline.ocr.low_confidence` | LLM OCR confidence < 0.3 |
-| `cns.pipeline.ocr.rate_limit` | Inference rate-limited (429) |
-| `cns.pipeline.ocr.collusion` | Both backends produce empty output |
-| `cns.pipeline.decimation` | Page load failures |
-| `cns.pipeline.decimation.binarize` | Otsu produces uniform output |
-| `cns.pipeline.calibration` | Threshold drift detected |
-| `cns.docproc.index` | Indexing requested but embedding unavailable |
+| `reg.pipeline.ocr` | Pipeline verification (every run) |
+| `reg.pipeline.ocr.verification_failed` | Verification report fails |
+| `reg.pipeline.ocr.low_confidence` | LLM OCR confidence < 0.3 |
+| `reg.pipeline.ocr.rate_limit` | Inference rate-limited (429) |
+| `reg.pipeline.ocr.collusion` | Both backends produce empty output |
+| `reg.pipeline.decimation` | Page load failures |
+| `reg.pipeline.decimation.binarize` | Otsu produces uniform output |
+| `reg.pipeline.calibration` | Threshold drift detected |
+| `reg.docproc.index` | Indexing requested but embedding unavailable |
 
 ## Shared Infrastructure
 
@@ -129,7 +129,7 @@ Docproc integrates with hkask's shared service layer:
 - **Settings:** Model defaults from `~/.config/hkask/settings.json` via `hkask-services-core::HkaskSettings`
 - **Template rendering:** Minijinja-based (same pattern as `self_heal.rs` and `ManifestExecutor`)
 - **Templates:** `registry/templates/docproc/{generate-qa,extract-hmems,rag-answer}.j2`
-- **CNS:** Daemon-backed event persistence for Curator consumption
+- **Regulation:** Daemon-backed event persistence for Curator consumption
 - **Inference:** `hkask-inference` router with provider-prefixed model names
 
 ## QA Model and Output Contract

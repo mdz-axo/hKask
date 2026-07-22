@@ -20,4 +20,4 @@ New-user and new-agent onboarding: secrets generation, Matrix registration, init
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`
 - `hkask-keystore` — credential generation and storage
 - `hkask-communication` — Matrix homeserver registration
-- `hkask-regulation` — CNS span emission for onboarding events
+- `hkask-regulation` — Regulation span emission for onboarding events

@@ -70,15 +70,15 @@ The ontology graph encodes concept relationships (e.g., `fibo:Corporation` →
 `HasProperty` → `fibo:MarketCapitalization`) and serves as a saliency
 multiplier — lines containing graph-adjacent concepts get bonus scores.
 
-## CNS Spans
+## Regulation Spans
 
-The `cns.condenser` tracing spans are **diagnostic logging** for human inspection — NOT cybernetic feedback signals. They are not consumed by any regulation policy or feedback loop. The actual feedback channel is the daemon's `store_experience` call in the MCP server layer.
+The `reg.condenser` tracing spans are **diagnostic logging** for human inspection — NOT cybernetic feedback signals. They are not consumed by any regulation policy or feedback loop. The actual feedback channel is the daemon's `store_experience` call in the MCP server layer.
 
 | Span | Fields | When |
 |------|--------|------|
-| `cns.condenser` compress | `algorithm`, `category`, `tool_name`, `ontology_tier` | Every compression |
-| `cns.condenser` compression_ratio | `reduction_pct`, `original_bytes`, `compressed_bytes`, `latency_ms` | Every compression |
-| `cns.condenser` health | `total_compressions`, `health_signal_count` | Health check |
+| `reg.condenser` compress | `algorithm`, `category`, `tool_name`, `ontology_tier` | Every compression |
+| `reg.condenser` compression_ratio | `reduction_pct`, `original_bytes`, `compressed_bytes`, `latency_ms` | Every compression |
+| `reg.condenser` health | `total_compressions`, `health_signal_count` | Health check |
 
 ## Learning
 
