@@ -164,7 +164,8 @@ impl ThreadRegistry {
     }
 
     /// Append a user/assistant exchange to the active thread's short-term stream.
-    /// Prunes oldest turns if the stream exceeds MAX_THREAD_TURNS.
+    /// Compacts oldest turns if the stream exceeds MAX_THREAD_TURNS — inserts a
+    /// visible compaction entry instead of silently dropping turns.
     pub fn append_turn(&mut self, agent_name: &str, user_input: &str, assistant_response: &str) {
         let thread_id = match self.active_thread_id {
             Some(ref id) => id.clone(),
@@ -185,12 +186,31 @@ impl ThreadRegistry {
             thread.last_active_at = chrono::Utc::now().to_rfc3339();
             thread.message_count += 1;
 
-            // Prune oldest turns if over cap.
-            while thread.turns.len() > MAX_THREAD_TURNS {
-                thread.turns.remove(0);
-            }
-            if thread.turns.len() == MAX_THREAD_TURNS {
-                emit_thread_reg("turns_pruned", &thread.id);
+            // Compact oldest turns if over cap — insert a visible compaction
+            // entry instead of silently dropping turns. The ChatService handles
+            // context-window condensation (87.5% threshold); this is a storage-
+            // level cap that prevents JSON files from growing unbounded.
+            if thread.turns.len() > MAX_THREAD_TURNS {
+                let excess = thread.turns.len() - MAX_THREAD_TURNS;
+                let removed_count = (excess + 1).min(thread.turns.len());
+                let removed: Vec<TurnEntry> = thread.turns.drain(..removed_count).collect();
+                let compacted_msg = format!(
+                    "[Context Compacted] {} earlier message(s) pruned from short-term \
+                     storage. Long-term episodic memory retains the full conversation.",
+                    removed.len()
+                );
+                thread.turns.insert(
+                    0,
+                    TurnEntry {
+                        role: "system".to_string(),
+                        content: compacted_msg,
+                        timestamp: chrono::Utc::now().to_rfc3339(),
+                    },
+                );
+                emit_thread_reg(
+                    "compacted",
+                    &format!("{}: {} turns", thread.id, removed.len()),
+                );
             }
 
             write_thread_file(agent_name, thread);
@@ -441,10 +461,21 @@ mod tests {
         }
         let thread = reg.get(&active_id).unwrap();
         assert!(thread.turns.len() <= MAX_THREAD_TURNS);
-        // Oldest should be pruned — first messages should be gone.
-        // After pruning 420 turns to 200, oldest preserved is at iteration 110.
+        // Oldest should be compacted — first messages should be gone.
+        // With compaction, each overflow removes 3 turns and inserts 1
+        // compaction entry. After 110 compactions (210 exchanges - 100 at
+        // cap), msg110 is removed; oldest preserved is resp110/msg111.
         let history = reg.thread_history(None).unwrap();
-        assert!(!history.contains("msg0"));
-        assert!(history.contains("msg110"));
+        assert!(!history.contains("msg0"), "msg0 should be compacted away");
+        assert!(
+            !history.contains("msg110"),
+            "msg110 should be compacted away"
+        );
+        assert!(history.contains("msg111"), "msg111 should be preserved");
+        // Compaction entry should be visible in the thread history.
+        assert!(
+            history.contains("Context Compacted"),
+            "compaction entry should be visible in thread history"
+        );
     }
 }

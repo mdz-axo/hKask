@@ -6,6 +6,11 @@
 use super::super::ReplState;
 use hkask_types::template::LLMParameters;
 
+/// Default condensation pressure threshold (87.5%). When context window
+/// fill exceeds this fraction, auto-condensation triggers. Single source
+/// of truth — referenced by `default_condense_threshold()` and tests.
+pub(crate) const DEFAULT_CONDENSE_THRESHOLD: f32 = 0.875;
+
 /// Show all REPL settings.
 pub fn handle_repl_show(state: &ReplState) {
     println!("{}", render_settings(state));
@@ -303,7 +308,7 @@ fn default_ocr_sample_rate() -> f32 {
     0.10
 }
 fn default_condense_threshold() -> f32 {
-    0.875
+    DEFAULT_CONDENSE_THRESHOLD
 }
 fn default_saliency_window() -> usize {
     5

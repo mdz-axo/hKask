@@ -13,12 +13,24 @@ use ratatui::text::{Line, Span};
 use crate::widgets::energy_gauge;
 use crate::window::WindowId;
 
+/// Default condensation pressure threshold (matches ReplSettings default).
+/// When context pressure exceeds this fraction, the status bar displays red.
+const DEFAULT_CONDENSE_THRESHOLD: f64 = 0.875;
+
+/// Warning threshold for context pressure display (percentage).
+/// Above this, the status bar displays yellow; below, dark gray.
+const CONTEXT_WARNING_PCT: f64 = 60.0;
+
 pub struct StatusBar {
     pub model: String,
     pub gas_remaining: u64,
     pub gas_cap: u64,
     pub reg_status: RegStatus,
     pub context_pressure: f64,
+    /// Condensation pressure threshold (0.0–1.0). When context pressure
+    /// exceeds this, the display turns red. Defaults to 0.875 (87.5%),
+    /// matching `ReplSettings::condense_pressure_threshold`.
+    pub condense_threshold: f64,
     pub show_hints: bool,
 }
 
@@ -37,6 +49,7 @@ impl StatusBar {
             gas_cap: 10_000,
             reg_status: RegStatus::Healthy,
             context_pressure: 0.0,
+            condense_threshold: DEFAULT_CONDENSE_THRESHOLD,
             show_hints: true,
         }
     }
@@ -87,9 +100,10 @@ impl StatusBar {
         spans.push(Span::raw("│"));
 
         let ctx_pct = self.context_pressure * 100.0;
-        let ctx_style = if ctx_pct > 87.5 {
+        let condense_pct = self.condense_threshold * 100.0;
+        let ctx_style = if ctx_pct > condense_pct {
             Color::Red
-        } else if ctx_pct > 60.0 {
+        } else if ctx_pct > CONTEXT_WARNING_PCT {
             Color::Yellow
         } else {
             Color::DarkGray

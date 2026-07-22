@@ -469,21 +469,24 @@ mod tests {
     #[test]
     fn compaction_triggers_above_87_5_percent() {
         let w: u32 = 4096;
-        let t = (w as f64 * 0.875) as u64;
+        let threshold = crate::handlers::repl_settings::DEFAULT_CONDENSE_THRESHOLD as f64;
+        let t = (w as f64 * threshold) as u64;
         let c = (w as f64 * 0.90 * 4.0) as usize;
         assert!((c as u64) / 4 > t);
     }
     #[test]
     fn compaction_skips_below_87_5_percent() {
         let w: u32 = 4096;
-        let t = (w as f64 * 0.875) as u64;
+        let threshold = crate::handlers::repl_settings::DEFAULT_CONDENSE_THRESHOLD as f64;
+        let t = (w as f64 * threshold) as u64;
         let c = (w as f64 * 0.80 * 4.0) as usize;
         assert!((c as u64) / 4 <= t);
     }
     #[test]
     fn compaction_threshold_matches_formula() {
+        let threshold = crate::handlers::repl_settings::DEFAULT_CONDENSE_THRESHOLD as f64;
         for (w, e) in [(2048, 1792), (4096, 3584), (8192, 7168), (32768, 28672)] {
-            assert_eq!((w as f64 * 0.875) as u64, e);
+            assert_eq!((w as f64 * threshold) as u64, e);
         }
     }
 
