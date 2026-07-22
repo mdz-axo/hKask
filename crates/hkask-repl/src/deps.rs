@@ -94,7 +94,7 @@ pub struct TurnDeps<'a> {
     pub gas: &'a dyn GasGovernor,
     pub tools: &'a dyn ToolPort,
     pub threads: &'a mut dyn ThreadMemory,
-    pub on_cns_update: &'a dyn Fn(),
+    pub on_reg_update: &'a dyn Fn(),
 }
 
 // ── Production adapters ──────────────────────────────────────────────

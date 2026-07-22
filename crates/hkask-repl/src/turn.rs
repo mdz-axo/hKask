@@ -312,7 +312,7 @@ fn run_turn_loop(
         tracing::info!(target: "reg", reg_domain = "reg.chat.turn", operation = "completed", agent = %display_name, response_len = resp.len(), iterations = iteration, "REG");
     }
 
-    (deps.on_cns_update)();
+    (deps.on_reg_update)();
 
     TurnOutcome {
         success: !inference_error,
@@ -430,16 +430,16 @@ fn run_turn_with_state(
     let gas = super::deps::ReplGasGovernor::from_state(state, rt);
     let svc_ctx = &state.service_context;
     #[cfg(feature = "tui")]
-    let on_cns_update = || reg_display::update_cns_and_display(svc_ctx, rt);
+    let on_reg_update = || reg_display::update_reg_and_display(svc_ctx, rt);
     #[cfg(not(feature = "tui"))]
-    let on_cns_update = || {};
+    let on_reg_update = || {};
     let mut threads = super::deps::ReplThreadMemory::new(&mut state.thread_registry);
     let deps = TurnDeps {
         executor: &executor,
         gas: &gas,
         tools: governed_runtime.as_ref(),
         threads: &mut threads,
-        on_cns_update: &on_cns_update,
+        on_reg_update: &on_reg_update,
     };
     run_turn_loop(input, deps, &config, rt, sink, agent_override)
 }
@@ -765,7 +765,7 @@ mod tests {
             gas,
             tools,
             threads,
-            on_cns_update: &noop,
+            on_reg_update: &noop,
         }
     }
 

@@ -28,7 +28,7 @@ pub(super) async fn build_mcp_and_pods(
     // Governed McpRuntime — OCAP + gas + Regulation wired in via with_governance.
     let energy_estimator: Arc<CalibratedEnergyEstimator> = Arc::new(
         CalibratedEnergyEstimator::new(Arc::clone(&f.gas_event_store))
-            .with_event_sink(Arc::clone(&f.cns_event_sink)),
+            .with_event_sink(Arc::clone(&f.reg_event_sink)),
     );
     energy_estimator
         .clone()
@@ -68,7 +68,7 @@ pub(super) async fn build_mcp_and_pods(
 
     let mcp_runtime = Arc::new(McpRuntime::new().with_governance(
         Arc::clone(&l.cybernetics_loop),
-        Arc::clone(&f.cns_event_sink),
+        Arc::clone(&f.reg_event_sink),
         estimator,
     ));
 

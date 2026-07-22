@@ -60,13 +60,13 @@ created_at TEXT DEFAULT (datetime('now'))\
 );\n\
 CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);\n\
 CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor_webid);\n\
-CREATE TABLE IF NOT EXISTS cns_variety_checkpoint (\
+CREATE TABLE IF NOT EXISTS reg_variety_checkpoint (\
 domain TEXT PRIMARY KEY, \
 variety_count INTEGER NOT NULL, \
 last_updated TEXT NOT NULL, \
 threshold INTEGER NOT NULL DEFAULT 10\
 );\n\
-CREATE TABLE IF NOT EXISTS cns_alerts (\
+CREATE TABLE IF NOT EXISTS reg_alerts (\
 id TEXT PRIMARY KEY, \
 timestamp TEXT NOT NULL, \
 alert_type TEXT NOT NULL, \

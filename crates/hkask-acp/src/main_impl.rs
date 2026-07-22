@@ -125,7 +125,7 @@ impl HkaskAcpAgent {
                         gate_result.denied_tools.len(),
                         gate_result.denied_tools
                     );
-                    cns_emit_acp("reg.acp.ide.connection_state", &userpod, "connected");
+                    reg_emit_acp("reg.acp.ide.connection_state", &userpod, "connected");
                     (Some(daemon_client), None)
                 }
                 Err(e) => {
@@ -134,7 +134,7 @@ impl HkaskAcpAgent {
                         e
                     );
                     warn!(target: "hkask.acp", userpod = %userpod, error = %msg);
-                    cns_emit_acp("reg.acp.ide.connection_state", &userpod, "degraded");
+                    reg_emit_acp("reg.acp.ide.connection_state", &userpod, "degraded");
                     (None, Some(msg))
                 }
             }
@@ -410,7 +410,7 @@ fn map_tool_kind(tc: &hkask_ports::inference_types::StructuredToolCall) -> Strin
     }
 }
 
-fn cns_emit_acp(span: &str, userpod: &str, detail: &str) {
+fn reg_emit_acp(span: &str, userpod: &str, detail: &str) {
     info!(
         target: "hkask.acp",
         reg_span = %span,
@@ -433,7 +433,7 @@ pub async fn run() -> Result<(), AcpError> {
     let mut transport = protocol::StdioTransport::new();
     transport.serve(Arc::clone(&agent)).await?;
 
-    cns_emit_acp(
+    reg_emit_acp(
         "reg.acp.ide.connection_state",
         &agent.userpod,
         "disconnected",

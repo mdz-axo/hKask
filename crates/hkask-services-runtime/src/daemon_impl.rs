@@ -270,14 +270,14 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn curator_health(&self, _userpod: &str) -> serde_json::Value {
-        let Some(ref cns_lock) = self.ledger_runtime else {
+        let Some(ref reg_lock) = self.ledger_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
                 "reg_health": "unknown",
                 "note": "Regulation runtime not available"
             });
         };
-        let ledger = cns_lock.read().await;
+        let ledger = reg_lock.read().await;
         let alerts = ledger.alerts().await;
         let critical = alerts.iter().filter(|a| a.is_critical()).count();
         let total = alerts.len();
@@ -298,13 +298,13 @@ impl DaemonHandler for ServiceDaemonHandler {
     }
 
     async fn reg_status(&self, _userpod: &str, domain: Option<&str>) -> serde_json::Value {
-        let Some(ref cns_lock) = self.ledger_runtime else {
+        let Some(ref reg_lock) = self.ledger_runtime else {
             return serde_json::json!({
                 "timestamp": now_rfc3339(),
                 "note": "Regulation runtime not available"
             });
         };
-        let ledger = cns_lock.read().await;
+        let ledger = reg_lock.read().await;
         let variety = ledger.variety().await;
         let domains: Vec<serde_json::Value> = variety
             .iter()

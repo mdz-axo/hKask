@@ -13,7 +13,7 @@ use hkask_services_context::AgentService;
 /// Check Regulation algedonic alerts and tick the LoopScheduler after each turn.
 /// Only reads Regulation state (alerts) and ticks loop system — no direct mutation.
 /// Regulation variety counters are updated by the service layer via Regulation spans.
-pub(super) fn update_cns_and_display(ctx: &AgentService, rt: &tokio::runtime::Handle) {
+pub(super) fn update_reg_and_display(ctx: &AgentService, rt: &tokio::runtime::Handle) {
     // Check for Regulation algedonic alerts (read-only observation)
     let ledger_runtime = ctx.ledger().runtime.clone();
     let alerts = rt.block_on(async { ledger_runtime.read().await.critical_alerts().await });

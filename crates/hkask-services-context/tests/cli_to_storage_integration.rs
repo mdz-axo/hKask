@@ -60,7 +60,7 @@ async fn service_builds_with_in_memory_config() {
     // Config should be in_memory
     assert!(svc.config().in_memory, "config should be in_memory");
 
-    // Memory ports are accessible via build_per_agent_memory(db, cns_sink)
+    // Memory ports are accessible via build_per_agent_memory(db, reg_sink)
 
     // Regulation runtime should be accessible
     let ledger = svc.ledger().runtime.read().await;
@@ -136,7 +136,7 @@ async fn goal_write_read_round_trip() {
 /// After granting consent, a Regulation event can be persisted in the
 /// shared event store (visible because all stores share one DB).
 #[tokio::test]
-async fn cross_store_consent_visible_to_cns_events() {
+async fn cross_store_consent_visible_to_reg_events() {
     let svc = build_test_service().await;
     let webid = WebID::new();
     let webid_str = webid.to_string();

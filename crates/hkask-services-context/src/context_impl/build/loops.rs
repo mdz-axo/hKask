@@ -60,7 +60,7 @@ pub(super) async fn build_loops(
     let set_points = load_set_points();
     let cybernetics_loop =
         CyberneticsLoop::with_set_points(Arc::clone(&f.ledger_runtime), set_points)
-            .with_event_sink(Arc::clone(&f.cns_event_sink))
+            .with_event_sink(Arc::clone(&f.reg_event_sink))
             .with_alerts_channel(f.curation_inbox_tx.clone())
             .with_curator_directive_channel(curator_directive_rx)
             .with_slo_provider(Arc::new(CnsStoreSloProvider::new(Arc::clone(
@@ -83,7 +83,7 @@ pub(super) async fn build_loops(
         let governed_port: Arc<dyn InferencePort> = Arc::new(
             hkask_inference::InferenceRouter::new(config.inference_config.clone()).with_governance(
                 Arc::clone(&cybernetics_loop),
-                Arc::clone(&f.cns_event_sink),
+                Arc::clone(&f.reg_event_sink),
                 system_webid,
             ),
         );
@@ -127,7 +127,7 @@ pub(super) async fn build_loops(
     let episodic_memory = Arc::new(
         EpisodicMemory::new(h_mem_store)
             .with_memory_life_days(memory_life_days)
-            .with_ledger(Arc::clone(&f.cns_event_sink)),
+            .with_ledger(Arc::clone(&f.reg_event_sink)),
     );
     let storage_budget = episodic_memory.storage_budget();
     let episodic_loop =
@@ -138,7 +138,7 @@ pub(super) async fn build_loops(
     let embedding_store = EmbeddingStore::from_driver(Arc::clone(&mem_driver), 1024);
     let semantic_memory = Arc::new(
         SemanticMemory::new(h_mem_store2, embedding_store)
-            .with_ledger(Arc::clone(&f.cns_event_sink)),
+            .with_ledger(Arc::clone(&f.reg_event_sink)),
     );
     let semantic_loop = SemanticLoop::new(Arc::clone(&semantic_memory));
     loop_system.register_loop(Arc::new(semantic_loop)).await;
@@ -154,12 +154,12 @@ pub(super) async fn build_loops(
     let semantic_storage: Arc<dyn SemanticStoragePort> = memory_adapter.clone();
 
     // Curation loop
-    let cns_for_curator: Arc<RegulationLedger> = Arc::new(f.ledger_runtime.read().await.clone());
+    let reg_for_curator: Arc<RegulationLedger> = Arc::new(f.ledger_runtime.read().await.clone());
     let a2a_runtime = Arc::new(hkask_pods::A2ARuntime::new(&config.a2a_secret));
     let curator_context = Arc::new(
         CuratorContext::with_regulation_store(
             CuratorHandle::system(),
-            cns_for_curator,
+            reg_for_curator,
             Some(curator_directive_tx.clone()),
             Arc::clone(&f.escalation_queue) as Arc<dyn EscalationPort>,
             Arc::clone(&f.regulation_store) as Arc<dyn LedgerStoragePort>,
@@ -215,7 +215,7 @@ pub(super) async fn build_loops(
         let link_manager = Arc::new(FederationLinkManager::new(
             local_replica.clone(),
             Arc::clone(&transport),
-            Arc::clone(&f.cns_event_sink),
+            Arc::clone(&f.reg_event_sink),
         ));
         let dispatch: Arc<dyn FederationDispatch> = link_manager.clone();
         // Build FederationSync with SemanticIndexSyncPort
@@ -235,7 +235,7 @@ pub(super) async fn build_loops(
             Arc::clone(&transport),
             sync_port,
             link_manager,
-            Arc::clone(&f.cns_event_sink),
+            Arc::clone(&f.reg_event_sink),
         ));
         // Spawn background sync loop. The task is owned by the runtime and
         // stops when runtime shutdown aborts spawned tasks.

@@ -506,7 +506,7 @@ mod tests {
     }
 
     #[test]
-    fn mock_cns_detects_perturbation() {
+    fn mock_reg_detects_perturbation() {
         let ledger = MockRegulationLedger::new();
         assert!(ledger.is_homeostatic());
 
@@ -520,7 +520,7 @@ mod tests {
     }
 
     #[test]
-    fn mock_cns_restores_homeostasis() {
+    fn mock_reg_restores_homeostasis() {
         let ledger = MockRegulationLedger::new();
         let span = Span::new(SpanNamespace::new("reg.tool").unwrap(), "invoked");
         ledger.inject(test_event(span, CyclePhase::Sense, None));

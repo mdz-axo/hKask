@@ -689,7 +689,7 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
             .and_then(|s| s.service_context.gas_cap())
             .unwrap_or(0)
     }
-    fn cns_alert_count(&self) -> u32 {
+    fn reg_alert_count(&self) -> u32 {
         self.alert_count.load(std::sync::atomic::Ordering::Relaxed)
     }
     fn context_pressure(&self) -> f64 {

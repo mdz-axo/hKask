@@ -292,7 +292,7 @@ impl PodFactory {
             target: "hkask.pod.deployment",
             pod_id = %pod_id, template = %template_name,
             db_path = %storage.db_path.display(),
-            cns_namespace = %ledger.span_namespace,
+            reg_namespace = %ledger.span_namespace,
             "Pod deployed (self-contained SQLCipher storage)"
         );
 

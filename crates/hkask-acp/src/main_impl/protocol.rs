@@ -411,7 +411,7 @@ impl StdioTransport {
                 );
 
                 let count = agent.sessions.lock().await.len();
-                super::cns_emit_acp(
+                super::reg_emit_acp(
                     "reg.acp.userpod.memory_size",
                     &agent.userpod,
                     &format!("sessions={}", count),
