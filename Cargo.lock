@@ -3753,10 +3753,6 @@ name = "hkask-bridge-dublincore"
 version = "0.31.0"
 
 [[package]]
-name = "hkask-bridge-pko"
-version = "0.31.0"
-
-[[package]]
 name = "hkask-capability"
 version = "0.31.0"
 dependencies = [
@@ -3859,7 +3855,6 @@ version = "0.31.0"
 dependencies = [
  "criterion",
  "hkask-bridge-dublincore",
- "hkask-bridge-pko",
  "hkask-test-harness",
  "proptest",
  "schemars",
@@ -4203,7 +4198,6 @@ dependencies = [
  "docx-rs",
  "dotenvy",
  "hkask-bridge-dublincore",
- "hkask-bridge-pko",
  "hkask-guard",
  "hkask-inference",
  "hkask-mcp",
@@ -4288,7 +4282,6 @@ dependencies = [
  "chrono",
  "dotenvy",
  "hkask-bridge-dublincore",
- "hkask-bridge-pko",
  "hkask-database",
  "hkask-inference",
  "hkask-mcp",
@@ -4324,7 +4317,6 @@ dependencies = [
  "chrono",
  "dotenvy",
  "hkask-bridge-dublincore",
- "hkask-bridge-pko",
  "hkask-database",
  "hkask-mcp",
  "hkask-memory",
@@ -4374,7 +4366,6 @@ dependencies = [
  "chrono",
  "dotenvy",
  "hkask-bridge-dublincore",
- "hkask-bridge-pko",
  "hkask-database",
  "hkask-inference",
  "hkask-keystore",
@@ -4481,7 +4472,6 @@ dependencies = [
  "chrono",
  "hf-hub",
  "hkask-bridge-dublincore",
- "hkask-bridge-pko",
  "hkask-capability",
  "hkask-database",
  "hkask-inference",
@@ -5087,9 +5077,7 @@ name = "hkask-wallet-types"
 version = "0.31.0"
 dependencies = [
  "chrono",
- "hkask-database",
  "hkask-types",
- "rusqlite",
  "serde",
  "thiserror 2.0.18",
  "uuid",

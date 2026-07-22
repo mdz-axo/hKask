@@ -1501,7 +1501,7 @@ status: VERIFIED
 **Goal Principle:** P3 (Generative Space) — agents query, traverse, and analyze the codebase through a semantic code graph to generate informed responses; P9 (Homeostatic Self-Regulation) — index staleness tracked via Regulation spans, stale indices trigger algedonic alerts
 **Constraining Principles:** P5 (Essentialism) — two-crate pattern (domain + thin MCP wrapper), no service layer, no external graph database; P4 (Clear Boundaries) — OCAP-gated MCP tools, capability tier enforcement per userpod
 **Crate:** `hkask-mcp-codegraph` (domain), `hkask-mcp-codegraph` (MCP server)
-**Sources:** `crates/hkask-codegraph/src/graph/schema.rs`, `crates/hkask-codegraph/src/indexer/pipeline.rs`, `crates/hkask-codegraph/src/graph/search.rs`, `crates/hkask-codegraph/src/graph/traversal.rs`, `crates/hkask-codegraph/src/graph/context.rs`, `crates/hkask-codegraph/src/graph/analysis.rs`, `mcp-servers/hkask-mcp-codegraph/src/lib.rs`
+**Sources:** `mcp-servers/hkask-mcp-codegraph/src/codegraph/graph/schema.rs`, `mcp-servers/hkask-mcp-codegraph/src/codegraph/indexer/pipeline.rs`, `mcp-servers/hkask-mcp-codegraph/src/codegraph/graph/search.rs`, `mcp-servers/hkask-mcp-codegraph/src/codegraph/graph/traversal.rs`, `mcp-servers/hkask-mcp-codegraph/src/codegraph/graph/context.rs`, `mcp-servers/hkask-mcp-codegraph/src/codegraph/graph/analysis.rs`, `mcp-servers/hkask-mcp-codegraph/src/lib.rs`
 
 #### Production Contracts (10)
 

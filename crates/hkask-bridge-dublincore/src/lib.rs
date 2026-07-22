@@ -1,13 +1,19 @@
-//! Dublin Core + BIBO + CiTO vocabulary bridge.
+//! Ontology vocabulary bridge — Dublin Core + BIBO + CiTO + PKO.
 //!
 //! A shared pure-vocabulary crate — canonical URI constants and mapping helpers
-//! for bibliographic metadata, resource typing, and citation relationships.
-//! No dependencies, no reasoners, no overhead. Used by research, docproc,
-//! media, training, and replica servers as a cross-cutting vocabulary resource.
+//! for bibliographic metadata, resource typing, citation relationships, and
+//! procedural knowledge. No dependencies, no reasoners, no overhead. Used by
+//! research, docproc, media, training, and replica servers as a cross-cutting
+//! vocabulary resource.
 //!
-//! Reference: <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/>
-//! Reference: <https://www.dublincore.org/specifications/bibo/>
-//! Reference: <https://sparontologies.github.io/cito/current/cito.html>
+//! Dublin Core reference: <https://www.dublincore.org/specifications/dublin-core/dcmi-terms/>
+//! BIBO reference: <https://www.dublincore.org/specifications/bibo/>
+//! CiTO reference: <https://sparontologies.github.io/cito/current/cito.html>
+//! PKO reference: Carriero et al. (2025, arXiv:2503.20634)
+
+pub mod pko;
+// Re-export PKO items at crate root for backward-compatible access.
+pub use pko::*;
 
 /// A Dublin Core / BIBO / CiTO concept URI.
 pub type DcConcept = &'static str;

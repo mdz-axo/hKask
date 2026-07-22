@@ -15,7 +15,7 @@
 //! # Shared Bridge Integration
 //!
 //! Uses [`hkask_bridge_dublincore`] for entity type classification
-//! (e.g., `dctypes:Dataset` for memory stores) and [`hkask_bridge_pko`]
+//! (e.g., `dctypes:Dataset` for memory stores) and [`hkask_bridge_dublincore`]
 //! for process classification (e.g., `pko:Step` for memory operations).
 
 /// A Cognitive Atlas concept identifier.

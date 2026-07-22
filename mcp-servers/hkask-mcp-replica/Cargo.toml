@@ -18,7 +18,6 @@ hkask-database = { path = "../../crates/hkask-database" }
 hkask-ports = { path = "../../crates/hkask-ports" }
 hkask-keystore = { path = "../../crates/hkask-keystore" }
 hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
-hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true

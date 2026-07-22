@@ -43,6 +43,87 @@ impl std::fmt::Display for DatabaseErrorKind {
     }
 }
 
+// DbProvider — Database provider enum (moved from hkask-database::types)
+//
+// Relocated to break the circular dependency: hkask-storage -> hkask-wallet-types
+// -> hkask-database -> hkask-storage. DbError/DbProvider are pure types with no
+// external deps beyond thiserror + serde (already in hkask-types).
+
+/// Supported database providers.
+///
+/// New providers are added as enum variants. The `DatabaseDriver` trait
+/// dispatches to the correct implementation at runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DbProvider {
+    /// SQLite / SQLCipher via rusqlite (default, stable).
+    Sqlite,
+    /// PostgreSQL via sqlx + pgvector.
+    Postgres,
+}
+
+impl std::fmt::Display for DbProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sqlite => write!(f, "sqlite"),
+            Self::Postgres => write!(f, "postgres"),
+        }
+    }
+}
+
+/// Database operation errors — provider-agnostic.
+///
+/// Moved from hkask-database::types to break the storage/wallet-types/database
+/// circular dependency. These types only depend on hkask-types itself.
+#[derive(Debug, Error)]
+pub enum DbError {
+    #[error("database: {0}")]
+    Database(String),
+
+    #[error("constraint violation: {0}")]
+    Constraint(String),
+
+    #[error("connection: {0}")]
+    Connection(String),
+
+    #[error("serialization: {0}")]
+    Serialization(String),
+
+    #[error("unsupported provider: {0}")]
+    UnsupportedProvider(String),
+
+    #[error("migration: {0}")]
+    Migration(String),
+}
+
+impl From<DbError> for InfrastructureError {
+    fn from(e: DbError) -> Self {
+        match &e {
+            DbError::Connection(_) => InfrastructureError::Database {
+                message: e.to_string(),
+                kind: DatabaseErrorKind::Connection,
+            },
+            DbError::Constraint(_) => InfrastructureError::Database {
+                message: e.to_string(),
+                kind: DatabaseErrorKind::Constraint,
+            },
+            DbError::Migration(_) => InfrastructureError::Database {
+                message: e.to_string(),
+                kind: DatabaseErrorKind::Migration,
+            },
+            _ => InfrastructureError::Database {
+                message: e.to_string(),
+                kind: DatabaseErrorKind::Other,
+            },
+        }
+    }
+}
+
+impl From<InfrastructureError> for DbError {
+    fn from(e: InfrastructureError) -> Self {
+        DbError::Database(e.to_string())
+    }
+}
+
 /// Generic infrastructure errors shared by every crate.
 ///
 /// These are transport-layer failures — they carry no domain semantics.

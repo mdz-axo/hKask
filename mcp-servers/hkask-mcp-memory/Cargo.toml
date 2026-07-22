@@ -24,7 +24,6 @@ tracing.workspace = true
 chrono.workspace = true
 dotenvy.workspace = true
 hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
-hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
 
 [lib]
 name = "hkask_mcp_memory"

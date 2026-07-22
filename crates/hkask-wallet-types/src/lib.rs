@@ -330,16 +330,9 @@ impl From<InfrastructureError> for WalletError {
     }
 }
 
-impl From<hkask_database::types::DbError> for WalletError {
-    fn from(e: hkask_database::types::DbError) -> Self {
+impl From<hkask_types::DbError> for WalletError {
+    fn from(e: hkask_types::DbError) -> Self {
         WalletError::Infra(InfrastructureError::from(e))
-    }
-}
-
-#[cfg(feature = "sql")]
-impl From<rusqlite::Error> for WalletError {
-    fn from(e: rusqlite::Error) -> Self {
-        WalletError::Infra(InfrastructureError::database(e.to_string()))
     }
 }
 

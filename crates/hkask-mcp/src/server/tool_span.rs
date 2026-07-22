@@ -57,7 +57,7 @@ impl ToolSpanGuard {
     /// # Example
     ///
     /// ```ignore
-    /// use hkask_bridge_pko::STEP_EXECUTION;
+    /// use hkask_bridge_dublincore::STEP_EXECUTION;
     /// ToolSpanGuard::new("my_tool", &caller)
     ///     .with_ontology(STEP_EXECUTION);
     /// ```

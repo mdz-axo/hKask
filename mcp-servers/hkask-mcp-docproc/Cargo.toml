@@ -13,7 +13,6 @@ hkask-ports = { path = "../../crates/hkask-ports" }
 
 # Ontology bridges — vocabulary constants for metadata, provenance, and domain predicates
 hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
-hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
 
 # OCR pipeline (from markitdown)
 hkask-inference = { path = "../../crates/hkask-inference" }

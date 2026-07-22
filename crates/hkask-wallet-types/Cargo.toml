@@ -6,14 +6,11 @@ license.workspace = true
 description = "Wallet value types — RJoule, WalletConfig, ChainId, API key types"
 
 [dependencies]
-hkask-database = { path = "../hkask-database" }
+
 hkask-types = { path = "../hkask-types" }
 serde.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
-rusqlite = { workspace = true, optional = true }
 
-[features]
-default = []
-sql = ["dep:rusqlite"]
+

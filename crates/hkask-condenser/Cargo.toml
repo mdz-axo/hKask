@@ -7,7 +7,6 @@ description = "Context condensation domain logic — compression algorithms, cla
 
 [dependencies]
 hkask-bridge-dublincore = { path = "../hkask-bridge-dublincore" }
-hkask-bridge-pko = { path = "../hkask-bridge-pko" }
 serde.workspace = true
 serde_json.workspace = true
 schemars.workspace = true

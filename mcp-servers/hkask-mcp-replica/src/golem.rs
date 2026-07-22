@@ -14,7 +14,7 @@
 //! # Shared Bridge Integration
 //!
 //! Uses [`hkask_bridge_dublincore`] for creative work classification
-//! (e.g., `dctypes:Text`, `bibo:Book`) and [`hkask_bridge_pko`] for
+//! (e.g., `dctypes:Text`, `bibo:Book`) and [`hkask_bridge_dublincore`] for
 //! narrative procedure classification.
 
 /// A GOLEM concept URI.

@@ -419,7 +419,7 @@ pub fn persona_to_anchor(description: &str, capabilities: &[String]) -> Option<O
     }) {
         return Some(OntologyAnchor::DualAxis {
             axis: OntologyAxis::Pko,
-            concept: hkask_bridge_pko::PROCEDURE.to_string(),
+            concept: hkask_bridge_dublincore::PROCEDURE.to_string(),
         });
     }
     // DC+BIBO: document / metadata domain
@@ -748,7 +748,7 @@ pub fn derive_ontology_anchor(tool_name: &str) -> OntologyAnchor {
     {
         return OntologyAnchor::DualAxis {
             axis: OntologyAxis::Pko,
-            concept: hkask_bridge_pko::PROCEDURE.to_string(),
+            concept: hkask_bridge_dublincore::PROCEDURE.to_string(),
         };
     }
     // DC+BIBO dual-axis: entity metadata
@@ -895,14 +895,14 @@ mod tests {
             derive_ontology_anchor("kanban_task_create"),
             OntologyAnchor::DualAxis {
                 axis: OntologyAxis::Pko,
-                concept: hkask_bridge_pko::PROCEDURE.to_string()
+                concept: hkask_bridge_dublincore::PROCEDURE.to_string()
             }
         );
         assert_eq!(
             derive_ontology_anchor("condenser_compress"),
             OntologyAnchor::DualAxis {
                 axis: OntologyAxis::Pko,
-                concept: hkask_bridge_pko::PROCEDURE.to_string()
+                concept: hkask_bridge_dublincore::PROCEDURE.to_string()
             }
         );
     }

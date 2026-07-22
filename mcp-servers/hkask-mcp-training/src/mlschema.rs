@@ -14,7 +14,7 @@
 //! # Shared Bridge Integration
 //!
 //! Uses [`hkask_bridge_dublincore`] for dataset and model metadata
-//! (e.g., `dctypes:Dataset`, `dctypes:Software`) and [`hkask_bridge_pko`]
+//! (e.g., `dctypes:Dataset`, `dctypes:Software`) and [`hkask_bridge_dublincore`]
 //! for training procedure classification.
 
 /// An ML-Schema concept URI.

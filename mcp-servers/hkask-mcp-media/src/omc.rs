@@ -13,7 +13,7 @@
 //! # Shared Bridge Integration
 //!
 //! Uses [`hkask_bridge_dublincore`] for media type classification
-//! (e.g., `dctypes:StillImage`, `dctypes:Sound`) and [`hkask_bridge_pko`]
+//! (e.g., `dctypes:StillImage`, `dctypes:Sound`) and [`hkask_bridge_dublincore`]
 //! for production step classification.
 
 /// An OMC concept URI.

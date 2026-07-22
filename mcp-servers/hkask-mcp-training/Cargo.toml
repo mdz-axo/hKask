@@ -38,7 +38,6 @@ uuid.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
 hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
-hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
 blake3.workspace = true
 reqwest = { workspace = true, features = ["multipart"] }
 base64.workspace = true

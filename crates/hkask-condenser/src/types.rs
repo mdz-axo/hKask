@@ -134,13 +134,13 @@ impl OntologyNamespace {
     }
 
     /// Map this domain supplement namespace to its canonical PKO concept.
-    pub fn pko_concept(&self) -> hkask_bridge_pko::PkoConcept {
+    pub fn pko_concept(&self) -> hkask_bridge_dublincore::PkoConcept {
         match self {
-            OntologyNamespace::Fibo => hkask_bridge_pko::PROCEDURE,
-            OntologyNamespace::Golem => hkask_bridge_pko::PROCEDURE,
-            OntologyNamespace::Cogat => hkask_bridge_pko::FUNCTION,
-            OntologyNamespace::MlSchema => hkask_bridge_pko::PROCEDURE,
-            OntologyNamespace::Omc => hkask_bridge_pko::PROCEDURE_EXECUTION,
+            OntologyNamespace::Fibo => hkask_bridge_dublincore::PROCEDURE,
+            OntologyNamespace::Golem => hkask_bridge_dublincore::PROCEDURE,
+            OntologyNamespace::Cogat => hkask_bridge_dublincore::FUNCTION,
+            OntologyNamespace::MlSchema => hkask_bridge_dublincore::PROCEDURE,
+            OntologyNamespace::Omc => hkask_bridge_dublincore::PROCEDURE_EXECUTION,
         }
     }
 }
