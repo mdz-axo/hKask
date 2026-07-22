@@ -92,7 +92,7 @@ templates:
       determination with actionable fix notes.
 
 # FlowDef orchestrator — chains all 7 steps with convergence criteria.
-# CNS spans (cns.prompt.{select,render,outcome}) are emitted automatically
+# CNS spans (reg.prompt.{select,render,outcome}) are emitted automatically
 # by the flow engine for KnowAct steps; no explicit cns_spans needed.
 flowdef:
   manifest: registry/manifests/scenario-builder.yaml

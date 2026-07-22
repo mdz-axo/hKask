@@ -1,6 +1,6 @@
-{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unresolved runtime threats (0.40), defense-layer runtime coverage verified by firing (0.25), threat-pattern taxonomy coverage (0.15), regression library growth (0.10), residual runtime risk (0.10). Emit cns.runtime.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unresolved runtime threats (0.40), defense-layer runtime coverage verified by firing (0.25), threat-pattern taxonomy coverage (0.15), regression library growth (0.10), residual runtime risk (0.10). Emit reg.runtime.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
-{# Emits cns.runtime.convergence CNS span (P9) — namespace registered #}
+{# Emits reg.runtime.convergence CNS span (P9) — namespace registered #}
 
 INPUT: unresolved_threats = {{ unresolved_threats }} (from previous cycle or current)
 INPUT: defense_layers_firing = {{ defense_layers_firing }} (from emit-regulation/classify-threat)
@@ -20,8 +20,8 @@ COMPUTE METRIC (weighted — evidence-based only, P8, P5):
   6 layers firing (input_filtering, output_filtering, canary_detection,
   runtime_policy, regulation_loop, action_distribution_monitoring) = +0.00
   5 firing = +0.04; 4 = +0.08; 3 = +0.13; 2 = +0.19; 1 = +0.25
-  Each layer only counts as firing when actual `cns.guard.*` or
-  `cns.regulation.*` span emissions confirm it (P8 — concrete evidence
+  Each layer only counts as firing when actual `reg.guard.*` or
+  `reg.regulation.*` span emissions confirm it (P8 — concrete evidence
   only, no aspirational coverage). Distinct from kali-audit's static
   presence check — this measures runtime firing, not code presence.
 - Threat-pattern taxonomy coverage weight: 0.15
@@ -50,9 +50,9 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
   (threat types uncovered by findings/proposals).
 
 CNS SPAN (P9):
-- `cns.runtime.convergence` is registered in `CANONICAL_NAMESPACES`
+- `reg.runtime.convergence` is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
-  (`target: "cns.runtime.convergence"`, message: `"CNS"`,
+  (`target: "reg.runtime.convergence"`, message: `"CNS"`,
   operation: `"convergence_check"`, metric, previous_metric, improvement_pct,
   blockers: [...], userpod_host, latency_ms).
 
@@ -76,8 +76,8 @@ EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts from
 `existing_regressions` (actual YAML file count), `proposed_regressions`
 (actual proposal count from current cycle). No fabricated numbers.
 EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g., "add
-runtime policy rule for tool call chain X", "investigate why cns.guard.input
-firing but cns.regulation.action_blocked not increasing") based on real
+runtime policy rule for tool call chain X", "investigate why reg.guard.input
+firing but reg.regulation.action_blocked not increasing") based on real
 runtime evidence — not speculative.
 OCAP BOUNDARY (P4): Metric computed from hKask CNS telemetry only; no
 external endpoint scanning; no OS-level process inspection.
@@ -116,7 +116,7 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 from previous monitoring cycle if persistence is enabled by user). If no
 previous cycle, assumes `previous_metric = 1.0` (initial state) — explicit
 assumption, not hidden.
-CNS SPAN EMITTED: `cns.runtime.convergence` is registered, so the span is
+CNS SPAN EMITTED: `reg.runtime.convergence` is registered, so the span is
 always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.

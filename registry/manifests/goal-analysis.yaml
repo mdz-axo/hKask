@@ -61,19 +61,19 @@ inputs:
 #     default: 0
 #     increment_on_dispatch: true
 #   cns_monitoring:
-#     span_namespace: cns.goal
+#     span_namespace: reg.goal
 #     alert_if_exceeds: 6
 #     rationale: "Warning before hard limit at 7"
 
 ledger:
   spans:
-    - cns.goal.create
-    - cns.goal.transition
-    - cns.goal.verify
-    - cns.goal.complete
-    - cns.goal.block
-    - cns.goal.alert.escalate
-    - cns.goal.alert.storage_failure
+    - reg.goal.create
+    - reg.goal.transition
+    - reg.goal.verify
+    - reg.goal.complete
+    - reg.goal.block
+    - reg.goal.alert.escalate
+    - reg.goal.alert.storage_failure
   variety_monitoring:
     metric: active_goals_per_user
     threshold: 10
@@ -101,7 +101,7 @@ steps:
     input_mapping:
       goal: "{{ step_1_result }}"
     cns_spans:
-      - cns.goal.create
+      - reg.goal.create
 
   - ordinal: 3
     action: select
@@ -140,10 +140,10 @@ steps:
       reason: "{{ step_3_result.reason }}"
       goal: "{{ step_1_result }}"
     cns_spans:
-      - cns.goal.verify
-      - cns.goal.complete
-      - cns.goal.block
-      - cns.goal.transition
+      - reg.goal.verify
+      - reg.goal.complete
+      - reg.goal.block
+      - reg.goal.transition
 
   - ordinal: 6
     action: loop
@@ -160,7 +160,7 @@ error_handling:
   on_confidence_low:
     threshold: 0.7
     action: escalate
-    span: cns.goal.alert.escalate
+    span: reg.goal.alert.escalate
     description: "Confidence below 0.7 — escalate to human review regardless of verdict"
   fallback:
     - error_type: template_error
@@ -171,11 +171,11 @@ error_handling:
       action: use_simple_verification
       max_fallback_retries: 2
       on_fallback_exhausted: escalate
-      escalate_span: cns.goal.alert.storage_failure
+      escalate_span: reg.goal.alert.storage_failure
       description: "After 2 fallback retries with judge_simple, escalate to human rather than looping indefinitely"
     - error_type: storage_error
       action: emit_cns_alert
-      span: cns.goal.alert.storage_failure
+      span: reg.goal.alert.storage_failure
 
 ocap:
   required_capabilities:

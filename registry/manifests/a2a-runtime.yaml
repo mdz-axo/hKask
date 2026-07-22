@@ -56,7 +56,7 @@ ledger:
   spans:
     emit_on_message_send: true
     emit_on_capability_denied: true
-  namespace: cns.agent.acp
+  namespace: reg.agent.acp
 
 # security: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   injection_prevention:

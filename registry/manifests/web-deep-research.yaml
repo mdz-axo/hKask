@@ -159,7 +159,7 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.web.deep_research
+  span_namespace: reg.web.deep_research
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

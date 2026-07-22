@@ -164,7 +164,7 @@ steps:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.kanban.management
+  span_namespace: reg.kanban.management
   variety_monitoring: true
   algedonic_threshold: 5
 
@@ -188,13 +188,13 @@ ledger:
 # metrics: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   - name: tasks_in_review
 #     description: "Number of tasks awaiting verification"
-#     span: cns.kanban.management.review_count
+#     span: reg.kanban.management.review_count
 #   - name: blocked_tasks
 #     description: "Number of blocked tasks"
-#     span: cns.kanban.management.blocked
+#     span: reg.kanban.management.blocked
 #   - name: cycle_time
 #     description: "Average time tasks spend in each column"
-#     span: cns.kanban.management.cycle_time
+#     span: reg.kanban.management.cycle_time
 
 audit:
   enabled: true

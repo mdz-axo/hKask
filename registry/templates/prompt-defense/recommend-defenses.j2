@@ -67,8 +67,8 @@ Recommend specific defenses from each applicable layer:
 | **2. Isolate** | Instruction isolation | Separate system instructions from user data | `[PLANNED]` InstructionSeparator |
 | **3. Canary** | Canary tokens | Embed detectable markers in system prompts | `[PLANNED]` CanaryManager |
 | **4. Restrict** | Capability restriction | Limit available tools/actions per context | `kask sovereignty verify` (OCAP consent) |
-| **5. Monitor** | Output monitoring | Detect leakage in model outputs | `cns.emit` (CNS span observability) |
-| **6. Audit** | Audit logging | Record all inputs/outputs for forensic analysis | `cns.tool.audit` (CNS span) |
+| **5. Monitor** | Output monitoring | Detect leakage in model outputs | `reg.emit` (CNS span observability) |
+| **6. Audit** | Audit logging | Record all inputs/outputs for forensic analysis | `reg.tool.audit` (CNS span) |
 
 ## Recommendation Rules
 
@@ -100,7 +100,7 @@ Respond with a JSON object:
   ],
   "rust_level_changes": [
     {
-      "component": "[PLANNED] InferenceFilter|[PLANNED] CanaryManager|[PLANNED] OutputMonitor|cns.emit|cns.tool.audit|other",
+      "component": "[PLANNED] InferenceFilter|[PLANNED] CanaryManager|[PLANNED] OutputMonitor|reg.emit|reg.tool.audit|other",
       "change": "What code change is needed",
       "rationale": "Why a Rust-level change is required instead of YAML configuration"
     }

@@ -1,8 +1,8 @@
-{# goal: Read runtime signal evidence (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within deployed userpod host (P4 runtime boundary). Classify signals into threat patterns: endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.runtime.classify spans (P9 — namespace registered). No synthetic signals; userpod_host mandatory (P12). Evidence-backed only (P8). #}
+{# goal: Read runtime signal evidence (hkask.* performative spans, reg.guard.* violations, reg.regulation events) within deployed userpod host (P4 runtime boundary). Classify signals into threat patterns: endpoint abuse, bot traffic, LLM usage spike, dependency behavior anomaly. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit reg.runtime.classify spans (P9 — namespace registered). No synthetic signals; userpod_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads runtime signals discovered in select-signal phase #}
 {# For each signal, checks: frequency vs baseline, pattern signatures,
   defense-layer firing, regulation action triggered, action distribution shift #}
-{# Emits `cns.runtime.classify` span per classified threat (P9) #}
+{# Emits `reg.runtime.classify` span per classified threat (P9) #}
 {# Applies pragmatic-cybernetics: trace signal polarity (increasing/decreasing risk?),
   variety of signal sources (alternative indicators for same threat?),
   Good Regulator check (is defense layer regulating the threat?) #}
@@ -19,29 +19,29 @@ INPUT: userpod_host = {{ userpod_host }} (P12 — mandatory; if undefined, raise
 CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, or runtime telemetry reader):
 1. For each signal source listed in `signal_sources`, observe the span emission
    pattern within the observation window.
-2. For `cns.guard.*` signals: count violations per scanner (input filter,
+2. For `reg.guard.*` signals: count violations per scanner (input filter,
    output filter, canary, runtime policy). Note violation frequency vs
    baseline. Record timestamps and violation details.
-3. For `cns.regulation.*` signals: count regulation actions (blocked,
+3. For `reg.regulation.*` signals: count regulation actions (blocked,
    substituted, plateau). Note whether actions are increasing (system
    struggling to regulate) or decreasing (system stable).
-4. For `cns.tool.*` signals: count tool invocations per tool type. Note
+4. For `reg.tool.*` signals: count tool invocations per tool type. Note
    invocation rate, error rate, and any unusual tool call chains (e.g.,
    rapid sequential calls to high-risk tools).
-5. For `cns.inference` signals: count LLM inference calls. Note inference
+5. For `reg.inference` signals: count LLM inference calls. Note inference
    rate, token consumption, and any usage spikes exceeding baseline.
 6. Apply cybersecurity taxonomy mapping (evidence-backed only):
-   - Endpoint abuse: evidence = repeated `cns.tool.invoked` for same tool
+   - Endpoint abuse: evidence = repeated `reg.tool.invoked` for same tool
      exceeding baseline frequency within observation window.
    - Bot traffic: evidence = automated request pattern (regular intervals,
-     identical params) detected in `cns.tool.invoked` or `cns.inference` spans.
-   - LLM usage spike: evidence = `cns.inference` rate exceeding 2x baseline
+     identical params) detected in `reg.tool.invoked` or `reg.inference` spans.
+   - LLM usage spike: evidence = `reg.inference` rate exceeding 2x baseline
      within observation window.
    - Dependency behavior anomaly: evidence = unexpected tool invocation
      chain (e.g., `filesystem.write` → `web_search.fetch` → `filesystem.read`
      indicating potential data exfiltration pattern).
-   - Defense-layer bypass: evidence = `cns.guard.*` violation count
-     increasing while `cns.regulation.action_blocked` count not increasing
+   - Defense-layer bypass: evidence = `reg.guard.*` violation count
+     increasing while `reg.regulation.action_blocked` count not increasing
      proportionally (defense firing but not regulating).
 7. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt` oracle phase):
    - IS vs OUGHT: describe what the runtime DOES (observed signal pattern)
@@ -58,12 +58,12 @@ CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, o
    propose `BUG` / `POTENTIAL_BUG` when evidence is concrete.
 9. Check defense-layer firing (runtime-specific, distinct from kali-audit's
    static presence check):
-   - Input filtering firing (`cns.guard.input` violations observed)
-   - Output filtering firing (`cns.guard.output` violations observed)
-   - Canary detection firing (`cns.guard.canary` violations observed)
-   - Runtime policy enforcing (`cns.guard.runtime_policy` Log/Block observed)
-   - Regulation loop active (`cns.regulation` events observed)
-   - Action distribution monitoring (`cns.regulation.loop_quality` observed)
+   - Input filtering firing (`reg.guard.input` violations observed)
+   - Output filtering firing (`reg.guard.output` violations observed)
+   - Canary detection firing (`reg.guard.canary` violations observed)
+   - Runtime policy enforcing (`reg.guard.runtime_policy` Log/Block observed)
+   - Regulation loop active (`reg.regulation` events observed)
+   - Action distribution monitoring (`reg.regulation.loop_quality` observed)
 10. For each classified threat, emit structured finding:
     `threat_type`, `signal_target`, `timestamp`, `signal_value`, `baseline_value`,
     `deviation_pct`, `severity` (critical/high/medium/low — justified by evidence),
@@ -74,7 +74,7 @@ CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, o
     hkask-guard docs, hkask-cns docs).
 
 CNS SPAN EMISSION (P9 — every classified runtime threat):
-- `cns.runtime.classify` per classified threat (target: `"cns.runtime.classify"`,
+- `reg.runtime.classify` per classified threat (target: `"reg.runtime.classify"`,
   message: `"CNS"`, operation: `"classify_threat"`, threat_type: `...`,
   signal_target: `...`, severity: `...`, userpod_host: `...`, latency_ms: ...).
 - The span namespace is registered in `CANONICAL_NAMESPACES`
@@ -112,7 +112,7 @@ MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
   the Aikido/Zen firewall model); P1 (User Sovereignty — user controls
   runtime behavior); P4 (Clear Boundaries — runtime behavior must be
   explicitly observed, not ambient); P9 (Homeostatic Regulation — runtime
-  threats must be observable via `cns.runtime.*` spans).
+  threats must be observable via `reg.runtime.*` spans).
 - How: Discover signals → observe → classify → regulate → report → propose
   regression → emit CNS span → compute convergence.
 - If any of these 6 were missing, this skill would violate P5. All 6 present.

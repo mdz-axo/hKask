@@ -130,7 +130,7 @@ ocap:
 # CNS Monitoring
 ledger:
   emit_spans: true
-  span_namespace: cns.agent_pod
+  span_namespace: reg.agent_pod
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

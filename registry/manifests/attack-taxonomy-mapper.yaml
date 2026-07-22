@@ -60,7 +60,7 @@ steps:
   - ordinal: 3
     action: select
     description: >
-      Taxonomize findings, emit cns.taxonomy.* spans, and produce the report.
+      Taxonomize findings, emit reg.taxonomy.* spans, and produce the report.
     renderer: minijinja
     template_ref: attack-taxonomy-mapper/taxonomize
     gas_cap: 2048

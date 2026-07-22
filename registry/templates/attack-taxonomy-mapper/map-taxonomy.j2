@@ -1,10 +1,10 @@
-{# goal: Read finding evidence (from supply-chain-sentinel and kali-audit) within workspace (P4). Map each finding to OSC&R tactic + technique (verified against github.com/pbom-dev/OSCAR matrix.json). Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.taxonomy.map spans (P9 — namespace registered). No synthetic findings; userpod_host mandatory (P12). Evidence-backed only (P8). #}
+{# goal: Read finding evidence (from supply-chain-sentinel and kali-audit) within workspace (P4). Map each finding to OSC&R tactic + technique (verified against github.com/pbom-dev/OSCAR matrix.json). Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit reg.taxonomy.map spans (P9 — namespace registered). No synthetic findings; userpod_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads findings discovered in select-evidence phase #}
 {# For each finding, maps to OSC&R tactic + technique #}
 {# Applies pragmatic-cybernetics: feedback loop (defense layer for attack pattern?),
   variety (alternative attack vectors in same OSC&R tactic?),
   Good Regulator (is defense layer mapped to correct OSC&R technique?) #}
-{# Emits `cns.taxonomy.map` span per mapping (P9) #}
+{# Emits `reg.taxonomy.map` span per mapping (P9) #}
 {# Every mapping requires concrete evidence: finding reference, CWE category,
   OSC&R tactic + technique #}
 {# Relationships: complements `supply-chain-sentinel` (adds taxonomy layer);
@@ -98,7 +98,7 @@ MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel o
     technique), `provenance`, `epistemic_mode`, `userpod_host`.
 
 CNS SPAN EMISSION (P9 — every taxonomy mapping):
-- `cns.taxonomy.map` per finding mapped (target: `"cns.taxonomy.map"`,
+- `reg.taxonomy.map` per finding mapped (target: `"reg.taxonomy.map"`,
   message: `"CNS"`, operation: `"map_taxonomy"`, finding_reference: `...`,
   osc_r_tactic: `...`, osc_r_technique: `...`, mapping_confidence: `...`,
   userpod_host: `...`, latency_ms: ...).
@@ -141,7 +141,7 @@ MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
 - Why: P3.1 (structured taxonomy for supply chain threats — like MITRE
   ATLAS for LLM); P8 (semantic grounding — findings need taxonomy context
   for severity and remediation priority); P9 (taxonomy mapping observable
-  via `cns.taxonomy.*` spans).
+  via `reg.taxonomy.*` spans).
 - How: Discover findings → read evidence → map to OSC&R → taxonomize →
   propose taxonomy_mapping field → emit CNS span → compute convergence.
 - If any of these 6 were missing, this skill would violate P5. All 6 present.

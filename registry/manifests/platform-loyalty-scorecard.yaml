@@ -150,7 +150,7 @@ steps:
 
       Compare against previous_score to compute trend.
       Flag degradation if score drops > 0.05 month-over-month.
-      Emit cns.platform.metric.loyalty CNS span.
+      Emit reg.platform.metric.loyalty CNS span.
 
     renderer: minijinja
     template_ref: platform-loyalty-scorecard/compute-loyalty

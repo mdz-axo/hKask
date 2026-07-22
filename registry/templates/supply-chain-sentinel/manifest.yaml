@@ -10,7 +10,7 @@ crate:
     conflicts, unmaintained packages, and supply-chain attack patterns.
     Anchored to MITRE CWE, OWASP Supply Chain, and OSC&R taxonomy.
     Consumes security/regressions/ as input; proposes RR entries with
-    surface: supply-chain. Emits cns.supply_chain.* spans (P9). Decomposed
+    surface: supply-chain. Emits reg.supply_chain.* spans (P9). Decomposed
     into 4 phases: select → probe → report → convergence-check.
 
 templates:
@@ -36,7 +36,7 @@ templates:
       incompatibilities, and known vulnerability references. Apply
       pragmatic-cybernetics feedback analysis: dependency update
       polarity, variety of alternatives, Good Regulator (version
-      pinning). Emit cns.supply_chain.probe spans per dependency.
+      pinning). Emit reg.supply_chain.probe spans per dependency.
 
   - id: supply-chain-sentinel/report
     name: "Synthesize supply-chain findings and propose regressions"

@@ -85,7 +85,7 @@ steps:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.kanban.delegation
+  span_namespace: reg.kanban.delegation
   variety_monitoring: true
   algedonic_threshold: 3
 
@@ -100,10 +100,10 @@ ledger:
 # metrics: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   - name: delegation_level
 #     description: "Delegation level used for spawn"
-#     span: cns.kanban.delegation.level
+#     span: reg.kanban.delegation.level
 #   - name: spawn_count
 #     description: "Number of tasks delegated"
-#     span: cns.kanban.delegation.count
+#     span: reg.kanban.delegation.count
 
 audit:
   enabled: true

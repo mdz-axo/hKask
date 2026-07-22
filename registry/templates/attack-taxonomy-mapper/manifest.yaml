@@ -11,7 +11,7 @@ crate:
     against github.com/pbom-dev/OSCAR matrix.json — organized by tactics
     + techniques, NOT numeric IDs). Adds an optional, backward-compatible
     `taxonomy_mapping` field to existing `surface: supply-chain`
-    regression YAML entries. Emits cns.taxonomy.* spans (P9 — all
+    regression YAML entries. Emits reg.taxonomy.* spans (P9 — all
     registered in CANONICAL_NAMESPACES). P8 evidence-backed: every
     mapping includes concrete evidence (finding reference, CWE category,
     OSC&R tactic + technique). P12 userpod_host
@@ -45,7 +45,7 @@ templates:
       feedback loop (does the attack pattern have a defense layer?),
       variety (alternative attack vectors in same OSC&R tactic?),
       Good Regulator (is the defense layer enforcing?). Emits
-      cns.taxonomy.map span per mapping.
+      reg.taxonomy.map span per mapping.
 
   - id: attack-taxonomy-mapper/taxonomize
     name: "Classify mapped findings and propose taxonomy_mapping fields"
@@ -57,7 +57,7 @@ templates:
       signatures for detecting similar attack patterns. Propose
       backward-compatible taxonomy_mapping field additions to existing
       surface: supply-chain regression entries (status: pending). Emits
-      cns.taxonomy.report span.
+      reg.taxonomy.report span.
 
   - id: attack-taxonomy-mapper/convergence-check
     name: "Compute taxonomy coverage metric"

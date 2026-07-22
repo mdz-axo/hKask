@@ -67,8 +67,8 @@ steps:
 
 ledger:
   spans:
-    - cns.tool.invocation
-    - cns.prompt.outcome
+    - reg.tool.invocation
+    - reg.prompt.outcome
   fast_local: OM/llama3.2
   balanced: FW/claude-haiku
   high_quality: FW/claude-sonnet

@@ -33,14 +33,14 @@ You are a governance transparency auditor for the hKask platform. Your task is t
 ## Context
 - Time window: {{ window_days | default(30) }} days
 - CNS governance span namespaces to scan:
-  - cns.curation — Curator agent directives and catalog maintenance
-  - cns.spec — Specification changes (MDS domain specs)
-  - cns.contract.proposed — Contract proposals from userpods
-  - cns.contract.accepted — Contracts accepted by human curator
-  - cns.contract.rejected — Contracts rejected by human curator
-  - cns.contract.quality.violated — Contract quality violations
-  - cns.curator.* — All Curator agent operations
-  - cns.energy.* — Energy budget adjustments
+  - reg.curation — Curator agent directives and catalog maintenance
+  - reg.spec — Specification changes (MDS domain specs)
+  - reg.contract.proposed — Contract proposals from userpods
+  - reg.contract.accepted — Contracts accepted by human curator
+  - reg.contract.rejected — Contracts rejected by human curator
+  - reg.contract.quality.violated — Contract quality violations
+  - reg.curator.* — All Curator agent operations
+  - reg.energy.* — Energy budget adjustments
 
 ## Input Data
 {% if governance_spans %}
@@ -59,7 +59,7 @@ Return JSON with query guidance:
 {
   "structured_events": [],
   "span_count": 0,
-  "query_guidance": "Query CNS spans for namespaces: cns.curation, cns.spec, cns.contract.*, cns.curator.*, cns.energy.* within the last {{ window_days | default(30) }} days. Structure each event with: timestamp, namespace, operation, description, and any structured fields."
+  "query_guidance": "Query CNS spans for namespaces: reg.curation, reg.spec, reg.contract.*, reg.curator.*, reg.energy.* within the last {{ window_days | default(30) }} days. Structure each event with: timestamp, namespace, operation, description, and any structured fields."
 }
 ```
 {% endif %}

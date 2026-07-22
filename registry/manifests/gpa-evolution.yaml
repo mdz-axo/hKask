@@ -228,17 +228,17 @@ ocap:
   template_scoped: true
 
 # CNS: GEPA is a curation activity — the Curator optimizes artifacts.
-# Uses the canonical cns.curation namespace. GEPA does not introduce new
-# CnsSpan variants; it emits tracing events under cns.curation with
+# Uses the canonical reg.curation namespace. GEPA does not introduce new
+# CnsSpan variants; it emits tracing events under reg.curation with
 # operation fields specific to the evolutionary loop.
 ledger:
   emit_spans: true
-  span_namespace: cns.curation
+  span_namespace: reg.curation
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
   spans:
-    - cns.curation
+    - reg.curation
 
 audit:
   enabled: true

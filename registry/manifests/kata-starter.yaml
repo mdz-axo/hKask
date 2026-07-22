@@ -157,13 +157,13 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.kata.starter
+  span_namespace: reg.prompt.kata.starter
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
   spans:
-    - cns.kata.starter.automaticity
-    - cns.kata.starter.drill.completed
+    - reg.kata.starter.automaticity
+    - reg.kata.starter.drill.completed
 
 audit:
   enabled: true

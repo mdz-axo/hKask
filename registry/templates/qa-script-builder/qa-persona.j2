@@ -99,7 +99,7 @@ Available classifiers: `qa-triage` (diagnose Rust test failures), `qa-feedback` 
 
 Gas: 100 gas/function, 1 gas = 4 µrJ. CI typical: 3000–7500 gas. Local typical: 15000 gas.
 
-CNS spans: `cns.qa.bolero_failure`, `cns.qa.repair_attempted`, `cns.qa.repair_verified`, `cns.qa.repair_exhausted`, `cns.qa.mutant_survived`.
+CNS spans: `reg.qa.bolero_failure`, `reg.qa.repair_attempted`, `reg.qa.repair_verified`, `reg.qa.repair_exhausted`, `reg.qa.mutant_survived`.
 
 Alerts: classify steps can escalate to Curator via `escalate_on` + `severity_map` + `domain` + `threshold` + `cooldown_secs`.
 
@@ -125,7 +125,7 @@ Respond with a JSON object:
       "alert_posture": "critical on high-confidence, warning on medium, info on flakes",
       "gas_environment": "local",
       "stress_target": "classify service + alert channels",
-      "cns_spans": ["cns.qa.bolero_failure", "cns.qa.repair_attempted"],
+      "cns_spans": ["reg.qa.bolero_failure", "reg.qa.repair_attempted"],
       "grill_hardened": true
     }
   ],

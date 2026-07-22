@@ -182,7 +182,7 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.skill-bundler
+  span_namespace: reg.prompt.skill-bundler
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

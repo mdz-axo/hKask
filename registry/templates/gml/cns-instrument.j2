@@ -2,9 +2,9 @@
 {# Purpose: Emit CNS span events for monitoring #}
 
 {% macro start_span(operation, concept_id) -%}
-{% do cns.emit({
+{% do reg.emit({
     "event": "span_start",
-    "span": "cns.gml." ~ operation,
+    "span": "reg.gml." ~ operation,
     "concept_id": concept_id | default('unknown'),
     "timestamp": now() | default('unknown'),
     "actor": capability.subject | default('anonymous')
@@ -12,9 +12,9 @@
 {%- endmacro %}
 
 {% macro end_span(operation, status, attributes) -%}
-{% do cns.emit({
+{% do reg.emit({
     "event": "span_end",
-    "span": "cns.gml." ~ operation,
+    "span": "reg.gml." ~ operation,
     "status": status,
     "attributes": attributes | default({}),
     "timestamp": now() | default('unknown')
@@ -22,9 +22,9 @@
 {%- endmacro %}
 
 {% macro record_error(operation, error_code, message) -%}
-{% do cns.emit({
+{% do reg.emit({
     "event": "error",
-    "span": "cns.gml." ~ operation,
+    "span": "reg.gml." ~ operation,
     "error_code": error_code,
     "message": message,
     "timestamp": now() | default('unknown')
@@ -32,11 +32,11 @@
 {%- endmacro %}
 
 {% macro check_variety(counter_name, threshold) -%}
-{% set variety = cns.get_variety(counter_name) | default(0) %}
+{% set variety = reg.get_variety(counter_name) | default(0) %}
 {% if variety > threshold %}
-{% do cns.emit({
+{% do reg.emit({
     "event": "algedonic_alert",
-    "alert": "cns.algedonic.variety_deficit",
+    "alert": "reg.algedonic.variety_deficit",
     "counter": counter_name,
     "value": variety,
     "threshold": threshold,
@@ -47,7 +47,7 @@
 {%- endmacro %}
 
 {% macro audit_log(operation, concept_id, before_r_bar, after_r_bar, result) -%}
-{% do cns.emit({
+{% do reg.emit({
     "event": "audit_log",
     "operation": operation,
     "concept_id": concept_id | default('unknown'),

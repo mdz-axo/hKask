@@ -1,4 +1,4 @@
-{# goal: Compute normalized convergence metric [0,1] for the essentialist 3-gate audit. metric = (gates_failed / 3) * 0.60 + (items_not_removed / total_items) * 0.40. weight: 0.60 for gate failures, weight: 0.40 for unresolved items. Emit cns.skill span (P9). UserPod_host mandatory (P12). #}
+{# goal: Compute normalized convergence metric [0,1] for the essentialist 3-gate audit. metric = (gates_failed / 3) * 0.60 + (items_not_removed / total_items) * 0.40. weight: 0.60 for gate failures, weight: 0.40 for unresolved items. Emit reg.skill span (P9). UserPod_host mandatory (P12). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged (all gates pass, all items resolved) #}
 
 INPUT: gates_failed = {{ gates_failed | default(0) }} (number of essentialist gates that failed: 0-3)
@@ -28,9 +28,9 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
   unresolved items (which items survived all 3 gates and why).
 
 CNS SPAN (P9):
-- `cns.skill` is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
+- `reg.skill` is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
   Emit span unconditionally:
-  (`target: "cns.skill"`, message: `"CNS"`, operation: `"essentialist_convergence_check"`,
+  (`target: "reg.skill"`, message: `"CNS"`, operation: `"essentialist_convergence_check"`,
   metric, previous_metric, improvement_pct, blockers: [...], userpod_host, latency_ms).
 
 OUTPUT FORMAT (JSON):
@@ -76,7 +76,7 @@ NO FABRICATION: Metric computed from evidence counts only. Blockers derived
 from actual `gates_failed`, `items_not_removed`. No synthetic gate results.
 CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 `essentialist-flow.j2` logic. Uses gate results from the flow template.
-CNS SPAN EMITTED: `cns.skill` is registered, so the span is always emitted.
+CNS SPAN EMITTED: `reg.skill` is registered, so the span is always emitted.
 Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.

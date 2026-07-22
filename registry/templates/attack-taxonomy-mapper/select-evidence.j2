@@ -1,4 +1,4 @@
-{# goal: Discover evidence sources (supply-chain-sentinel findings, kali-audit surface: supply-chain findings, CI logs, manifest evidence) within workspace (P4). Read security/regressions/ for existing taxonomy_mapping fields. Return concrete findings_to_map (verifiable finding references only — no synthetic findings). Emit cns.taxonomy.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Authenticated host mandatory (P12). This skill consumes findings — does NOT generate new findings. #}
+{# goal: Discover evidence sources (supply-chain-sentinel findings, kali-audit surface: supply-chain findings, CI logs, manifest evidence) within workspace (P4). Read security/regressions/ for existing taxonomy_mapping fields. Return concrete findings_to_map (verifiable finding references only — no synthetic findings). Emit reg.taxonomy.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Authenticated host mandatory (P12). This skill consumes findings — does NOT generate new findings. #}
 {% set evidence_sources = [
   {id: 'supply-chain-sentinel', type: 'findings', source: 'supply-chain-sentinel probe/report phase output', mapping: 'CWE-1104/CWE-829/CWE-1357 → OSC&R'},
   {id: 'kali-audit-supply-chain', type: 'findings', source: 'kali-audit surface: supply-chain regression entries', mapping: 'OWASP/ATLAS → OSC&R'},
@@ -11,7 +11,7 @@
 {# Read security/regressions/ to find existing taxonomy_mapping fields #}
 {# Return: selected_source, findings_to_map, existing_taxonomy_mappings, evidence_sources #}
 {# P5: minimal — no new findings generated; only consumes existing findings #}
-{# P9: emit cns.taxonomy.select span with discovered evidence and mapping count #}
+{# P9: emit reg.taxonomy.select span with discovered evidence and mapping count #}
 {# P12: every selection action carries userpod/owner identity #}
 
 Select evidence source: {{ target_source | default('all') }}
@@ -23,7 +23,7 @@ Convergence baseline: {{ convergence_metric | default(1.0) }}
 {# Source citations: supply-chain-sentinel SKILL.md, kali-audit SKILL.md, OSC&R framework (github.com/pbom-dev/OSCAR) #}
 {# 5W1H gate: Who = supply chain attacker / threat actor taxonomy; What = finding to map; Where = workspace / regression library; Why = P3.1 structured taxonomy for supply chain threats; How = discover + read + map + taxonomize + report #}
 
-ACTION: Emit `cns.taxonomy.select` span (P9, P12) with discovered evidence sources, findings to map, and existing mapping count.
+ACTION: Emit `reg.taxonomy.select` span (P9, P12) with discovered evidence sources, findings to map, and existing mapping count.
 ACTION: Read `security/regressions/` for entries with `surface: supply-chain` and any existing `taxonomy_mapping` field.
 ACTION: Return JSON: `{source, findings_to_map: [...], existing_taxonomy_mappings: [...], evidence_sources: [...], userpod_host}`.
 CONSTRAINT: Do NOT fabricate findings. Only list findings actually produced by `supply-chain-sentinel` or `kali-audit`.

@@ -1,6 +1,6 @@
-{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unmapped findings (0.45), OSC&R tactic coverage (0.30), regression taxonomy_mapping field growth (0.15), residual unmapped risk (0.10). Emit cns.taxonomy.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: unmapped findings (0.45), OSC&R tactic coverage (0.30), regression taxonomy_mapping field growth (0.15), residual unmapped risk (0.10). Emit reg.taxonomy.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
-{# Emits cns.taxonomy.convergence CNS span (P9) — namespace registered #}
+{# Emits reg.taxonomy.convergence CNS span (P9) — namespace registered #}
 
 INPUT: unmapped_findings = {{ unmapped_findings }} (from previous cycle or current)
 INPUT: oscr_tactics_covered = {{ oscr_tactics_covered }} (from taxonomize phase)
@@ -43,9 +43,9 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
   (no new taxonomy_mapping proposed despite finding evidence).
 
 CNS SPAN (P9):
-- `cns.taxonomy.convergence` is registered in `CANONICAL_NAMESPACES`
+- `reg.taxonomy.convergence` is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
-  (`target: "cns.taxonomy.convergence"`, message: `"CNS"`,
+  (`target: "reg.taxonomy.convergence"`, message: `"CNS"`,
   operation: `"convergence_check"`, metric, previous_metric, improvement_pct,
   blockers: [...], userpod_host, latency_ms).
 
@@ -110,7 +110,7 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 previous audit cycle if persistence is enabled by user). If no previous
 cycle, assumes `previous_metric = 1.0` (initial state) — explicit
 assumption, not hidden.
-CNS SPAN EMITTED: `cns.taxonomy.convergence` is registered, so the span is
+CNS SPAN EMITTED: `reg.taxonomy.convergence` is registered, so the span is
 always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.

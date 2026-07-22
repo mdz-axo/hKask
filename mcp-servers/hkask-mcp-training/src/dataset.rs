@@ -213,7 +213,7 @@ impl NormalizedDataset {
 /// All fields are `Option` because the profile is best-effort — if the file
 /// can't be read or parsed, the fields remain `None` and the skill falls back
 /// to its declared-input reasoning.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DatasetProfile {
     /// Detected format (ChatML, ShareGPT, Alpaca, RawText, PreferenceDpo, etc.).
     pub format: Option<DatasetFormat>,
@@ -246,25 +246,6 @@ pub struct DatasetProfile {
     /// Whether the dataset appears to contain vision/image data (heuristic: presence
     /// of "image" or "images" keys in the JSON).
     pub has_vision_data: Option<bool>,
-}
-
-impl Default for DatasetProfile {
-    fn default() -> Self {
-        Self {
-            format: None,
-            n_samples: None,
-            avg_content_chars: None,
-            max_content_chars: None,
-            avg_token_estimate: None,
-            max_token_estimate: None,
-            avg_messages_per_example: None,
-            role_distribution: None,
-            chosen_rejected_length_ratio: None,
-            has_system_messages: None,
-            has_multi_turn: None,
-            has_vision_data: None,
-        }
-    }
 }
 
 /// Ingest, normalize, validate, and cache datasets for training.

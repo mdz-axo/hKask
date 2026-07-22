@@ -75,4 +75,4 @@ steps:
 
 ledger:
   emit_spans: true
-  alert: qa.cns.algedonic
+  alert: qa.reg.algedonic

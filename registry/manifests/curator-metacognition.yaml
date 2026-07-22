@@ -123,7 +123,7 @@ ocap:
 # CNS Monitoring
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.metacognition
+  span_namespace: reg.prompt.metacognition
   rate_limit:
     per_bot_per_minute: 100
     per_session_per_minute: 500

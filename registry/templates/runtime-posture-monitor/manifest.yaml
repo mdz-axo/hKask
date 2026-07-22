@@ -5,15 +5,15 @@ crate:
   visibility: public
   description: >
     Runtime security posture monitoring skill for hKask. Observes runtime
-    telemetry (hkask.* performative spans, cns.guard.* violations,
-    cns.regulation events) to detect runtime threats: API endpoint abuse,
+    telemetry (hkask.* performative spans, reg.guard.* violations,
+    reg.regulation events) to detect runtime threats: API endpoint abuse,
     bot traffic, LLM usage anomalies, and runtime dependency behavior
     anomalies. Distinct from supply-chain-sentinel (static manifest audit,
     P4 manifest boundary) — this skill observes runtime behavior (P4
     runtime boundary). Anchored to MITRE CWE (CWE-1357, CWE-829, CWE-200),
     OWASP LLM Top 10 (LLM06, LLM07), MITRE ATLAS (AML.TA0010). Consumes
     security/regressions/ as input; proposes RR-NNNN.yaml entries with
-    surface: runtime. Emits cns.runtime.* spans (P9 — all registered in
+    surface: runtime. Emits reg.runtime.* spans (P9 — all registered in
     CANONICAL_NAMESPACES). Decomposed into 4 phases: select-signal →
     classify-threat → emit-regulation → convergence-check. Minimal (P5):
     answers all 5W1H; single skill, no bundle; complements
@@ -29,9 +29,9 @@ templates:
     description: >
       Discover runtime signal sources within the deployed userpod host:
       hkask.* performative spans (tool invocations, inference calls,
-      communication events), cns.guard.* violation spans (input/output
+      communication events), reg.guard.* violation spans (input/output
       filter firings, canary detections, runtime policy enforcements),
-      cns.regulation events (action blocks, substitutions, plateaus).
+      reg.regulation events (action blocks, substitutions, plateaus).
       Reads regression library for existing surface: runtime checks.
       Signal parameter: guard | regulation | tool | inference | all.
 
@@ -47,7 +47,7 @@ templates:
       anomaly), dependency behavior anomaly (unexpected tool invocation
       chain). Apply pragmatic-cybernetics: IS/OUGHT (observed vs expected
       baseline), feedback loop polarity, variety, Good Regulator. Emit
-      cns.runtime.classify spans per classified threat.
+      reg.runtime.classify spans per classified threat.
 
   - id: runtime-posture-monitor/emit-regulation
     name: "Synthesize runtime threats and propose regulation actions"
@@ -56,8 +56,8 @@ templates:
     lexicon_terms: [synthesize, regulate, emit, block, escalate, report]
     description: >
       Synthesize classified threats with MITRE CWE / OWASP LLM / ATLAS
-      taxonomy. For each threat: emit cns.regulation event and trigger
-      cns.guard.violation if blocking warranted. Propose RR-NNNN.yaml
+      taxonomy. For each threat: emit reg.regulation event and trigger
+      reg.guard.violation if blocking warranted. Propose RR-NNNN.yaml
       entries with surface: runtime for enforced CI gates. Produce
       verdict (Pass / Conditional / Fail) based on threat severity and
       defense-layer firing coverage.

@@ -1,6 +1,6 @@
-{# goal: Compute normalized convergence metric [0,1] from evidence counts only: critical/high findings (0.40), defense-layer coverage verified by manifest (0.25), CWE/taxonomy coverage (0.15), regression library growth (0.10), residual dependency risk (0.10). Emit cns.supply_chain.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
+{# goal: Compute normalized convergence metric [0,1] from evidence counts only: critical/high findings (0.40), defense-layer coverage verified by manifest (0.25), CWE/taxonomy coverage (0.15), regression library growth (0.10), residual dependency risk (0.10). Emit reg.supply_chain.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
-{# Emits cns.supply_chain.convergence CNS span (P9) — namespace registered #}
+{# Emits reg.supply_chain.convergence CNS span (P9) — namespace registered #}
 
 INPUT: unresolved_findings = {{ unresolved_findings }} (from previous cycle or current)
 INPUT: defense_layers_present = {{ defense_layers_present }} (from report/probe)
@@ -41,9 +41,9 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
   (CWE categories uncovered by findings/proposals).
 
 CNS SPAN (P9):
-- `cns.supply_chain.convergence` is registered in `CANONICAL_NAMESPACES`
+- `reg.supply_chain.convergence` is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
-  (`target: "cns.supply_chain.convergence"`, message: `"CNS"`,
+  (`target: "reg.supply_chain.convergence"`, message: `"CNS"`,
   operation: `"convergence_check"`, metric, previous_metric, improvement_pct,
   blockers: [...], userpod_host, latency_ms).
 
@@ -116,7 +116,7 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 `report` phase logic. Uses `findings` from `probe` (or from previous audit
 cycle if persistence is enabled by user). If no previous cycle, assumes
 `previous_metric = 1.0` (initial state) — explicit assumption, not hidden.
-CNS SPAN EMITTED: `cns.supply_chain.convergence` is registered, so the
+CNS SPAN EMITTED: `reg.supply_chain.convergence` is registered, so the
 span is always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict
 OUTPUT FORMAT (JSON): {convergence_metric, previous_metric, improvement_pct, converged: bool, blockers: [...], defense_layers_present, defense_layers_missing, existing_regressions_count, proposed_regressions_count, unresolved_critical, unresolved_high, taxonomy_coverage, residual_dependency_risk, userpod_host, cns_span_emitted: true}

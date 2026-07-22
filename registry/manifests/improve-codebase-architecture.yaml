@@ -193,14 +193,14 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.arch
+  span_namespace: reg.prompt.arch
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
   spans:
-    - cns.arch.friction.detected
-    - cns.arch.candidate.ranked
-    - cns.arch.design.deepened
+    - reg.arch.friction.detected
+    - reg.arch.candidate.ranked
+    - reg.arch.design.deepened
 
 audit:
   enabled: true

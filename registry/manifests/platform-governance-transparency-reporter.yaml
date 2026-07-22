@@ -59,9 +59,9 @@ steps:
     action: select
     description: >
       Query CNS spans for governance events within the specified window.
-      Collects spans from: cns.curation, cns.spec, cns.contract.proposed,
-      cns.contract.accepted, cns.contract.rejected, cns.curator.*, and
-      cns.energy.* (energy budget adjustments). The CNS query tool returns
+      Collects spans from: reg.curation, reg.spec, reg.contract.proposed,
+      reg.contract.accepted, reg.contract.rejected, reg.curator.*, and
+      reg.energy.* (energy budget adjustments). The CNS query tool returns
       structured span data for classification.
 
       Design note: This step requires CNS MCP server access. In flow-only

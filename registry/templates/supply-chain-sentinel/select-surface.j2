@@ -1,4 +1,4 @@
-{# goal: Discover dependency manifest surfaces (Cargo.toml, deny.toml, lockfiles, package-lock.json, go.sum) within workspace (P4). Read security/regressions/ for existing supply-chain checks. Return concrete manifest_paths (verifiable file paths only — no synthetic files). Emit cns.supply_chain.select span (P9). Authenticated host mandatory (P12). Surface parameter: cargo|npm|python|deny|all. #}
+{# goal: Discover dependency manifest surfaces (Cargo.toml, deny.toml, lockfiles, package-lock.json, go.sum) within workspace (P4). Read security/regressions/ for existing supply-chain checks. Return concrete manifest_paths (verifiable file paths only — no synthetic files). Emit reg.supply_chain.select span (P9). Authenticated host mandatory (P12). Surface parameter: cargo|npm|python|deny|all. #}
 {% set surfaces = [
   {id: 'cargo', files: ['Cargo.toml', '*.lock'], registry: 'crates.io'},
   {id: 'npm', files: ['package.json', 'package-lock.json'], registry: 'npm'},
@@ -11,7 +11,7 @@
 {# Read security/regressions/ to find existing supply-chain entries (ratcheted) #}
 {# Return: selected_surface, manifest_paths, registry_sources, existing_regressions, defense_layers #}
 {# P5: minimal — no speculative dependency graph; only concrete manifest files #}
-{# P9: emit cns.supply_chain.select span with discovered files and regression count #}
+{# P9: emit reg.supply_chain.select span with discovered files and regression count #}
 {# P12: every selection action carries userpod/owner identity #}
 
 Select surface: {{ target_surface | default('all') }}
@@ -24,7 +24,7 @@ Convergence baseline: {{ convergence_metric | default(1.0) }}
 {# Source citations: crates.io advisory database, cargo-deny docs, deny.toml spec #}
 {# 5W1H gate: Who = dependency maintainer; What = manifest entry; Where = workspace path; Why = supply chain integrity (P3.1); How = pin + verify + audit #}
 
-ACTION: Emit `cns.supply_chain.select` span (P9, P12) with discovered file paths, selected surface, and regression count.
+ACTION: Emit `reg.supply_chain.select` span (P9, P12) with discovered file paths, selected surface, and regression count.
 ACTION: Read `security/regressions/` for entries with `surface: supply-chain` and `status: enforced`.
 ACTION: Return JSON: `{surface, manifest_paths: [...], registry_sources: [...], defense_layers: [...], existing_regressions: [...], userpod_host}`.
 CONSTRAINT: Do NOT fabricate manifest files. Only list paths that exist via available file tools.

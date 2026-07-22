@@ -219,16 +219,16 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.improv
+  span_namespace: reg.prompt.improv
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
   spans:
-    - cns.improv.mode.active
-    - cns.improv.plussing.ratio
-    - cns.improv.freestyle.coherence
-    - cns.improv.ensemble.coherence
-    - cns.kata.improv.effectiveness
+    - reg.improv.mode.active
+    - reg.improv.plussing.ratio
+    - reg.improv.freestyle.coherence
+    - reg.improv.ensemble.coherence
+    - reg.kata.improv.effectiveness
 
 audit:
   enabled: true

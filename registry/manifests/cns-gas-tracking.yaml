@@ -25,7 +25,7 @@ manifest:
 
 # span_emission: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   emit_on_consume: true
-#   namespace: cns.gas
+#   namespace: reg.gas
 
 # degradation: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   stages:

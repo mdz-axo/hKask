@@ -42,23 +42,23 @@ Input:
 ```
 
 Resolution rules:
-- verdict "done" + confidence >= 0.7 → complete (emit cns.goal.complete)
-- verdict "done" + confidence &lt; 0.7 → escalate to human (emit cns.goal.alert.escalate)
-- verdict "continue" → continue loop (emit cns.goal.transition)
-- verdict "blocked" → escalate to human (emit cns.goal.block)
+- verdict "done" + confidence >= 0.7 → complete (emit reg.goal.complete)
+- verdict "done" + confidence &lt; 0.7 → escalate to human (emit reg.goal.alert.escalate)
+- verdict "continue" → continue loop (emit reg.goal.transition)
+- verdict "blocked" → escalate to human (emit reg.goal.block)
 - Any verdict with confidence &lt; 0.7 → escalate (low confidence may still be wrong)
 
 Emit appropriate CNS spans based on resolution:
-- complete → ["cns.goal.verify", "cns.goal.complete"]
-- continue → ["cns.goal.verify", "cns.goal.transition"]
-- escalate (blocked) → ["cns.goal.verify", "cns.goal.block", "cns.goal.alert.escalate"]
-- escalate (low confidence) → ["cns.goal.verify", "cns.goal.alert.escalate"]
+- complete → ["reg.goal.verify", "reg.goal.complete"]
+- continue → ["reg.goal.verify", "reg.goal.transition"]
+- escalate (blocked) → ["reg.goal.verify", "reg.goal.block", "reg.goal.alert.escalate"]
+- escalate (low confidence) → ["reg.goal.verify", "reg.goal.alert.escalate"]
 
 Return JSON only — select the correct cns_spans for the resolution:
 ```json
 {
   "resolution": "complete",
-  "cns_spans": ["cns.goal.verify", "cns.goal.complete"],
+  "cns_spans": ["reg.goal.verify", "reg.goal.complete"],
   "escalate_to_human": false,
   "escalate_reason": ""
 }

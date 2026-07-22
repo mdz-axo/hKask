@@ -203,15 +203,15 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.skill.kali
+  span_namespace: reg.skill.kali
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
   spans:
-    - cns.skill.kali.select
-    - cns.skill.kali.audit
-    - cns.skill.kali.report
-    - cns.skill.kali.converge
+    - reg.skill.kali.select
+    - reg.skill.kali.audit
+    - reg.skill.kali.report
+    - reg.skill.kali.converge
 
 audit:
   enabled: true

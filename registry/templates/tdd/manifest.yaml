@@ -73,12 +73,12 @@ templates:
       Verify TDD cycle completion: all tests pass, clippy clean, no todo!/unimplemented!
       stubs. Contract completeness audit including expect: user expectation, [P{N}]
       goal-principle anchoring, and [P{N}] Constraining: annotations per v0.28.0
-      extended syntax. Emits cns.contract.violated spans for missing/malformed contracts.
+      extended syntax. Emits reg.contract.violated spans for missing/malformed contracts.
       Tests describe behavior not implementation, spec traceability via // REQ: tags,
       functional coverage gaps identified.
     generates_spans:
-      - cns.contract.violated
-      - cns.contract.coverage
+      - reg.contract.violated
+      - reg.contract.coverage
 
   - id: tdd/tdd-gap-check
     name: "Functional gap analysis: compare specification requirements against…"
@@ -93,11 +93,11 @@ templates:
       (gaps) and produce deferral recommendations for OPEN_QUESTIONS.md. P0 gaps
       MUST have tracer bullets.
     generates_spans:
-      - cns.contract.violated
-      - cns.contract.coverage
-      - cns.contract.proposed
-      - cns.contract.accepted
-      - cns.contract.rejected
+      - reg.contract.violated
+      - reg.contract.coverage
+      - reg.contract.proposed
+      - reg.contract.accepted
+      - reg.contract.rejected
 
   - id: tdd/tdd-convergence-check
     name: "Compute normalized convergence metric for TDD PDCA cycles"

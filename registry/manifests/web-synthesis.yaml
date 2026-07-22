@@ -97,7 +97,7 @@ error_handling:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.web.synthesis
+  span_namespace: reg.web.synthesis
   variety_monitoring: true
   algedonic_threshold: 100
 

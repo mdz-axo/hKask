@@ -60,7 +60,7 @@ steps:
     action: select
     description: >
       Compute DORA metrics from CNS skill lifecycle spans.
-      Queries cns.skill (created/updated) and cns.tool.skill_dispatch
+      Queries reg.skill (created/updated) and reg.tool.skill_dispatch
       (success/failure) for the window. For each skill author:
       - Deployment Frequency: skills created/updated per day
       - Lead Time: time from skill creation to first successful dispatch
@@ -68,7 +68,7 @@ steps:
       - MTTR: time from first error to next successful dispatch per skill
 
       Classifies each author into DORA clusters: Elite, High, Medium, Low.
-      Emits cns.platform.metric.dora.* spans.
+      Emits reg.platform.metric.dora.* spans.
 
     renderer: minijinja
     template_ref: platform-dx-analyzer/compute-dora
@@ -88,7 +88,7 @@ steps:
       - Communication: skills shared, composition depth
       - Efficiency: edit-to-dispatch latency, edit-test cycles
 
-      Emits cns.platform.metric.space.* spans.
+      Emits reg.platform.metric.space.* spans.
 
     renderer: minijinja
     template_ref: platform-dx-analyzer/compute-space

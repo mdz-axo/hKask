@@ -67,7 +67,7 @@ A skill is stale if it exhibits any of these signals:
 | vocabulary terms missing | lexicon_terms not in workspace vocabulary | Medium |
 | Deprecated patterns | Uses `todo!`, `unimplemented!`, `#[deprecated]`, or abandoned APIs | Medium |
 | Missing SKILL.md companion | SKILL.md absent from `.agents/skills/<name>/` | Low |
-| CNS span mismatches | References `cns.*` spans not in defined namespace set | Low |
+| CNS span mismatches | References `reg.*` spans not in defined namespace set | Low |
 | FlowDef `tool:` references nonexistent MCP tool | Cross-check step `tool:` against MCP tool registry | Critical |
 | FlowDef references `tool: internal` | `tool: internal` means no MCP implementation — agent-coordinated, valid but aspirational | Medium |
 | FlowDef `template:` references nonexistent template | Resolve `template:` values against manifest's known templates | Critical |

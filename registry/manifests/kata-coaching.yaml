@@ -173,16 +173,16 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.kata.coaching
+  span_namespace: reg.prompt.kata.coaching
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
   spans:
-    - cns.kata.coaching.q1.target
-    - cns.kata.coaching.q2.actual
-    - cns.kata.coaching.q3.obstacles
-    - cns.kata.coaching.q4.experiment
-    - cns.kata.coaching.q5.learn
+    - reg.kata.coaching.q1.target
+    - reg.kata.coaching.q2.actual
+    - reg.kata.coaching.q3.obstacles
+    - reg.kata.coaching.q4.experiment
+    - reg.kata.coaching.q5.learn
 
 audit:
   enabled: true

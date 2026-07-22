@@ -102,7 +102,7 @@ ocap:
 # CNS Monitoring
 ledger:
   emit_spans: true
-  span_namespace: cns.doc.extract
+  span_namespace: reg.doc.extract
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

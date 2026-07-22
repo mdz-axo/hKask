@@ -205,13 +205,13 @@ error_handling:
 # CNS Integration
 ledger:
   emit_bootstrap_spans: true
-  span_namespace: cns.bootstrap
+  span_namespace: reg.bootstrap
   spans:
-    - cns.bootstrap.started
-    - cns.bootstrap.component_initialized
-    - cns.bootstrap.readiness_probe_passed
-    - cns.bootstrap.completed
-    - cns.bootstrap.failed
+    - reg.bootstrap.started
+    - reg.bootstrap.component_initialized
+    - reg.bootstrap.readiness_probe_passed
+    - reg.bootstrap.completed
+    - reg.bootstrap.failed
 
 # Audit Trail
 audit:

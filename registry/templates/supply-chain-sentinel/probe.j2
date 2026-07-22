@@ -1,9 +1,9 @@
-{# goal: Read manifest evidence (Cargo.toml, deny.toml, lockfiles) within workspace (P4). Verify version specs, registry URLs, license refs, lockfile tracking. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit cns.supply_chain.probe spans (P9). No synthetic CVE claims; userpod_host mandatory (P12). Evidence-backed only (P8). #}
+{# goal: Read manifest evidence (Cargo.toml, deny.toml, lockfiles) within workspace (P4). Verify version specs, registry URLs, license refs, lockfile tracking. Apply pragmatic-cybernetics (IS/OUGHT, provenance, grill-me). Emit reg.supply_chain.probe spans (P9). No synthetic CVE claims; userpod_host mandatory (P12). Evidence-backed only (P8). #}
 {# Reads manifest files discovered in select-surface phase #}
 {# For each dependency entry, checks: version pinning, registry trust signal,
   unmaintained indicators (if available in manifest metadata/comment),
   license reference, transitive dependency mention #}
-{# Emits `cns.supply_chain.probe` span per dependency entry (P9) #}
+{# Emits `reg.supply_chain.probe` span per dependency entry (P9) #}
 {# Applies pragmatic-cybernetics: trace dependency update polarity,
   variety of alternatives (is there an alternative crate/package?),
   Good Regulator check (is version pinned/stable?), delay analysis
@@ -42,7 +42,7 @@ PROBE ACTIONS (concrete — must use file:read, code:search, terminal, or regist
    `dependency`, `version_spec`, `source_line`, `manifest_path`, `registry`, `version_pinned` (bool), `registry_trusted` (bool), `license_conflict` (bool | evidence), `unmaintained_indicator` (bool | evidence), `transitive_mentioned` (bool | lockfile_reference), `severity` (critical/high/medium/low — justified by evidence), `provenance` (Direct/Inference/Assessment), `epistemic_mode`, `defense_layers_present` (list), `defense_layers_missing` (list), `evidence_snippet` (quoted manifest line + file path), `source_citation` (docs reference: MITRE CWE-1104, cargo-deny docs, deny.toml spec, crates.io advisory format, OWASP Supply Chain reference, OSC&R taxonomy URL if applicable).
 
 CNS SPAN EMISSION (P9 — every security-sensitive dependency operation):
-- `cns.supply_chain.probe` per manifest read (target: `"cns.supply_chain.probe"`, message: `"CNS"`, operation: `"probe_dependency"`, dependency: `...`, manifest_path: `...`, registry: `...`, userpod_host: `...`, latency_ms: ...).
+- `reg.supply_chain.probe` per manifest read (target: `"reg.supply_chain.probe"`, message: `"CNS"`, operation: `"probe_dependency"`, dependency: `...`, manifest_path: `...`, registry: `...`, userpod_host: `...`, latency_ms: ...).
 - The span namespace is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
 CONSTRAINT — Evidence integrity (P8 — semantic grounding):
@@ -60,7 +60,7 @@ MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
 - What: Dependency manifest entry / dependency graph / supply chain defense layer state.
 - Where: Workspace manifest file / registry URL / dependency entry line.
 - When: Manifest version timestamp / scan cycle / CI enforcement (convergence metric measures temporal progress).
-- Why: P3.1 (Generative Space requires safe container — supply chain integrity is floor, not ceiling); P1 (User Sovereignty — user controls which dependencies enter workspace); P4 (Clear Boundaries — dependency must be explicitly declared, not ambient authority); P9 (Homeostatic Regulation — dependency risk must be observable via `cns.supply_chain.*` spans).
+- Why: P3.1 (Generative Space requires safe container — supply chain integrity is floor, not ceiling); P1 (User Sovereignty — user controls which dependencies enter workspace); P4 (Clear Boundaries — dependency must be explicitly declared, not ambient authority); P9 (Homeostatic Regulation — dependency risk must be observable via `reg.supply_chain.*` spans).
 - How: Discover manifest → read → verify → classify → report → propose regression → emit CNS span → compute convergence.
 - If any of these 6 were missing, this skill would violate P5. All 6 are present.
 

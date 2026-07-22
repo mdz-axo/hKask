@@ -151,15 +151,15 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.kata.improvement
+  span_namespace: reg.prompt.kata.improvement
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
   spans:
-    - cns.kata.improvement.direction
-    - cns.kata.improvement.current_condition
-    - cns.kata.improvement.target_set
-    - cns.kata.improvement.experiment_run
+    - reg.kata.improvement.direction
+    - reg.kata.improvement.current_condition
+    - reg.kata.improvement.target_set
+    - reg.kata.improvement.experiment_run
 
 audit:
   enabled: true

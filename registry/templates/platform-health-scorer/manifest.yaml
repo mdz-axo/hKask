@@ -29,7 +29,7 @@ templates:
     description: Query test pass rate from CNS spans. Computes pass ratio, failing crates, flaky test count.
   - id: platform-health-scorer/query-cns
     name: "Query CNS variety metrics: overall deficit, critical/warning count,…"
-    path: query-cns.j2
+    path: query-reg.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
     description: "Query CNS variety metrics: overall deficit, critical/warning count, variety EMA. Computes variety health score."

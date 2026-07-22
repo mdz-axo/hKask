@@ -14,7 +14,7 @@ crate:
     + provenance), pragmatic-cybernetics (feedback loop analysis + Good Regulator
     checks + variety engineering), diagnose, grill-me, and adversarial-red-team
     are embedded as inline prompt instructions in the oracle phase.
-    Emits CNS spans (cns.bughunt.*) for observability (P12). OCAP-gated: requires
+    Emits CNS spans (reg.bughunt.*) for observability (P12). OCAP-gated: requires
     Tool:test:Execute and Tool:cns:Read.
 
 templates:
@@ -28,7 +28,7 @@ templates:
       Heuristic Test Strategy Model (HTSM). Targets specific Beizer taxonomy
       categories based on the target crate and user-defined quality criteria.
     generates_spans:
-      - cns.bughunt.charter
+      - reg.bughunt.charter
 
   - id: bug-hunt/bug-hunt-probe
     name: "PROBE phase — agent-coordinated MCP tool execution"
@@ -44,7 +44,7 @@ templates:
       guidance and collects results; the actual probing is performed by the
       agent using MCP tools between template calls.
     generates_spans:
-      - cns.bughunt.probe
+      - reg.bughunt.probe
 
   - id: bug-hunt/bug-hunt-oracle
     name: "Apply Weinberg oracle (bug = threat to user-defined quality),…"
@@ -58,7 +58,7 @@ templates:
       grill-me self-challenge to raw probe findings. Produces tiered verdicts
       (BUG / POTENTIAL_BUG / OBSERVATION) with confidence scores.
     generates_spans:
-      - cns.bughunt.oracle
+      - reg.bughunt.oracle
 
   - id: bug-hunt/bug-hunt-taxonomize
     name: "Classify evaluated findings into Beizer taxonomy (requirements,…"
@@ -71,7 +71,7 @@ templates:
       severity ratings (CRITICAL, HIGH, MEDIUM, LOW). Produces pattern signatures
       for detecting similar bugs elsewhere.
     generates_spans:
-      - cns.bughunt.taxonomize
+      - reg.bughunt.taxonomize
 
   - id: bug-hunt/bug-hunt-report
     name: "Compile charter, oracle, and taxonomy results into a structured JSON…"
@@ -83,7 +83,7 @@ templates:
       report. Consolidates findings, computes summary statistics, and produces
       the final expedition report.
     generates_spans:
-      - cns.bughunt.report
+      - reg.bughunt.report
 
   - id: bug-hunt/bug-hunt-expedition
     name: "Legacy monolithic expedition template (v0.30.0)"
@@ -95,12 +95,12 @@ templates:
       compatibility. Prefer the decomposed pipeline: charter → probe → oracle →
       taxonomize → report.
     generates_spans:
-      - cns.bughunt.charter
-      - cns.bughunt.probe
-      - cns.bughunt.oracle
-      - cns.bughunt.taxonomize
-      - cns.bughunt.learn
-      - cns.bughunt.report
+      - reg.bughunt.charter
+      - reg.bughunt.probe
+      - reg.bughunt.oracle
+      - reg.bughunt.taxonomize
+      - reg.bughunt.learn
+      - reg.bughunt.report
 
   - id: bug-hunt/bug-hunt-convergence-check
     name: "Compute normalized convergence metric for bug-hunt PDCA cycles"

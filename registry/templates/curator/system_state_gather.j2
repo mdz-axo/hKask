@@ -47,15 +47,15 @@ Gather the current system state from all bot reports and CNS monitoring data.
 
 ## CNS Variety Counters
 
-- Current variety: {{ cns.variety.current }}
-- Expected variety: {{ cns.variety.expected }}
-- Deficit: {{ cns.variety.deficit }}
-- Threshold: {{ cns.variety.threshold }}
-- Trend: {{ cns.variety.trend }}
+- Current variety: {{ reg.variety.current }}
+- Expected variety: {{ reg.variety.expected }}
+- Deficit: {{ reg.variety.deficit }}
+- Threshold: {{ reg.variety.threshold }}
+- Trend: {{ reg.variety.trend }}
 
 ## Active Alerts
 
-{% for alert in cns.active_alerts %}
+{% for alert in reg.active_alerts %}
 ### Alert {{ alert.id }}
 - Type: {{ alert.type }}
 - Severity: {{ alert.severity }}

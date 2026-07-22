@@ -62,9 +62,9 @@ The `parametric_variation_flag` is consumed directly from the quality gate — i
 ## CNS Integration
 
 The pipeline emits CNS spans for monitoring:
-- `cns.prompt.select` — Pipeline selection
-- `cns.prompt.render` — Template execution at each step
-- `cns.prompt.outcome` — Scenario set finalized
+- `reg.prompt.select` — Pipeline selection
+- `reg.prompt.render` — Template execution at each step
+- `reg.prompt.outcome` — Scenario set finalized
 
 ## OCAP Requirements
 

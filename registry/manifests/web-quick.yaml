@@ -65,7 +65,7 @@ error_handling:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.web.search_quick
+  span_namespace: reg.web.search_quick
   variety_monitoring: true
   algedonic_threshold: 100
 

@@ -1,6 +1,6 @@
 # Runtime Posture Monitor Process Manifest
 # ℏKask v0.31.0 — Runtime security posture observation
-# Observes CNS telemetry (hkask.* spans, cns.guard.*, cns.regulation events).
+# Observes CNS telemetry (hkask.* spans, reg.guard.*, reg.regulation events).
 
 manifest:
   id: runtime-posture-monitor

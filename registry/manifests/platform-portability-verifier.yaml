@@ -145,8 +145,8 @@ steps:
       - Recommendations if failures detected
 
       Output: structured JSON report + human-readable summary.
-      Emits cns.sovereignty.portability_verified or
-      cns.sovereignty.portability_failure CNS spans.
+      Emits reg.sovereignty.portability_verified or
+      reg.sovereignty.portability_failure CNS spans.
 
     renderer: minijinja
     template_ref: platform-portability-verifier/synthesize-report

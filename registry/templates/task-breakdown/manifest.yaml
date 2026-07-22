@@ -26,7 +26,7 @@ templates:
       note risks/unknowns. No code is written. Produces context summary,
       dependency graph, and risk register.
     generates_spans:
-      - cns.task-breakdown.plan
+      - reg.task-breakdown.plan
 
   - id: task-breakdown/task-breakdown-decompose
     name: "DO phase — single producer: slice vertically AND write tasks in one…"
@@ -42,7 +42,7 @@ templates:
       happen together. Merges the former slice + write-tasks steps to fix the
       grain-mismatch (mirrors diataxis-diagram's single generate producer).
     generates_spans:
-      - cns.task-breakdown.decompose
+      - reg.task-breakdown.decompose
 
   - id: task-breakdown/task-breakdown-evaluate
     name: "CHECK phase — score the plan against six weighted criteria: task…"
@@ -57,7 +57,7 @@ templates:
       absence (0.10). Emits specific refinement_directives for criteria above
       threshold — directives are task-addressable (consumed by decompose).
     generates_spans:
-      - cns.task-breakdown.evaluate
+      - reg.task-breakdown.evaluate
 
   - id: task-breakdown/task-breakdown-quality-gate
     name: "Independent quality gate (fusion: false) — evaluates the plan WITHOUT…"
@@ -72,7 +72,7 @@ templates:
       deltas vs the producer's self-assessment. Mirrors superforecasting's
       forecast-quality-gate separation of concerns.
     generates_spans:
-      - cns.task-breakdown.quality-gate
+      - reg.task-breakdown.quality-gate
 
   - id: task-breakdown/task-breakdown-convergence
     name: "Compute normalized convergence metric from the evaluation scores"
@@ -85,7 +85,7 @@ templates:
       sum across six criteria, normalized to [0,1] where 0 = plan is complete,
       correctly ordered, properly sized, and free of red flags. Threshold 0.15.
     generates_spans:
-      - cns.task-breakdown.converge
+      - reg.task-breakdown.converge
 
   - id: task-breakdown/task-breakdown-write-plan
     name: "ACT phase — finalize the plan into tasks/plan.md (overview,…"
@@ -101,4 +101,4 @@ templates:
       The plan.md document itself carries DC+BIBO state metadata. Create the tasks/
       directory if absent.
     generates_spans:
-      - cns.task-breakdown.write-plan
+      - reg.task-breakdown.write-plan

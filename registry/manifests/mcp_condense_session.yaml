@@ -101,7 +101,7 @@ ocap:
 # CNS Monitoring
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.condense
+  span_namespace: reg.prompt.condense
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

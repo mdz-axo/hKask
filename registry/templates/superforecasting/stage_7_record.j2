@@ -73,11 +73,11 @@ Set up for later error analysis:
 
 ### CNS Integration
 The flow engine automatically emits CNS spans during WordAct execution:
-- cns.prompt.select (pipeline/template selection — engine-managed)
-- cns.prompt.render (template execution — engine-managed)
-- cns.prompt.outcome (forecast recorded — engine-managed)
+- reg.prompt.select (pipeline/template selection — engine-managed)
+- reg.prompt.render (template execution — engine-managed)
+- reg.prompt.outcome (forecast recorded — engine-managed)
 
-These spans are declared at the FlowDef level (cns.emit_spans: true) and
+These spans are declared at the FlowDef level (reg.emit_spans: true) and
 require no explicit cns_spans declaration on this WordAct step.
 
 ## Output

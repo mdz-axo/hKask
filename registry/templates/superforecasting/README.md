@@ -127,9 +127,9 @@ Each stage produces structured JSON output that feeds into subsequent stages:
 ## CNS Integration
 
 The pipeline emits CNS spans for monitoring:
-- `cns.prompt.select` — Pipeline selection
-- `cns.prompt.render` — Template execution at each stage
-- `cns.prompt.outcome` — Forecast recorded
+- `reg.prompt.select` — Pipeline selection
+- `reg.prompt.render` — Template execution at each stage
+- `reg.prompt.outcome` — Forecast recorded
 
 **Variety Counters:**
 - `hypothesis_count` — Number of causal hypotheses generated

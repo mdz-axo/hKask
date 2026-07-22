@@ -1,17 +1,17 @@
-{# goal: Discover runtime signal sources (hkask.* performative spans, cns.guard.* violations, cns.regulation events) within the deployed userpod host (P4 runtime boundary — distinct from supply-chain-sentinel's manifest boundary). Read security/regressions/ for existing surface: runtime checks. Return concrete signal_sources (verifiable span targets only — no synthetic signals). Emit cns.runtime.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Authenticated host mandatory (P12). Signal parameter: guard | regulation | tool | inference | all. #}
+{# goal: Discover runtime signal sources (hkask.* performative spans, reg.guard.* violations, reg.regulation events) within the deployed userpod host (P4 runtime boundary — distinct from supply-chain-sentinel's manifest boundary). Read security/regressions/ for existing surface: runtime checks. Return concrete signal_sources (verifiable span targets only — no synthetic signals). Emit reg.runtime.select span (P9 — namespace registered in CANONICAL_NAMESPACES). Authenticated host mandatory (P12). Signal parameter: guard | regulation | tool | inference | all. #}
 {% set signal_types = [
-  {id: 'guard', targets: ['cns.guard.input', 'cns.guard.output', 'cns.guard.canary', 'cns.guard.runtime_policy'], source: 'hkask-guard pipeline + hkask-templates executor'},
-  {id: 'regulation', targets: ['cns.regulation', 'cns.regulation.impact_verified', 'cns.regulation.action_blocked', 'cns.regulation.action_substituted', 'cns.regulation.plateau_detected'], source: 'hkask-cns cybernetics loop'},
-  {id: 'tool', targets: ['cns.tool.invoked', 'cns.tool.completed', 'cns.tool.error'], source: 'MCP tool invocations across all mcp-servers'},
-  {id: 'inference', targets: ['cns.inference'], source: 'LLM inference calls'},
-  {id: 'all', targets: [], discover: true, source: 'auto-discover all hkask.* and cns.* performative spans actually emitted by the running system'}
+  {id: 'guard', targets: ['reg.guard.input', 'reg.guard.output', 'reg.guard.canary', 'reg.guard.runtime_policy'], source: 'hkask-guard pipeline + hkask-templates executor'},
+  {id: 'regulation', targets: ['reg.regulation', 'reg.regulation.impact_verified', 'reg.regulation.action_blocked', 'reg.regulation.action_substituted', 'reg.regulation.plateau_detected'], source: 'hkask-cns cybernetics loop'},
+  {id: 'tool', targets: ['reg.tool.invoked', 'reg.tool.completed', 'reg.tool.error'], source: 'MCP tool invocations across all mcp-servers'},
+  {id: 'inference', targets: ['reg.inference'], source: 'LLM inference calls'},
+  {id: 'all', targets: [], discover: true, source: 'auto-discover all hkask.* and reg.* performative spans actually emitted by the running system'}
 ] %}
 
 {# Discover runtime signal sources in the deployed userpod host #}
 {# Read security/regressions/ to find existing surface: runtime entries (ratcheted) #}
 {# Return: selected_signal, signal_sources, signal_types, existing_regressions, defense_layers #}
 {# P5: minimal — no synthetic signals; only observe spans actually emitted by the running system #}
-{# P9: emit cns.runtime.select span with discovered signal sources and regression count #}
+{# P9: emit reg.runtime.select span with discovered signal sources and regression count #}
 {# P12: every selection action carries userpod/owner identity #}
 
 Select signal: {{ target_signal | default('all') }}
@@ -21,15 +21,15 @@ Defense layers to verify (runtime firing): input_filtering, output_filtering, ca
 Convergence baseline: {{ convergence_metric | default(1.0) }}
 
 {# Evidence: concrete span targets only — no fabricated signal findings #}
-{# Source citations: hkask-guard pipeline (cns.guard.*), hkask-cns cybernetics loop (cns.regulation.*) #}
+{# Source citations: hkask-guard pipeline (reg.guard.*), hkask-cns cybernetics loop (reg.regulation.*) #}
 {# 5W1H gate: Who = running application / userpod host (P12); What = runtime signal / span target; Where = deployed runtime environment; Why = P3.1 safe container requires runtime blocking; How = observe + classify + regulate + report #}
 
-ACTION: Emit `cns.runtime.select` span (P9, P12) with discovered signal sources, selected signal type, and regression count.
+ACTION: Emit `reg.runtime.select` span (P9, P12) with discovered signal sources, selected signal type, and regression count.
 ACTION: Read `security/regressions/` for entries with `surface: runtime` and `status: enforced`.
 NOTE: If no `surface: runtime` entries exist yet, return empty list — this skill bootstraps the runtime surface. The `runtime` surface value extends the README schema (which currently lists `code | template | supply-chain | mcp | config`).
 ACTION: Return JSON: `{signal, signal_sources: [...], signal_types: [...], defense_layers: [...], existing_regressions: [...], userpod_host}`.
 CONSTRAINT: Do NOT fabricate signal sources. Only list span targets that the running system actually emits.
-CONSTRAINT: Each discovered signal source must include concrete span target string (e.g., `cns.guard.input`, `cns.regulation.action_blocked`).
+CONSTRAINT: Each discovered signal source must include concrete span target string (e.g., `reg.guard.input`, `reg.regulation.action_blocked`).
 CONSTRAINT: Use `public` visibility; no hidden runtime checks (P3, P4).
 CONSTRAINT: Registry (this manifest.yaml + templates) is authoritative over SKILL.md (P5.1).
 CONSTRAINT: This skill is complementary to `supply-chain-sentinel` (static manifest audit, P4 manifest boundary) — this skill observes runtime behavior (P4 runtime boundary). Zero overlap.
@@ -37,7 +37,7 @@ CONSTRAINT: This skill is complementary to `kali-audit` (static defense-layer pr
 CONSTRAINT: This skill is complementary to `adversarial-red-team` (synthetic LLM I/O attacks) — this skill observes real runtime traffic. Zero overlap.
 CONSTRAINT: Reference concrete taxonomy: MITRE CWE-1357 (Reliance on Component Not Updateable — runtime dependency behavior), CWE-829 (Inclusion from Untrusted Control Sphere — runtime untrusted input), CWE-200 (Information Exposure — runtime endpoint exposure); OWASP LLM06 (Excessive Agency — runtime tool misuse), LLM07 (System Prompt Leakage — runtime canary detection); MITRE ATLAS AML.TA0010 (Exfiltration — runtime data exfiltration).
 CONSTRAINT: Every runtime threat finding must cite span target, timestamp, signal value, and evidence snippet — not summary description alone.
-CONSTRAINT: If target_signal is 'auto', discover all `hkask.*` performative spans and `cns.*` canonical spans emitted by the running system. Prioritize `cns.guard.*` and `cns.regulation.*` since they carry security-relevant runtime signals.
+CONSTRAINT: If target_signal is 'auto', discover all `hkask.*` performative spans and `reg.*` canonical spans emitted by the running system. Prioritize `reg.guard.*` and `reg.regulation.*` since they carry security-relevant runtime signals.
 CONSTRAINT: Read actual runtime telemetry (not synthetic) before proposing any regression entry.
 CONSTRAINT: Every finding must include `userpod_host` identity (P12) — no anonymous runtime scanning.
 CONSTRAINT: Apply pragmatic-cybernetics (like `bug-hunt` probe phase): trace signal polarity (does the signal indicate increasing or decreasing risk?), check variety (are there alternative signal sources for the same threat?), perform Good Regulator check (is the defense layer actually regulating the threat?).

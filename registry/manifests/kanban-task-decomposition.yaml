@@ -194,7 +194,7 @@ steps:
 
 ledger:
   emit_spans: true
-  span_namespace: cns.kanban.decompose
+  span_namespace: reg.kanban.decompose
   variety_monitoring: true
   algedonic_threshold: 5
 
@@ -209,10 +209,10 @@ ledger:
 # metrics: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   - name: task_count
 #     description: "Number of tasks produced by decomposition"
-#     span: cns.kanban.decompose.tasks_created
+#     span: reg.kanban.decompose.tasks_created
 #   - name: avg_story_points
 #     description: "Average story points per task"
-#     span: cns.kanban.decompose.avg_points
+#     span: reg.kanban.decompose.avg_points
 
 audit:
   enabled: true

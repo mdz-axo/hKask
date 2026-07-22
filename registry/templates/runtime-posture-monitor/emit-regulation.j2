@@ -1,9 +1,9 @@
-{# goal: Synthesize classified runtime threats with MITRE CWE (CWE-1357/CWE-829/CWE-200), OWASP LLM (LLM06/LLM07), MITRE ATLAS (AML.TA0010) taxonomy (P8). For each threat: emit cns.regulation event and trigger cns.guard.violation if blocking warranted. Propose RR-NNNN.yaml entries (surface: runtime, status: pending, concrete pattern against span target). Identify defense-layer firing gaps. Emit cns.runtime.regulate span (P9 — namespace registered). UserPod_host mandatory (P12). No synthetic findings (P8). Registry authoritative (P5.1). #}
+{# goal: Synthesize classified runtime threats with MITRE CWE (CWE-1357/CWE-829/CWE-200), OWASP LLM (LLM06/LLM07), MITRE ATLAS (AML.TA0010) taxonomy (P8). For each threat: emit reg.regulation event and trigger reg.guard.violation if blocking warranted. Propose RR-NNNN.yaml entries (surface: runtime, status: pending, concrete pattern against span target). Identify defense-layer firing gaps. Emit reg.runtime.regulate span (P9 — namespace registered). UserPod_host mandatory (P12). No synthetic findings (P8). Registry authoritative (P5.1). #}
 {# Synthesizes classify-threat findings with CWE/OWASP/ATLAS taxonomy #}
 {# Proposes RR-NNNN.yaml entries with surface: runtime #}
-{# Emits cns.runtime.regulate CNS span (P9) #}
-{# Emits cns.regulation for downstream regulation action #}
-{# Emits cns.guard.violation for defensive blocking #}
+{# Emits reg.runtime.regulate CNS span (P9) #}
+{# Emits reg.regulation for downstream regulation action #}
+{# Emits reg.guard.violation for defensive blocking #}
 
 INPUT: threats = {{ threats }} (structured array from classify-threat phase)
 INPUT: defense_layers_firing = {{ defense_layers_firing }}
@@ -17,11 +17,11 @@ SYNTHESIS ACTIONS:
    target + timestamp + signal value + baseline reference), propose
    regulation action and regression entry.
 3. For each critical/high threat:
-   a. Emit `cns.regulation` event (target: `"cns.regulation"`, operation:
+   a. Emit `reg.regulation` event (target: `"reg.regulation"`, operation:
       `"runtime_threat_detected"`, threat_type, severity, userpod_host).
       This feeds the CyberneticsLoop for regulation action selection.
    b. If blocking is warranted (critical severity, defense-layer bypass
-      detected), emit `cns.guard.violation` (target: `"cns.guard.violation"`,
+      detected), emit `reg.guard.violation` (target: `"reg.guard.violation"`,
       operation: `"runtime_block"`, threat_type, signal_target,
       userpod_host). This triggers defensive blocking.
 4. Each regression proposal must use exact format from
@@ -49,13 +49,13 @@ SYNTHESIS ACTIONS:
    `taxonomy_mapping`, `remediation_recommendation`, `regulation_action_emitted`
    (bool), `guard_violation_emitted` (bool), `userpod_host`.
 
-CNS SPAN (P9): Emit `cns.runtime.regulate` with threats count by severity,
+CNS SPAN (P9): Emit `reg.runtime.regulate` with threats count by severity,
 defense layers firing/silent, proposed regression count, regulation events
 emitted, guard violations emitted, verdict, userpod_host, latency.
 
 DOWNSTREAM CNS SPANS (P9 — already registered):
-- `cns.regulation` — emit per critical/high threat (feeds CyberneticsLoop).
-- `cns.guard.violation` — emit per critical threat requiring block.
+- `reg.regulation` — emit per critical/high threat (feeds CyberneticsLoop).
+- `reg.guard.violation` — emit per critical threat requiring block.
 
 CONSTRAINTS (same as classify-threat — P5 minimalism, P8 evidence integrity, P12 host):
 - No synthetic span observations — every `evidence_snippet` verifiable from
@@ -83,8 +83,8 @@ emit CNS spans + compute verdict. All 6 present — passes gate.
 RELATIONSHIP (explicit): Complements `supply-chain-sentinel` (static manifest
 audit, distinct P4 boundary) and `adversarial-red-team` (synthetic LLM I/O
 attacks). References `security/regressions/README.md` format directly.
-References `hkask-cns` cybernetics loop for `cns.regulation` consumption.
-References `hkask-guard` pipeline for `cns.guard.violation` consumption.
+References `hkask-cns` cybernetics loop for `reg.regulation` consumption.
+References `hkask-guard` pipeline for `reg.guard.violation` consumption.
 MINIMAL: This is one template (`KnowAct`) — no bundle, no sub-agent.
 EVIDENCE-BACKED ONLY: Every proposed regression includes concrete `pattern`
 (regex against span target or signal value) and `evidence_snippet` (quoted
@@ -93,12 +93,12 @@ SEMANTIC GROUNDING (P8): Every claim has span target, timestamp, signal
 value, baseline reference, concrete snippet, taxonomy reference, source
 citation.
 EVOLUTIONARY (P7): New defense-layer firing gaps proposed only from real
-runtime evidence (e.g., `cns.guard.input` firing but `cns.regulation.action_blocked`
+runtime evidence (e.g., `reg.guard.input` firing but `reg.regulation.action_blocked`
 not increasing — observed in telemetry, not speculative).
 OCAP BOUNDARY (P4): Audit observes only hKask's own CNS telemetry; no
 external endpoint scanning; no OS-level process inspection.
-CNS REGULATION (P9): `cns.runtime.regulate` emitted unconditionally
-(namespace registered). `cns.regulation` and `cns.guard.violation` emitted
+CNS REGULATION (P9): `reg.runtime.regulate` emitted unconditionally
+(namespace registered). `reg.regulation` and `reg.guard.violation` emitted
 for downstream consumption (both registered).
 USERPOD HOST (P12): `userpod_host` mandatory in all outputs.
 VISIBILITY (P11): Regression proposals `status: pending` — public
@@ -111,8 +111,8 @@ SOURCE REFERENCES (concrete — P8):
 - OWASP LLM Top 10 2025 (LLM06, LLM07)
 - MITRE ATLAS (AML.TA0010 — Exfiltration)
 - `security/regressions/README.md` (local project standard — authoritative)
-- `hkask-guard` pipeline docs (cns.guard.* span sources)
-- `hkask-cns` cybernetics loop docs (cns.regulation span sink)
+- `hkask-guard` pipeline docs (reg.guard.* span sources)
+- `hkask-cns` cybernetics loop docs (reg.regulation span sink)
 - `supply-chain-sentinel` SKILL.md (complementary relationship — distinct
   P4 boundaries)
 - `adversarial-red-team` SKILL.md (zero overlap — synthetic vs real traffic)
@@ -127,6 +127,6 @@ PUBLIC VISIBILITY: `visibility: public` — no hidden runtime audit controls.
 NO FABRICATION: Only threats with quoted span evidence are reported. Only
 regressions with concrete `pattern` (regex against span target or signal
 value) are proposed. Only defense layers with observed firing (actual
-`cns.guard.*` or `cns.regulation.*` spans) are counted as firing.
+`reg.guard.*` or `reg.regulation.*` spans) are counted as firing.
 CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
 emit-regulation phase does not compute metric.

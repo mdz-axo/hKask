@@ -248,7 +248,7 @@ ocap:
 # CNS Monitoring
 ledger:
   emit_spans: true
-  span_namespace: cns.prompt.root-cause-analysis
+  span_namespace: reg.prompt.root-cause-analysis
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
