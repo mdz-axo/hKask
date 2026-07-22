@@ -564,13 +564,25 @@ impl DocProcServer {
                 // Single-tier
                 let (max_words, min_words) = chunk_word_bounds(max_tokens, overlap_tokens);
 
-                let passages = SemanticMemory::chunk_text(
-                    &processed,
-                    &entity_ref_prefix,
-                    min_words,
-                    max_words,
-                    boundary,
-                );
+                // Use structure-aware chunking when a DocStructure is available
+                // (office formats). Falls back to flat chunk_text otherwise.
+                let passages = if let Some(ref structure) = source_structure {
+                    chunk_structure(
+                        structure,
+                        &entity_ref_prefix,
+                        min_words,
+                        max_words,
+                        boundary,
+                    )
+                } else {
+                    SemanticMemory::chunk_text(
+                        &processed,
+                        &entity_ref_prefix,
+                        min_words,
+                        max_words,
+                        boundary,
+                    )
+                };
 
                 let total_passages = passages.len();
                 let serialized = serialize_passages(&passages);

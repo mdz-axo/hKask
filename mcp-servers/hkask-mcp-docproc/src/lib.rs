@@ -21,7 +21,7 @@ pub mod tools;
 pub(crate) use template::render_docproc_template;
 // Re-export helpers used by tool modules.
 pub(crate) use helpers::{
-    chunk_word_bounds, cosine_similarity, serialize_passages, tokens_to_words,
+    chunk_structure, chunk_word_bounds, cosine_similarity, serialize_passages, tokens_to_words,
 };
 pub(crate) use json_extract::extract_json_from_response;
 
@@ -282,7 +282,12 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
 
     let extract_result = match format {
         "pdf" => {
+            // Use -layout to preserve column structure (reading-order heuristic).
+            // Without -layout, pdftotext may interleave multi-column text.
+            // With -layout, it preserves spatial positioning, so columns are
+            // read top-to-bottom within each column rather than across columns.
             let output = tokio::process::Command::new("pdftotext")
+                .arg("-layout")
                 .arg(path)
                 .arg("-")
                 .output()

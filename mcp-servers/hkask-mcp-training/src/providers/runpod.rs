@@ -57,30 +57,22 @@ use std::sync::{Arc, Mutex};
 //
 // See docs/how-to/runpod-lora-training-guide.md for the full rationale.
 
-/// Default RunPod template ID for axolotl training.
+/// Default Docker image for ALL hKask training jobs.
 ///
-/// This template (`hkask-axolotl-config-from-env`) uses the
-/// `winglian/axolotl-cloud:main-latest` image with axolotl + all deps
-/// pre-installed, and a startup script that reads the `HKASK_AXOLOTL_CONFIG`
-/// env var (rendered by Rust `AxolotlHarness::render_config`).
+/// Single generic minimal image — `python:3.11-slim` + bash + curl + git.
+/// No harness-specific packages are baked in. The install script (generated
+/// by `generate_install_script()` at submit time) pip-installs whatever the
+/// selected harness needs at pod startup.
 ///
-/// Using a pre-built template avoids the pip-install restart loop documented
-/// in Lesson 10 of runpod-lora-training-guide.md.
-const DEFAULT_RUNPOD_TEMPLATE_ID: &str = "f4wac8wrhz";
+/// This replaces the previous per-harness images (axolotl-lora-trainer,
+/// trl-lora-trainer). One image serves all harnesses.
+const DEFAULT_RUNPOD_DOCKER_IMAGE: &str = "docker.io/mdzaxo/hkask-training-base:latest";
 
-/// Default Docker image for axolotl training.
+/// Default RunPod template ID.
 ///
-/// RunPod's `podFindAndDeployOnDemand` requires `imageName` to be non-empty
-/// even when a template is used. This is the image the template is based on.
-const DEFAULT_RUNPOD_DOCKER_IMAGE: &str = "winglian/axolotl-cloud:main-latest";
-
-/// Default Docker image for TRL training.
-///
-/// Parallel to `DEFAULT_RUNPOD_DOCKER_IMAGE` — used when `harness=trl` is
-/// selected and the operator hasn't set `RUNPOD_DOCKER_IMAGE`. The image is
-/// built from `docker/trl-lora-trainer/` (~130MB) and pip-installs TRL at
-/// pod startup with pinned versions (Lesson 12).
-const DEFAULT_RUNPOD_TRL_DOCKER_IMAGE: &str = "docker.io/mdzaxo/trl-lora-trainer:latest";
+/// Uses the generic `hkask-training-base` image. The template's startup
+/// script reads `HKASK_INSTALL_SCRIPT` and executes it.
+const DEFAULT_RUNPOD_TEMPLATE_ID: &str = "";
 
 /// Bundled construction parameters for `RunpodHost::new`.
 ///
@@ -459,6 +451,164 @@ struct PodDeploySpec<'a> {
     template_id: &'a str,
 }
 
+// ── Install script generation ───────────────────────────────────────────────
+
+/// Generate the install + training script for the pod.
+///
+/// This is the bridge between the Rust harness (which renders the training
+/// config) and the generic Docker image (which has nothing pre-installed).
+/// The script:
+///   1. pip-installs the harness-specific packages with pinned versions
+///   2. Writes the rendered config to /workspace
+///   3. Runs the training command
+///   4. Uploads the adapter to HuggingFace
+///   5. Writes a completion manifest
+///   6. exec sleep infinity for SSH debugging
+///
+/// The script is harness-specific — axolotl installs axolotl, TRL installs
+/// trl+peft+transformers, Ludwig installs ludwig. The lora-training skill's
+/// G6 gate determines which harness to use; this method generates the script
+/// that makes that recommendation real on the pod.
+fn generate_install_script(
+    &self,
+    job: &TrainingJob,
+    harness: TrainingHarnessId,
+) -> Result<String, ProviderError> {
+    let output_dir = format!("/workspace/outputs/{}", job.id);
+    let manifest_path = job
+        .artifacts
+        .as_ref()
+        .map(|a| a.completion_manifest_path.clone())
+        .unwrap_or_else(|| "/workspace/completion.json".to_string());
+    let model_repo = job
+        .artifacts
+        .as_ref()
+        .map(|a| a.model_repository.clone())
+        .unwrap_or_default();
+
+    // Render the training config using the selected harness.
+    let (config_filename, config_content, pip_packages, train_command, version_info) =
+        match harness {
+            TrainingHarnessId::Axolotl => {
+                let yaml = crate::providers::AxolotlHarness
+                    .render_config(job)
+                    .map_err(|e| ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}")))?;
+                (
+                    "config.yml",
+                    yaml,
+                    "pip install --no-cache-dir axolotl huggingface_hub",
+                    "axolotl train /workspace/config.yml",
+                    "axolotl",
+                )
+            }
+            TrainingHarnessId::Trl => {
+                let script = crate::providers::TrlHarness
+                    .render_config(job)
+                    .map_err(|e| ProviderError::InvalidConfig(format!("Failed to render TRL script: {e}")))?;
+                (
+                    "train.py",
+                    script,
+                    "pip install --no-cache-dir trl==1.8.0 peft==0.19.0 transformers==5.9.0 bitsandbytes accelerate liger-kernel huggingface_hub",
+                    "python /workspace/train.py",
+                    "trl==1.8.0 peft==0.19.0 transformers==5.9.0",
+                )
+            }
+            TrainingHarnessId::Ludwig => {
+                let yaml = crate::providers::LudwigHarness
+                    .render_config(job)
+                    .map_err(|e| ProviderError::InvalidConfig(format!("Failed to render Ludwig YAML: {e}")))?;
+                (
+                    "model.yaml",
+                    yaml,
+                    "pip install --no-cache-dir ludwig huggingface_hub",
+                    "ludwig train --config /workspace/model.yaml",
+                    "ludwig",
+                )
+            }
+        };
+
+    // Generate the install script as a bash heredoc.
+    // The config content is written via printf to avoid shell interpolation
+    // issues with the rendered YAML/Python content.
+    let script = format!(
+        r"#!/usr/bin/env bash
+set -euo pipefail
+
+# ── Environment ──────────────────────────────────────────────────────────────
+export HF_HOME=${{HF_HOME:-/workspace/.cache/huggingface}}
+export PIP_CACHE_DIR=${{PIP_CACHE_DIR:-/workspace/.cache/pip}}
+export TMPDIR=${{TMPDIR:-/workspace/tmp}}
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+export HF_HUB_ENABLE_HF_TRANSFER=${{HF_HUB_ENABLE_HF_TRANSFER:-1}}
+mkdir -p "$HF_HOME" "$PIP_CACHE_DIR" "$TMPDIR" /workspace/outputs
+
+# ── Step 1: Install harness packages ───────────────────────────────────────
+echo "=== Installing packages ({pip_packages}) ==="
+{pip_packages}
+
+# ── Step 2: Write the training config ──────────────────────────────────────
+echo "=== Writing config to /workspace/{config_filename} ==="
+printf '%s' '{config_content_escaped}' > /workspace/{config_filename}
+
+# ── Step 3: Run training ─────────────────────────────────────────────────────
+echo "=== Starting training: {train_command} ==="
+TRAINING_START=$(date +%s)
+if {train_command}; then
+    TRAINING_END=$(date +%s)
+    TRAINING_DURATION=$((TRAINING_END - TRAINING_START))
+    echo "=== Training completed in ${{TRAINING_DURATION}}s ==="
+    TRAINING_STATUS="success"
+else
+    TRAINING_END=$(date +%s)
+    TRAINING_DURATION=$((TRAINING_END - TRAINING_START))
+    echo "=== Training FAILED after ${{TRAINING_DURATION}}s ===" >&2
+    TRAINING_STATUS="failed"
+fi
+
+# ── Step 4: Upload adapter ──────────────────────────────────────────────────
+OUTPUT_DIR="{output_dir}"
+if [ "$TRAINING_STATUS" = "success" ] && [ -n "{model_repo}" ]; then
+    echo "=== Uploading adapter to {model_repo} ==="
+    huggingface-cli upload "{model_repo}" "$OUTPUT_DIR" \
+        --commit-message "hKask training: {job_id}" || \
+        echo "WARNING: Adapter upload failed — adapter remains at $OUTPUT_DIR" >&2
+fi
+
+# ── Step 5: Write completion manifest ───────────────────────────────────────
+cat > "{manifest_path}" <<MANIFEST
+{{
+    "job_id": "{job_id}",
+    "base_model": "{base_model}",
+    "harness": "{harness_name}",
+    "status": "${{TRAINING_STATUS}}",
+    "training_duration_secs": ${{TRAINING_DURATION}},
+    "output_dir": "${{OUTPUT_DIR}}",
+    "versions": "{version_info}",
+    "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}}
+MANIFEST
+echo "=== Completion manifest written to {manifest_path} ==="
+
+# ── Step 6: Keep pod alive for SSH debugging ────────────────────────────────
+echo "=== Done. Pod staying alive for SSH debugging. ==="
+exec sleep infinity
+",
+        pip_packages = pip_packages,
+        config_content_escaped = config_content.replace('\\', "\\\\").replace("'", "\\'"),
+        config_filename = config_filename,
+        train_command = train_command,
+        output_dir = output_dir,
+        model_repo = model_repo,
+        job_id = job.id,
+        base_model = job.base_model,
+        harness_name = format!("{:?}", harness).to_lowercase(),
+        version_info = version_info,
+        manifest_path = manifest_path,
+    );
+
+    Ok(script)
+}
+
 #[async_trait::async_trait]
 impl TrainingHost for RunpodHost {
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError> {
@@ -542,22 +692,14 @@ impl TrainingHost for RunpodHost {
         // the HKASK_HARNESS env var below.
         let selected_harness = job.params.harness.unwrap_or(job.harness);
 
-        // RunPod's podFindAndDeployOnDemand requires imageName to be non-empty
-        // even when using a template. Default to the template's base image.
-        //
-        // Harness-specific image selection: when harness=trl is selected and
-        // the operator hasn't set a custom image, use the TRL trainer image
-        // (docker.io/mdzaxo/trl-lora-trainer:latest). This image pip-installs
-        // TRL with pinned versions at pod startup (Lesson 12).
+        // RunPod's podFindAndDeployOnDemand requires imageName to be non-empty.
+        // Use the single generic training-base image for all harnesses —
+        // the install script (generated below) pip-installs harness-specific
+        // packages at pod startup. No per-harness images.
         let docker_image = if !self.docker_image.is_empty() {
             self.docker_image.clone()
         } else {
-            match selected_harness {
-                TrainingHarnessId::Trl => DEFAULT_RUNPOD_TRL_DOCKER_IMAGE.to_string(),
-                TrainingHarnessId::Axolotl | TrainingHarnessId::Ludwig => {
-                    DEFAULT_RUNPOD_DOCKER_IMAGE.to_string()
-                }
-            }
+            DEFAULT_RUNPOD_DOCKER_IMAGE.to_string()
         };
         if docker_image.is_empty() && template_id.is_empty() {
             return Err(ProviderError::InvalidConfig(
@@ -712,39 +854,14 @@ impl TrainingHost for RunpodHost {
             ),
         ];
 
-        // Render the training config from TrainingParams using the appropriate
-        // harness. The config is passed to the pod as an env var — the env var
-        // name depends on the harness (axolotl → HKASK_AXOLOTL_CONFIG / YAML,
-        // trl → HKASK_TRL_SCRIPT / Python, ludwig → HKASK_LUDWIG_CONFIG / YAML).
-        // The pod's entrypoint checks which env var is set and runs the
-        // corresponding training command.
-        let (config_env_var, config_content) = match selected_harness {
-            TrainingHarnessId::Axolotl => {
-                let yaml = crate::providers::AxolotlHarness
-                    .render_config(job)
-                    .map_err(|e| {
-                        ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}"))
-                    })?;
-                ("HKASK_AXOLOTL_CONFIG", yaml)
-            }
-            TrainingHarnessId::Trl => {
-                let script = crate::providers::TrlHarness
-                    .render_config(job)
-                    .map_err(|e| {
-                        ProviderError::InvalidConfig(format!("Failed to render TRL script: {e}"))
-                    })?;
-                ("HKASK_TRL_SCRIPT", script)
-            }
-            TrainingHarnessId::Ludwig => {
-                let yaml = crate::providers::LudwigHarness
-                    .render_config(job)
-                    .map_err(|e| {
-                        ProviderError::InvalidConfig(format!("Failed to render Ludwig YAML: {e}"))
-                    })?;
-                ("HKASK_LUDWIG_CONFIG", yaml)
-            }
-        };
-        env_entries.push((config_env_var, config_content));
+        // Render the training config and generate the install script.
+        // The install script is a bash script that pip-installs the
+        // harness-specific packages, writes the config, runs training,
+        // uploads the adapter, and writes the completion manifest.
+        // It's passed to the pod as HKASK_INSTALL_SCRIPT — the generic
+        // entrypoint in docker/training-base/ reads it and executes it.
+        let install_script = self.generate_install_script(job, selected_harness)?;
+        env_entries.push(("HKASK_INSTALL_SCRIPT", install_script));
 
         // HF_TOKEN — required for the pod to download private datasets and upload
         // adapters to private model repos. The publish step (HuggingFaceTraining::from_env)
@@ -762,18 +879,14 @@ impl TrainingHost for RunpodHost {
         }
 
         // Generate docker args if not provided via env var.
-        // The image `docker.io/mdzaxo/axolotl-lora-trainer:latest` ships a bash
-        // entrypoint at /usr/local/bin/entrypoint.sh (set as Docker ENTRYPOINT)
-        // that handles the full training lifecycle: pip install axolotl, write
-        // config from HKASK_AXOLOTL_CONFIG, run `axolotl train`, upload adapter
-        // via `huggingface-cli upload`, write completion manifest, and
-        // `exec sleep infinity` for SSH debugging.
-        //
-        // We do NOT set dockerArgs by default — RunPod's dockerArgs overrides
-        // the Docker CMD, and our image uses ENTRYPOINT (not CMD) to invoke
-        // the entrypoint. Setting dockerArgs would pass the script path as
-        // arguments to the entrypoint, causing unexpected behavior. Leaving
-        // dockerArgs empty lets the image's ENTRYPOINT run naturally.
+        // The generic training-base image uses ENTRYPOINT to invoke
+        // /usr/local/bin/entrypoint.sh, which reads HKASK_INSTALL_SCRIPT
+        // and executes it. We do NOT set dockerArgs by default — RunPod's
+        // dockerArgs overrides the Docker CMD, and our image uses ENTRYPOINT
+        // (not CMD) to invoke the entrypoint. Setting dockerArgs would pass
+        // the script path as arguments to the entrypoint, causing unexpected
+        // behavior. Leaving dockerArgs empty lets the image's ENTRYPOINT
+        // run naturally.
         //
         // RUNPOD_DOCKER_ARGS remains available as an override for operators
         // who need to customize the startup command.

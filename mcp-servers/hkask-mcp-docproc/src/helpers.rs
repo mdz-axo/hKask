@@ -127,3 +127,87 @@ pub(crate) fn chunk_structure(
 }
 
 use crate::*;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hkask_types::document::{Block, DocStructure, Page};
+
+    #[test]
+    fn cosine_similarity_zero_for_empty() {
+        assert_eq!(cosine_similarity(&[], &[]), 0.0);
+    }
+
+    #[test]
+    fn cosine_similarity_orthogonal() {
+        assert_eq!(cosine_similarity(&[1.0, 0.0], &[0.0, 1.0]), 0.0);
+    }
+
+    #[test]
+    fn cosine_similarity_identical() {
+        let sim = cosine_similarity(&[1.0, 2.0, 3.0], &[1.0, 2.0, 3.0]);
+        assert!((sim - 1.0).abs() < 1e-5, "expected ~1.0, got {sim}");
+    }
+
+    #[test]
+    fn tokens_to_words_approximate() {
+        assert_eq!(tokens_to_words(133), 100);
+        assert_eq!(tokens_to_words(0), 0);
+    }
+
+    fn sample_structure_with_headings() -> DocStructure {
+        DocStructure {
+            source_format: "docx".to_string(),
+            pages: vec![Page {
+                page_number: 1,
+                blocks: vec![
+                    Block::Heading {
+                        level: 1,
+                        text: "Introduction".to_string(),
+                    },
+                    Block::Paragraph {
+                        text: "This is the intro paragraph. It has two sentences.".to_string(),
+                    },
+                    Block::Heading {
+                        level: 2,
+                        text: "Methods".to_string(),
+                    },
+                    Block::Paragraph {
+                        text: "We used Rust. It was fast.".to_string(),
+                    },
+                ],
+            }],
+        }
+    }
+
+    #[test]
+    fn chunk_structure_respects_heading_boundaries() {
+        let structure = sample_structure_with_headings();
+        // Large max_words so each section fits in one chunk.
+        let passages = chunk_structure(&structure, "doc", 1, 1000, ".!?");
+        // Two sections → at least two passages (one per section).
+        assert!(
+            passages.len() >= 2,
+            "expected >= 2 passages, got {}",
+            passages.len()
+        );
+        // Each passage should contain its heading text.
+        assert!(
+            passages
+                .iter()
+                .any(|(_, text)| text.contains("Introduction")),
+            "no passage contains Introduction heading"
+        );
+        assert!(
+            passages.iter().any(|(_, text)| text.contains("Methods")),
+            "no passage contains Methods heading"
+        );
+    }
+
+    #[test]
+    fn chunk_structure_falls_back_when_no_headings() {
+        let structure = DocStructure::from_plain_text("Just a paragraph. With text.", "plain");
+        let passages = chunk_structure(&structure, "doc", 1, 1000, ".!?");
+        assert!(!passages.is_empty());
+    }
+}
