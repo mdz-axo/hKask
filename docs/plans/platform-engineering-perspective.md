@@ -811,7 +811,7 @@ New Regulation spans:
 | `hkask-templates` | — | `registry.rs` (bootstrap loads 7 platform manifests) |
 | `hkask-agents` | — | `ports/memory_storage.rs`, `ports/mod.rs` (MemoryPortError re-export fix) |
 | `hkask-services-chat` | — | `chat.rs` (test mock fix) |
-| `hkask-mcp-curator` | — | `lib.rs` (+cns_query, +list_tokens tools), `types.rs` (+CnsQueryRequest, +TokenListRequest) |
+| `hkask-mcp-curator` | — | `lib.rs` (+reg_query, +list_tokens tools), `types.rs` (+CnsQueryRequest, +TokenListRequest) |
 
 **Registry artifacts created:**
 
@@ -831,7 +831,7 @@ New Regulation spans:
 hkask-regulation → [types, ports, capability, wallet, wallet-types]     ← production
 hkask-regulation → [storage]                                              ← dev-only (tests)
 hkask-storage → [capability]                                       ← TokenRegistry impl
-hkask-mcp-curator → [capability, storage, cns]                     ← token + Regulation query tools
+hkask-mcp-curator → [capability, storage, regulation]                     ← token + Regulation query tools
 ```
 
 No production dependency from Regulation → Storage.
@@ -848,7 +848,7 @@ No production dependency from Regulation → Storage.
 
 | Crate | New tests |
 |-------|:---------:|
-| `hkask-types` (slo + cns) | 7 |
+| `hkask-types` (slo + regulation) | 7 |
 | `hkask-regulation` (slo_manager) | 14 |
 | `hkask-capability` (token_registry) | 2 |
 | `hkask-storage` (token_registry_store) | 6 |

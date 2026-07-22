@@ -27,7 +27,7 @@ Object Capability (OCAP) security is a design discipline rooted in Mark Miller's
 Located in `crates/hkask-capability/src/token_types.rs`, the `DelegationToken` struct carries:
 
 - `resource: DelegationResource` — what kind of thing (Tool, Template, Registry, Key)
-- `resource_id: String` — which specific thing (e.g., `"cns_health"`, `"cns"`)
+- `resource_id: String` — which specific thing (e.g., `"reg_health"`, `"regulation"`)
 - `action: DelegationAction` — Read, Write, or Execute
 - `delegated_from: WebID` and `delegated_to: WebID` — provenance chain
 - `signature: TokenSignature` — 64-byte Ed25519 signature
@@ -51,7 +51,7 @@ The `invoke()` method (line 200) enforces a strict sequence:
 
 1. **Check (cryptographic)** — `token.verify()` performs Ed25519 signature verification. Failure returns `ToolPortError::CapabilityDenied`. No further steps execute.
 
-2. **Check (OCAP authority)** — Two-path verification. Path 1 (exact): `verify_capability_exact()` checks `token.is_valid_for(DelegationResource::Tool, tool_name, DelegationAction::Execute)`. This handles ad-hoc invocation tokens minted with the exact tool name. Path 2 (domain): `verify_capability_domain_fallback()` looks up the tool's `required_capability` metadata and uses `capabilities_match()` to test whether the token's domain covers the required domain. For example, an agent token for `tool:cns:execute` grants access to any tool whose `required_capability` is `tool:cns:execute` (via `capabilities_match` at `crates/hkask-capability/src/resources.rs:122`). The action hierarchy is Execute ≥ Write ≥ Read.
+2. **Check (OCAP authority)** — Two-path verification. Path 1 (exact): `verify_capability_exact()` checks `token.is_valid_for(DelegationResource::Tool, tool_name, DelegationAction::Execute)`. This handles ad-hoc invocation tokens minted with the exact tool name. Path 2 (domain): `verify_capability_domain_fallback()` looks up the tool's `required_capability` metadata and uses `capabilities_match()` to test whether the token's domain covers the required domain. For example, an agent token for `tool:regulation:execute` grants access to any tool whose `required_capability` is `tool:regulation:execute` (via `capabilities_match` at `crates/hkask-capability/src/resources.rs:122`). The action hierarchy is Execute ≥ Write ≥ Read.
 
 3. **Reserve (gas)** — `CyberneticsLoop::can_proceed()` checks whether the agent's gas budget has enough remaining capacity. If `ToolStats` is wired (Layer 1), the reserve uses the 90th percentile of the fitted LogNormal cost distribution; otherwise it falls back to the `EnergyEstimator` point estimate. If insufficient, a `reg.gas.depleted` span is emitted and `ToolPortError::EnergyBudgetExceeded` is returned. Then `reserve_gas()` atomically decrements the budget. This is the hold-settle pattern: gas is reserved before invocation, then settled after with the actual cost. If actual < reserved, the difference is refunded — preventing gas leaks from over-estimation.
 

@@ -65,7 +65,7 @@ crates/hkask-repl/src/
 ├── init.rs             # Dependency injection — wires Regulation, loops, memory, tools
 ├── turn.rs             # run_turn_loop() + TurnSink trait (CLI/TUI unified), single_agent_turn() wrapper
 ├── energy.rs           # EnergyGuard (hold-settle gas pattern, settle/release/Drop)
-├── cns_display.rs      # Regulation algedonic alert display, loop system tick (read-only)
+├── reg_display.rs      # Regulation algedonic alert display, loop system tick (read-only)
 ├── tool_augmented.rs   # Tool call parsing (extract_tool_calls), invocation, result formatting
 ├── builtin_servers.rs  # MCP server startup at REPL boot
 └── handlers/
@@ -614,7 +614,7 @@ The canonical registry is `hkask_mcp::BUILTIN_SERVERS` — 16 servers total. 12 
 | `filesystem` | `hkask-mcp-filesystem` | yes | Filesystem read/write/search + shell command execution |
 | `codegraph` | `hkask-mcp-codegraph` | yes | Code graph query, traverse, impact analysis |
 | `scenarios` | `hkask-mcp-scenarios` | yes | Scenario planning and forecasting |
-| `cns` | `hkask-mcp-cns` | yes | Regulation observability and alerting |
+| `regulation` | `hkask-mcp-regulation` | yes | Regulation observability and alerting |
 | `companies` | `hkask-mcp-companies` | **no** | Company financial data (FMP + EODHD dual-provider) |
 | `communication` | `hkask-mcp-communication` | **no** | Thin MCP wrapper over core communication crate |
 | `training` | `hkask-mcp-training` | **no** | Model training data ingestion |
@@ -644,7 +644,7 @@ All invocations route through `GovernedTool` with OCAP token minting and Regulat
 
 ## 14. Regulation Integration
 
-After each turn, `cns_display::update_cns_and_display()` executes:
+After each turn, `reg_display::update_reg_and_display()` executes:
 
 1. **Prompt Variety Sensing:**
    - Depth bucket (shallow/medium/deep) → `reg.inference.prompt_depth`

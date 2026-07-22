@@ -27,7 +27,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | [Principle 4: Clear Boundaries](#principle-4-clear-boundaries-ocap) | OCAP enforcement of principles 1–3 |
 | [Catch and Release](#catch-and-release) | Data sovereignty catch-and-release model |
 | [The Curator as Enforcer](#the-curator-as-enforcer) | Curator role in enforcing the Magna Carta |
-| [Regulation Integration](#cns-integration) | Algedonic alerts and sovereignty monitoring |
+| [Regulation Integration](#regulation-integration) | Algedonic alerts and sovereignty monitoring |
 | [Magna Carta Verifier](#magna-carta-verifier) | Verification skill, triggers, and resolution |
 | [Implementation](#implementation) | Code-level enforcement mechanisms |
 | [The Promise](#the-promise) | The pledge to users |
@@ -418,7 +418,7 @@ The Magna Carta is not aspirational. It is enforced:
 2. **Sovereignty Checks** — Every invocation checked
 3. **Consent Verification** — Scoped, versioned, expiring consent
 4. **Regulation Alerts** — Violations trigger immediate alerts
-5. **Magna Carta Verifier** — YAML manifests and Jinja2 templates verify each principle. Invoked via `kask sovereignty verify` (CLI) or `cns_verify_magna_carta` (MCP tool)
+5. **Magna Carta Verifier** — YAML manifests and Jinja2 templates verify each principle. Invoked via `kask sovereignty verify` (CLI) or `reg_verify_magna_carta` (MCP tool)
 6. **Audit Trail** — All decisions recorded
 
 ---

@@ -60,7 +60,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | Document | Topic |
 |----------|-------|
 | [`architecture-patterns.md`](explanation/architecture-patterns.md) | Hexagonal ports, service layer, template cascade, MCP dispatch patterns (includes 7 inlined diagrams + template authorship) |
-| [`cns-and-loops.md`](explanation/cns-and-loops.md) | Regulation homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
+| [`regulation-and-loops.md`](explanation/regulation-and-loops.md) | Regulation homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
 | [`cognition-and-replica.md`](explanation/cognition-and-replica.md) | Memory pipeline, classification, embedding architecture (includes 4 inlined diagrams) |
 | [`sovereignty-and-ocap.md`](explanation/sovereignty-and-ocap.md) | OCAP attenuation, consent flow, guard pipeline (includes 4 inlined diagrams) |
 | [`federation-and-transport.md`](explanation/federation-and-transport.md) | Federation dispatch model, adapter lifecycle (includes 1 inlined diagram) |

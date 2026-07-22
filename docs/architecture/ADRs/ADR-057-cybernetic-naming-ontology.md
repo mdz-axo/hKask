@@ -1,5 +1,5 @@
 ---
-title: "ADR-057: Cybernetic Naming Ontology — CNS → Regulation, Sensor Registry → Sensor Bus"
+title: "ADR-057: Cybernetic Naming Ontology — Regulation → Regulation, Sensor Registry → Sensor Bus"
 audience: [architects, developers, agents]
 last_updated: 2026-07-21
 version: "0.32.0"
@@ -8,7 +8,7 @@ domain: "Cross-cutting"
 mds_categories: [domain, composition, curation]
 ---
 
-# ADR-057: Cybernetic Naming Ontology — CNS → Regulation, Sensor Registry → Sensor Bus
+# ADR-057: Cybernetic Naming Ontology — Regulation → Regulation, Sensor Registry → Sensor Bus
 
 **Date:** 2026-07-21  
 **Status:** Active  
@@ -16,7 +16,7 @@ mds_categories: [domain, composition, curation]
 
 ## Context
 
-The current naming uses metaphors ("CNS", "ν-event") that require reading the architecture docs to decode. A code reviewer seeing `CnsRuntime`, `NuEventStore`, or `SensorRegistry` for the first time cannot infer the cybernetic function from the name alone. The `CnsRuntime` is a god object that conflates afferent (sensing) and efferent (recording) functions under one name.
+The current naming uses metaphors ("Regulation", "ν-event") that require reading the architecture docs to decode. A code reviewer seeing `CnsRuntime`, `NuEventStore`, or `SensorRegistry` for the first time cannot infer the cybernetic function from the name alone. The `CnsRuntime` is a god object that conflates afferent (sensing) and efferent (recording) functions under one name.
 
 **Problem Statement:** The naming obscures the cybernetic function of each component, making the codebase harder to review and maintain.
 
@@ -52,47 +52,47 @@ The current naming uses metaphors ("CNS", "ν-event") that require reading the a
 
 | Current | Proposed |
 |---------|----------|
-| `cns.*` | `reg.*` |
-| `cns.tool.*` | `reg.tool.*` |
-| `cns.inference` | `reg.inference` |
-| `cns.gas` | `reg.gas` |
-| `cns.curation` | `reg.curation` |
-| `cns.cybernetics` | `reg.cybernetics` |
-| `cns.regulation.*` | `reg.outcome.*` |
-| `cns.variety` | `reg.variety` |
-| `cns.algedonic` | `reg.alert` |
-| `cns.agent_pod` | `reg.pod` |
-| `cns.kata` | `reg.kata` |
+| `reg.*` | `reg.*` |
+| `reg.tool.*` | `reg.tool.*` |
+| `reg.inference` | `reg.inference` |
+| `reg.gas` | `reg.gas` |
+| `reg.curation` | `reg.curation` |
+| `reg.cybernetics` | `reg.cybernetics` |
+| `reg.regulation.*` | `reg.outcome.*` |
+| `reg.variety` | `reg.variety` |
+| `reg.algedonic` | `reg.alert` |
+| `reg.agent_pod` | `reg.pod` |
+| `reg.kata` | `reg.kata` |
 
 ### Crate Rename
 
 | Current | Proposed |
 |---------|----------|
-| `hkask-cns` | `hkask-regulation` |
+| `hkask-regulation` | `hkask-regulation` |
 | `hkask_cns` (in code) | `hkask_regulation` |
 
 ### Script Rename
 
 | Current | Proposed |
 |---------|----------|
-| `scripts/check-cns-canonical.sh` | `scripts/check-reg-canonical.sh` |
+| `scripts/check-regulation-canonical.sh` | `scripts/check-reg-canonical.sh` |
 
 ### What is NOT Renamed
 
 - `SetPoints`, `SetPointCalibrator`, `RegulationPolicy`, `StagnationDetector`, `ImpactReport`, `ActionDecision` — already clear.
 - `LoopId` — it's an identifier enum.
 - `Signal`, `Deviation`, `SignalMetric` — standard cybernetic terms.
-- `SpanNamespace`, `SpanKind`, `SpanCategory`, `ObservableSpan` — generic span infrastructure, not CNS-specific.
+- `SpanNamespace`, `SpanKind`, `SpanCategory`, `ObservableSpan` — generic span infrastructure, not Regulation-specific.
 - `Dampener`, `CircuitBreaker`, `GasBudget`, `GasBudgetManager` — already clear.
 
 ## Implementation Plan
 
-### Phase 1: Crate rename (`hkask-cns` → `hkask-regulation`)
+### Phase 1: Crate rename (`hkask-regulation` → `hkask-regulation`)
 
-1. Rename directory `crates/hkask-cns` → `crates/hkask-regulation`
+1. Rename directory `crates/hkask-regulation` → `crates/hkask-regulation`
 2. Update `Cargo.toml`: `name = "hkask-regulation"`
 3. Update workspace `Cargo.toml` member list
-4. Update all `Cargo.toml` files that depend on `hkask-cns` → `hkask-regulation`
+4. Update all `Cargo.toml` files that depend on `hkask-regulation` → `hkask-regulation`
 5. Update all `use hkask_cns::` → `use hkask_regulation::` in `.rs` files
 6. Update all `extern crate hkask_cns` → `extern crate hkask_regulation`
 
@@ -117,23 +117,23 @@ For each type rename, use `sed` to replace across all `.rs` files:
 16. `LoopQuality` → `LoopMetrics`
 17. `LoopAction` → `RegulatoryAction`
 
-### Phase 3: Namespace rename (`cns.*` → `reg.*`)
+### Phase 3: Namespace rename (`reg.*` → `reg.*`)
 
 1. Update `CANONICAL_NAMESPACES` array in `crates/hkask-types/src/event.rs`
-2. Update all `tracing::info!(target: "cns...", ...)` → `tracing::info!(target: "reg...", ...)`
-3. Update `scripts/check-cns-canonical.sh` → `scripts/check-reg-canonical.sh`
+2. Update all `tracing::info!(target: "reg...", ...)` → `tracing::info!(target: "reg...", ...)`
+3. Update `scripts/check-regulation-canonical.sh` → `scripts/check-reg-canonical.sh`
 4. Update CI workflow references to the script name
 
 ### Phase 4: Module and file renames
 
-1. `crates/hkask-types/src/cns.rs` → `crates/hkask-types/src/regulation.rs`
-2. `crates/hkask-types/src/cns/` directory → `crates/hkask-types/src/regulation/` (if exists)
-3. Update `pub mod cns` → `pub mod regulation` in `hkask-types/src/lib.rs`
-4. Update all `use hkask_types::cns::` → `use hkask_types::regulation::`
+1. `crates/hkask-types/src/reg.rs` → `crates/hkask-types/src/regulation.rs`
+2. `crates/hkask-types/src/regulation/` directory → `crates/hkask-types/src/regulation/` (if exists)
+3. Update `pub mod regulation` → `pub mod regulation` in `hkask-types/src/lib.rs`
+4. Update all `use hkask_types::regulation::` → `use hkask_types::regulation::`
 
 ### Phase 5: Documentation updates
 
-1. Update all `docs/**/*.md` files that reference "CNS", "NuEvent", "SensorRegistry", etc.
+1. Update all `docs/**/*.md` files that reference "Regulation", "NuEvent", "SensorRegistry", etc.
 2. Update `AGENTS.md`
 3. Update architecture docs
 4. Update ADRs (add superseded note to old ADRs, not rewrite them)
@@ -143,7 +143,7 @@ For each type rename, use `sed` to replace across all `.rs` files:
 1. `cargo check --workspace` — zero errors
 2. `cargo test --workspace` — all tests pass
 3. `scripts/check-reg-canonical.sh` — passes
-4. `grep -r "CnsRuntime\|NuEvent\|SensorCatalog\|cns\." crates/ --include="*.rs"` — zero matches (except in historical ADRs)
+4. `grep -r "CnsRuntime\|NuEvent\|SensorCatalog\|regulation\." crates/ --include="*.rs"` — zero matches (except in historical ADRs)
 
 ## Consequences
 
@@ -155,13 +155,13 @@ For each type rename, use `sed` to replace across all `.rs` files:
 
 ### Negative
 
-- **Large diff:** ~84 files reference `hkask-cns`/`hkask_cns`, ~88 files have `cns.` tracing targets, ~57 files reference `NuEvent`. The rename touches a significant portion of the codebase.
+- **Large diff:** ~84 files reference `hkask-regulation`/`hkask_cns`, ~88 files have `reg.` tracing targets, ~57 files reference `NuEvent`. The rename touches a significant portion of the codebase.
 - **Fresh NuEventStore:** Persisted regulation records on disk will be invalidated by the namespace rename. This is acceptable — no backward compatibility requirement.
 
 ### Neutral
 
 - The rename is mechanical — no logic changes, just naming.
-- The `reg.*` namespace is shorter than `cns.*` — slightly less typing in tracing calls.
+- The `reg.*` namespace is shorter than `reg.*` — slightly less typing in tracing calls.
 
 ## Verification
 
@@ -171,7 +171,7 @@ grep -rn "CnsRuntime\|NuEvent\|NuEventStore\|NuEventSink\|CnsSpan\|CnsHealth\|Cn
 # Expected: 0
 
 # Verify no old namespace remains
-grep -rn 'target:.*"cns' crates/ mcp-servers/ --include="*.rs" | wc -l
+grep -rn 'target:.*"regulation' crates/ mcp-servers/ --include="*.rs" | wc -l
 # Expected: 0
 
 # Verify workspace compiles

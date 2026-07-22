@@ -49,7 +49,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-IC-009 | CodeGraph Agent Workflow — search, traverse, impact, context assembly, feedback loop | `reference/api-reference.md` | `mcp-servers/hkask-mcp-codegraph/src/lib.rs:243-632`, `crates/hkask-codegraph/src/graph/search.rs`, `crates/hkask-codegraph/src/graph/traversal.rs` | ✅ VERIFIED 2026-07-04 |
 | DIAG-IC-010 | Companies provider routing — symbol selection, learning override, fallback, EODHD normalization | `architecture/core/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/providers.rs:84-247`, `mcp-servers/hkask-mcp-companies/src/lib.rs:340-361` | ✅ VERIFIED 2026-07-10 |
 | DIAG-IC-011 | Companies forecast feedback — durable snapshot, revision, outcome, and daemon experience flow | `architecture/core/hKask-architecture-master.md` | `mcp-servers/hkask-mcp-companies/src/tools/analytics.rs:438-457`, `mcp-servers/hkask-mcp-companies/src/tools/valuation.rs:634-659,774-915`, `mcp-servers/hkask-mcp-companies/src/portfolio.rs:303-400` | ✅ VERIFIED 2026-07-10 |
-| DIAG-IC-012 | Regulation Architecture — responsibility clusters, wallet port, extraction status | `explanation/cns-and-loops.md` | `crates/hkask-regulation/src/cybernetics_loop.rs`, `crates/hkask-regulation/src/runtime.rs`, `crates/hkask-regulation/src/wallet_budget.rs`, `crates/hkask-regulation/src/slo_manager.rs`, `crates/hkask-storage-guard/src/lib.rs`, `crates/hkask-regulation/src/seam_watcher.rs`, `crates/hkask-ports/src/wallet_budget_port.rs` | ✅ VERIFIED 2026-07-11 |
+| DIAG-IC-012 | Regulation Architecture — responsibility clusters, wallet port, extraction status | `explanation/regulation-and-loops.md` | `crates/hkask-regulation/src/cybernetics_loop.rs`, `crates/hkask-regulation/src/runtime.rs`, `crates/hkask-regulation/src/wallet_budget.rs`, `crates/hkask-regulation/src/slo_manager.rs`, `crates/hkask-storage-guard/src/lib.rs`, `crates/hkask-regulation/src/seam_watcher.rs`, `crates/hkask-ports/src/wallet_budget_port.rs` | ✅ VERIFIED 2026-07-11 |
 | DIAG-IC-013 | Research MCP Server Architecture — ResearchServer, ProviderPool, WebSearchPort, cache, rate limiter, RSS DB | `status/research-mcp-adversarial-review-2026-07-17.md` | `mcp-servers/hkask-mcp-research/src/lib.rs:41-48`, `crates/hkask-services-research/src/providers/mod.rs:130-135,494-620` | ✅ VERIFIED 2026-07-17 |
 | DIAG-IC-014 | Research Provider Trait Hierarchy — WebSearchPort, WebSearchProvider, WebExtractProvider, WebBrowseProvider, 9 concrete providers | `status/research-mcp-adversarial-review-2026-07-17.md` | `crates/hkask-services-research/src/providers/mod.rs:50-135`, `crates/hkask-services-research/src/providers/brave.rs:18`, `crates/hkask-services-research/src/providers/firecrawl.rs:28,100,181` | ✅ VERIFIED 2026-07-17 |
 | DIAG-IC-015 | Skill MCP Server Architecture — SkillServer stores RegistryEntry (lazy read), templates-vs-skills distinction, InferencePort | `reference/mcp-servers/skill-server.md` | `mcp-servers/hkask-mcp-skill/src/lib.rs:49`, `crates/hkask-templates/src/registry.rs:400` | ✅ VERIFIED 2026-07-17 |
@@ -63,9 +63,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 | DIAG-TO-001 | STRIDE-lite Threat Model (4 adversaries) | `architecture/core/FUNCTIONAL_SPECIFICATION.md` §2.4 | `crates/hkask-mcp/src/security.rs`, `crates/hkask-keystore/src/` | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-002 | OCAP Boundary Enforcement Flow | `explanation/sovereignty-and-ocap.md` | `crates/hkask-mcp/src/security.rs` (SecurityGateway) | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-003 | Encryption Stack — Argon2id → AES-256-GCM → SQLCipher | `architecture/core/hKask-architecture-master.md` | `crates/hkask-keystore/src/`, `crates/hkask-storage/src/database.rs` | ✅ VERIFIED 2026-07-01 |
-| DIAG-TO-004 | Regulation Span Emission Flow (4 namespaces → Sink) | `explanation/cns-and-loops.md` | `crates/hkask-regulation/src/runtime.rs`, `crates/hkask-types/src/event.rs` | ✅ VERIFIED 2026-07-01 |
-| DIAG-TO-005 | Algedonic Alert Escalation (variety deficit > threshold → Curator/Human) | `explanation/cns-and-loops.md` | `crates/hkask-regulation/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
-| DIAG-TO-006 | Regulation Span Emission and Algedonic Alert End-to-End Flow | `explanation/cns-and-loops.md` | `crates/hkask-agents/src/curator_agent/spec_curator.rs`, `crates/hkask-regulation/src/cybernetics_loop.rs`, `crates/hkask-regulation/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-TO-004 | Regulation Span Emission Flow (4 namespaces → Sink) | `explanation/regulation-and-loops.md` | `crates/hkask-regulation/src/runtime.rs`, `crates/hkask-types/src/event.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-TO-005 | Algedonic Alert Escalation (variety deficit > threshold → Curator/Human) | `explanation/regulation-and-loops.md` | `crates/hkask-regulation/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
+| DIAG-TO-006 | Regulation Span Emission and Algedonic Alert End-to-End Flow | `explanation/regulation-and-loops.md` | `crates/hkask-agents/src/curator_agent/spec_curator.rs`, `crates/hkask-regulation/src/cybernetics_loop.rs`, `crates/hkask-regulation/src/algedonic.rs` | ✅ VERIFIED 2026-07-01 |
 | DIAG-TO-006-CM | ConsentManager Authorization Flow | `explanation/sovereignty-and-ocap.md` | `crates/hkask-agents/src/consent.rs`, `crates/hkask-agents/src/sovereignty.rs`, `crates/hkask-storage/src/consent_store.rs` | ✅ VERIFIED 2026-07-01 |
 
 ## 4. Persistence & Lifecycle Diagrams
@@ -182,9 +182,9 @@ The following diagrams were standalone files not individually tracked in the ori
 | `erd-sqlcipher-schema.md` | ERD | `architecture/core/hKask-architecture-master.md` | SQLCipher Schema |
 | `flowchart-architecture-overview.md` | flowchart | `explanation/architecture-patterns.md` | Classification + Guard Architecture Overview |
 | `flowchart-connection-lifecycle.md` | flowchart | `architecture/core/hKask-architecture-master.md` | Database Connection Lifecycle |
-| `flowchart-cns-homeostatic-loop.md` | flowchart | `explanation/cns-and-loops.md` | Regulation Homeostatic Loop |
-| `flowchart-cns-regulation.md` | flowchart | `explanation/cns-and-loops.md` | Regulation Regulation Pipeline — 5-Phase Cybernetic Cycle |
-| `flowchart-curator-metacognition.md` | flowchart | `explanation/cns-and-loops.md` | Curator Metacognition Loop |
+| `flowchart-regulation-homeostatic-loop.md` | flowchart | `explanation/regulation-and-loops.md` | Regulation Homeostatic Loop |
+| `flowchart-regulation-regulation.md` | flowchart | `explanation/regulation-and-loops.md` | Regulation Regulation Pipeline — 5-Phase Cybernetic Cycle |
+| `flowchart-curator-metacognition.md` | flowchart | `explanation/regulation-and-loops.md` | Curator Metacognition Loop |
 | `flowchart-deployment-architecture.md` | flowchart | `how-to/deployment-and-transport.md` | K8s Deployment Architecture |
 | `flowchart-algo-classification.md` | flowchart | `explanation/cognition-and-replica.md` | Algo / No-Judge Classification Flow |
 | `flowchart-guard-pipeline.md` | flowchart | `explanation/sovereignty-and-ocap.md` | Content Safety Guard Pipeline |
@@ -196,7 +196,7 @@ The following diagrams were standalone files not individually tracked in the ori
 | `sequence-mcp-bootstrap.md` | sequence | `explanation/architecture-patterns.md` | MCP Bootstrap and Tool Dispatch |
 | `state-guard-violations.md` | state | `explanation/sovereignty-and-ocap.md` | Guard Violation Lifecycle |
 | `state-invite-lifecycle.md` | state | `how-to/deployment-and-transport.md` | Invite Lifecycle State Machine |
-| `state-loop-action-lifecycle.md` | state | `explanation/cns-and-loops.md` | RegulatoryAction Lifecycle |
+| `state-loop-action-lifecycle.md` | state | `explanation/regulation-and-loops.md` | RegulatoryAction Lifecycle |
 
 ## 12. Summary
 
@@ -206,7 +206,7 @@ All Mermaid diagrams are now inline in their parent documents. The former `docs/
 
 | Parent Document | Inlined Diagram Count |
 |----------------|----------------------|
-| `explanation/cns-and-loops.md` | 8 |
+| `explanation/regulation-and-loops.md` | 8 |
 | `explanation/architecture-patterns.md` | 7 |
 | `reference/api-reference.md` | 9 |
 | `architecture/core/hKask-architecture-master.md` | 8 |

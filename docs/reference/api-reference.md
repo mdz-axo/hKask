@@ -18,7 +18,7 @@ Consolidated public API surface for all 45 hKask crates, organized by category. 
 
 | Category | Crates | Count |
 |----------|--------|-------|
-| [Foundation](#foundation-crates) | types, storage, storage-core, database, memory, cns, templates, agents, keystore, mcp, cli, api, capability, ports | 14 |
+| [Foundation](#foundation-crates) | types, storage, storage-core, database, memory, regulation, templates, agents, keystore, mcp, cli, api, capability, ports | 14 |
 | [Infrastructure](#infrastructure-crates) | inference, communication, improv, condenser, codegraph, acp, adapter, test-harness, mcp-cloud-gateway, guard, repl, forecast, storage-guard | 13 |
 | [Service](#service-crates) | services-core, services-context, services-runtime, services-chat, services-compose, services-corpus, services-kata-kanban, services-onboarding, services-skill, services-wallet | 10 |
 | [Wallet/Identity/Ledger](#walletidentityledger) | wallet, wallet-types, ledger | 3 |
@@ -40,7 +40,7 @@ ID types, nu-event, and visibility types for hKask.
 |--------|-------------|
 | `agent` | Agent kind and persona constraint types |
 | `agent_paths` | Filesystem path conventions for userpod storage |
-| `cns` | Regulation span types (`RegulationSpan`) and circuit state (`CircuitState`) |
+| `regulation` | Regulation span types (`RegulationSpan`) and circuit state (`CircuitState`) |
 | `crypto` | Cryptographic primitives including `Ed25519PublicKey` |
 | `curation` | Sovereignty boundary types: `BoundaryClassification`, `DataCategory`, `DataSovereigntyBoundary`, `UserSovereigntyState` |
 | `curator` | Curation configuration: `CurationThresholdConfig`, `CuratorDirective`, `CuratorHandle`, `EscalationSeverity` |
@@ -104,7 +104,7 @@ ID types, nu-event, and visibility types for hKask.
 | Method | Signature | Description |
 |--------|-----------|-------------|
 | `as_str` | `(&self) -> &'static str` | Canonical dot-separated namespace string. Required. |
-| `emit` | `(&self, operation: &str)` | Log-only tracing event with `target = "cns"`. Default impl. |
+| `emit` | `(&self, operation: &str)` | Log-only tracing event with `target = "regulation"`. Default impl. |
 | `to_event` | `(&self, operation, observer, phase, observation) -> Option<RegulationRecord>` | Produces a RegulationRecord without persisting. Returns `None` on namespace miss. Default impl. |
 | `emit_to` | `(&self, sink, operation, observer, phase, observation)` | Produces a RegulationRecord via `to_event()`, persists through sink, and logs. Degrades to `emit()` on failure. Default impl. |
 
@@ -578,7 +578,7 @@ HTTP API with utoipa OpenAPI for hKask.
 
 Constructors: `with_defaults()`, `from_service_context(ctx)`, `with_wallet_service(svc)`, `start_loops()`, `shutdown_loops()`.
 
-**Route Groups (21+):** `auth_router`, `landing_page`, `health_check`, `templates_router`, `terminal_router`, `pods_router`, `mcp_router`, `userpod_router`, `cns_router`, `sovereignty_router`, `chat_router`, `models_router`, `a2a_router`, `bundles_router`, `curator_router`, `episodic_router`, `export_router`, `consolidation_router`, `git_router`, `goal_router`, `settings_router`, `wallet_router`, `admin`.
+**Route Groups (21+):** `auth_router`, `landing_page`, `health_check`, `templates_router`, `terminal_router`, `pods_router`, `mcp_router`, `userpod_router`, `reg_router`, `sovereignty_router`, `chat_router`, `models_router`, `a2a_router`, `bundles_router`, `curator_router`, `episodic_router`, `export_router`, `consolidation_router`, `git_router`, `goal_router`, `settings_router`, `wallet_router`, `admin`.
 
 **Middleware Stack (applied in order):** Regulation span middleware → Session cookie middleware → Capability token middleware → Admin role-gating middleware → API key auth middleware.
 
@@ -626,7 +626,7 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 
 | Module | Description |
 |--------|-------------|
-| `cns` | Regulation port traits: `CircuitBreakerPort`, `LedgerObserver`, `LedgerStoragePort` + types (`ConsolidationRequest`, `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `WeightedEvent`, `DecayConfig`) |
+| `regulation` | Regulation port traits: `CircuitBreakerPort`, `LedgerObserver`, `LedgerStoragePort` + types (`ConsolidationRequest`, `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `WeightedEvent`, `DecayConfig`) |
 | `consent_port` | `ConsentPort`, `StoredConsentRecord` |
 | `embedding` | `EmbeddingGenerationError` |
 | `embedding_port` | `EmbeddingPort`, `StoredEmbedding` |
@@ -647,9 +647,9 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 
 | # | Trait | Module | Purpose |
 |---|-------|--------|---------|
-| 1 | `CircuitBreakerPort` | `cns` | Circuit breaker boundary: `allow_request()`, `record_success()`, `record_failure()`, `state()` |
-| 2 | `LedgerObserver` | `cns` | Regulation event subscription: `interest_mask()`, `on_event()`, `on_depletion()`, `on_backpressure()` |
-| 3 | `LedgerStoragePort` | `cns` | Regulation event queries: `query_algedonic()`, `replay_weighted()`, `persist_cursor()`, `load_cursor()` |
+| 1 | `CircuitBreakerPort` | `regulation` | Circuit breaker boundary: `allow_request()`, `record_success()`, `record_failure()`, `state()` |
+| 2 | `LedgerObserver` | `regulation` | Regulation event subscription: `interest_mask()`, `on_event()`, `on_depletion()`, `on_backpressure()` |
+| 3 | `LedgerStoragePort` | `regulation` | Regulation event queries: `query_algedonic()`, `replay_weighted()`, `persist_cursor()`, `load_cursor()` |
 | 4 | `ConsentPort` | `consent_port` | Consent record persistence: `initialize_schema()`, `store()`, `list_active()` |
 | 5 | `EmbeddingPort` | `embedding_port` | Embedding storage: `store()`, `get()`, `search()`, `delete()` |
 | 6 | `EscalationPort` | `escalation` | Escalation lifecycle: `list_pending()`, `get()`, `resolve()`, `dismiss()`, `persist_batch()` |
@@ -958,7 +958,7 @@ hKask REPL — interactive agent session with slash-command dispatch.
 
 **Feature Flags:** `tui` — enables TUI mode via `run_tui()`, pulls in `hkask-tui`. `communication` — enables Matrix commands (`/matrix`, `/msg`).
 
-**Internal Modules (not public):** `builtin_servers`, `cns_display`, `commands`, `energy`, `helper`, `init`, `threads`, `tool_augmented`, `tui_bridges` (TUI feature only), `turn`.
+**Internal Modules (not public):** `builtin_servers`, `reg_display`, `commands`, `energy`, `helper`, `init`, `threads`, `tool_augmented`, `tui_bridges` (TUI feature only), `turn`.
 
 ---
 
@@ -1022,8 +1022,8 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 
 | Module | Purpose |
 |--------|---------|
-| `cns` | `CnsContext` — Regulation context (runtime, cybernetics, loops, events, energy, tool_stats) |
-| `cns_store_slo_provider` | `CnsStoreSloProvider` — SLO data provider backed by `RegulationArchive` |
+| `regulation` | `CnsContext` — Regulation context (runtime, cybernetics, loops, events, energy, tool_stats) |
+| `reg_store_slo_provider` | `CnsStoreSloProvider` — SLO data provider backed by `RegulationArchive` |
 | `governance` | `GovernanceContext` — OCAP, consent, dispatch, A2A, escalations, curation signals |
 | `infra` | `InfraContext` — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas calibration, federation |
 | `mcp_server_guard` | MCP server guard integration |
@@ -1037,7 +1037,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 |-------|------|---------|
 | `infra` | `InfraContext` | Infrastructure — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas, federation |
 | `governance` | `GovernanceContext` | Governance — OCAP, consent, dispatch, A2A, escalations |
-| `cns` | `CnsContext` | Regulation — variety sensing, regulation, loops, events, energy estimation |
+| `regulation` | `CnsContext` | Regulation — variety sensing, regulation, loops, events, energy estimation |
 | `storage` | `StorageContext` | Storage — registry, goals, agents, users, sovereignty, wallet store |
 | `system_webid` | `WebID` | System WebID for signing capabilities |
 | `curator_ready` | `Option<oneshot::Receiver<()>>` | Signals CuratorPod activation |
@@ -1052,14 +1052,14 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 | `build` | `async (config: ServiceConfig) -> Result<Self, ServiceError>` | Canonical construction from ServiceConfig |
 | `config` | `(&self) -> &ServiceConfig` | Access configuration |
 | `webid` | `(&self) -> &WebID` | System WebID |
-| `cns` | `(&self) -> &CnsContext` | Regulation context |
+| `regulation` | `(&self) -> &CnsContext` | Regulation context |
 | `storage` | `(&self) -> &StorageContext` | Storage context |
 | `seam_summary` | `async (&self) -> Option<SeamSummary>` | Public seam watcher |
 | `governance` | `(&self) -> &GovernanceContext` | Governance context |
 | `infra` | `(&self) -> &InfraContext` | Infrastructure context |
 | `identity` | `(&self) -> (&WebID, &Arc<A2ARuntime>)` | System WebID + A2A runtime |
 | `curator_ready` | `async (&mut self) -> Result<(), String>` | Await CuratorPod activation |
-| `build_per_agent_memory` | `(db, cns_event_sink) -> PerAgentMemory` | Build per-agent memory infrastructure |
+| `build_per_agent_memory` | `(db, reg_event_sink) -> PerAgentMemory` | Build per-agent memory infrastructure |
 | `consolidate_agent_memory` | `(&self, agent_name) -> Result<...>` | Trigger episodic→semantic consolidation |
 | `consolidation_status_for` | `(&self, agent_name) -> Result<...>` | Check consolidation status |
 | `governed_tool` | `(&self, webid) -> Arc<GovernedTool<RawMcpToolPort>>` | Lazily-built governed tool |
@@ -1206,7 +1206,7 @@ rJoule wallet — self-custody multi-chain deposits, API key issuance, Hinkal pr
 | `price_feed` | Exchange rate feeds (CoinGecko, EODHD, composite, static) |
 | `signing` | Transaction signing (Ed25519) |
 | `types` | Wallet-specific types re-exported from `hkask-wallet-types` |
-| `cns_span` | Regulation span emission for wallet events |
+| `reg_span` | Regulation span emission for wallet events |
 | `hedera` | Hedera chain integration (behind `hedera` feature) |
 
 **Key Public Types:** `WalletManager` (central wallet coordinator), `ChainPort` (trait for chain-specific operations), `DepositEvent`, `ApiKeyIssuer`, `PriceFeed` (trait: `CoinGeckoPriceFeed`, `EodhdPriceFeed`, `CompositePriceFeed`, `StaticPriceFeed`), `ExchangeRate`, `WithdrawalFee`.
@@ -1280,7 +1280,7 @@ Federation CRDT sync, link lifecycle, and merged registries for hKask.
 | `crdt` | CRDT implementation for agent state sync |
 | `service` | Federation service — orchestrates link lifecycle and sync operations |
 | `sync` | Sync protocol — message exchange and state reconciliation |
-| `cns_span` | Regulation span emission for federation events |
+| `reg_span` | Regulation span emission for federation events |
 
 **Key Public Types:** `FederationDispatch` (trait from `hkask-ports`), `FederationMessage`, `FederationResponse`, `FederationDispatchError`, `FederationLink`, `LinkResolution`, `CrdtSyncResult`, `ReplicaId` (re-exported).
 
@@ -2067,11 +2067,11 @@ classDiagram
             +model_name() str
             +gas_remaining() u64
             +gas_cap() u64
-            +cns_alert_count() u32
+            +reg_alert_count() u32
             +context_pressure() f64
             +mcp_status() (usize, usize)
             +pod_counts() Option~(usize, usize, usize)~
-            +cns_domains() Vec~(String, bool)~
+            +reg_domains() Vec~(String, bool)~
             +send_curator_message(str) String
             +start_scoped_inference(String, str) InferenceRequestId
         }
@@ -2251,7 +2251,7 @@ flowchart TD
     subgraph "Tick Loop"
         L1["root.tick() → all windows"]
         L2["update gas_remaining"]
-        L3["update cns_status"]
+        L3["update reg_status"]
         L4["update context_pressure"]
         L5["update model name"]
     end

@@ -30,7 +30,7 @@ flowchart TD
     Nudge --> DisplayFinal
     DisplayFinal --> AppendThread[Append turn to thread history]
     AppendThread --> MarkSeeded[Mark thread as seeded]
-    MarkSeeded --> CnsUpdate[Run on_cns_update closure]
+    MarkSeeded --> CnsUpdate[Run on_reg_update closure]
     CnsUpdate --> ReturnSuccess[Return TurnOutcome success=true]
     CheckTools -->|No| DisplayText[Display text portion via sink.agent_text]
     DisplayText --> InvokeTools[For each tool_call: deps.tools.invoke]
@@ -55,7 +55,7 @@ status: VERIFIED
 - **Gas regulation:** Every iteration reserves a heuristic estimate, then settles with the actual token cost. On inference error, the reservation is released (no cost incurred). The `EnergyGuard` logs a warning if dropped without settle/release (panic recovery).
 - **Tool call priority:** Structured native function calls (`InferenceResult.tool_calls`) are checked first; `<<tool:...>>` text directives are the fallback. This supports both modern models (native function calling) and legacy models (text directives).
 - **Thread seeding:** The thread is marked seeded only on successful (non-error) turns. Subsequent turns skip thread history injection — episodic recall handles conversation context.
-- **Regulation update:** The `on_cns_update` closure runs after the loop exits, checking algedonic alerts and ticking the LoopScheduler. This is the cybernetic feedback path from the turn back to the regulator.
+- **Regulation update:** The `on_reg_update` closure runs after the loop exits, checking algedonic alerts and ticking the LoopScheduler. This is the cybernetic feedback path from the turn back to the regulator.
 - **Max iterations:** When `max_loops` is exceeded, the loop yields the current response (not an error). This prevents infinite tool-call loops from blocking the REPL indefinitely.
 
 ## Cross-References

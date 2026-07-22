@@ -37,7 +37,7 @@ flowchart TD
     Reference --> RefSkills["skills/<br/>46 skills registry"]
 
     Explanation --> ExplArch["architecture-patterns.md<br/>Hexagonal ports, VSM"]
-    Explanation --> ExplCNS["cns-and-loops.md<br/>Homeostatic regulation"]
+    Explanation --> ExplCNS["regulation-and-loops.md<br/>Homeostatic regulation"]
     Explanation --> ExplSov["sovereignty-and-ocap.md<br/>OCAP dispatch"]
     Explanation --> ExplFed["federation-and-transport.md<br/>Federation protocol"]
     Explanation --> ExplEnergy["energy-and-economy.md<br/>Gas + ledger system"]

@@ -24,7 +24,7 @@ gas:
   dynamic_adjustment:
     enabled: true
     max_adjustment_percent: 10
-    requires_cns_justification: true
+    requires_regulation_justification: true
 
 rjoule:
   cap: 1

@@ -43,8 +43,8 @@ User accepted `supply-chain-sentinel` per `skill-logic-audit` `user-choice`.
 Cleanup applied:
 - `registry/templates/supply-chain-sentinel/convergence-check.j2` — removed
   conditional "if registered; else note gap" language; `reg.supply_chain.convergence`
-  is registered, span emitted unconditionally. Removed `cns_span_gap` from
-  output (always `cns_span_emitted: true`).
+  is registered, span emitted unconditionally. Removed `reg_span_gap` from
+  output (always `reg_span_emitted: true`).
 - `registry/templates/supply-chain-sentinel/probe.j2` — removed "If not
   registered, this skill proposes registration" language; namespace IS
   registered, span emitted unconditionally.

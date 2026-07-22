@@ -1,5 +1,5 @@
 ---
-title: "ADR-048: CNS Type System Decomposition"
+title: "ADR-048: Regulation Type System Decomposition"
 audience: [architects, developers]
 last_updated: 2026-07-05
 version: "0.31.0"
@@ -8,7 +8,7 @@ domain: "Cross-cutting"
 mds_categories: [lifecycle]
 ---
 
-# ADR-048: CNS Type System Decomposition
+# ADR-048: Regulation Type System Decomposition
 
 **Date:** 2026-07-05  
 **Status:** Active  
@@ -18,7 +18,7 @@ mds_categories: [lifecycle]
 
 **Problem Statement:** The `CnsSpan` enum in `hkask-types` had grown to 72+ variants covering every domain subsystem (wallet, federation, contracts, QA, metrics, deploy, backup, ACP, curator, etc.), creating a monolithic type that violated substrate isolation and forced every domain crate to know about every other domain's observability concerns.
 
-**Stakeholders:** All crate maintainers; CNS observability consumers; Curator Agent.
+**Stakeholders:** All crate maintainers; Regulation observability consumers; Curator Agent.
 
 **Constraints:**
 - `hkask-types` is the substrate crate — must not depend on domain crates
@@ -35,11 +35,11 @@ mds_categories: [lifecycle]
 2. **Domain enums:** Each domain crate defines its own span enum implementing `ObservableSpan`:
    - `WalletSpan` (hkask-wallet, 14 variants)
    - `FederationSpan` (hkask-federation, 19 variants)
-   - Subsystem enums in hkask-cns: `ContractSpan`, `SeamSpan`, `SloSpan`, `QaSpan`, `AcpSpan`, `ClassifySpan`, `InfraSpan`
+   - Subsystem enums in hkask-regulation: `ContractSpan`, `SeamSpan`, `SloSpan`, `QaSpan`, `AcpSpan`, `ClassifySpan`, `InfraSpan`
 
 3. **Single registry:** `CANONICAL_NAMESPACES` (133 entries in event.rs) is the authoritative list of all valid namespace strings. `SpanNamespace::new()` and `::parse()` validate against it. `SpanNamespace::from_observable()` bridges domain enums to the validated namespace.
 
-4. **Non-span types extracted:** `RetryConfig` → `hkask-types/src/retry.rs`; `SeamCoverage`/`SeamInventory` → `hkask-cns/src/seam_types.rs`; `SloDefinition`/`SloEvaluation`/`SloSeverity` → `hkask-cns/src/slo_types.rs`. `cns.rs` reduced from 965 to 498 lines (5 types).
+4. **Non-span types extracted:** `RetryConfig` → `hkask-types/src/retry.rs`; `SeamCoverage`/`SeamInventory` → `hkask-regulation/src/seam_types.rs`; `SloDefinition`/`SloEvaluation`/`SloSeverity` → `hkask-regulation/src/slo_types.rs`. `reg.rs` reduced from 965 to 498 lines (5 types).
 
 5. **Trait simplification:** Removed `Clone` and `FromStr` supertraits from `ObservableSpan`, making it dyn-compatible. Fixed doc that falsely claimed dyn-compatibility.
 
@@ -48,7 +48,7 @@ mds_categories: [lifecycle]
 2. **Keep monolithic CnsSpan** — No change. Rejected: violates substrate isolation principle; 72+ variants in a substrate crate.
 3. **Make CANONICAL_NAMESPACES auto-generated** — Build script collects all `ObservableSpan::as_str()` outputs. Rejected: would couple substrate compilation to domain crates.
 
-**Rationale:** The `ObservableSpan` trait was designed for this decomposition from day one (its doc anticipated "FederationSpan" and "WalletSpan" as future domain enums). The CNS membrane routes by `SpanCategory` string prefixes, not variant identity — so splitting doesn't break cybernetic homeostasis. The CNS regulator's variety counter now has richer coverage (133 namespaces vs. ~72 previously filtered through `CnsSpan::from_str()`).
+**Rationale:** The `ObservableSpan` trait was designed for this decomposition from day one (its doc anticipated "FederationSpan" and "WalletSpan" as future domain enums). The Regulation membrane routes by `SpanCategory` string prefixes, not variant identity — so splitting doesn't break cybernetic homeostasis. The Regulation regulator's variety counter now has richer coverage (133 namespaces vs. ~72 previously filtered through `CnsSpan::from_str()`).
 
 ## Consequences
 
@@ -62,7 +62,7 @@ mds_categories: [lifecycle]
 ### Negative
 - Adding a new span requires 3 changes (enum variant + CANONICAL_NAMESPACES + call site) vs. 1 before (just CnsSpan variant)
 - `CnsSpan::from_str()` no longer accepts domain namespace strings — any code using it for parsing must switch to `SpanNamespace::parse()`
-- 7 new files in hkask-cns (one per subsystem span enum) — more files to navigate
+- 7 new files in hkask-regulation (one per subsystem span enum) — more files to navigate
 
 ### Neutral
 - CANONICAL_NAMESPACES has 57 entries with no typed enum producer (forward-compatible: registered for future domain enums)
@@ -92,17 +92,17 @@ mds_categories: [lifecycle]
 # Workspace compilation
 cargo check --workspace
 
-# CNS tests (174 across types + cns)
-cargo test -p hkask-types -p hkask-cns --lib
+# Regulation tests (174 across types + regulation)
+cargo test -p hkask-types -p hkask-regulation --lib
 
 # Namespace audit
-grep -c '"cns\.' crates/hkask-types/src/event.rs  # 133 CANONICAL entries
-grep -rn 'CnsSpan::' crates/ --include='*.rs' | grep -v 'cns_span\|cns.rs\|Tool\|Inference\|AgentPod\|Gas\|Curation\|SelfHeal\|MemoryEncode'  # should find nothing
+grep -c '"regulation\.' crates/hkask-types/src/event.rs  # 133 CANONICAL entries
+grep -rn 'CnsSpan::' crates/ --include='*.rs' | grep -v 'reg_span\|reg.rs\|Tool\|Inference\|AgentPod\|Gas\|Curation\|SelfHeal\|MemoryEncode'  # should find nothing
 ```
 
 **Expected Results:**
 - Workspace compiles cleanly (pre-existing hkask-storage-* issues are independent)
-- 51 tests pass in hkask-types, 123 in hkask-cns
+- 51 tests pass in hkask-types, 123 in hkask-regulation
 - Zero stray references to removed CnsSpan variants
 - 133 CANONICAL_NAMESPACES entries, alphabetically sorted, zero duplicates
 
@@ -110,10 +110,10 @@ grep -rn 'CnsSpan::' crates/ --include='*.rs' | grep -v 'cns_span\|cns.rs\|Tool\
 
 - `crates/hkask-types/src/observable_span.rs` — `ObservableSpan` trait definition
 - `crates/hkask-types/src/event.rs` — `CANONICAL_NAMESPACES` registry, `SpanNamespace`, `Span`
-- `crates/hkask-types/src/cns.rs` — Core `CnsSpan` enum (7 variants)
-- `crates/hkask-cns/src/` — Domain span enums (contract_span, seam_span, slo_span, qa_span, acp_span, classify_span, infra_span)
-- `crates/hkask-wallet/src/cns_span.rs` — `WalletSpan`
-- `crates/hkask-federation/src/cns_span.rs` — `FederationSpan`
+- `crates/hkask-types/src/reg.rs` — Core `CnsSpan` enum (7 variants)
+- `crates/hkask-regulation/src/` — Domain span enums (contract_span, seam_span, slo_span, qa_span, acp_span, classify_span, infra_span)
+- `crates/hkask-wallet/src/reg_span.rs` — `WalletSpan`
+- `crates/hkask-federation/src/reg_span.rs` — `FederationSpan`
 
 ---
 

@@ -305,7 +305,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `AlgedonicManager` with severity levels (Info, Warning, Critical)
   - [x] `VarietyCounter` tracking per category
   - [x] Escalation to Curator/Human
-- **Implementation:** `hkask-regulation::algedonic::AlgedonicManager`, `hkask-types::cns::AlgedonicAlert`
+- **Implementation:** `hkask-regulation::algedonic::AlgedonicManager`, `hkask-types::regulation::AlgedonicAlert`
 - **Status:** Implemented
 - **Curation:** Merge
 

@@ -878,7 +878,7 @@ This is the foundation of Kubernetes operations. Every production K8s deployment
 Once your hKask instance is running:
 
 1. **Create your first agent** — `kask agent create` in the web terminal
-2. **Set up Regulation monitoring** — `kask cns health` to check system health
+2. **Set up Regulation monitoring** — `kask regulation health` to check system health
 3. **Configure automatic backups** — verify Litestream replication: `kubectl -n hkask logs deploy/hkask -c litestream`
 4. **Set up alerting** — Regulation algedonic alerts will fire if variety deficit exceeds thresholds
 5. **Read the architecture docs** — `docs/architecture/core/hKask-architecture-master.md` to understand the four-loop architecture

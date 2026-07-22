@@ -86,7 +86,7 @@ Confirm the binary works and reports the correct version:
 Run the Regulation health check (standalone Regulation runtime; no agent service needed):
 
 ```bash
-./target/release/kask cns health
+./target/release/kask regulation health
 ```
 
 Expected output:
@@ -469,7 +469,7 @@ Type a prompt injection attempt. The guard blocks it before the model sees it. T
 Guard violations emit Regulation spans. Subscribe to guard spans:
 
 ```bash
-kask cns subscribe --agent curator --spans reg.guard.input,reg.guard.output
+kask regulation subscribe --agent curator --spans reg.guard.input,reg.guard.output
 ```
 
 Expected span output:
@@ -551,7 +551,7 @@ cargo clean
 - Start chatting: `kask chat`
 - Launch the TUI: `kask tui`
 - Start the server: `kask serve`
-- Verify the build: `kask cns health`
+- Verify the build: `kask regulation health`
 - Read Regulation alerts: [Sovereignty and Observability](sovereignty-and-observability.md)
 - Manage agent pods: [Agents and Pods](agents-and-pods.md)
 ---

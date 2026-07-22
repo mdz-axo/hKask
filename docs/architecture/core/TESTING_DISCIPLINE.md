@@ -85,7 +85,7 @@ Deployment testing covers the provisioning surface — the operations that initi
 | Server init | Integration | `init_server_creates_config_and_keychain_entries` |
 | Sidecar generation | Integration | `deploy_sidecar_generates_valid_docker_compose` |
 | OAuth callback | Integration | `oauth_callback_provisions_human_user_and_session` |
-| Health endpoint | Unit | `health_endpoint_returns_cns_status` |
+| Health endpoint | Unit | `health_endpoint_returns_reg_status` |
 | Single binary | Smoke | `single_binary_contains_all_components` |
 | Docker build | CI | `docker_build_produces_working_image` |
 

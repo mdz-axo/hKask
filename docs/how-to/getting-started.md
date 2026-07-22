@@ -163,7 +163,7 @@ The skill plans compression, compresses, checks against its convergence threshol
 ## 8. Read Regulation Health
 
 ```bash
-./target/release/kask cns status
+./target/release/kask regulation status
 ```
 
 Displays: set points (target thresholds), current values, algedonic alerts (critical escalations), and variety counters (system complexity vs. regulatory capacity).
@@ -173,7 +173,7 @@ Displays: set points (target thresholds), current values, algedonic alerts (crit
 ## 9. View Regulation Spans
 
 ```bash
-./target/release/kask cns alerts
+./target/release/kask regulation alerts
 ```
 
 Each span has a namespace (`reg.tool.reserved`, `reg.inference.completed`, `reg.guard.violation`), timestamp, and domain-specific payload.
@@ -189,7 +189,7 @@ Each span has a namespace (`reg.tool.reserved`, `reg.inference.completed`, `reg.
 | `/skills` | List available skills |
 | `/skill <name>` | Invoke a skill |
 | `/memory recall <query>` | Search episodic memory |
-| `/cns` | Show Regulation health in-chat |
+| `/regulation` | Show Regulation health in-chat |
 | `/model <name>` | Switch inference model |
 | `/condense` | Compress conversation context |
 | `/clear` | Clear conversation history |
@@ -200,7 +200,7 @@ Each span has a namespace (`reg.tool.reserved`, `reg.inference.completed`, `reg.
 
 - **How-To Guides:** [Create an agent pod](../how-to/agents-and-pods.md), [Design a skill](../how-to/skills-and-composition.md), [Bootstrap an MCP server](../how-to/skills-and-composition.md)
 - **Reference:** [Crate API reference](../reference/api-reference.md), [Skill registry](../reference/skills/README.md), [Regulation span registry](../reference/regulation-spans.md)
-- **Explanation:** [Regulation homeostatic loop](../explanation/cns-and-loops.md), [Hexagonal ports](../explanation/architecture-patterns.md), [OCAP dispatch](../explanation/sovereignty-and-ocap.md)
+- **Explanation:** [Regulation homeostatic loop](../explanation/regulation-and-loops.md), [Hexagonal ports](../explanation/architecture-patterns.md), [OCAP dispatch](../explanation/sovereignty-and-ocap.md)
 
 ---
 

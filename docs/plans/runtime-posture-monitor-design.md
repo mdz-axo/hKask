@@ -197,9 +197,9 @@ Converged when metric ≤ 0.10 AND relative improvement ≥ 5% from previous cyc
    may need to propose regulation actions via a new MCP tool rather than
    directly emitting spans.
 4. **`surface: runtime` regression format:** RESOLVED — `security/regressions/README.md`
-   updated to include `runtime` surface and `kind: cns-span` detection type.
+   updated to include `runtime` surface and `kind: regulation-span` detection type.
    `scripts/check-kali-regressions.sh` currently only enforces `kind: grep`
-   — `kind: cns-span` regressions are silently skipped (see §13 below).
+   — `kind: regulation-span` regressions are silently skipped (see §13 below).
 
 ## 12. Path to Registry Commit (COMPLETED)
 
@@ -222,13 +222,13 @@ fully invocable in practice:
 1. **Regulation span history reader:** The skill instructs the agent to observe
    `hkask.*` and `reg.*` spans, but there is no MCP tool for querying Regulation
    span history. A `reg.span_history` MCP tool (or equivalent) would need
-   to be implemented in `mcp-servers/hkask-mcp-cns/` (or similar) for the
+   to be implemented in `mcp-servers/hkask-mcp-regulation/` (or similar) for the
    skill to actually read runtime telemetry.
 
-2. **`kind: cns-span` CI enforcement:** `scripts/check-kali-regressions.sh`
-   currently only enforces `kind: grep` regressions. `kind: cns-span`
+2. **`kind: regulation-span` CI enforcement:** `scripts/check-kali-regressions.sh`
+   currently only enforces `kind: grep` regressions. `kind: regulation-span`
    regressions (used by `surface: runtime` entries) are silently skipped.
-   The script needs extension to handle `kind: cns-span` — either by
+   The script needs extension to handle `kind: regulation-span` — either by
    querying Regulation span history or by deferring to a runtime check.
 
 These are infrastructure tasks, not skill design tasks. The skill itself

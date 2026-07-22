@@ -26,7 +26,7 @@ last-verified-against: "3d1a876f"
 | `docs/plans/diataxis-architecture-design.md` | Created | Design blueprint |
 | `docs/tutorial/getting-started.md` | Created | Tutorial |
 | `docs/how-to/README.md` | Created | Index |
-| `docs/diagrams/flowchart-cns-homeostatic-loop.md` | Created | Diagram |
+| `docs/diagrams/flowchart-regulation-homeostatic-loop.md` | Created | Diagram |
 | `docs/diagrams/sequence-mcp-bootstrap.md` | Created | Diagram |
 | `docs/diagrams/state-loop-action-lifecycle.md` | Created | Diagram |
 | `docs/diagrams/class-ports-trait-hierarchy.md` | Created | Diagram |
@@ -153,7 +153,7 @@ Check that newly created documents do not introduce fresh spec-drift against the
 | Document | Claim | Code Ground Truth | Drift? |
 |----------|-------|------------------|--------|
 | `getting-started.md` | "16 built-in servers" | `BUILTIN_SERVERS` constant has 16 entries | ✅ No drift |
-| `flowchart-cns-homeostatic-loop.md` | "5 ActionType variants" | ActionType enum has exactly 5 variants | ✅ No drift |
+| `flowchart-regulation-homeostatic-loop.md` | "5 ActionType variants" | ActionType enum has exactly 5 variants | ✅ No drift |
 | `sequence-mcp-bootstrap.md` | "16 MCP servers registered" | 16 entries in `BUILTIN_SERVERS` | ✅ No drift |
 | `class-ports-trait-hierarchy.md` | "8 port traits" | 8 trait files in `hkask-ports/src/` | ✅ No drift |
 | `state-loop-action-lifecycle.md` | "5 ActionType variants" | Confirmed | ✅ No drift |

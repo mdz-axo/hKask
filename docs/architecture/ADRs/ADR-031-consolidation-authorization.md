@@ -41,7 +41,7 @@ User-facing surfaces additionally verify the submitted passphrase directly again
 
 1. **Canonical entry point:** `AgentService::consolidate_agent_memory(agent_name, request)` (`crates/hkask-services-context/src/context_impl.rs`).
    - Derives the target `WebID` from `agent_name`.
-   - Checks `ConsentManager::has_consent` for both `DataCategory::EpisodicMemory` and `DataCategory::SemanticMemory`. Missing-consent observations are emitted as `cns.consent.denied` ν-events when the consent manager has a CNS event sink.
+   - Checks `ConsentManager::has_consent` for both `DataCategory::EpisodicMemory` and `DataCategory::SemanticMemory`. Missing-consent observations are emitted as `reg.consent.denied` ν-events when the consent manager has a Regulation event sink.
    - On missing consent, returns `ServiceError::ConsentDenied` and instructs the caller to grant consent via `kask sovereignty grant --category <category> [--agent <agent_name>]` or the API sovereignty consent endpoint.
    - Opens the per-agent memory DB at `agent_paths::agent_memory_db(agent_name)` using the configured passphrase.
    - Runs `ConsolidationService::consolidate` and returns the outcome.
@@ -98,7 +98,7 @@ The API endpoint enforces a coarse-grained 30-second rate limit to limit online 
 | P2 (Affirmative Consent) | ✅ All paths check `EpisodicMemory` + `SemanticMemory` consent; denials return actionable messages |
 | P4 (Clear Boundaries / OCAP) | ✅ Single entry point in `AgentService`; direct `Database::open` bypass removed |
 | ADR-027 (Master key derivation) | ✅ Reuses `derive_all_internal_secrets()` exactly |
-| Headless constraint (§1.6) | ✅ No visual UI; notifications are CLI output, API responses, escalation-queue entries, and CNS spans (`cns.curator.consolidation`) |
+| Headless constraint (§1.6) | ✅ No visual UI; notifications are CLI output, API responses, escalation-queue entries, and Regulation spans (`reg.curator.consolidation`) |
 
 ## Post-Implementation Simplification (2026-06-28)
 
@@ -113,7 +113,7 @@ and classified. Fixed items are listed below; deferred items are documented here
 - **Category display** — `DataCategory::all_known()` replaces hand-rolled tuple array in sovereignty display.
 - **Error variant** — `ServiceError::Forbidden` separates authorization failures (P4) from consent denials (P2).
 - **REPL status queries** — `/consolidate` status display now routes through `AgentService::consolidation_status_for()` for fresh reads instead of a stale cached `ConsolidationService`.
-- **CNS spans** — Curator auto-consolidation events now emit `cns.curator.consolidation` spans in addition to escalation-queue entries.
+- **Regulation spans** — Curator auto-consolidation events now emit `reg.curator.consolidation` spans in addition to escalation-queue entries.
 - **Integration test** — `consolidate_agent_memory_consent_checks` added, covering both consent-denied and consent-granted paths.
 
 ### Deferred — CuratorContext.consent_manager optionality
@@ -138,7 +138,7 @@ small, safe change (the REPL already has the `service_context` and `sovereignty(
 ### Deferred — Notifications are escalation-queue-only
 
 The headless system design treats escalation-queue entries as the primary user-notification
-mechanism. CNS spans (`cns.curator.consolidation`) are now also emitted for observability.
+mechanism. Regulation spans (`reg.curator.consolidation`) are now also emitted for observability.
 Adding Matrix messages would require the `communication` feature and a Matrix homeserver,
 which is not guaranteed in all deployments. The escalation queue is available in all
 configurations (it lives in the primary SQLite DB).

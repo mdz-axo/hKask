@@ -16,7 +16,7 @@ mds_categories: [domain, composition, trust, curation]
 
 ## Context
 
-The shift from a three-tier pod model (Curator/Team/UserPod) to a two-kind model (Curator/UserPod) in v0.31.0 collapsed the taxonomic distinction between agent kinds. The loops and CNS now regulate *behavioral roles* (VSM S1 Implementation vs. S4 Intelligence) rather than *agent identity tiers*. This shift changes the disturbance space that the cybernetic regulator must absorb.
+The shift from a three-tier pod model (Curator/Team/UserPod) to a two-kind model (Curator/UserPod) in v0.31.0 collapsed the taxonomic distinction between agent kinds. The loops and Regulation now regulate *behavioral roles* (VSM S1 Implementation vs. S4 Intelligence) rather than *agent identity tiers*. This shift changes the disturbance space that the cybernetic regulator must absorb.
 
 **Problem Statement:** The `RegulationPolicy` covers only 8 of 31 `SignalMetric` variants, creating a variety deficit (Ashby's Law violation) where the regulator cannot respond to 23 distinct disturbance classes the system can produce.
 
@@ -132,18 +132,18 @@ The distinction between Category A (Notify), B (Escalate), and C (Calibrate/Thro
 
 ```bash
 # Verify RegulationPolicy covers all SignalMetric variants
-cargo test -p hkask-cns regulation_policy
+cargo test -p hkask-regulation regulation_policy
 
 # Verify substitution ladders are non-empty for all regulated metrics
-cargo test -p hkask-cns default_substitution_ladders
+cargo test -p hkask-regulation default_substitution_ladders
 
 # Verify verify_impact is implemented for StorageGuard and McpServerGuard
 cargo test -p hkask-storage-guard verify_impact
-cargo test -p hkask-cns verify_impact
+cargo test -p hkask-regulation verify_impact
 
 # Verify no SignalMetric is unregulated
 grep -c "SignalMetric::" crates/hkask-types/src/loops/signals.rs
-grep -c "RegulationRule" crates/hkask-cns/src/regulation_policy.rs
+grep -c "RegulationRule" crates/hkask-regulation/src/regulation_policy.rs
 ```
 
 **Expected Results:**
@@ -162,7 +162,7 @@ grep -c "RegulationRule" crates/hkask-cns/src/regulation_policy.rs
 - No unified management — adding a sensor required editing the loop's `sense()` method
 
 **Solution:**
-1. Promoted `SensorProvider`, `SensorRegistry`, and concrete sensors (`EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`, `ToolReliabilitySensor`) from `pub(crate)` to `pub` in `hkask-cns`.
+1. Promoted `SensorProvider`, `SensorRegistry`, and concrete sensors (`EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`, `ToolReliabilitySensor`) from `pub(crate)` to `pub` in `hkask-regulation`.
 2. Added `SensorCatalog` — a system-level singleton that registers sensors across ALL loops, not just Cybernetics. Each loop owns a `SensorRegistry` for its local sensors; the catalog tracks all of them for monitoring, health checks, and dynamic registration.
 3. Added `WalletBalanceRatioSensor` to replace the inline wallet ratio sensing in `CyberneticsLoop::sense()` — the last inline sensing in Cybernetics.
 4. Extended the `SensorProvider` trait with `metric()`, `name()`, and `loop_id()` metadata methods for catalog indexing and diagnostics.
@@ -170,11 +170,11 @@ grep -c "RegulationRule" crates/hkask-cns/src/regulation_policy.rs
 6. Added `SensorCatalog::total_sensors()`, `sensor_inventory()`, and `loops_without_sensors()` for health checks.
 
 **Files changed:**
-- `crates/hkask-cns/src/sensor_provider.rs` — promoted visibility, added `SensorCatalog`, `WalletBalanceRatioSensor`, metadata methods, and 9 tests
-- `crates/hkask-cns/src/lib.rs` — public re-exports for sensor types
-- `crates/hkask-cns/src/cybernetics_loop.rs` — registered `WalletBalanceRatioSensor`, removed inline wallet ratio sensing
+- `crates/hkask-regulation/src/sensor_provider.rs` — promoted visibility, added `SensorCatalog`, `WalletBalanceRatioSensor`, metadata methods, and 9 tests
+- `crates/hkask-regulation/src/lib.rs` — public re-exports for sensor types
+- `crates/hkask-regulation/src/cybernetics_loop.rs` — registered `WalletBalanceRatioSensor`, removed inline wallet ratio sensing
 
-**Validation:** 167 CNS tests pass (158 original + 9 new). All affected crates compile.
+**Validation:** 167 Regulation tests pass (158 original + 9 new). All affected crates compile.
 
 ### Phase 1: Category A (Notify) rules — low risk, no behavior change
 Add `Notify` rules for the 6 observational metrics. These produce informational signals without regulatory action. No `verify_impact()` needed — `Notify` is non-regulatory.

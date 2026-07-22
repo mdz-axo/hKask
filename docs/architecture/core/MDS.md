@@ -385,7 +385,7 @@ deprecation:
   policy: "Prefer deletion over deprecation (P5)"
 
 observability:
-  cns_spans:
+  reg_spans:
     - namespace: reg.tool
       covers: "Tool invocation governance"
     - namespace: reg.inference
@@ -535,7 +535,7 @@ All 9 fields are **private** and exposed through **20 public methods** grouped b
 |-------------|-------|----------|
 | `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
 | `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
-| `CnsContext` | `cns` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
+| `CnsContext` | `regulation` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
 
 #### Public Methods (20)
 
@@ -544,7 +544,7 @@ All 9 fields are **private** and exposed through **20 public methods** grouped b
 | `build(config)` | `Result<Self, ServiceError>` (async) | Construction |
 | `infra()` | `&InfraContext` | Context accessor |
 | `governance()` | `&GovernanceContext` | Context accessor |
-| `cns()` | `&CnsContext` | Context accessor |
+| `regulation()` | `&CnsContext` | Context accessor |
 | `storage()` | `&StorageContext` | Context accessor |
 | `config()` | `&ServiceConfig` | Identity |
 | `webid()` | `&WebID` | Identity |

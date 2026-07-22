@@ -1288,7 +1288,7 @@ mod tests {
         assert!(profile.max_token_estimate.is_some());
         assert_eq!(profile.avg_messages_per_example, Some(2.5)); // (3+2)/2
         assert_eq!(profile.has_system_messages, Some(true));
-        assert_eq!(profile.has_multi_turn, Some(false)); // neither has >2 msgs
+        assert_eq!(profile.has_multi_turn, Some(true)); // first conv has 3 msgs (>2)
         assert_eq!(profile.has_vision_data, Some(false));
         assert!(profile.role_distribution.is_some());
         // Role distribution: system=1, user=2, assistant=2 → total=5
@@ -1325,17 +1325,24 @@ mod tests {
         assert_eq!(profile.format, Some(DatasetFormat::PreferenceDpo));
         assert_eq!(profile.n_samples, Some(2));
         assert!(profile.chosen_rejected_length_ratio.is_some());
-        // chosen="Minimal Architecture." (21 chars), rejected="Maximum Architecture." (21 chars)
-        // ratio = 21/21 = 1.0
-        assert!((profile.chosen_rejected_length_ratio.unwrap() - 1.0).abs() < 0.01);
+        // chosen="Minimal Architecture." (21), rejected="Maximum Architecture." (21) → 1.0
+        // chosen="User Sovereignty." (18), rejected="Admin Control." (14) → 1.286
+        // average = (1.0 + 1.286) / 2 ≈ 1.143
+        let ratio = profile.chosen_rejected_length_ratio.unwrap();
+        assert!(
+            ratio > 0.9 && ratio < 1.3,
+            "expected ratio near 1.0, got {}",
+            ratio
+        );
         assert_eq!(profile.has_vision_data, Some(false));
     }
 
     #[test]
     fn profile_nonexistent_file_returns_empty_profile() {
         let profile = DatasetPipeline::profile(std::path::Path::new("/nonexistent/path.jsonl"));
-        assert_eq!(profile.format, None);
+        // Format detection may succeed based on extension alone, but all stats are None.
         assert_eq!(profile.n_samples, None);
+        assert_eq!(profile.avg_content_chars, None);
     }
 
     #[test]

@@ -414,7 +414,7 @@ Running the 3-gate protocol on the kata-kanban crate:
 | S3 (Control) | `task_verify` (audit) | ⚠️ Degraded — verification is non-gating |
 | S4 (Intelligence) | `KataEngine` (PDCA) | ⚠️ Unviable — unreachable from production |
 | S5 (Policy) | `consent_check` callback | ✅ Viable (when configured) |
-| Algedonic channel | `check_cns_alerts` | ⚠️ Degraded — depends on S4 which is unreachable |
+| Algedonic channel | `check_reg_alerts` | ⚠️ Degraded — depends on S4 which is unreachable |
 
 **Overall viability:** Degraded. The system is viable for board/task CRUD (S1-S3) but the kata intelligence layer (S4) is disconnected from operations.
 

@@ -15,7 +15,7 @@ Regulation spans are the observability substrate of hKask's Cybernetic Nervous S
 
 A **span** is a typed identifier that pins an observation to a canonical dot-separated namespace (e.g., `reg.tool.web_search`). Spans carry an **operation** verb (e.g., `invoked`, `completed`, `reserved`) and optional structured fields. They flow through two paths:
 
-1. **tracing infrastructure** — `tracing::info!(target: "cns", cns_domain = …, operation = …)` — for structured logging
+1. **tracing infrastructure** — `tracing::info!(target: "regulation", reg_domain = …, operation = …)` — for structured logging
 2. **ν-event persistence** — `RegulationRecord::new()` → `RegulationSink::persist()` — for the cybernetic audit trail
 
 ### Span vs. RegulationRecord
@@ -38,7 +38,7 @@ All namespace strings are registered in `CANONICAL_NAMESPACES` (`crates/hkask-ty
 
 ## 2. Span Namespace Taxonomy
 
-Namespaces form a tree rooted at `cns`. The namespace prefix maps to a `SpanCategory` for typed dispatch:
+Namespaces form a tree rooted at `regulation`. The namespace prefix maps to a `SpanCategory` for typed dispatch:
 
 | Category | Prefixes | Examples |
 |---|---|---|
@@ -159,7 +159,7 @@ Monitors architectural seam health — the boundaries where Strangler Fig migrat
 
 ### 3.9 FederationSpan — Federation Operations
 
-**File:** `crates/hkask-federation/src/cns_span.rs`
+**File:** `crates/hkask-federation/src/reg_span.rs`
 
 19 variants covering the full federation lifecycle: `CrdtMerge`, `LinkEstablished`, `LinkLost`, `LinkDegraded`, `MemberLeft`, `InviteSent`, `InviteReceived`, `InviteAccepted`, `InviteRejected`, `InviteExpired`, `LinkPaused`, `LinkResumed`, `MemberRevoked`, `Dissolved`, `RegistrySync`, `ArtifactSync`, `ConduitRoute`, `ConduitRouteLost`, `CrdtConflict`.
 
@@ -167,7 +167,7 @@ All namespaced under `reg.federation.*`. Federation span strings must match `CAN
 
 ### 3.10 WalletSpan — Wallet Operations
 
-**File:** `crates/hkask-wallet/src/cns_span.rs`
+**File:** `crates/hkask-wallet/src/reg_span.rs`
 
 14 variants covering wallet lifecycle: `Balance`, `Deposit`, `DepositShielded`, `Withdrawal`, `Conversion`, `KeyIssued`, `KeyRevoked`, `KeyExpired`, `KeyExhausted`, `ChainError`, `Created`, `Draw`, `Spend`, `Exhausted`.
 
@@ -201,7 +201,7 @@ EMISSION ────────► STORAGE ────────► QUERY �
     │                  │                │               │
     ▼                  ▼                ▼               ▼
 tracing::info!    RegulationArchive    GasReport       VarietyTracker
-(target: "cns")   (SQLite)        RegulationLedger      (EMA α=0.1)
+(target: "regulation")   (SQLite)        RegulationLedger      (EMA α=0.1)
     │                                               │
     ▼                                               ▼
 RegulationRecord::new()                              AlgedonicManager
@@ -212,7 +212,7 @@ RegulationRecord::new()                              AlgedonicManager
 
 Spans are emitted through two mechanisms:
 
-1. **Tracing path** (`ObservableSpan::emit()` / `RegulationSpan::emit()`): writes `tracing::info!(target: "cns", cns_domain = …, operation = …, "Regulation")`. Used by `RegulationSpan` variants and by domain-span enums that delegate to `ObservableSpan`.
+1. **Tracing path** (`ObservableSpan::emit()` / `RegulationSpan::emit()`): writes `tracing::info!(target: "regulation", reg_domain = …, operation = …, "Regulation")`. Used by `RegulationSpan` variants and by domain-span enums that delegate to `ObservableSpan`.
 
 2. **ν-event path**: constructs `RegulationRecord` with a `Span` (namespace + path), `CyclePhase`, observation JSON, and optional regulation/outcome metadata; persists via `RegulationSink::persist()`. Used by contract events, seam watcher, wallet Regulation manager, governed inference/tool, cybernetics loop, and consent manager.
 
@@ -224,10 +224,10 @@ RegulationRecords are persisted to a `RegulationArchive` (SQLite-backed) via the
 
 ### 4.3 Query
 
-- **`kask cns health`** — displays overall health (variety deficit, critical/warning counts), variety counter summary, active algedonic alerts, and energy budget status.
-- **`kask cns alerts`** — lists only active algedonic alerts.
-- **`kask cns variety`** — prints per-namespace variety counters.
-- **`kask cns subscribe --agent <name> --spans <csv>`** — subscribes to a live SSE event stream filtered to specific span namespaces.
+- **`kask regulation health`** — displays overall health (variety deficit, critical/warning counts), variety counter summary, active algedonic alerts, and energy budget status.
+- **`kask regulation alerts`** — lists only active algedonic alerts.
+- **`kask regulation variety`** — prints per-namespace variety counters.
+- **`kask regulation subscribe --agent <name> --spans <csv>`** — subscribes to a live SSE event stream filtered to specific span namespaces.
 - `RegulationLedger::variety()` — programmatic `HashMap<SpanNamespace, u64>`.
 - `RegulationLedger::health()` — `LedgerHealth` struct with aggregate deficit and alert counts.
 - `GasReport` — programmatic gas consumption aggregation over time windows.
@@ -263,16 +263,16 @@ The default threshold is `DEFAULT_VARIETY_MAX_DEFICIT`. Per-domain expected vari
 
 ```sh
 # Overall Regulation health with span count summary
-kask cns health
+kask regulation health
 
 # Active algedonic alerts
-kask cns alerts
+kask regulation alerts
 
 # Per-namespace variety counters
-kask cns variety
+kask regulation variety
 
 # Subscribe to live events for specific spans
-kask cns subscribe --agent curator --spans reg.tool.web_search,reg.inference
+kask regulation subscribe --agent curator --spans reg.tool.web_search,reg.inference
 ```
 
 ### Programmatic
@@ -303,7 +303,7 @@ let alerts = rt.alerts().await;   // Vec<RuntimeAlert>
 | **What it is** | A typed span identifier with a canonical namespace string | A full cybernetic observation record |
 | **Implements** | `Display + Debug + Send + Sync + 'static` | `Serialize + Deserialize + Clone` |
 | **Key fields** | `as_str() -> &'static str`, `emit(operation)`, `to_event(operation, observer, phase, observation) -> Option<RegulationRecord>`, `emit_to(sink, operation, observer, phase, observation)` | `id` (EventID), `span` (Span), `observer_webid` (WebID), `phase` (CyclePhase), `observation` (JSON Value), `regulation`, `outcome`, `recursion_depth` |
-| **How emitted** | `tracing::info!(target: "cns", cns_domain = ..., operation = ...)` | Constructed explicitly, persisted via `RegulationSink` |
+| **How emitted** | `tracing::info!(target: "regulation", reg_domain = ..., operation = ...)` | Constructed explicitly, persisted via `RegulationSink` |
 | **Validation** | Namespace string validated at `SpanNamespace` construction against `CANONICAL_NAMESPACES` | None beyond serde deserialization |
 | **Purpose** | Lightweight, type-safe span emission | Persistent audit trail with full provenance |
 | **Example** | `RegulationSpan::Tool { subsystem: ToolSubsystem::WebSearch }.emit("invoked")` | `RegulationRecord::new(webid, span, CyclePhase::Act, observation, 0)` |

@@ -226,7 +226,7 @@ See [Agents and Pods](agents-and-pods.md) for the full `/matrix` and `/msg` slas
 Matrix transport events emit Regulation spans. Subscribe to the communication namespace:
 
 ```bash
-kask cns subscribe --agent curator --spans reg.communication
+kask regulation subscribe --agent curator --spans reg.communication
 ```
 
 ### Troubleshooting

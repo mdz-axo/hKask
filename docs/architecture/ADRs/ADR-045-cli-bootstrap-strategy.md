@@ -105,8 +105,8 @@ Its sub-modules are too small to extract:
 
 | Module | Lines | Deps | Extractable? |
 |--------|-------|------|-------------|
-| `cns.rs` | 59 | 3 | No — pass-through |
-| `cns_store_slo_provider.rs` | 70 | 2 | No — pass-through |
+| `reg.rs` | 59 | 3 | No — pass-through |
+| `reg_store_slo_provider.rs` | 70 | 2 | No — pass-through |
 | `governance.rs` | 289 | 7 | No — would create 7-dep crate for 289 lines |
 | `infra.rs` | 73 | 7 | No — pass-through |
 | `storage.rs` | 82 | 4 | No — pass-through |

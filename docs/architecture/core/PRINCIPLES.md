@@ -194,7 +194,7 @@ Regulation (Cybernetic Nervous System) spans are the primary observability primi
 tracing::info!(target: "reg.{domain}", operation = "{verb}", {key} = %{value}, ..., "Regulation");
 ```
 
-- Target: `"reg.{canonical_domain}"` — uses the `reg.*` namespace convention. Essential domains map to `RegulationSpan` variants in `hkask-types::cns`; performative spans (CLI, API) use stringly-typed tracing targets.
+- Target: `"reg.{canonical_domain}"` — uses the `reg.*` namespace convention. Essential domains map to `RegulationSpan` variants in `hkask-types::regulation`; performative spans (CLI, API) use stringly-typed tracing targets.
 - Message: Must be `"Regulation"` — enables ν-event filtering
 - Latency: Use `std::time::Instant`, emit as `latency_ms`
 - Authority: Every span carries a `userpod` or `owner` WebID

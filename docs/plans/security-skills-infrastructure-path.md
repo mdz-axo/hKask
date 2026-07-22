@@ -51,10 +51,10 @@ Minimal, surgical change:
 1. Add `query_by_namespace(namespace: &str, since: DateTime<Utc>, limit: u64)`
    to `RegulationArchive` — queries `reg_records` table by `span_category` prefix.
 2. Add the method to the `LedgerStoragePort` trait.
-3. Create `mcp-servers/hkask-mcp-cns/` MCP server with a `cns_query_spans`
+3. Create `mcp-servers/hkask-mcp-regulation/` MCP server with a `reg_query_spans`
    tool that calls `LedgerStoragePort::query_by_namespace`.
 4. The `runtime-posture-monitor` skill can then instruct the agent to use
-   the `cns_query_spans` MCP tool.
+   the `reg_query_spans` MCP tool.
 
 **Effort:** Medium (1 new MCP server + 1 trait method + 1 store method).
 **Risk:** Low — follows existing patterns (codegraph MCP server is the model).
@@ -63,14 +63,14 @@ that needs to query Regulation telemetry.
 
 **Option B: Extend existing `curator` MCP server**
 
-Add a `cns_query_spans` tool to `mcp-servers/hkask-mcp-curator/` (which
+Add a `reg_query_spans` tool to `mcp-servers/hkask-mcp-curator/` (which
 already has access to the CuratorContext and RegulationArchive).
 
 **Effort:** Low (1 new tool in existing server).
 **Risk:** Low — but conflates curator concerns with Regulation query concerns.
 **Value:** Medium — works but violates separation of concerns.
 
-**Recommendation:** Option A. Create a dedicated `hkask-mcp-cns` MCP server.
+**Recommendation:** Option A. Create a dedicated `hkask-mcp-regulation` MCP server.
 This follows the hKask pattern of one MCP server per domain (codegraph for
 code understanding, curator for curation, etc.) and keeps Regulation query
 concerns separate from curator concerns.
@@ -81,12 +81,12 @@ concerns separate from curator concerns.
    `span_category` LIKE prefix).
 2. Add `query_by_namespace()` to `LedgerStoragePort` trait.
 3. Implement `LedgerStoragePort::query_by_namespace` in `RegulationArchive`.
-4. Create `mcp-servers/hkask-mcp-cns/` with:
-   - `cns_query_spans` tool (query by namespace + time window)
-   - `cns_span_stats` tool (aggregate counts by namespace)
+4. Create `mcp-servers/hkask-mcp-regulation/` with:
+   - `reg_query_spans` tool (query by namespace + time window)
+   - `reg_span_stats` tool (aggregate counts by namespace)
    - Tool-behavior contract tests (per CI gate requirement)
 5. Register in `hkask-cli` MCP server bootstrap.
-6. Update `runtime-posture-monitor` SKILL.md to reference the `cns_query_spans`
+6. Update `runtime-posture-monitor` SKILL.md to reference the `reg_query_spans`
    MCP tool.
 
 ## 2. Finding Consumption API (for `attack-taxonomy-mapper`)
@@ -119,14 +119,14 @@ speculative — it would add complexity (P5 violation) without a confirmed
 use case. If a real-time incident investigation need arises, it can be
 addressed then with a dedicated finding-passing mechanism.
 
-## 3. `kind: cns-span` CI Enforcement
+## 3. `kind: regulation-span` CI Enforcement
 
 ### Problem
 
-`scripts/check-kali-regressions.sh` now acknowledges `kind: cns-span`
+`scripts/check-kali-regressions.sh` now acknowledges `kind: regulation-span`
 regressions (added in this work) but cannot mechanically enforce them —
 it defers them with a "deferred" message. The script runs `grep` on source
-files, but `cns-span` regressions check for runtime span patterns that
+files, but `regulation-span` regressions check for runtime span patterns that
 cannot be detected by source-file grep.
 
 ### Recommended Path
@@ -134,7 +134,7 @@ cannot be detected by source-file grep.
 **Option A: Runtime CI check (deferred)**
 
 Add a separate CI step that queries the Regulation span history (using the
-`hkask-mcp-cns` server from §1) to check for span patterns that should
+`hkask-mcp-regulation` server from §1) to check for span patterns that should
 NOT be present. This would be a new script: `scripts/check-runtime-regressions.sh`.
 
 **Effort:** Medium (depends on §1 being completed first).
@@ -147,7 +147,7 @@ regression is flipped to `status: enforced`.
 
 For runtime threats that have a static code correlate (e.g., a tool call
 chain that can be statically detected), use `kind: grep` against the code
-pattern instead of `kind: cns-span`. This narrows the skill's scope but
+pattern instead of `kind: regulation-span`. This narrows the skill's scope but
 is mechanically enforceable today.
 
 **Effort:** None (already supported).
@@ -157,7 +157,7 @@ pure-runtime threats (e.g., inference rate spikes).
 
 **Recommendation:** Option B for now (use `kind: grep` where possible).
 Option A when the first `surface: runtime` regression with a pure-runtime
-pattern needs enforcement. The `kind: cns-span` detection type is
+pattern needs enforcement. The `kind: regulation-span` detection type is
 documented and acknowledged by the CI gate — it's ready for when the
 runtime infrastructure (§1) is in place.
 
@@ -247,7 +247,7 @@ unverified claims they document belong to the removed skill.
 4. **§1: Regulation span history reader** — Medium effort, enables
    `runtime-posture-monitor`. Implement when the skill is needed for
    production use.
-5. **§3: `kind: cns-span` CI enforcement** — Depends on §1. Implement when
+5. **§3: `kind: regulation-span` CI enforcement** — Depends on §1. Implement when
    the first `surface: runtime` regression with a pure-runtime pattern
    needs enforcement.
 

@@ -43,7 +43,7 @@ manifest:
 #     component: hkask-regulation
 #     type: crate
 #     description: Cybernetic Nervous System span emitter
-#     readiness_probe: cns_ping
+#     readiness_probe: reg_ping
 #     timeout_seconds: 30
 #     critical: true
 #     depends_on: [hkask-storage]
@@ -152,7 +152,7 @@ manifest:
 #     retry_count: 3
 #     retry_delay_seconds: 5
 
-#   cns_ping:
+#   reg_ping:
 #     type: health_check
 #     endpoint: regulation::ping
 #     expected: { status: ok }

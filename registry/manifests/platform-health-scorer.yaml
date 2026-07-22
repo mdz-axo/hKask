@@ -2,7 +2,7 @@
 # ℏKask v0.31.0 — Platform health: aggregate score from all dimensions
 # Functional Role: FlowDef (process orchestration)
 # Implementation: YAML manifest
-# Steps: query_slos, query_contracts, query_tests, query_cns, compute_score, convergence_check
+# Steps: query_slos, query_contracts, query_tests, query_regulation, compute_score, convergence_check
 
 manifest:
   id: platform-health-scorer

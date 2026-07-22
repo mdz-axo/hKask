@@ -540,7 +540,7 @@ Pragmatics provides a concrete measurement framework because it operates on a we
 
 **Resolution path:** Implement `DeletionTest` on 3-5 hKask modules (e.g., `hkask-regulation::energy`, `hkask-services-core`, `hkask-condenser::types`). Measure deletion_energy(). If all return positive, the system is at equilibrium. If any return negative, those modules are candidates for deletion or deepening.
 
-[Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates. The original reference to the old service crate `::cns` was a proposed path that never existed — Regulation lives in `hkask-regulation` and `hkask-types::cns`.]
+[Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates. The original reference to the old service crate `::regulation` was a proposed path that never existed — Regulation lives in `hkask-regulation` and `hkask-types::regulation`.]
 
 ### 6.5 Empirical Validation
 

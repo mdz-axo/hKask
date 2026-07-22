@@ -344,13 +344,13 @@ P1–P4 enforcement is observable through Regulation spans:
 
 ```bash
 # View sovereignty-related spans
-kask cns alerts
+kask regulation alerts
 
 # View tool invocation spans (OCAP enforcement)
-kask cns alerts
+kask regulation alerts
 
 # View P4 startup gate spans
-kask cns alerts
+kask regulation alerts
 ```
 
 ### Consent Management

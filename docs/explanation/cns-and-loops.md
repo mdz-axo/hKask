@@ -555,7 +555,7 @@ steps:
       medium_confidence: 4
       low_confidence: 5
     default_next: 2
-    cns_span: reg.qa.my_script.classify_step
+    reg_span: reg.qa.my_script.classify_step
 
   - ordinal: 2
     action: run_command
@@ -698,7 +698,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 ### Regulation Architecture — Responsibility Clusters
 
-*Inlined from `docs/diagrams/class-cns-architecture.md`*
+*Inlined from `docs/diagrams/class-regulation-architecture.md`*
 
 
 # Regulation Architecture — Responsibility Clusters and Coupling
@@ -717,12 +717,12 @@ Remaining responsibility clusters still in Regulation:
 5. **Seam Watching** — `SeamWatcher`, `SeamDrift`, `SeamSummary` (candidate for extraction)
 6. **Spans** — `AcpSpan`, `ClassifySpan`, `ContractSpan`, `InfraSpan`, `QaSpan`, `SloSpan`, `SeamSpan` (candidate for extraction)
 
-See also: [Regulation Homeostatic Loop](#cns-homeostatic-loop--mermaid-flowchart) for the sense→compare→compute→act cycle, and [Regulation Regulation Pipeline](#cns-regulation-pipeline--5-phase-cybernetic-cycle) for regulation policy dispatch.
+See also: [Regulation Homeostatic Loop](#regulation-homeostatic-loop--mermaid-flowchart) for the sense→compare→compute→act cycle, and [Regulation Regulation Pipeline](#regulation-regulation-pipeline--5-phase-cybernetic-cycle) for regulation policy dispatch.
 
 ```mermaid
 classDiagram
     class CyberneticsLoop {
-        +cns: Arc~RwLock~RegulationLedger~~
+        +regulation: Arc~RwLock~RegulationLedger~~
         +gas_budget_manager: Arc~RwLock~GasBudgetManager~~
         +well_manager: Arc~RwLock~WellManager~~
         +wallet_manager: Option~Arc~dyn WalletBudgetPort~~
@@ -892,7 +892,7 @@ After extraction, Regulation core retains: `CyberneticsLoop`, `RegulationLedger`
 
 ### Regulation Homeostatic Loop
 
-*Inlined from `docs/diagrams/flowchart-cns-homeostatic-loop.md`*
+*Inlined from `docs/diagrams/flowchart-regulation-homeostatic-loop.md`*
 
 
 # Regulation Homeostatic Loop — Mermaid Flowchart
@@ -1006,7 +1006,7 @@ status: VERIFIED
 
 ### Regulation Regulation Pipeline — 5-Phase Cybernetic Cycle
 
-*Inlined from `docs/diagrams/flowchart-cns-regulation.md`*
+*Inlined from `docs/diagrams/flowchart-regulation-regulation.md`*
 
 
 # Regulation Regulation Pipeline — 5-Phase Cybernetic Cycle
@@ -1336,7 +1336,7 @@ ladders. Default stagnation threshold: 5 consecutive ineffective cycles.
 
 ### Regulation Span Emission — 4-Namespace Sequence
 
-*Inlined from `docs/diagrams/sequence-cns-span-emission.md`*
+*Inlined from `docs/diagrams/sequence-regulation-span-emission.md`*
 
 
 # Regulation Span Emission — 4-Namespace Sequence
@@ -1735,7 +1735,7 @@ status: VERIFIED
 
 ---
 
-  crates/hkask-regulation/src/algedonic.rs:299-307 (cns_health_check),
+  crates/hkask-regulation/src/algedonic.rs:299-307 (reg_health_check),
   crates/hkask-regulation/src/runtime.rs:52-106 (VarietyTracker, EMA, deficit),
   crates/hkask-regulation/src/runtime.rs:191-255 (VarietyMonitor, counter, domains),
   crates/hkask-regulation/src/runtime.rs:540-615 (increment_variety, check_variety, emit_critical_depletion),

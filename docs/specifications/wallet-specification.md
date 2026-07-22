@@ -454,7 +454,7 @@ status: VERIFIED
 | `hkask-storage` | 34 (11 wallet_store) | `P2-wallet-store`, `MUST-10` |
 | `hkask-keystore` | 6 (6 wallet) | `P3-keystore` |
 | `hkask-wallet` | 13 | `P4-signing`, `P4-manager`, `P4-issuer` |
-| `hkask-regulation` | 11 (1 wallet_budget) | `P5-cns-wallet` |
+| `hkask-regulation` | 11 (1 wallet_budget) | `P5-regulation-wallet` |
 | `hkask-services-wallet` | 35 (6 wallet) | `svc-wallet-001`–`006` |
 | `hkask-cli` | 25 (0 wallet-specific) | (existing CLI tests) |
 | `hkask-api` | 2 (0 wallet-specific) | (existing API tests) |

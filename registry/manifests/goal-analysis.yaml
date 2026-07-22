@@ -60,7 +60,7 @@ inputs:
 #     inherit_from_parent: true
 #     default: 0
 #     increment_on_dispatch: true
-#   cns_monitoring:
+#   reg_monitoring:
 #     span_namespace: reg.goal
 #     alert_if_exceeds: 6
 #     rationale: "Warning before hard limit at 7"

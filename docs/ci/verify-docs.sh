@@ -3,7 +3,7 @@
 #
 # Verifies documentation-code alignment mechanically. Designed to run in CI
 # as a required gate. Produces measurable staleness signals — documentation
-# drift is a CNS variety-like counter, not accumulated debt.
+# drift is a Regulation variety-like counter, not accumulated debt.
 #
 # Per DOCUMENTATION_STANDARDS.md: Zero stale references. Docs follow code.
 #
@@ -131,7 +131,7 @@ for dir in mcp-servers/hkask-mcp-*/; do
   fi
 done
 
-CORE_CRATES="hkask-types hkask-storage hkask-memory hkask-cns hkask-templates hkask-agents hkask-keystore hkask-mcp hkask-cli hkask-api hkask-capability hkask-ports hkask-inference hkask-communication hkask-improv hkask-condenser hkask-acp hkask-adapter hkask-test-harness hkask-wallet hkask-wallet-types hkask-ledger hkask-services hkask-codegraph hkask-guard hkask-database"
+CORE_CRATES="hkask-types hkask-storage hkask-memory hkask-regulation hkask-templates hkask-agents hkask-keystore hkask-mcp hkask-cli hkask-api hkask-capability hkask-ports hkask-inference hkask-communication hkask-improv hkask-condenser hkask-acp hkask-adapter hkask-test-harness hkask-wallet hkask-wallet-types hkask-ledger hkask-services hkask-codegraph hkask-guard hkask-database"
 
 for crate in $CORE_CRATES; do
   if [ -d "crates/$crate" ] && [ ! -f "crates/$crate/README.md" ]; then

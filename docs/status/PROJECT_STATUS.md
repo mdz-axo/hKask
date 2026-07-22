@@ -212,12 +212,12 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 - Plan: `docs/plans/r7.3-public-seam-watcher-v0.30.0.md` — 5-wave implementation plan with adversarial pragmatics+grill-me review. 5 gaps found and resolved (afferent signal, deployment path, surface count, temporal mismatch, asymmetric observability).
 - JSON inventory: `scripts/public-seam-inventory.sh` extended with `build_json_inventory()` — generates machine-readable `docs/status/public-seam-inventory.json` alongside markdown. Both CI-enforced for drift.
-- Types: `SeamCoverage`, `SeamInventory` in `hkask-types::cns`. `SignalMetric::SeamCoverage` + `ActionType::Notify` in `hkask-types::loops`. 2 new canonical Regulation spans: `reg.architecture.seam.coverage`, `reg.architecture.seam.drift` (30→32 total).
+- Types: `SeamCoverage`, `SeamInventory` in `hkask-types::regulation`. `SignalMetric::SeamCoverage` + `ActionType::Notify` in `hkask-types::loops`. 2 new canonical Regulation spans: `reg.architecture.seam.coverage`, `reg.architecture.seam.drift` (30→32 total).
 - Core module: `hkask-regulation/src/seam_watcher.rs` — `SeamWatcher` (load, register_domains, check_drift, refresh, summary), `SeamDrift`, `SeamSummary`. Embedded JSON via `include_str!()` for deployment safety. File path override via `HKASK_SEAM_INVENTORY_PATH` for development. 9 REQ-tagged tests.
 - Algedonic integration: `CyberneticsLoop::compute()` handles `SeamCoverage` — `BelowSetPoint`→`Escalate(Curation)` with severity grading (>5pp critical, 1–5pp warning), `AboveSetPoint`→`Notify(Curation)` for improvements. `seam_coverage_min` set-point (default: 0.0 = alert on any regression).
 - Bootstrap: `AgentService::build()` loads seam watcher, registers 25 per-crate variety domains (`seam:{crate_name}`), spawns periodic background task (30-min interval, configurable via `HKASK_SEAM_CHECK_INTERVAL_SECS`). Watcher stored as `Arc<RwLock<Option<SeamWatcher>>>`.
 - Curator surface: `/status` command displays R7.3 seam coverage — color-coded bar (green ≥60%, yellow 30–60%, red <30%), crate count, covered/total items, coverage %, REQ test count.
-- R7.3 identity: domains updated to `["cns", "seam"]`, description updated.
+- R7.3 identity: domains updated to `["regulation", "seam"]`, description updated.
 - Build: all 18 workspace members compile. 35/35 Regulation tests pass (9 new + 26 existing). CI inventory gate passes (markdown + JSON).
 - Docs updated: `hKask-architecture-master.md` (Pattern C table, key properties, crates, identified gaps, Regulation span count, mermaid), `PROJECT_STATUS.md` (this update), `docs/plans/r7.3-public-seam-watcher-v0.30.0.md` (implementation summary).
 

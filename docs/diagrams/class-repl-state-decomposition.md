@@ -67,7 +67,7 @@ classDiagram
         +governed_tool(webid) Arc
         +inference_port() Option
         +per_agent_memory(name) Result
-        +cns() CnsContext
+        +regulation() CnsContext
         +gas_remaining() Option
         +gas_cap() Option
     }

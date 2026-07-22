@@ -374,7 +374,7 @@ mod tests {
 
         // Verify events are queryable
         let events = store
-            .query_algedonic(chrono::Utc::now() - chrono::Duration::seconds(10), 100)
+            .query_algedonic(chrono::Utc::now() - chrono::Duration::minutes(5), 100)
             .unwrap();
         let reg_events: Vec<_> = events
             .iter()

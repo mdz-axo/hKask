@@ -229,7 +229,7 @@ ocap:
 
 # Regulation: GEPA is a curation activity — the Curator optimizes artifacts.
 # Uses the canonical reg.curation namespace. GEPA does not introduce new
-# CnsSpan variants; it emits tracing events under reg.curation with
+# RegSpan variants; it emits tracing events under reg.curation with
 # operation fields specific to the evolutionary loop.
 ledger:
   emit_spans: true

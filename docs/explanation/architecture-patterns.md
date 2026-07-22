@@ -551,7 +551,7 @@ hKask's P3 (Generative Space) principle mandates that every architectural bounda
 
 ### Evidence
 
-The `AgentService` at `crates/hkask-services-context/src/context_impl.rs:103` is the shared service layer that all three surfaces consume. It has **9 fields** (`infra`, `governance`, `cns`, `storage`, `system_webid`, `curator_ready`, `config`, `inference_loop`, `governed_tool`) and **20 public methods** spanning configuration access, sub-context delegation, memory consolidation, governed tool access, and gas budget queries. Surfaces do not implement domain logic — they call `AgentService` methods that delegate to the underlying contexts.
+The `AgentService` at `crates/hkask-services-context/src/context_impl.rs:103` is the shared service layer that all three surfaces consume. It has **9 fields** (`infra`, `governance`, `regulation`, `storage`, `system_webid`, `curator_ready`, `config`, `inference_loop`, `governed_tool`) and **20 public methods** spanning configuration access, sub-context delegation, memory consolidation, governed tool access, and gas budget queries. Surfaces do not implement domain logic — they call `AgentService` methods that delegate to the underlying contexts.
 
 The API server is bootstrapped via `create_router()` in `crates/hkask-api/src/lib.rs`. Endpoints are organized by architectural concern:
 
@@ -559,7 +559,7 @@ The API server is bootstrapped via `create_router()` in `crates/hkask-api/src/li
 |---------|-----------|----------------|----------------|
 | Chat | `POST /api/v1/chat`, `GET /api/v1/chat/ws` | `kask chat` | communication MCP |
 | Agent Management | `GET /api/v1/agents`, `POST /api/v1/pods`, etc. | `kask agent` / `kask pod` | registry MCP |
-| Regulation | `GET /api/v1/cns/health`, `GET /api/v1/cns/variety`, `GET /api/v1/cns/subscribe` | `kask cns health` | cns MCP tools |
+| Regulation | `GET /api/v1/regulation/health`, `GET /api/v1/regulation/variety`, `GET /api/v1/regulation/subscribe` | `kask regulation health` | regulation MCP tools |
 | Memory | `POST /api/v1/episodic`, `POST /api/v1/consolidation` | `kask memory` | memory MCP |
 | Models | `GET /api/v1/models`, `GET /api/v1/models/search` | `kask model` | inference MCP |
 | Templates & Bundles | `GET /api/v1/templates`, `POST /api/v1/bundles/compose` | `kask template` / `kask bundle` | registry MCP |
@@ -723,7 +723,7 @@ the infrastructure for calibration.
 kask run <skill-name> --regulation-spans
 
 # 2. Extract the actual gas and rjoule consumption from Regulation spans
-kask cns alerts
+kask regulation alerts
 
 # 3. Compare against the manifest's declared budget
 #    If actual > declared: the manifest budget is too low (will cause aborts)
@@ -868,7 +868,7 @@ classDiagram
         class AgentService {
             -infra: InfraContext
             -governance: GovernanceContext
-            -cns: CnsContext
+            -regulation: CnsContext
             -storage: StorageContext
             -system_webid: WebID
             +build(config) AgentService
@@ -876,7 +876,7 @@ classDiagram
             +webid() &WebID
             +governance() &GovernanceContext
             +infra() &InfraContext
-            +cns() &CnsContext
+            +regulation() &CnsContext
             +storage() &StorageContext
             +identity() (&WebID, &A2ARuntime)
             +curator_ready() Result

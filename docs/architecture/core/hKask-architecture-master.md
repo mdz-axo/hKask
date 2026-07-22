@@ -273,7 +273,7 @@ pub struct PodDeployment {
     pub pod_id: PodID,
     pub pod: AgentPod,
     pub storage: PerPodStorage,  // Per-pod SQLCipher file at {data_dir}/agents/{sanitized_name}/pod.db
-    pub cns: PerPodRegulationLedger,    // Per-pod variety counters at reg.agent_pod.{pod_id}.*
+    pub regulation: PerPodRegulationLedger,    // Per-pod variety counters at reg.agent_pod.{pod_id}.*
     pub tools: PerPodToolBinding, // Per-pod MCP server bindings
 }
 ```
@@ -487,7 +487,7 @@ core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
 | [`core/FUNCTIONAL_SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
 | [`core/TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md) | Testing discipline — property-based testing, Regulation verification, proptest framework |
 | [`SPECIFICATION.md`](FUNCTIONAL_SPECIFICATION.md) | Functional specification — 26 domains, ER diagrams, goal-principle contract anchoring |
-| [`Regulation Domain Specification`](FUNCTIONAL_SPECIFICATION.md#cns-domain-specification) | Regulation Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
+| [`Regulation Domain Specification`](FUNCTIONAL_SPECIFICATION.md#regulation-domain-specification) | Regulation Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
 | [`hkask-ledger.md`](../../reference/api-reference.md) | Ledger specification — triple-entry accounting, three-domain schema |
 
 **TUI specification** — 22 windows with 15 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation. Diagrams: [class hierarchy](../../reference/api-reference.md#tui-window-trait-hierarchy), [event dispatch](../../reference/api-reference.md#tui-event-dispatch-pipeline), [workspace lifecycle](../../reference/api-reference.md#tui-workspace-state-lifecycle), [bridge wiring](../../reference/api-reference.md#tui-bridge-wiring-architecture).
@@ -1551,7 +1551,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADRs/ADR-045-cli-bootstrap-strategy.md`](../ADRs/ADR-045-cli-bootstrap-strategy.md) | CLI bootstrap strategy — database initialization and first-run experience |
 | [`ADRs/ADR-046-repl-extraction-path.md`](../ADRs/ADR-046-repl-extraction-path.md) | REPL extraction into standalone crate with ReplHost trait |
 | [`ADRs/ADR-047-storage-modularization.md`](../ADRs/ADR-047-storage-modularization.md) | Storage crate modularization — 9 sub-crates behind facade |
-| [`ADRs/ADR-048-cns-type-decomposition.md`](../ADRs/ADR-048-cns-type-decomposition.md) | Regulation type system decomposition — RegulationSpan reduced to 7 variants, domain enums per crate |
+| [`ADRs/ADR-048-regulation-type-decomposition.md`](../ADRs/ADR-048-regulation-type-decomposition.md) | Regulation type system decomposition — RegulationSpan reduced to 7 variants, domain enums per crate |
 
 **Also present:** [`ADRs/ADR-043-database-driver.md`](../ADRs/ADR-043-database-driver.md) — Database driver abstraction.
 
@@ -1604,7 +1604,7 @@ docs/architecture/
 │   ├── ADR-045-cli-bootstrap-strategy.md       # Active
 │   ├── ADR-046-repl-extraction-path.md         # Active
 │   ├── ADR-047-storage-modularization.md       # Active
-│   └── ADR-048-cns-type-decomposition.md       # Active
+│   └── ADR-048-regulation-type-decomposition.md       # Active
 ```
 
 **Active on disk (2026-07-09):** 8 core files + 5 root files + 13 ADRs + 1 federation = 27 documents.
@@ -4373,9 +4373,9 @@ kask federation leave --reason "Decommissioned"
 kask federation dissolve --reason "Project concluded"
 
 # Regulation
-kask cns federation health
-kask cns federation links
-kask cns federation thresholds
+kask regulation federation health
+kask regulation federation links
+kask regulation federation thresholds
 ```
 
 ---
@@ -4466,7 +4466,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 # Storage Schema ERD
 
-Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/Regulation** (reg_records, cns_alerts, cns_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
+Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/Regulation** (reg_records, reg_alerts, reg_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
 
 ```mermaid
 erDiagram
@@ -4701,14 +4701,14 @@ erDiagram
         TEXT visibility
     }
 
-    cns_variety_checkpoint {
+    reg_variety_checkpoint {
         TEXT domain PK
         INTEGER variety_count
         TEXT last_updated
         INTEGER threshold
     }
 
-    cns_alerts {
+    reg_alerts {
         TEXT id PK
         TEXT timestamp
         TEXT alert_type
@@ -4904,7 +4904,7 @@ This diagram models the storage layer for all [MDS Core Entities](MDS.md#11-core
 - **`Wallet`** → `wallet_balances`, `wallet_transactions`, `encumbrances`, `deposit_addresses`, `deposit_references`
 - **`ApiKey`** → `api_keys` table
 - **`hMem`** → `triples` table
-- **`RegulationLedger`** → `reg_records`, `cns_variety_checkpoint`, `cns_alerts` tables
+- **`RegulationLedger`** → `reg_records`, `reg_variety_checkpoint`, `reg_alerts` tables
 - **`GasBudget`** → `loop_cursors` table (cursor-based gas tracking)
 
 All FK relationships align with the ownership chains defined in [PRINCIPLES.md](PRINCIPLES.md) P1 (User Sovereignty) and P9 (Economic Layer). The `webid` columns in `triples`, `goals`, `consent_records`, `sovereignty_boundaries`, and `reg_records` implement the multi-tenant data isolation required by P1 and P4 (Clear Boundaries).
@@ -5139,14 +5139,14 @@ erDiagram
         TEXT created_at
     }
 
-    cns_variety_checkpoint {
+    reg_variety_checkpoint {
         TEXT domain PK
         INTEGER variety_count
         TEXT last_updated
         INTEGER threshold
     }
 
-    cns_alerts {
+    reg_alerts {
         TEXT id PK
         TEXT timestamp
         TEXT alert_type
@@ -5208,8 +5208,8 @@ status: VERIFIED
 | `vec_embeddings` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `reg_records` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `audit_log` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `cns_variety_checkpoint` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `cns_alerts` | `hkask-storage-core` | `src/sql/schema.sql` |
+| `reg_variety_checkpoint` | `hkask-storage-core` | `src/sql/schema.sql` |
+| `reg_alerts` | `hkask-storage-core` | `src/sql/schema.sql` |
 | `goals` | `hkask-storage` | `src/goals.rs` |
 | `goal_criteria` | `hkask-storage` | `src/sql/schema.sql` |
 | `goal_artifacts` | `hkask-storage` | `src/sql/schema.sql` |

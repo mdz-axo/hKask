@@ -509,7 +509,7 @@ Every skill execution consumes **gas** from the agent's energy budget:
 2. Gas is **reserved** before invocation (hold-settle pattern)
 3. After invocation, actual gas is **settled** — if actual < reserved, the difference is refunded
 
-Gas consumption is observable via Regulation spans. Run `kask cns alerts` and look for `reg.tool.invoked` (pre-invocation) and `reg.tool.completed` (post-invocation with settled cost).
+Gas consumption is observable via Regulation spans. Run `kask regulation alerts` and look for `reg.tool.invoked` (pre-invocation) and `reg.tool.completed` (post-invocation with settled cost).
 
 ### Error Handling
 
@@ -982,7 +982,7 @@ stateDiagram-v2
 
     state Act {
         [*] --> ComputeSignal : improvement_signal
-        ComputeSignal --> CNS_Alerts : check_cns_alerts
+        ComputeSignal --> CNS_Alerts : check_reg_alerts
         CNS_Alerts --> RecordResult : kata.practices completed
         RecordResult --> ActDone
         --

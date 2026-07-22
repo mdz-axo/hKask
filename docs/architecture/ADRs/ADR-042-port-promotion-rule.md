@@ -58,8 +58,8 @@ natural domain home closer to both consumers.
 | `EpisodicStoragePort` | `hkask-agents` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
 | `SemanticStoragePort` | `hkask-agents` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
 | `MCPRuntimePort` | `hkask-agents` | 1 consumer | Stays in `hkask-agents` |
-| `InferencePort` | `hkask-services-chat` + `hkask-services-runtime` + `hkask-cns` | 3 consumers, cross-domain | `hkask-ports` |
-| `CnsObserver` | `hkask-cns` + `hkask-services-runtime` | 2 consumers, cross-domain | `hkask-ports` |
+| `InferencePort` | `hkask-services-chat` + `hkask-services-runtime` + `hkask-regulation` | 3 consumers, cross-domain | `hkask-ports` |
+| `CnsObserver` | `hkask-regulation` + `hkask-services-runtime` | 2 consumers, cross-domain | `hkask-ports` |
 
 ### New type: `MemoryPortError`
 

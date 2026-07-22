@@ -93,7 +93,7 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 |-------------|-------|----------|
 | `InfraContext` | `infra` | `inference`, `episodic`, `semantic`, `mcp` (McpRuntime), `pods` (ActivePods), `wallet`, `daemon`, `matrix`, `seams` (SeamWatcher), `wallet_gas`, `federation` |
 | `GovernanceContext` | `governance` | `checker` (CapabilityChecker), `consent` (ConsentManager), `dispatcher` (McpDispatcher), `a2a` (A2ARuntime), `escalations` (EscalationQueue), `events`, `curation_tx` |
-| `CnsContext` | `cns` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
+| `CnsContext` | `regulation` | `runtime` (RegulationLedger), `cybernetics` (CyberneticsLoop), `loops` (LoopScheduler), `events` (RegulationSink), `energy` (CalibratedEnergyEstimator), `tool_stats` (ToolStats) |
 
 #### Public Methods (20)
 
@@ -102,7 +102,7 @@ A contract has **exactly one goal principle** and **1 to 11 constraining princip
 | `build(config)` | `Result<Self, ServiceError>` (async) | Construction |
 | `infra()` | `&InfraContext` | Context accessor |
 | `governance()` | `&GovernanceContext` | Context accessor |
-| `cns()` | `&CnsContext` | Context accessor |
+| `regulation()` | `&CnsContext` | Context accessor |
 | `storage()` | `&StorageContext` | Context accessor |
 | `config()` | `&ServiceConfig` | Identity |
 | `webid()` | `&WebID` | Identity |
@@ -263,7 +263,7 @@ hkask-regulation/src/
 
 ### Regulation Spans
 
-The `RegulationSpan` enum (`crates/hkask-types/src/regulation.rs`) defines the canonical Regulation span registry with 7 core variants (reduced from 72+ per ADR-048). The 133 `CANONICAL_NAMESPACES` entries in `crates/hkask-types/src/event.rs` provide hierarchical domain namespaces that subsystem spans target. Exhaustive test in `cns_span_tests` verifies Display → FromStr round-trip for all variants.
+The `RegulationSpan` enum (`crates/hkask-types/src/regulation.rs`) defines the canonical Regulation span registry with 7 core variants (reduced from 72+ per ADR-048). The 133 `CANONICAL_NAMESPACES` entries in `crates/hkask-types/src/event.rs` provide hierarchical domain namespaces that subsystem spans target. Exhaustive test in `reg_span_tests` verifies Display → FromStr round-trip for all variants.
 
 Key deployment-related spans added in v0.31.0:
 
@@ -306,7 +306,7 @@ The Episodic Loop emits `reg.memory.life` carrying memory life S in days (Woznia
 ```bash
 cargo check -p hkask-regulation
 cargo test -p hkask-regulation
-kask cns health
+kask regulation health
 ```
 
 ---
@@ -855,11 +855,11 @@ charter:
   visibility: Primary
 
 capabilities:
-  - tool:cns:emit
+  - tool:regulation:emit
   - tool:memory:recall
 
 rights:
-  - read: cns_spans_all
+  - read: reg_spans_all
   - write: public_semantic_memory
   - execute: system_calibration
   - escalate_to: hKask-Administrator
@@ -1268,7 +1268,7 @@ Representative domains:
 
 **12 contracts** — P3 (Generative Space)
 - `kask` binary — the user-facing command entry point (P3)
-- Subcommands: `agent`, `cns`, `wallet`, `keystore` (P3)
+- Subcommands: `agent`, `regulation`, `wallet`, `keystore` (P3)
 - Flag parsing, help text, error reporting
 
 ### 3.14 Test Harness
@@ -1491,7 +1491,7 @@ status: VERIFIED
 | FR-DP-T1 | `init_server_creates_config_and_keychain_entries` |
 | FR-DP-T2 | `deploy_sidecar_generates_valid_docker_compose` |
 | FR-DP-T3 | `oauth_callback_provisions_human_user_and_session` |
-| FR-DP-T4 | `health_endpoint_returns_cns_status` |
+| FR-DP-T4 | `health_endpoint_returns_reg_status` |
 | FR-DP-T5 | `integration_e2e` — 9 HTTP tests against in-memory server (landing, terminal, health, auth-gating, Regulation) |
 
 ### 3.18 CodeGraph (`hkask-codegraph`)

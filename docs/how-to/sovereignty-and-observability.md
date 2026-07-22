@@ -322,7 +322,7 @@ Spans flow through two paths:
 
 | Path | Mechanism | Purpose |
 |------|-----------|---------|
-| **Tracing** | `tracing::info!(target: "cns", ...)` | Structured logging |
+| **Tracing** | `tracing::info!(target: "regulation", ...)` | Structured logging |
 | **ν-event** | `RegulationRecord` → `RegulationSink` → SQLite | Persistent cybernetic audit trail |
 
 Spans describe *what* happened; ν-events describe *who observed it, when, in what context, and what they saw*.
@@ -330,7 +330,7 @@ Spans describe *what* happened; ν-events describe *who observed it, when, in wh
 ### Reading Health Status
 
 ```bash
-kask cns health
+kask regulation health
 ```
 
 Output breakdown:
@@ -373,7 +373,7 @@ Key indicators to watch:
 ### Viewing Active Alerts
 
 ```bash
-kask cns alerts
+kask regulation alerts
 ```
 
 Output:
@@ -417,7 +417,7 @@ The default variety threshold is `DEFAULT_VARIETY_MAX_DEFICIT` (from `hkask_regu
 Variety measures how many distinct operational states each namespace is experiencing:
 
 ```bash
-kask cns variety
+kask regulation variety
 ```
 
 Output:
@@ -439,7 +439,7 @@ Low variety in a namespace signals the system is stuck in a narrow operational b
 Set points define the Regulation's expected operating parameters. View current set points:
 
 ```bash
-kask cns set-points
+kask regulation set-points
 ```
 
 Output:
@@ -465,7 +465,7 @@ Regulation Set-Points
 To configure set points, provide the flags:
 
 ```bash
-kask cns set-points \
+kask regulation set-points \
   --gas-min-remaining 50 \
   --variety-max-deficit 100 \
   --error-rate-max 0.30
@@ -479,22 +479,22 @@ Query Regulation spans by namespace to focus on specific subsystems:
 
 ```bash
 # Sovereignty-related spans (P1–P2 enforcement)
-kask cns subscribe --agent curator --spans reg.sovereignty
+kask regulation subscribe --agent curator --spans reg.sovereignty
 
 # Tool invocation spans (P4 OCAP enforcement)
-kask cns subscribe --agent curator --spans reg.tool
+kask regulation subscribe --agent curator --spans reg.tool
 
 # MCP startup gate spans
-kask cns subscribe --agent curator --spans reg.mcp
+kask regulation subscribe --agent curator --spans reg.mcp
 
 # Federation spans
-kask cns subscribe --agent curator --spans reg.federation
+kask regulation subscribe --agent curator --spans reg.federation
 
 # Communication spans
-kask cns subscribe --agent curator --spans reg.communication
+kask regulation subscribe --agent curator --spans reg.communication
 
 # Guard violation spans
-kask cns subscribe --agent curator --spans reg.guard.input,reg.guard.output
+kask regulation subscribe --agent curator --spans reg.guard.input,reg.guard.output
 ```
 
 ### Live Event Subscription
@@ -502,7 +502,7 @@ kask cns subscribe --agent curator --spans reg.guard.input,reg.guard.output
 Subscribe to live Regulation events for specific span namespaces:
 
 ```bash
-kask cns subscribe --agent curator --spans reg.tool.web_search,reg.inference
+kask regulation subscribe --agent curator --spans reg.tool.web_search,reg.inference
 ```
 
 Output:
@@ -545,11 +545,11 @@ For the full span catalog, see `docs/reference/regulation-spans.md` (100+ entrie
 
 1. **Identify the domain** — The alert message names the affected namespace (e.g., `reg.tool`)
 
-2. **Check variety counters** — `kask cns variety` to see which namespace is deficient
+2. **Check variety counters** — `kask regulation variety` to see which namespace is deficient
 
-3. **Check recent alerts** — `kask cns alerts` to see active alerts, or `kask cns subscribe --agent curator --spans <namespace>` to monitor a specific namespace
+3. **Check recent alerts** — `kask regulation alerts` to see active alerts, or `kask regulation subscribe --agent curator --spans <namespace>` to monitor a specific namespace
 
-4. **Check the energy budget** — `kask cns health` shows gas status; depletion can cascade into tool failures
+4. **Check the energy budget** — `kask regulation health` shows gas status; depletion can cascade into tool failures
 
 5. **Inspect pod state** — `kask pod list` then `kask pod status <pod_id>` to verify agents are healthy
 

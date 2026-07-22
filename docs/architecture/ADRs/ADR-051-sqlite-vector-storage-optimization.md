@@ -20,7 +20,7 @@ mds_categories: [lifecycle, curation, trust]
 ## Context
 
 hKask uses per-pod SQLCipher-encrypted SQLite databases as the sovereignty-preserving
-storage surface for h_mems (RDF-style triples), embedding vectors, and CNS observables.
+storage surface for h_mems (RDF-style triples), embedding vectors, and Regulation observables.
 The vector search layer uses sqlite-vec's `vec0` virtual table for KNN similarity search.
 A series of CI instabilities and recall-quality investigations surfaced seven distinct
 issues spanning native FFI lifecycle, SQLCipher configuration, vec0 identifier design,

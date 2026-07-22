@@ -120,10 +120,10 @@ Subcommands:
 - `list-tools` — List available tools
 - `get-tool <NAME>` — Get tool definition
 
-### `kask cns` — Regulation monitoring
+### `kask regulation` — Regulation monitoring
 
 ```bash
-kask cns <SUBCOMMAND>
+kask regulation <SUBCOMMAND>
 ```
 
 Subcommands:
