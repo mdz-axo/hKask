@@ -228,13 +228,12 @@ Semantic and episodic memory pipelines for hKask.
 | Module | Description |
 |--------|-------------|
 | `consolidation` | Episodic → Semantic bridge. Type: `ConsolidationBridge` |
-| `consolidation_auth` | Consolidation authorization, re-exported via `pub use consolidation_auth::*` |
 | `consolidation_service` | Consolidation service. Type: `ConsolidationService` |
+| `chat_turn` | Typed projection of chat episode content. Type: `ChatTurn` |
 | `episodic` | Episodic memory pipeline (Loop 2a). Types: `EpisodicMemory`, `EpisodicMemoryError` |
 | `episodic_loop` | Episodic loop wrapper with budget regulation. Type: `EpisodicLoop` |
 | `error` | Memory port error. Type: `MemoryPortError` |
 | `ports` | Memory storage port traits (`EpisodicStoragePort`, `SemanticStoragePort`) — see ADR-042 |
-| `ranking` | Memory ranking algorithms |
 | `recall_dedup` | EAV hash-based recall deduplication (single-layer; see ADR-060) |
 | `salience` | Salience scoring for memory importance |
 | `semantic` | Semantic memory pipeline (Loop 2b). Types: `SemanticMemory`, `SemanticMemoryError` |
@@ -262,7 +261,7 @@ Semantic and episodic memory pipelines for hKask.
 
 `MemoryPortError` — Error type for memory port operations.
 
-**Re-exports at Crate Root:** `ConsolidationBridge`, `ConsolidationService`, `EpisodicMemory`, `EpisodicMemoryError`, `EpisodicLoop`, `MemoryPortError`, `EpisodicStoragePort`, `RecallRequest`, `RecalledEpisode`, `RecalledSemantic`, `SemanticStoragePort`, `StorageRequest`, `SemanticMemory`, `SemanticMemoryError`, `SemanticLoop`. All symbols from `consolidation_auth` re-exported via glob.
+**Re-exports at Crate Root:** `ConsolidationBridge`, `ConsolidationService`, `EpisodicMemory`, `EpisodicMemoryError`, `EpisodicLoop`, `MemoryPortError`, `EpisodicStoragePort`, `RecallRequest`, `RecalledEpisode`, `RecalledSemantic`, `SemanticStoragePort`, `StorageRequest`, `SemanticMemory`, `SemanticMemoryError`, `SemanticLoop`. `ChatTurn`.
 
 **Feature Flags:** None. Core dependency.
 

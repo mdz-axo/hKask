@@ -22,8 +22,6 @@ mod reg_display;
 pub use host::{OnboardingError, OnboardingOutcome, ReplHost};
 mod init;
 mod threads;
-#[cfg(feature = "tui")]
-mod tui_bridges;
 mod turn;
 
 use hkask_services_context::AgentService;
@@ -362,8 +360,6 @@ pub fn run_tui(
         alert_count: std::sync::atomic::AtomicU32::new(0),
         context_window: std::sync::atomic::AtomicU32::new(DEFAULT_CONTEXT_WINDOW),
         context_used: std::sync::atomic::AtomicU32::new(0),
-        last_companies_search: std::sync::Mutex::new(None),
-        last_research_search: std::sync::Mutex::new(None),
     });
 
     match hkask_tui::TuiSession::new(
@@ -374,23 +370,7 @@ pub fn run_tui(
             let session = session
                 .with_layout_path(layout_path)
                 .with_settings_bridge(bridge.clone())
-                .with_session_bridge(bridge.clone())
-                .with_config_bridge(bridge.clone())
-                .with_registry_bridge(bridge.clone())
-                .with_wallet_bridge(bridge.clone())
-                .with_memory_bridge(bridge.clone())
-                .with_kanban_bridge(bridge.clone());
-            #[cfg(feature = "communication")]
-            let session = session.with_matrix_bridge(bridge.clone());
-            let session = session
-                .with_media_bridge(bridge.clone())
-                .with_training_bridge(bridge.clone())
-                .with_companies_bridge(bridge.clone())
-                .with_research_bridge(bridge.clone())
-                .with_docproc_bridge(bridge.clone())
-                .with_replica_bridge(bridge.clone())
-                .with_skills_bridge(bridge.clone())
-                .with_scenarios_bridge(bridge.clone());
+                .with_session_bridge(bridge.clone());
             let mut session = session;
             if let Err(e) = session.run() {
                 eprintln!("TUI error: {}", e);
@@ -441,8 +421,6 @@ struct TuiReplBridge {
     context_window: std::sync::atomic::AtomicU32,
     /// Approximate current context usage in tokens
     context_used: std::sync::atomic::AtomicU32,
-    last_companies_search: std::sync::Mutex<Option<String>>,
-    last_research_search: std::sync::Mutex<Option<String>>,
 }
 
 #[cfg(feature = "tui")]

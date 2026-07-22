@@ -62,7 +62,7 @@ pub fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
             println!();
             println!("  Fusion mode \x1b[1;32menabled\x1b[0m.");
             println!("  New inference requests will use multi-model deliberation.");
-            println!("  \x1b[2mUsing kask defaults (deepseek-v4-pro judge, 4-model panel)\x1b[0m");
+            println!("  \x1b[2mUsing kask defaults (glm-5.2 judge, 4-model panel)\x1b[0m");
             println!();
         }
         _ => {
@@ -73,7 +73,7 @@ pub fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
             println!("  \x1b[36m/fusion on\x1b[0m       Enable fusion (uses kask defaults)");
             println!("  \x1b[36m/fusion off\x1b[0m      Disable fusion");
             println!();
-            println!("  \x1b[2mConfigure panel:  HKASK_FUSION_JUDGE_MODEL=deepseek-v4-pro\x1b[0m");
+            println!("  \x1b[2mConfigure panel:  HKASK_FUSION_JUDGE_MODEL=KC/z-ai/glm-5.2\x1b[0m");
             println!(
                 "  \x1b[2m                   HKASK_FUSION_PANEL_MODELS=Kimi2.7,Qwen3.7 Max,...\x1b[0m"
             );

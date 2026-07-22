@@ -14,12 +14,7 @@ use ratatui::style::{Color, Style};
 use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
-use crate::bridges::{
-    CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge, MatrixDataBridge,
-    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge,
-    ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge, with_bridges,
-    workspace_bridge_setter,
-};
+use crate::bridges::{with_bridges, workspace_bridge_setter};
 use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
@@ -364,20 +359,6 @@ pub struct Workspace {
 struct WorkspaceBridges {
     settings_bridge: Option<Arc<dyn SettingsBridge>>,
     session_bridge: Option<Arc<dyn SessionBridge>>,
-    wallet_bridge: Option<Arc<dyn WalletDataBridge>>,
-    config_bridge: Option<Arc<dyn ConfigDataBridge>>,
-    registry_bridge: Option<Arc<dyn RegistryDataBridge>>,
-    memory_bridge: Option<Arc<dyn MemoryDataBridge>>,
-    kanban_bridge: Option<Arc<dyn KanbanDataBridge>>,
-    matrix_bridge: Option<Arc<dyn MatrixDataBridge>>,
-    media_bridge: Option<Arc<dyn MediaDataBridge>>,
-    training_bridge: Option<Arc<dyn TrainingDataBridge>>,
-    companies_bridge: Option<Arc<dyn CompaniesDataBridge>>,
-    research_bridge: Option<Arc<dyn ResearchDataBridge>>,
-    docproc_bridge: Option<Arc<dyn DocprocDataBridge>>,
-    replica_bridge: Option<Arc<dyn ReplicaDataBridge>>,
-    skills_bridge: Option<Arc<dyn SkillsDataBridge>>,
-    scenarios_bridge: Option<Arc<dyn ScenariosDataBridge>>,
 }
 
 impl WorkspaceBridges {
@@ -391,20 +372,6 @@ impl WorkspaceBridges {
             repl_bridge,
             settings_bridge: self.settings_bridge.clone(),
             session_bridge: self.session_bridge.clone(),
-            wallet_bridge: self.wallet_bridge.clone(),
-            config_bridge: self.config_bridge.clone(),
-            registry_bridge: self.registry_bridge.clone(),
-            memory_bridge: self.memory_bridge.clone(),
-            kanban_bridge: self.kanban_bridge.clone(),
-            matrix_bridge: self.matrix_bridge.clone(),
-            media_bridge: self.media_bridge.clone(),
-            training_bridge: self.training_bridge.clone(),
-            companies_bridge: self.companies_bridge.clone(),
-            research_bridge: self.research_bridge.clone(),
-            docproc_bridge: self.docproc_bridge.clone(),
-            replica_bridge: self.replica_bridge.clone(),
-            skills_bridge: self.skills_bridge.clone(),
-            scenarios_bridge: self.scenarios_bridge.clone(),
         }
     }
 }
@@ -443,21 +410,7 @@ impl Workspace {
 
     with_bridges!(workspace_bridge_setter;
         settings_bridge, SettingsBridge, with_settings_bridge;
-        session_bridge, SessionBridge, with_session_bridge;
-        wallet_bridge, WalletDataBridge, with_wallet_bridge;
-        config_bridge, ConfigDataBridge, with_config_bridge;
-        registry_bridge, RegistryDataBridge, with_registry_bridge;
-        memory_bridge, MemoryDataBridge, with_memory_bridge;
-        kanban_bridge, KanbanDataBridge, with_kanban_bridge;
-        matrix_bridge, MatrixDataBridge, with_matrix_bridge;
-        media_bridge, MediaDataBridge, with_media_bridge;
-        training_bridge, TrainingDataBridge, with_training_bridge;
-        companies_bridge, CompaniesDataBridge, with_companies_bridge;
-        research_bridge, ResearchDataBridge, with_research_bridge;
-        docproc_bridge, DocprocDataBridge, with_docproc_bridge;
-        replica_bridge, ReplicaDataBridge, with_replica_bridge;
-        skills_bridge, SkillsDataBridge, with_skills_bridge;
-        scenarios_bridge, ScenariosDataBridge, with_scenarios_bridge
+        session_bridge, SessionBridge, with_session_bridge
     );
 
     /// Create a minimal workspace for testing — single Chat window.

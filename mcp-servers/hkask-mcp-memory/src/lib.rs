@@ -190,7 +190,6 @@ impl MemoryServer {
                 // No context: return most recent episodes, sorted by recency (reverse order)
                 let episodes: Vec<serde_json::Value> = h_mems
                     .iter()
-                    .rev()
                     .take(limit)
                     .filter_map(|t| {
                         let ct = ChatTurn::from_value(&t.value)?;
@@ -439,7 +438,6 @@ impl MemoryServer {
                 // No context: most recent by recency
                 episodic_triples
                     .iter()
-                    .rev()
                     .take(limit)
                     .filter_map(|t| {
                         let ct = ChatTurn::from_value(&t.value)?;

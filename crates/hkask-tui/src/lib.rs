@@ -3,23 +3,21 @@
 //! Provides a multi-window, split-pane terminal interface modelled on
 //! Zed's workspace architecture: a binary tree of splits hosts stateful
 //! Window implementations, with keyboard-driven focus, resize, and tab
-//! management. Each window renders a subsystem (chat, kanban, wallet,
-//! memory, training, media, skills, research, docproc, replica,
-//! scenarios, matrix, companies, configuration, terminal, editor)
-//! as a ratatui widget.
+//! management. The workspace now hosts a single Chat window (the REPL
+//! interface); the workspace tree, tabs, and status bar remain.
 //!
 //! # Architecture
 //!
 //! ```text
 //! TuiSession
-//!   └── Workspace
+//!   �u2514── Workspace
 //!         ├── Tab bar
 //!         ├── SplitNode tree (binary splits)
 //!         │     ├── Leaf: Window
 //!         │     ├── Horizontal { left, right, ratio }
 //!         │     └── Vertical   { top, bottom, ratio }
 //!         └── StatusBar (global)
-//! ```rust,no_run
+//! ```
 //!
 //! # Entry Point
 //!
@@ -50,7 +48,6 @@ mod test_util;
 
 pub mod bridges;
 pub mod layout;
-pub mod mcp_tabbed;
 pub mod widgets;
 pub mod windows;
 
@@ -60,12 +57,7 @@ use ratatui::prelude::CrosstermBackend;
 use std::io::Stdout;
 use std::time::Duration;
 
-use bridges::{
-    CompaniesDataBridge, ConfigDataBridge, DocprocDataBridge, KanbanDataBridge, MatrixDataBridge,
-    MediaDataBridge, MemoryDataBridge, RegistryDataBridge, ReplicaDataBridge, ResearchDataBridge,
-    ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge, tui_bridge_setter,
-    with_bridges,
-};
+use bridges::{tui_bridge_setter, with_bridges};
 pub use repl_bridge::{
     CommandResult, InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge,
     SessionBridge, SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult,
@@ -111,21 +103,7 @@ impl TuiSession {
 
     with_bridges!(tui_bridge_setter;
         settings_bridge, SettingsBridge, with_settings_bridge;
-        session_bridge, SessionBridge, with_session_bridge;
-        wallet_bridge, WalletDataBridge, with_wallet_bridge;
-        config_bridge, ConfigDataBridge, with_config_bridge;
-        registry_bridge, RegistryDataBridge, with_registry_bridge;
-        memory_bridge, MemoryDataBridge, with_memory_bridge;
-        kanban_bridge, KanbanDataBridge, with_kanban_bridge;
-        matrix_bridge, MatrixDataBridge, with_matrix_bridge;
-        media_bridge, MediaDataBridge, with_media_bridge;
-        training_bridge, TrainingDataBridge, with_training_bridge;
-        companies_bridge, CompaniesDataBridge, with_companies_bridge;
-        research_bridge, ResearchDataBridge, with_research_bridge;
-        docproc_bridge, DocprocDataBridge, with_docproc_bridge;
-        replica_bridge, ReplicaDataBridge, with_replica_bridge;
-        skills_bridge, SkillsDataBridge, with_skills_bridge;
-        scenarios_bridge, ScenariosDataBridge, with_scenarios_bridge
+        session_bridge, SessionBridge, with_session_bridge
     );
 
     /// Run the main event loop. Blocks until the user quits.
@@ -151,9 +129,6 @@ impl TuiSession {
     }
 
     pub fn run(&mut self) -> anyhow::Result<()> {
-        // Show splash screen first
-        self.show_splash()?;
-
         // Restore saved layout if available
         self.restore_layout();
 

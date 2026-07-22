@@ -1,19 +1,17 @@
 //! Integration tests for hkask-tui.
 //!
-//! Covers window creation smoke tests, WindowKind invariant properties,
-//! StatusBar rendering, and workspace operations.
+//! Covers Chat window rendering, inference ownership, and workspace
+//! operations (status bar, layout persistence, keybindings). The TUI now
+//! hosts only the Chat window; window-kind invariant tests are limited to
+//! the single remaining kind.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use hkask_tui::{
-    InferenceRequestId, ModelSwitchResult, ReplBridge, SessionBridge, SettingsBridge, SystemBridge,
-    TuiModelInfo, TuiTurnResult, Window, WindowId, WindowKind, Workspace,
-    windows::{
-        ChatWindow, CompaniesWindow, ConfigurationWindow, DocprocWindow, EditorWindow,
-        KanbanWindow, MatrixWindow, MediaWindow, MemoryWindow, ReplicaWindow, ResearchWindow,
-        ScenariosWindow, SkillsWindow, TerminalWindow, TrainingWindow, WalletWindow,
-    },
+    InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SessionBridge,
+    SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult, Window, WindowId, WindowKind,
+    Workspace, windows::ChatWindow,
 };
 
 /// A minimal ReplBridge for testing — returns safe defaults for all methods.
@@ -105,13 +103,13 @@ impl ReplBridge for MockBridge {
         );
         request
     }
-    fn poll_inference(&self, request: InferenceRequestId) -> hkask_tui::InferenceState {
+    fn poll_inference(&self, request: InferenceRequestId) -> InferenceState {
         self.pending
             .lock()
             .expect("pending lock")
             .remove(&request)
-            .map(hkask_tui::InferenceState::Done)
-            .unwrap_or(hkask_tui::InferenceState::Idle)
+            .map(InferenceState::Done)
+            .unwrap_or(InferenceState::Idle)
     }
     fn streaming_text(&self, _request: InferenceRequestId) -> String {
         String::new()
@@ -188,29 +186,12 @@ fn render_smoke(
 // ────────────────────────────────────────────────────────────────
 
 fn all_window_kinds() -> Vec<WindowKind> {
-    vec![
-        WindowKind::Chat,
-        WindowKind::Kanban,
-        WindowKind::Wallet,
-        WindowKind::Memory,
-        WindowKind::Companies,
-        WindowKind::Matrix,
-        WindowKind::Configuration,
-        WindowKind::Terminal,
-        WindowKind::Editor,
-        WindowKind::Training,
-        WindowKind::Media,
-        WindowKind::Skills,
-        WindowKind::Research,
-        WindowKind::Docproc,
-        WindowKind::Replica,
-        WindowKind::Scenarios,
-    ]
+    vec![WindowKind::Chat]
 }
 
 #[test]
-fn all_16_kinds_exist() {
-    assert_eq!(all_window_kinds().len(), 16);
+fn chat_kind_is_the_only_kind() {
+    assert_eq!(all_window_kinds().len(), 1);
 }
 
 #[test]
@@ -236,25 +217,11 @@ fn description_is_non_empty() {
 }
 
 #[test]
-fn allows_multiple_only_for_chat_and_matrix() {
+fn chat_allows_multiple() {
     for kind in all_window_kinds() {
-        match kind {
-            WindowKind::Chat | WindowKind::Matrix => {
-                assert!(kind.allows_multiple(), "{:?} should allow multiple", kind);
-            }
-            _ => {
-                assert!(
-                    !kind.allows_multiple(),
-                    "{:?} should NOT allow multiple",
-                    kind
-                );
-            }
-        }
+        assert!(kind.allows_multiple(), "{:?} should allow multiple", kind);
     }
 }
-
-// No window kind is persistent — all are closeable.
-// (The Logo window was removed; is_persistent() was removed from WindowKind.)
 
 #[test]
 fn all_titles_are_distinct() {
@@ -264,11 +231,11 @@ fn all_titles_are_distinct() {
         .collect();
     titles.sort_unstable();
     titles.dedup();
-    assert_eq!(titles.len(), 16, "duplicate titles: {:?}", titles);
+    assert_eq!(titles.len(), 1, "duplicate titles: {:?}", titles);
 }
 
 // ────────────────────────────────────────────────────────────────
-// Rendering smoke tests — every window renders without panicking
+// Rendering smoke tests — Chat renders without panicking
 // ────────────────────────────────────────────────────────────────
 
 #[test]
@@ -279,261 +246,13 @@ fn chat_renders() {
 }
 
 #[test]
-fn kanban_renders() {
-    let w = KanbanWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn wallet_renders() {
-    let w = WalletWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn memory_renders() {
-    let w = MemoryWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn companies_renders() {
-    let w = CompaniesWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn matrix_renders() {
-    let w = MatrixWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn configuration_renders() {
-    let w = ConfigurationWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn terminal_renders() {
-    let w = TerminalWindow::new(window_id());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn editor_renders() {
-    let w = EditorWindow::new(window_id());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn training_renders() {
-    let w = TrainingWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn media_renders() {
-    let w = MediaWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn research_renders() {
-    let w = ResearchWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn skills_renders() {
-    let w = SkillsWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn docproc_renders() {
-    let w = DocprocWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn replica_renders() {
-    let w = ReplicaWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn all_windows_render_at_multiple_sizes() {
+fn chat_renders_at_multiple_sizes() {
     let b = bridge();
     let sizes = [(40, 12), (80, 24), (120, 40), (200, 80)];
-
-    let windows: Vec<Box<dyn Window>> = vec![
-        Box::new(ChatWindow::new(
-            window_id(),
-            b.userpod_name(),
-            b.model_name(),
-            b.clone(),
-        )),
-        Box::new(KanbanWindow::new(window_id(), b.clone())),
-        Box::new(WalletWindow::new(window_id(), b.clone())),
-        Box::new(MemoryWindow::new(window_id(), b.clone())),
-        Box::new(CompaniesWindow::new(window_id(), b.clone())),
-        Box::new(MatrixWindow::new(window_id(), b.clone())),
-        Box::new(ConfigurationWindow::new(window_id(), b.clone())),
-        Box::new(TerminalWindow::new(window_id())),
-        Box::new(EditorWindow::new(window_id())),
-        Box::new(TrainingWindow::new(window_id(), b.clone())),
-        Box::new(MediaWindow::new(window_id(), b.clone())),
-        Box::new(SkillsWindow::new(window_id(), b.clone())),
-        Box::new(ResearchWindow::new(window_id(), b.clone())),
-        Box::new(DocprocWindow::new(window_id(), b.clone())),
-        Box::new(ReplicaWindow::new(window_id(), b.clone())),
-        Box::new(ScenariosWindow::new(window_id(), b.clone())),
-    ];
-
-    assert_eq!(windows.len(), 16);
-
     for (w, h) in sizes {
-        for window in &windows {
-            render_smoke(window.as_ref(), w, h);
-        }
+        let window = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
+        render_smoke(&window, w, h);
     }
-}
-
-// ────────────────────────────────────────────────────────────────
-// Tab cycling on scaffolded windows
-// ────────────────────────────────────────────────────────────────
-
-#[test]
-fn kanban_sections_cycle() {
-    let mut w = KanbanWindow::new(window_id(), bridge());
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let right = KeyEvent::new(KeyCode::Char('l'), KeyModifiers::NONE);
-    let left = KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE);
-    // 5 columns: cycle right through all then back left
-    render_smoke(&w, 80, 24);
-    for _ in 0..4 {
-        assert!(w.handle_key(right));
-    }
-    for _ in 0..4 {
-        assert!(w.handle_key(left));
-    }
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn memory_sections_cycle() {
-    let mut w = MemoryWindow::new(window_id(), bridge());
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    render_smoke(&w, 80, 24);
-    // 5-state cycle: Episodic -> Semantic -> Triples -> Consolidation -> Chat -> Episodic
-    for _ in 0..5 {
-        assert!(w.handle_key(tab));
-    }
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn terminal_input_roundtrip() {
-    let mut w = TerminalWindow::new(window_id());
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    render_smoke(&w, 80, 24);
-    assert!(w.handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::NONE)));
-    assert!(w.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::NONE)));
-    assert!(w.handle_key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE)));
-    assert!(w.handle_key(KeyEvent::new(KeyCode::Char('o'), KeyModifiers::NONE)));
-    render_smoke(&w, 80, 24);
-    assert!(w.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)));
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn editor_text_operations() {
-    let mut w = EditorWindow::new(window_id());
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    render_smoke(&w, 80, 24);
-    assert!(w.handle_key(KeyEvent::new(KeyCode::Char('h'), KeyModifiers::NONE)));
-    assert!(w.handle_key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE)));
-    render_smoke(&w, 80, 24);
-    assert!(w.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE)));
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn text_windows_handle_multibyte_cursor_operations() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-    let keys = [
-        KeyCode::Char('é'),
-        KeyCode::Char('界'),
-        KeyCode::Left,
-        KeyCode::Delete,
-        KeyCode::Backspace,
-    ];
-    let b = bridge();
-    let mut chat = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
-    let mut terminal = TerminalWindow::new(window_id());
-    let mut editor = EditorWindow::new(window_id());
-
-    for key in keys {
-        let event = KeyEvent::new(key, KeyModifiers::NONE);
-        chat.handle_key(event);
-        terminal.handle_key(event);
-        editor.handle_key(event);
-    }
-    editor.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-
-    render_smoke(&chat, 80, 24);
-    render_smoke(&terminal, 80, 24);
-    render_smoke(&editor, 80, 24);
-}
-
-// ────────────────────────────────────────────────────────────────
-// Domain bridge tests — memory, kanban, registry with mock data
-// ────────────────────────────────────────────────────────────────
-
-#[test]
-fn memory_shows_live_data_with_bridge() {
-    use hkask_tui::bridges::memory::MockMemoryBridge;
-    let w = MemoryWindow::new(window_id(), bridge())
-        .with_memory_bridge(MockMemoryBridge::with_data().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn memory_empty_shows_placeholder() {
-    use hkask_tui::bridges::memory::MockMemoryBridge;
-    let w =
-        MemoryWindow::new(window_id(), bridge()).with_memory_bridge(MockMemoryBridge::new().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn kanban_shows_live_data_with_bridge() {
-    use hkask_tui::bridges::kanban::MockKanbanBridge;
-    let window = KanbanWindow::new(window_id(), bridge())
-        .with_kanban_bridge(MockKanbanBridge::with_sample_data().arc());
-    render_smoke(&window, 80, 24);
-}
-
-#[test]
-fn kanban_empty_shows_placeholder() {
-    use hkask_tui::bridges::kanban::MockKanbanBridge;
-    let w =
-        KanbanWindow::new(window_id(), bridge()).with_kanban_bridge(MockKanbanBridge::new().arc());
-    render_smoke(&w, 80, 24);
-}
-
-// Registry window removed — registry browsing is CLI-only.
-// Skills window still uses RegistryDataBridge internally.
-
-#[test]
-fn skills_shows_live_data_with_bridge() {
-    use hkask_tui::bridges::registry::MockRegistryBridge;
-    let w = SkillsWindow::new(window_id(), bridge())
-        .with_registry_bridge(MockRegistryBridge::new().arc());
-    render_smoke(&w, 80, 24);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -572,10 +291,10 @@ fn chat_snapshot_contains_prompt() {
     let w = ChatWindow::new(window_id(), &agent_name, &model_name, b);
     let lines = render_snapshot(&w, 80, 24);
     let text = lines.join("\n");
-    // Default mode is Curator — the prompt should show CRTR.
+    // Default mode is Chat — the prompt should show REPL.
     assert!(
-        text.contains("CRTR"),
-        "Chat should show CRTR prompt in default Curator mode; got: {}",
+        text.contains("REPL"),
+        "Chat should show REPL prompt in default Chat mode; got: {}",
         text
     );
 }
@@ -618,390 +337,26 @@ fn chat_windows_receive_only_their_owned_inference() {
     assert!(!second_text.contains("reply: first"));
 }
 
-// Regulation Monitor, Backup, and Registry snapshot tests removed — windows deleted.
-
 #[test]
-fn wallet_snapshot_shows_gas() {
-    let w = WalletWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(
-        text.contains("Gas Budget") || text.contains("gas"),
-        "Wallet should show gas info"
-    );
-    assert!(text.contains("Unavailable: wallet bridge not configured"));
-}
-
-// Backup snapshot test removed — window deleted.
-
-// Registry snapshot test removed — window deleted.
-
-#[test]
-fn memory_snapshot_shows_tabs() {
-    let w = MemoryWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(
-        text.contains("Episodic") || text.contains("Memory"),
-        "Memory should show tabs"
-    );
-}
-
-#[test]
-fn kanban_snapshot_shows_board() {
-    let w = KanbanWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(
-        text.contains("Backlog") || text.contains("Kanban"),
-        "Kanban should show columns"
-    );
-}
-
-#[test]
-fn terminal_snapshot_shows_prompt() {
-    let w = TerminalWindow::new(window_id());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(
-        text.contains("$") || text.contains("Terminal"),
-        "Terminal should show prompt"
-    );
-}
-
-#[test]
-fn editor_snapshot_renders() {
-    let w = EditorWindow::new(window_id());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(!text.is_empty(), "Editor should render content");
-}
-
-// ────────────────────────────────────────────────────────────────
-// MCP Two-Tab contract — Tab cycles through sections + Chat
-// ────────────────────────────────────────────────────────────────
-
-#[test]
-fn mcp_tab_kanban_cycles_sections_and_chat() {
+fn chat_handles_multibyte_cursor_operations() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
-    let mut w = KanbanWindow::new(window_id(), bridge());
-    let tab_key = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
 
-    assert_eq!(w.active_tab(), McpTab::Data);
-    render_smoke(&w, 80, 24);
+    let keys = [
+        KeyCode::Char('é'),
+        KeyCode::Char('界'),
+        KeyCode::Left,
+        KeyCode::Delete,
+        KeyCode::Backspace,
+    ];
+    let b = bridge();
+    let mut chat = ChatWindow::new(window_id(), b.userpod_name(), b.model_name(), b.clone());
 
-    // Tab toggles Data → Chat → Data
-    assert!(w.handle_key(tab_key));
-    assert_eq!(w.active_tab(), McpTab::Chat);
-    render_smoke(&w, 80, 24);
-
-    assert!(w.handle_key(tab_key));
-    assert_eq!(w.active_tab(), McpTab::Data);
-}
-
-#[test]
-fn mcp_tab_companies_cycles_sections_and_chat() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
-    let mut w = CompaniesWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-
-    assert_eq!(w.active_tab(), McpTab::Data);
-    // Tab x4: Search -> Profile -> Financials -> Portfolio -> Chat
-    for _ in 0..4 {
-        assert!(w.handle_key(tab));
+    for key in keys {
+        let event = KeyEvent::new(key, KeyModifiers::NONE);
+        chat.handle_key(event);
     }
-    assert_eq!(w.active_tab(), McpTab::Chat);
-    assert!(w.handle_key(tab));
-    assert_eq!(w.active_tab(), McpTab::Data);
-}
 
-#[test]
-fn mcp_tab_memory_cycles_sections_and_chat() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
-    let mut w = MemoryWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-
-    assert_eq!(w.active_tab(), McpTab::Data);
-    for _ in 0..4 {
-        assert!(w.handle_key(tab));
-    }
-    assert_eq!(w.active_tab(), McpTab::Chat);
-    assert!(w.handle_key(tab));
-    assert_eq!(w.active_tab(), McpTab::Data);
-}
-
-#[test]
-fn mcp_tab_training_toggles_chat() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
-    let mut w = TrainingWindow::new(window_id(), bridge());
-    let right = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    let left = KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE);
-    assert_eq!(w.active_tab(), McpTab::Data);
-    assert!(w.handle_key(right));
-    assert_eq!(w.active_tab(), McpTab::Chat);
-    assert!(w.handle_key(left));
-    assert_eq!(w.active_tab(), McpTab::Data);
-}
-
-#[test]
-fn mcp_tab_receives_its_scoped_inference_completion() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-    let mut window = TrainingWindow::new(window_id(), bridge());
-    window.handle_key(KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE));
-    for c in "train".chars() {
-        window.handle_key(KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE));
-    }
-    window.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-    window.tick();
-
-    let text = render_snapshot(&window, 80, 24).join("\n");
-    assert!(text.contains("reply: train"));
-}
-
-// ────────────────────────────────────────────────────────────────
-// Companies window — graceful degradation with None bridge
-// ────────────────────────────────────────────────────────────────
-
-#[test]
-fn companies_renders_without_bridge() {
-    let w = CompaniesWindow::new(window_id(), bridge());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn companies_renders_with_bridge() {
-    use hkask_tui::bridges::companies::MockCompaniesBridge;
-    let w = CompaniesWindow::new(window_id(), bridge())
-        .with_companies_bridge(MockCompaniesBridge::with_sample().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn companies_all_sections_no_panic_without_bridge() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let mut w = CompaniesWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    for _ in 0..5 {
-        render_smoke(&w, 80, 24);
-        w.handle_key(tab);
-    }
-}
-
-#[test]
-fn companies_all_sections_no_panic_with_bridge() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::bridges::companies::MockCompaniesBridge;
-    let mut w = CompaniesWindow::new(window_id(), bridge())
-        .with_companies_bridge(MockCompaniesBridge::with_sample().arc());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    for _ in 0..5 {
-        render_smoke(&w, 80, 24);
-        w.handle_key(tab);
-    }
-}
-
-// ────────────────────────────────────────────────────────────────
-// Research window — snapshot, bridge, MCP tab, graceful degradation
-// ────────────────────────────────────────────────────────────────
-
-#[test]
-fn research_snapshot_shows_sections() {
-    let w = ResearchWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(
-        text.contains("Search") || text.contains("Research"),
-        "Research should show sections"
-    );
-}
-
-#[test]
-fn research_renders_with_bridge() {
-    use hkask_tui::bridges::research::MockResearchBridge;
-    let w = ResearchWindow::new(window_id(), bridge())
-        .with_research_bridge(MockResearchBridge::with_sample().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn research_empty_shows_placeholder() {
-    use hkask_tui::bridges::research::MockResearchBridge;
-    let w = ResearchWindow::new(window_id(), bridge())
-        .with_research_bridge(MockResearchBridge::new().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn mcp_tab_research_cycles_sections_and_chat() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
-    let mut w = ResearchWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-
-    assert_eq!(w.active_tab(), McpTab::Data);
-    for _ in 0..3 {
-        assert!(w.handle_key(tab));
-    }
-    assert_eq!(w.active_tab(), McpTab::Chat);
-    render_smoke(&w, 80, 24);
-    assert!(w.handle_key(tab));
-    assert_eq!(w.active_tab(), McpTab::Data);
-}
-
-#[test]
-fn research_all_sections_no_panic_without_bridge() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let mut w = ResearchWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    for _ in 0..4 {
-        render_smoke(&w, 80, 24);
-        w.handle_key(tab);
-    }
-}
-
-// ────────────────────────────────────────────────────────────────
-// Docproc window — snapshot, bridge, MCP tab, graceful degradation
-// ────────────────────────────────────────────────────────────────
-
-#[test]
-fn docproc_snapshot_shows_sections() {
-    let w = DocprocWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(
-        text.contains("Chunks") || text.contains("Docproc"),
-        "Docproc should show sections"
-    );
-}
-
-#[test]
-fn docproc_renders_with_bridge() {
-    use hkask_tui::bridges::docproc::MockDocprocBridge;
-    let w = DocprocWindow::new(window_id(), bridge())
-        .with_docproc_bridge(MockDocprocBridge::with_sample().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn docproc_empty_shows_placeholder() {
-    use hkask_tui::bridges::docproc::MockDocprocBridge;
-    let w = DocprocWindow::new(window_id(), bridge())
-        .with_docproc_bridge(MockDocprocBridge::new().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn mcp_tab_docproc_cycles_sections_and_chat() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
-    let mut w = DocprocWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-
-    assert_eq!(w.active_tab(), McpTab::Data);
-    for _ in 0..3 {
-        assert!(w.handle_key(tab));
-    }
-    assert_eq!(w.active_tab(), McpTab::Chat);
-    assert!(w.handle_key(tab));
-    assert_eq!(w.active_tab(), McpTab::Data);
-}
-
-#[test]
-fn docproc_all_sections_no_panic_without_bridge() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let mut w = DocprocWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    for _ in 0..4 {
-        render_smoke(&w, 80, 24);
-        w.handle_key(tab);
-    }
-}
-
-// ────────────────────────────────────────────────────────────────
-// Replica window — snapshot, bridge, MCP tab, graceful degradation
-// ────────────────────────────────────────────────────────────────
-
-#[test]
-fn replica_snapshot_shows_content() {
-    let w = ReplicaWindow::new(window_id(), bridge());
-    let lines = render_snapshot(&w, 80, 24);
-    let text = lines.join("\n");
-    assert!(!text.is_empty(), "Replica should render content");
-}
-
-#[test]
-fn replica_renders_with_bridge() {
-    use hkask_tui::bridges::replica::MockReplicaBridge;
-    let w = ReplicaWindow::new(window_id(), bridge())
-        .with_replica_bridge(MockReplicaBridge::with_sample().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn replica_empty_shows_placeholder() {
-    use hkask_tui::bridges::replica::MockReplicaBridge;
-    let w = ReplicaWindow::new(window_id(), bridge())
-        .with_replica_bridge(MockReplicaBridge::new().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn mcp_tab_replica_toggles_chat() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
-    let mut w = ReplicaWindow::new(window_id(), bridge());
-    let right = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    let left = KeyEvent::new(KeyCode::Char('['), KeyModifiers::NONE);
-
-    assert_eq!(w.active_tab(), McpTab::Data);
-    assert!(w.handle_key(right));
-    assert_eq!(w.active_tab(), McpTab::Chat);
-    assert!(w.handle_key(left));
-    assert_eq!(w.active_tab(), McpTab::Data);
-}
-
-// ────────────────────────────────────────────────────────────────
-// Skills window — extended MCP tab and bridge tests
-// ────────────────────────────────────────────────────────────────
-
-#[test]
-fn skills_renders_with_skills_bridge() {
-    use hkask_tui::bridges::skills::MockSkillsBridge;
-    let w = SkillsWindow::new(window_id(), bridge())
-        .with_skills_bridge(MockSkillsBridge::with_sample().arc());
-    render_smoke(&w, 80, 24);
-}
-
-#[test]
-fn mcp_tab_skills_cycles_sections_and_chat() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use hkask_tui::mcp_tabbed::{McpTab, McpTabbedWindow};
-    let mut w = SkillsWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-
-    assert_eq!(w.active_tab(), McpTab::Data);
-    for _ in 0..3 {
-        assert!(w.handle_key(tab));
-    }
-    assert_eq!(w.active_tab(), McpTab::Chat);
-    assert!(w.handle_key(tab));
-    assert_eq!(w.active_tab(), McpTab::Data);
-}
-
-#[test]
-fn skills_all_sections_no_panic_without_bridge() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let mut w = SkillsWindow::new(window_id(), bridge());
-    let tab = KeyEvent::new(KeyCode::Char(']'), KeyModifiers::NONE);
-    for _ in 0..4 {
-        render_smoke(&w, 80, 24);
-        w.handle_key(tab);
-    }
+    render_smoke(&chat, 80, 24);
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -1041,8 +396,8 @@ fn workspace_renders_chat_content() {
     term.draw(|f| ws.render(f)).expect("render");
     let text = buffer_text(&term);
     assert!(
-        text.contains("CRTR"),
-        "Workspace should render Chat CRTR prompt (default Curator mode)"
+        text.contains("REPL"),
+        "Workspace should render Chat REPL prompt (default Chat mode)"
     );
     assert!(!text.is_empty(), "Workspace should render content");
 }

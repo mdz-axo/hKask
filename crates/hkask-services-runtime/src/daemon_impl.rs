@@ -357,7 +357,7 @@ async fn generate_narrative(
     }
 
     // Build a log summary from recent experiences (last 20 max)
-    let recent: Vec<_> = episodes.iter().rev().take(20).collect();
+    let recent: Vec<_> = episodes.iter().take(20).collect();
     let mut log_lines = Vec::new();
     for ep in recent.iter().rev() {
         let val = &ep.value;

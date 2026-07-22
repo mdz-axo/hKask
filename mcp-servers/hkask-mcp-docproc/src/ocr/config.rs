@@ -146,7 +146,7 @@ pub enum TriageReason {
 }
 
 impl TriageReason {
-    Kebab-case string used in Regulation spans and tool output.
+    /// Kebab-case string used in Regulation spans and tool output.
     pub fn as_str(&self) -> &'static str {
         match self {
             TriageReason::Scanned => "scanned",

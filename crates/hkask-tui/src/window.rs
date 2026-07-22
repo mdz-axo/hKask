@@ -29,163 +29,28 @@ pub enum SplitDirection {
 }
 
 /// The kind of window — determines icon, default title, and creation behaviour.
+///
+/// The TUI now hosts only the Chat window; all other window types have been
+/// removed. The enum is retained (single-variant) so the workspace, layout
+/// persistence, and catalog can continue to tag windows by kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WindowKind {
-    /// AI chat interface — the primary interaction window (default: Curator mode)
+    /// AI chat interface — the primary interaction window (default: Chat mode).
+    /// Curator chat is a mode within ChatWindow.
     Chat,
-    /// Kanban board view
-    Kanban,
-    /// Wallet — gas, rJoule balance, transactions
-    Wallet,
-    /// Memory — episodic/semantic memory browser
-    Memory,
-    /// Companies — organization data and entities
-    Companies,
-    /// Matrix chat — federated messaging rooms
-    Matrix,
-    /// Settings editor (ReplSettings)
-    Configuration,
-
-    /// Curator daemon window — P12.1 dual-presence (removed; merged into Chat)
-    // Curator variant removed — Curator chat is now a mode in ChatWindow.
-    /// Embedded terminal — run shell commands
-    Terminal,
-    /// Text editor — edit configs, agent YAML, etc.
-    Editor,
-    /// Training monitor — LoRA adapters, sessions, artifacts
-    Training,
-    /// Media gallery — images, audio, video collections
-    Media,
-    /// Skills manager — browse and manage skill corpus
-    Skills,
-    /// Research — web search, RSS feeds, content extraction
-    Research,
-    /// Docproc — document processing, chunking, QA, RDF extraction
-    Docproc,
-    /// Replica — authorial style replica management
-    Replica,
-    /// Scenarios — event trees, forecasts, calibration tracking
-    Scenarios,
 }
 
 impl WindowKind {
     /// (title, description, allows_multiple, is_mcp_tabbed)
     /// is_mcp_tabbed = true means the window handles Tab internally
     /// (Chat/Data toggle) rather than letting the workspace cycle focus.
-    pub(crate) const META: &[(WindowKind, &str, &str, bool, bool)] = &[
-        (
-            WindowKind::Chat,
-            "Chat",
-            "AI chat with your userpod agent (default: Curator mode)",
-            true,
-            false,
-        ),
-        (
-            WindowKind::Kanban,
-            "Kanban",
-            "Kanban board for task coordination",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Wallet,
-            "Wallet",
-            "Gas budget, rJoule balance, and transactions",
-            false,
-            false,
-        ),
-        (
-            WindowKind::Memory,
-            "Memory",
-            "Browse and edit episodic and semantic memories",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Companies,
-            "Companies",
-            "Company profiles, people, and relationships",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Matrix,
-            "Matrix",
-            "Matrix protocol rooms and federated messages",
-            true,
-            true,
-        ),
-        (
-            WindowKind::Configuration,
-            "Configuration",
-            "Edit REPL inference and system settings",
-            false,
-            false,
-        ),
-        (
-            WindowKind::Terminal,
-            "Terminal",
-            "Embedded shell — run commands from within the TUI",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Editor,
-            "Editor",
-            "Text editor — edit configs, agent YAML, and scripts",
-            false,
-            false,
-        ),
-        (
-            WindowKind::Training,
-            "Training",
-            "Training monitor — LoRA adapters, sessions, and artifacts",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Media,
-            "Media",
-            "Media gallery — browse images, audio, and video collections",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Skills,
-            "Skills",
-            "Skills manager — browse, install, and activate skills",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Research,
-            "Research",
-            "Web search, RSS feeds, and content extraction",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Docproc,
-            "Docproc",
-            "Document processing: chunk, QA, RDF, embeddings",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Replica,
-            "Replica",
-            "Authorial style replicas — build, compare, generate",
-            false,
-            true,
-        ),
-        (
-            WindowKind::Scenarios,
-            "Scenarios",
-            "Event trees, Fermi forecasts, calibration tracking",
-            false,
-            false,
-        ),
-    ];
+    pub(crate) const META: &[(WindowKind, &str, &str, bool, bool)] = &[(
+        WindowKind::Chat,
+        "Chat",
+        "AI chat with your userpod agent (default: Chat mode)",
+        true,
+        false,
+    )];
 
     pub fn default_title(&self) -> &'static str {
         Self::META
@@ -277,7 +142,7 @@ mod tests {
         let kinds: Vec<WindowKind> = WindowKind::META.iter().map(|(k, ..)| *k).collect();
         assert_eq!(
             kinds.len(),
-            16,
+            1,
             "META entry count changed — update this test"
         );
     }
@@ -292,34 +157,13 @@ mod tests {
 
     #[test]
     fn allows_multiple_reads_from_meta() {
-        // Chat and Matrix are the only multi-instance windows.
+        // Chat is the only multi-instance window now.
         assert!(WindowKind::Chat.allows_multiple());
-        assert!(WindowKind::Matrix.allows_multiple());
-        assert!(!WindowKind::Wallet.allows_multiple());
     }
 
     #[test]
-    fn mcp_tabbed_windows_match_implementation() {
-        // Windows that implement McpTabbedWindow must have uses_internal_tab() == true.
-        let mcp_tabbed: &[WindowKind] = &[
-            WindowKind::Kanban,
-            WindowKind::Memory,
-            WindowKind::Companies,
-            WindowKind::Matrix,
-            WindowKind::Training,
-            WindowKind::Media,
-            WindowKind::Skills,
-            WindowKind::Research,
-            WindowKind::Docproc,
-            WindowKind::Replica,
-        ];
-        for &k in mcp_tabbed {
-            assert!(k.uses_internal_tab(), "{:?} should be mcp_tabbed", k);
-        }
-    }
-
-    #[test]
-    fn terminal_uses_internal_tab() {
-        assert!(WindowKind::Terminal.uses_internal_tab());
+    fn chat_does_not_use_internal_tab() {
+        // The Chat window does not handle Tab internally (no Data tab).
+        assert!(!WindowKind::Chat.uses_internal_tab());
     }
 }

@@ -1,45 +1,18 @@
-//! Domain-specific bridge traits for TUI windows.
+//! Bridge wiring macros for the TUI workspace.
 //!
-//! Each trait provides a focused surface (≤7 methods) for a single
-//! service domain, following deep-module discipline. The CLI crate
-//! implements these traits to wire live service data into the TUI.
-
-pub mod companies;
-pub mod config;
-pub mod docproc;
-pub mod kanban;
-pub mod matrix;
-pub mod media;
-pub mod memory;
-pub mod registry;
-pub mod replica;
-pub mod research;
-pub mod scenarios;
-pub mod skills;
-pub mod training;
-pub mod wallet;
-
-pub use companies::CompaniesDataBridge;
-pub use config::ConfigDataBridge;
-pub use docproc::DocprocDataBridge;
-pub use kanban::KanbanDataBridge;
-pub use matrix::MatrixDataBridge;
-pub use media::MediaDataBridge;
-pub use memory::MemoryDataBridge;
-pub use registry::RegistryDataBridge;
-pub use replica::ReplicaDataBridge;
-pub use research::ResearchDataBridge;
-pub use scenarios::{EventNode, EventTreeDetail, ScenariosDataBridge};
-pub use skills::SkillsDataBridge;
-pub use training::TrainingDataBridge;
-pub use wallet::{WalletDataBridge, WalletTxSummary};
+//! The TUI now exposes only the Chat window, which is wired through the
+//! `SettingsBridge` and `SessionBridge` traits defined in `repl_bridge`.
+//! The domain-specific data bridges (kanban, wallet, memory, etc.) and
+//! their window types have been removed; only the bridge-setter macros
+//! remain so the workspace and TUI session can wire the Chat window's
+//! optional bridges.
 
 // ── Bridge generation macros ──────────────────────────────────────────
 //
-// `with_bridges!` takes a sub-macro name and 16 bridge specs, then invokes
-// the sub-macro for each. Type names are resolved at the call site (where
-// the bridge traits are in scope), avoiding macro-definition-site hygiene
-// issues with the callback-pattern approach.
+// `with_bridges!` takes a sub-macro name and a list of bridge specs, then
+// invokes the sub-macro for each. Type names are resolved at the call site
+// (where the bridge traits are in scope), avoiding macro-definition-site
+// hygiene issues with the callback-pattern approach.
 
 /// Invoke `$sub!` for each bridge spec.
 /// Each spec: `$field, $trait, $method`

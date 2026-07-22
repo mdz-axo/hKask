@@ -6,23 +6,22 @@
 //!
 //! # TuiMode State Machine
 //!
-//! The default mode is `Curator` — the user interacts with the Curator
-//! daemon by default (P12.1 dual-presence). The user can switch to
-//! `Chat` mode to talk to their userpod agent, or enter `Command` mode
-//! via `/` prefix for slash commands.
+//! The default mode is `Chat` — the user's input goes directly to inference.
+//! The user can switch to `Curator` mode via `/curator` to talk to the
+//! Curator daemon, or enter `Command` mode via `/` prefix for slash commands.
 //!
 //! ```text
-//! Curator (default) ──'/repl'──▶ Chat ──'/'──▶ Command ──Esc/Enter──▶ Chat
-//! Chat ──'/curator'──▶ Curator
+//! Chat (default) ──/curator──▶ Curator ──/repl──▶ Chat
+//! Chat ──/──▶ Command ──Esc/Enter──▶ Chat
 //! ```
 //!
 //! Mode transitions emit `reg.tui.mode_switch { from, to }` spans.
 //!
 //! # Prompt Mode Prefixes (P12 Authenticated Host Mandate)
 //!
-//! - `CRTR ▸` in magenta — direct curator address (default mode)
-//! - `REPL ▸` in cyan — normal chat mode (userpod agent)
+//! - `REPL ▸` in cyan — normal chat mode (userpod agent) — default
 //! - `CMD  ▸` in yellow — slash-command entry
+//! - `CRTR ▸` in magenta — direct curator address
 //!
 //! # Window Management Slash Commands
 //!
@@ -162,9 +161,9 @@ impl ChatWindow {
     pub fn new(id: WindowId, userpod_name: &str, model: &str, bridge: Arc<dyn ReplBridge>) -> Self {
         let mut messages = Vec::new();
         messages.push(TuiChatMessage {
-            sender: MessageSender::Curator,
+            sender: MessageSender::Agent(userpod_name.to_string()),
             content: format!(
-                "hKask v{} — Curator daemon active. Agent: {} | Model: {} | Type /help for commands",
+                "hKask v{} — Agent: {} | Model: {} | Type /help for commands, /curator for Curator",
                 env!("CARGO_PKG_VERSION"),
                 userpod_name,
                 model
@@ -175,10 +174,9 @@ impl ChatWindow {
             id,
             userpod_name: userpod_name.to_string(),
             model: model.to_string(),
-            // Default mode is Curator — the user interacts with the Curator
-            // daemon by default (P12.1 dual-presence). Use /repl to switch
-            // to userpod chat mode.
-            mode: TuiMode::Curator,
+            // Default mode is Chat — user input goes directly to inference.
+            // Curator is available via /curator slash command.
+            mode: TuiMode::Chat,
             messages,
             input: String::new(),
             cursor_pos: 0,
