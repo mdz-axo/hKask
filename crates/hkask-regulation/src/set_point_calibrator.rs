@@ -322,7 +322,7 @@ impl SetPointCalibrator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
+    use hkask_storage::database::sqlite::SqliteDriver;
     use hkask_storage::RegulationArchive;
     use hkask_types::WebID;
     use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};

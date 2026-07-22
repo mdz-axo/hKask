@@ -15,7 +15,7 @@ pub mod encumbrances;
 mod tests;
 pub mod transactions;
 
-use hkask_storage_core::define_driver_store;
+use crate::core::define_driver_store;
 use hkask_wallet_types::WalletError;
 
 define_driver_store!(WalletStore);
@@ -32,7 +32,7 @@ impl WalletStore {
     /// expect: "The system provides durable storage for wallet data"
     /// \[P3\] Motivating: Generative Space — wallet schema
     /// post: all wallet tables exist
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
             "CREATE TABLE IF NOT EXISTS wallet_balances (
                 wallet_id TEXT PRIMARY KEY NOT NULL,
@@ -116,9 +116,9 @@ impl WalletStore {
     /// \[P7\] Constraining: Evolutionary Architecture — WAL mode emerged from multi-agent load
     /// post: journal_mode set to WAL, synchronous set to NORMAL
     pub fn enable_wal_mode(&self) -> Result<(), WalletError> {
-        // Standard WAL PRAGMAs — see hkask_database::init_wal_pragmas for rationale.
+        // Standard WAL PRAGMAs — see crate::database::init_wal_pragmas for rationale.
         self.driver
-            .execute_batch(hkask_database::WAL_PRAGMA_BATCH)?;
+            .execute_batch(crate::database::WAL_PRAGMA_BATCH)?;
         self.driver.execute_batch("PRAGMA synchronous=NORMAL;")?;
         tracing::info!(target: "hkask.storage", "WalletStore WAL mode enabled");
         Ok(())

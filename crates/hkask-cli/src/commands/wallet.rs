@@ -54,7 +54,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: WalletAction) {
 }
 
 fn build_wallet_service() -> WalletService {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = Arc::new(WalletStore::from_driver(driver));
     let config = WalletConfig::default();
     let manager = Arc::new(

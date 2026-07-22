@@ -31,7 +31,7 @@ pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_mcp::validate_identifier;
 use hkask_memory::{ChatTurn, EpisodicMemory, SemanticMemory};

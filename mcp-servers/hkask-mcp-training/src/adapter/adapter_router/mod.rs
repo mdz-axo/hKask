@@ -27,7 +27,7 @@ use crate::adapter::adapter_store::TrainedLoRAAdapter;
 use crate::adapter::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
 use crate::adapter::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
 use hkask_capability::DelegationToken;
-use hkask_database::value::DbValue;
+use hkask_storage::database::value::DbValue;
 use hkask_inference::ProviderId;
 use hkask_ports::InferenceResult;
 use hkask_types::NotFound;
@@ -718,7 +718,7 @@ mod tests {
     use hkask_capability::DelegationResource;
     use hkask_capability::auth::derive_signing_key;
 
-    use hkask_database::sqlite::SqliteDriver;
+    use hkask_storage::database::sqlite::SqliteDriver;
     use std::future::Future;
 
     /// Block on a future in a synchronous test context.

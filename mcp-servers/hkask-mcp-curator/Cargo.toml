@@ -9,7 +9,6 @@ description = "Curator MCP server — system observability, escalation managemen
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-storage = { path = "../../crates/hkask-storage" }
-hkask-database = { path = "../../crates/hkask-database" }
 hkask-memory = { path = "../../crates/hkask-memory" }
 hkask-services-context = { path = "../../crates/hkask-services-context" }
 hkask-capability = { path = "../../crates/hkask-capability" }

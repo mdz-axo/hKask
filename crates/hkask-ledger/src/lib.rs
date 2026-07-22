@@ -18,8 +18,8 @@ mod types;
 
 pub use types::{AccountBalance, DateRange, LedgerError, LedgerTransaction, Posting, QueryFilter};
 
-use hkask_database::driver::DatabaseDriver;
-use hkask_database::value::DbValue;
+use hkask_storage::database::driver::DatabaseDriver;
+use hkask_storage::database::value::DbValue;
 use std::sync::Arc;
 
 /// The double-entry ledger.
@@ -336,7 +336,7 @@ fn build_query_params(range: &DateRange, filter: &QueryFilter) -> Vec<DbValue> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
+    use hkask_storage::database::sqlite::SqliteDriver;
 
     fn db() -> Ledger {
         Ledger::from_driver(SqliteDriver::in_memory_driver()).expect("ledger from driver")

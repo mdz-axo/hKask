@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_memory::SemanticMemory;
 use hkask_ports::InferencePort;
 use hkask_storage::{Database, EmbeddingStore, HMemStore};
@@ -195,7 +195,7 @@ impl ComposeService {
             source: None,
             message: format!("SQLite pool creation failed: {e}"),
         })?;
-        let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
             Arc::new(SqliteDriver::new(pool.clone()));
         let h_mem_store = HMemStore::from_driver(Arc::clone(&driver));
         let embedding_store =
@@ -203,7 +203,7 @@ impl ComposeService {
         let semantic = SemanticMemory::new(h_mem_store, embedding_store);
         let driver2 = SqliteDriver::new(pool);
         let embedding_store_direct = EmbeddingStore::from_driver(
-            Arc::new(driver2) as Arc<dyn hkask_database::driver::DatabaseDriver>,
+            Arc::new(driver2) as Arc<dyn hkask_storage::database::driver::DatabaseDriver>,
             request.cognition.embedding.dim,
         );
 

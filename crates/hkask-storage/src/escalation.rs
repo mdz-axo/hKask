@@ -4,8 +4,8 @@
 //! Governed by the Cybernetics loop, which receives CuratorDirectives from Curation
 //! and escalation signals from algedonic variety deficit detection.
 use chrono::{DateTime, Utc};
-use hkask_database::value::DbValue;
-use hkask_storage_core::impl_from_db_error;
+use crate::database::value::DbValue;
+use crate::core::impl_from_db_error;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{BotID, EscalationID, InfrastructureError, NotFound, TemplateID};
 use serde::{Deserialize, Serialize};
@@ -56,7 +56,7 @@ pub enum EscalationStatus {
     Dismissed,
 }
 pub struct EscalationQueue {
-    driver: Arc<dyn hkask_database::driver::DatabaseDriver>,
+    driver: Arc<dyn crate::database::driver::DatabaseDriver>,
 }
 #[derive(Error, Debug)]
 pub enum EscalationError {
@@ -74,7 +74,7 @@ impl EscalationQueue {
     /// pre:  driver is a valid database driver
     /// post: returns EscalationQueue with schema initialized
     pub fn from_driver(
-        driver: Arc<dyn hkask_database::driver::DatabaseDriver>,
+        driver: Arc<dyn crate::database::driver::DatabaseDriver>,
     ) -> Result<Self, EscalationError> {
         let queue = Self { driver };
         queue.init()?;
@@ -483,7 +483,7 @@ impl From<EscalationEntry> for hkask_ports::escalation::EscalationEntry {
 mod tests {
     use super::*;
     fn make_queue() -> EscalationQueue {
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = crate::database::sqlite::SqliteDriver::in_memory_driver();
         EscalationQueue::from_driver(driver).expect("init queue")
     }
     #[test]

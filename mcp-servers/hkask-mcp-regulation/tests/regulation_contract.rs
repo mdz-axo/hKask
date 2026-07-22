@@ -7,7 +7,7 @@
 //! invoked through the public `Parameters<T>` seam — the same surface an
 //! agent uses.
 
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_mcp_regulation::RegulationServer;
 use hkask_storage::RegulationArchive;
 use hkask_types::WebID;
@@ -18,7 +18,7 @@ use std::sync::Arc;
 /// Build a RegulationServer backed by an in-memory RegulationArchive (no on-disk DB).
 fn test_server() -> RegulationServer {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
     RegulationServer::new(
         WebID::new(),
@@ -96,7 +96,7 @@ async fn reg_query_spans_returns_empty_array_when_no_events() {
 #[tokio::test]
 async fn reg_query_spans_returns_matching_events() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
     insert_event(&store, "reg.guard.input", "guard.input.violation");
 
@@ -226,7 +226,7 @@ async fn reg_span_stats_returns_empty_object_when_no_events() {
 #[tokio::test]
 async fn reg_span_stats_returns_aggregated_counts() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
     insert_event(&store, "reg.outcome", "regulation.action_blocked");
     insert_event(&store, "reg.outcome", "regulation.plateau_detected");
@@ -297,7 +297,7 @@ async fn reg_span_stats_returns_permission_denied_without_store() {
 #[tokio::test]
 async fn reg_query_spans_strips_reg_prefix() {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let store = RegulationArchive::from_driver(driver);
     insert_event(&store, "reg.guard.input", "guard.input.violation");
 

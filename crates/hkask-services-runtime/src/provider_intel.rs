@@ -8,7 +8,7 @@
 //! Call count is measured as the number of committed transactions, not balance.
 
 use chrono::Datelike;
-use hkask_database::driver::DatabaseDriver;
+use hkask_storage::database::driver::DatabaseDriver;
 use serde::Deserialize;
 use std::sync::Arc;
 

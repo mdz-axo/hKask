@@ -21,7 +21,7 @@ pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::EmbeddingRouter;
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_services_compose::cosine_distance;
@@ -762,7 +762,7 @@ impl ReplicaServer {
                     let pool = db
                         .sqlite_pool()
                         .map_err(|e| McpToolError::internal(e.to_string()))?;
-                    let driver = Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+                    let driver = Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool));
                     let h_mem_store = hkask_storage::HMemStore::from_driver(driver);
                     let mut triple_count = 0usize;
                     for entity_ref in refs {

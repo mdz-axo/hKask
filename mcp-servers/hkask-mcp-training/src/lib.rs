@@ -1571,11 +1571,11 @@ pub async fn run(
                             JobStore::new(pool.clone())
                                 .map_err(|error| anyhow::anyhow!("job store schema: {error}"))?,
                         );
-                        let hmem_driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
-                            Arc::new(hkask_database::sqlite::SqliteDriver::new(pool.clone()));
+                        let hmem_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
+                            Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool.clone()));
                         let h_mem_store = hkask_storage::HMemStore::from_driver(Arc::clone(&hmem_driver));
                         let embedding_store = hkask_storage::EmbeddingStore::from_driver(
-                            Arc::new(hkask_database::sqlite::SqliteDriver::new(pool)),
+                            Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool)),
                             1024,
                         );
                         let semantic = Some(hkask_memory::SemanticMemory::new(
@@ -1597,10 +1597,10 @@ pub async fn run(
                     None => {
                         // No passphrase configured — fall back to an in-memory driver
                         // so the server still runs (no persistence across restarts).
-                        let pool = hkask_database::sqlite::SqliteDriver::in_memory_pool()
+                        let pool = hkask_storage::database::sqlite::SqliteDriver::in_memory_pool()
                             .map_err(|e| anyhow::anyhow!("in-memory pool: {e}"))?;
-                        let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
-                            Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+                        let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
+                            Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool));
                         let store = crate::adapter::AdapterStore::from_driver(driver);
                         (None, Arc::new(store), None, None)
                     }

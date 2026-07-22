@@ -50,7 +50,7 @@ mod test_support {
         chains: HashMap<ChainId, Arc<dyn ChainPort>>,
         price_feed: Arc<dyn PriceFeed>,
     ) -> WalletService {
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
 
         let manager = Arc::new(

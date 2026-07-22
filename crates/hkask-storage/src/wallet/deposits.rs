@@ -1,6 +1,6 @@
 use super::WalletStore;
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{InfrastructureError, WalletId};
 use hkask_wallet_types::{ChainId, DepositAddress, DepositReference, PrivacyMode, WalletError};
@@ -63,9 +63,9 @@ impl WalletStore {
             &[DbValue::Text(wallet_id.to_string())],
             |row| {
                 let chain = ChainId::from_str(row.get_str(1)?)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
                 let privacy_mode = PrivacyMode::from_str(row.get_str(4)?)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
                 Ok(DepositAddress {
                     address: row.get_str(2)?.to_string(),
                     chain,

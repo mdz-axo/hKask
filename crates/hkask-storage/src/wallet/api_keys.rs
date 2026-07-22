@@ -1,6 +1,6 @@
 use super::WalletStore;
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
 use hkask_wallet_types::{
@@ -92,7 +92,7 @@ impl WalletStore {
                         expires_at: match row.get(10)? { DbValue::Null => None, v => Some(v.as_text()?.to_string()) },
                         issued_at: row.get_str(11)?.to_string(),
                     };
-                    row_to_api_key_capability(r).map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    row_to_api_key_capability(r).map_err(|e| crate::database::types::DbError::Database(e.to_string()))
                 },
             )?
             .into_iter()
@@ -131,7 +131,7 @@ impl WalletStore {
                         expires_at: match row.get(10)? { DbValue::Null => None, v => Some(v.as_text()?.to_string()) },
                         issued_at: row.get_str(11)?.to_string(),
                     };
-                    row_to_api_key_capability(r).map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    row_to_api_key_capability(r).map_err(|e| crate::database::types::DbError::Database(e.to_string()))
                 },
             )?
             .into_iter()
@@ -177,7 +177,7 @@ impl WalletStore {
                     issued_at: row.get_str(11)?.to_string(),
                 };
                 row_to_api_key_capability(r)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))
             },
         )?)
     }

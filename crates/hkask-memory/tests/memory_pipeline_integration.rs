@@ -7,7 +7,7 @@
 //! 4. Bayesian combination on repeated consolidation of same EAV
 //! 5. Semantic recall (deduped, perspective-free)
 
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_memory::{
     ConsolidationBridge, EpisodicMemory, EpisodicMemoryError, SemanticMemory, SemanticMemoryError,
 };
@@ -16,7 +16,7 @@ use hkask_storage::{EmbeddingStore, HMem, HMemStore};
 use hkask_types::{Confidence, WebID};
 use std::sync::Arc;
 
-fn make_driver() -> Arc<dyn hkask_database::driver::DatabaseDriver> {
+fn make_driver() -> Arc<dyn hkask_storage::database::driver::DatabaseDriver> {
     Arc::new(SqliteDriver::new(
         SqliteDriver::in_memory_pool().expect("in-memory pool"),
     ))

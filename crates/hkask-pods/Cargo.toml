@@ -14,7 +14,6 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-regulation = { path = "../hkask-regulation" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
-hkask-database = { path = "../hkask-database" }
 hkask-memory = { path = "../hkask-memory" }
 async-trait.workspace = true
 chrono.workspace = true

@@ -56,7 +56,7 @@ fn make_wallet_budget_with_key(
         ..Default::default()
     };
 
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = Arc::new(WalletStore::from_driver(driver));
 
     let wallet_id = WalletId::new();

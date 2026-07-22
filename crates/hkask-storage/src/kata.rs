@@ -3,9 +3,9 @@
 //!
 //! Each practice session logs userpod name, date, kata type, practice name,
 //! steps completed, and gas consumed.
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
-use hkask_storage_core::{define_driver_store, impl_from_db_error};
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
+use crate::core::{define_driver_store, impl_from_db_error};
 use hkask_types::InfrastructureError;
 define_driver_store!(KataHistoryStore);
 
@@ -33,7 +33,7 @@ pub enum KataHistoryError {
 impl_from_db_error!(KataHistoryError, Infra);
 
 impl KataHistoryStore {
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
             "CREATE TABLE IF NOT EXISTS kata_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -202,7 +202,7 @@ impl KataHistoryStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
+    use crate::database::sqlite::SqliteDriver;
     use std::sync::Arc;
 
     fn make_test_store() -> KataHistoryStore {

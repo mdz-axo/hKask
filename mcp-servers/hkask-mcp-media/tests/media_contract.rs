@@ -95,7 +95,7 @@ fn model_constants_are_non_empty() {
 // the create-new-file, range-inversion, and multibyte-truncation defects in
 // hkask-mcp-filesystem.
 
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp_media::MediaServer;
 use hkask_mcp_media::types::FaceListRequest;
@@ -107,7 +107,7 @@ use std::sync::{Arc, Mutex};
 /// Construct a MediaServer with an in-memory gallery store and no gallery state.
 fn test_server() -> MediaServer {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory pool");
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let gallery_store = Arc::new(GalleryStore::from_driver(driver));
     MediaServer::new(
         WebID::new(),

@@ -15,8 +15,8 @@
 //! - \[P9\] Goal: Homeostatic Self-Regulation — per-pod variety tracking
 
 use hkask_capability::CapabilityChecker;
-use hkask_database::sqlite::SqliteDriver;
-use hkask_database::types::DbProvider;
+use hkask_storage::database::sqlite::SqliteDriver;
+use hkask_storage::database::types::DbProvider;
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
 use hkask_regulation::RegulationLedger;
@@ -277,7 +277,7 @@ impl PodFactory {
                     path: storage.db_path.clone(),
                     reason: format!("SQLite pool for curator semantic index: {e}"),
                 })?;
-            let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+            let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
                 Arc::new(SqliteDriver::new(pool));
             let passphrase = super::resolve_db_passphrase()?;
             let index_store = HMemStore::from_driver(driver).with_passphrase(&passphrase);
@@ -364,7 +364,7 @@ impl PodFactory {
                         path: db_path.clone(),
                         reason: format!("SQLite pool creation failed: {e}"),
                     })?;
-                let sqlite_driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+                let sqlite_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
                     Arc::new(SqliteDriver::new(pool));
                 let embeddings = EmbeddingStore::from_driver(Arc::clone(&sqlite_driver), 1024);
                 let memory =
@@ -378,7 +378,7 @@ impl PodFactory {
                 (embeddings, memory)
             }
             DbProvider::Postgres => {
-                use hkask_database::postgres::PostgresDriver;
+                use hkask_storage::database::postgres::PostgresDriver;
                 let pg_url = std::env::var("HKASK_DB_PATH")
                     .unwrap_or_else(|_| "postgresql://localhost:5432/hkask".into());
                 let handle = tokio::runtime::Handle::current();
@@ -390,7 +390,7 @@ impl PodFactory {
                         }
                     })
                 })?;
-                let pg_driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+                let pg_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
                     Arc::new(PostgresDriver::new(pool, handle));
                 let embeddings = EmbeddingStore::from_driver(Arc::clone(&pg_driver), 1024);
                 let memory =
@@ -467,7 +467,7 @@ impl PodFactory {
                 path: db_path.clone(),
                 reason: format!("SQLite pool for h_mems: {e}"),
             })?;
-        let hmem_driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        let hmem_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
             Arc::new(SqliteDriver::new(hmem_pool));
         let h_mems = HMemStore::from_driver(hmem_driver).with_passphrase(&passphrase);
 

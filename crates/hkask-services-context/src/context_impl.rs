@@ -25,7 +25,7 @@
 use std::sync::Arc;
 
 use hkask_capability::CapabilityChecker;
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_federation::sync::FederationLinkManager;
 use hkask_federation::sync::FederationSync;
 use hkask_federation::sync::transport::InMemoryFederationTransport;
@@ -237,7 +237,7 @@ impl AgentService {
     ) -> PerAgentMemory {
         // EpisodicMemory + SemanticMemory for ConsolidationService
         let pool_for_mem = db.sqlite_pool().expect("sqlite pool error");
-        let mem_driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        let mem_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
             Arc::new(SqliteDriver::new(pool_for_mem));
         let ts1 = HMemStore::from_driver(Arc::clone(&mem_driver));
         let mut episodic_memory = EpisodicMemory::new(ts1);
@@ -249,7 +249,7 @@ impl AgentService {
         let pool = db.sqlite_pool().expect("sqlite pool error");
         let driver = SqliteDriver::new(pool);
         let emb = EmbeddingStore::from_driver(
-            Arc::new(driver) as Arc<dyn hkask_database::driver::DatabaseDriver>,
+            Arc::new(driver) as Arc<dyn hkask_storage::database::driver::DatabaseDriver>,
             1024,
         );
         let mut semantic_memory = SemanticMemory::new(ts2, emb);

@@ -1,6 +1,6 @@
 use super::WalletStore;
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{InfrastructureError, WalletId};
 use hkask_wallet_types::{RJoule, TransactionType, WalletBalance, WalletError, WalletTransaction};
@@ -24,7 +24,7 @@ impl WalletStore {
             |row| {
                 Ok(WalletBalance {
                     wallet_id: WalletId::from_str(row.get_str(0)?)
-                        .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+                        .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
                     rjoules: row.get_int(1)? as u64,
                     usdc_equivalent_micro: row.get_int(2)? as u64,
                     gas_equivalent: 0, // computed by caller with config

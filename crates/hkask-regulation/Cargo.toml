@@ -16,8 +16,6 @@ hkask-capability = { path = "../hkask-capability" }
 # system via the abstract port, not the concrete type.
 hkask-wallet-types = { path = "../hkask-wallet-types" }
 hkask-storage = { path = "../hkask-storage" }
-hkask-storage-core = { path = "../hkask-storage-core" }
-hkask-database = { path = "../hkask-database" }
 
 serde.workspace = true
 serde_json.workspace = true

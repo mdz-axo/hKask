@@ -922,8 +922,8 @@ pub async fn run(
                         .map_err(|e| anyhow::anyhow!("{e}"))?
                 };
                 let pool = db.sqlite_pool().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
-                let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
-                    Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+                let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
+                    Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool));
                 let store = HMemStore::from_driver(driver);
                 store
                     .driver()

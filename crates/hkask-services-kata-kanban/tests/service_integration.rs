@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod tests {
-    use hkask_database::sqlite::SqliteDriver;
+    use hkask_storage::database::sqlite::SqliteDriver;
     use hkask_ports::{
         ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
     };
@@ -18,7 +18,7 @@ mod tests {
 
     fn make_test_store() -> HMemStore {
         let pool = SqliteDriver::in_memory_pool().expect("in-memory pool");
-        let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
             Arc::new(SqliteDriver::new(pool));
         HMemStore::from_driver(driver)
     }

@@ -22,7 +22,7 @@ use hkask_mcp_training::adapter::{
 };
 use hkask_capability::auth::derive_signing_key;
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::ProviderId;
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;

@@ -29,6 +29,5 @@ minijinja.workspace = true
 hkask-pods = { path = "../hkask-pods" }
 
 [dev-dependencies]
-hkask-database = { path = "../hkask-database" }
 rusqlite = { workspace = true, features = ["bundled-sqlcipher"] }
 async-trait.workspace = true

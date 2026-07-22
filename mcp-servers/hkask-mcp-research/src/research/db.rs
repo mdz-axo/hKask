@@ -14,7 +14,7 @@ use hkask_types::time::now_rfc3339;
 /// for FTS synchronization.
 ///
 /// PRAGMA ordering invariant: `busy_timeout` MUST be set before
-/// `journal_mode = WAL`. See `hkask_database::init_wal_pragmas` for the
+/// `journal_mode = WAL`. See `hkask_storage::database::init_wal_pragmas` for the
 /// shared helper (not used here because this is a const DDL string, not
 /// a function call, and the PRAGMAs are embedded in the DDL).
 pub const RSS_SCHEMA_DDL: &str = "

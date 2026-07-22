@@ -118,7 +118,7 @@ fn build_wallet(
         Some(path)
     };
 
-    let wallet_driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+    let wallet_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
         if let Some(ref path) = wallet_db_path {
             let path_str = path.to_string_lossy().to_string();
             match hkask_storage::Database::open(&path_str, &config.db_passphrase) {
@@ -135,7 +135,7 @@ fn build_wallet(
                         source: None,
                         message: format!("wallet pool: {e}"),
                     })?;
-                    Arc::new(hkask_database::sqlite::SqliteDriver::new(pool))
+                    Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool))
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -150,7 +150,7 @@ fn build_wallet(
                         source: None,
                         message: format!("wallet pool: {e}"),
                     })?;
-                    Arc::new(hkask_database::sqlite::SqliteDriver::new(pool))
+                    Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool))
                 }
             }
         } else {
@@ -160,7 +160,7 @@ fn build_wallet(
                 source: None,
                 message: format!("wallet pool: {e}"),
             })?;
-            Arc::new(hkask_database::sqlite::SqliteDriver::new(pool))
+            Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool))
         };
     let wallet_store = Arc::new(WalletStore::from_driver(wallet_driver));
 

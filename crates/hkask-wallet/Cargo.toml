@@ -38,7 +38,6 @@ default = []
 hedera = ["dep:hiero-sdk-proto", "dep:tonic", "dep:prost"]
 
 [dev-dependencies]
-hkask-database = { path = "../hkask-database" }
 hkask-storage = { path = "../hkask-storage" }
 proptest = "1"
 hkask-test-harness = { path = "../hkask-test-harness" }

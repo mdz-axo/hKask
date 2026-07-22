@@ -403,7 +403,7 @@ mod tests {
             );
         }
 
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         store
             .driver()
@@ -537,7 +537,7 @@ mod tests {
             );
         }
 
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         store
             .driver()
@@ -668,7 +668,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         store
             .driver()
@@ -801,7 +801,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         store
             .driver()
@@ -915,7 +915,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         store
             .driver()
@@ -1062,7 +1062,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         store
             .driver()

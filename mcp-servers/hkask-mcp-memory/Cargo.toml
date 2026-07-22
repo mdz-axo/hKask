@@ -9,7 +9,6 @@ description = "Unified episodic + semantic memory MCP server with cloud backup"
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-storage = { path = "../../crates/hkask-storage" }
-hkask-database = { path = "../../crates/hkask-database" }
 hkask-memory = { path = "../../crates/hkask-memory" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 rusqlite.workspace = true
@@ -37,7 +36,6 @@ path = "src/main.rs"
 hkask-test-harness = { path = "../../crates/hkask-test-harness" }
 hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-memory = { path = "../../crates/hkask-memory" }
-hkask-database = { path = "../../crates/hkask-database" }
 proptest = "1"
 tempfile.workspace = true
 rusqlite.workspace = true

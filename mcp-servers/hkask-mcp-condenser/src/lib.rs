@@ -29,7 +29,7 @@ use hkask_condenser::inference;
 use hkask_condenser::inference::SUMMARY_SYSTEM_PROMPT;
 use hkask_condenser::saliency;
 use hkask_condenser::types::*;
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_memory::EpisodicMemory;
@@ -523,7 +523,7 @@ pub async fn run(
                             })?;
                             let pool =
                                 db.sqlite_pool().map_err(|e| anyhow::anyhow!("pool: {e}"))?;
-                            let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+                            let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
                                 Arc::new(SqliteDriver::new(pool));
 
                             // Episodic memory: first-person experience store.

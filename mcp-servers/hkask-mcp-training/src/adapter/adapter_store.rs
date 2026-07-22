@@ -7,9 +7,9 @@
 //! Adapter weights live on disk; only metadata is stored in SQLite.
 
 use crate::adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
-use hkask_storage_core::define_driver_store;
+use hkask_storage::database::driver::{query_map, query_row};
+use hkask_storage::database::value::DbValue;
+use hkask_storage::core::define_driver_store;
 use hkask_types::InfrastructureError;
 use hkask_types::NotFound;
 use hkask_types::id::WebID;
@@ -178,8 +178,8 @@ impl From<NotFound> for AdapterStoreError {
     }
 }
 
-impl From<hkask_database::types::DbError> for AdapterStoreError {
-    fn from(e: hkask_database::types::DbError) -> Self {
+impl From<hkask_storage::database::types::DbError> for AdapterStoreError {
+    fn from(e: hkask_storage::database::types::DbError) -> Self {
         AdapterStoreError::Database(e.to_string())
     }
 }
@@ -196,7 +196,7 @@ const ADAPTER_SELECT: &str = "SELECT adapter_id, expertise_name, expertise_domai
 
 impl AdapterStore {
     /// Initialize schema — called automatically by `from_driver()`.
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn hkask_storage::database::driver::DatabaseDriver>) {
         let _ = driver
             .execute_batch(
                 "CREATE TABLE IF NOT EXISTS trained_adapters (
@@ -313,8 +313,8 @@ impl AdapterStore {
 
     /// Helper: build an AdapterRow from a DbRow.
     fn row_to_adapter_row(
-        row: &hkask_database::value::DbRow,
-    ) -> Result<AdapterRow, hkask_database::types::DbError> {
+        row: &hkask_storage::database::value::DbRow,
+    ) -> Result<AdapterRow, hkask_storage::database::types::DbError> {
         Ok(AdapterRow {
             adapter_id: row.get_str(0)?.to_string(),
             expertise_name: row.get_str(1)?.to_string(),
@@ -371,7 +371,7 @@ impl AdapterStore {
             |row| {
                 let r = Self::row_to_adapter_row(row)?;
                 Self::row_to_adapter(r)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| hkask_storage::database::types::DbError::Database(e.to_string()))
             },
         )?;
         let result = rows.into_iter().next();
@@ -397,7 +397,7 @@ impl AdapterStore {
             |row| {
                 let r = Self::row_to_adapter_row(row)?;
                 Self::row_to_adapter(r)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| hkask_storage::database::types::DbError::Database(e.to_string()))
             },
         )?;
 
@@ -420,7 +420,7 @@ impl AdapterStore {
             |row| {
                 let r = Self::row_to_adapter_row(row)?;
                 Self::row_to_adapter(r)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| hkask_storage::database::types::DbError::Database(e.to_string()))
             },
         )?;
 
@@ -470,7 +470,7 @@ impl AdapterStore {
         let rows: Vec<TrainedLoRAAdapter> = query_map(&*self.driver, &sql, &[], |row| {
             let r = Self::row_to_adapter_row(row)?;
             Self::row_to_adapter(r)
-                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                .map_err(|e| hkask_storage::database::types::DbError::Database(e.to_string()))
         })?;
         Ok(rows)
     }
@@ -496,7 +496,7 @@ impl AdapterStore {
             |row| {
                 let r = Self::row_to_adapter_row(row)?;
                 Self::row_to_adapter(r)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| hkask_storage::database::types::DbError::Database(e.to_string()))
             },
         )?;
         Ok(rows.into_iter().next())
@@ -526,7 +526,7 @@ impl AdapterStore {
             |row| {
                 let r = Self::row_to_adapter_row(row)?;
                 Self::row_to_adapter(r)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| hkask_storage::database::types::DbError::Database(e.to_string()))
             },
         )?;
         Ok(rows.into_iter().next())
@@ -553,7 +553,7 @@ impl AdapterStore {
             &[DbValue::Text(adapter_id.to_string())],
             |row| {
                 row.get_blob(0)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| hkask_storage::database::types::DbError::Database(e.to_string()))
                     .map(|b| b.to_vec())
             },
         )?;
@@ -626,7 +626,7 @@ impl AdapterStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
+    use hkask_storage::database::sqlite::SqliteDriver;
     use std::sync::Arc;
 
     fn make_test_adapter() -> TrainedLoRAAdapter {

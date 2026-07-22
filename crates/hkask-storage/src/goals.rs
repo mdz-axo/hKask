@@ -2,9 +2,9 @@
 //! Long-term retention lives in agent memory (episodic/semantic).
 use crate::now_rfc3339;
 use chrono::Utc;
-use hkask_database::value::DbValue;
+use crate::database::value::DbValue;
 use hkask_goal::{Goal, GoalArtifact, GoalCriterion};
-use hkask_storage_core::impl_from_db_error;
+use crate::core::impl_from_db_error;
 use hkask_types::GoalID;
 use hkask_types::GoalState;
 use hkask_types::InfrastructureError;
@@ -47,14 +47,14 @@ pub struct QuarantinedGoal {
 }
 
 pub struct SqliteGoalRepository {
-    driver: std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>,
+    driver: std::sync::Arc<dyn crate::database::driver::DatabaseDriver>,
     /// Optional Regulation telemetry sink for observability.
     telemetry: Option<Arc<dyn RegulationSink>>,
 }
 
 impl SqliteGoalRepository {
     /// Create a new goal repository backed by the given driver.
-    pub fn from_driver(driver: std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) -> Self {
+    pub fn from_driver(driver: std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) -> Self {
         Self {
             driver,
             telemetry: None,
@@ -72,17 +72,17 @@ impl SqliteGoalRepository {
     }
 
     /// Access the underlying driver.
-    pub fn driver(&self) -> &Arc<dyn hkask_database::driver::DatabaseDriver> {
+    pub fn driver(&self) -> &Arc<dyn crate::database::driver::DatabaseDriver> {
         &self.driver
     }
 
-    fn quarantined_from_row(row: &hkask_database::value::DbRow) -> Result<QuarantinedGoal> {
+    fn quarantined_from_row(row: &crate::database::value::DbRow) -> Result<QuarantinedGoal> {
         Ok(QuarantinedGoal {
             id: row
                 .get(0)?
                 .as_text()?
                 .parse()
-                .map_err(|_| hkask_database::types::DbError::Database("invalid goal id".into()))?,
+                .map_err(|_| crate::database::types::DbError::Database("invalid goal id".into()))?,
             original_data: row.get(1)?.as_text()?.to_string(),
             quarantine_reason: row.get(2)?.as_text()?.to_string(),
             quarantined_at: chrono::DateTime::parse_from_rfc3339(row.get(3)?.as_text()?)
@@ -114,7 +114,7 @@ impl SqliteGoalRepository {
     /// expect: "The system provides durable storage for goal data"
     /// \[P3\] Motivating: Generative Space — parse Goal from DbRow
     /// post: returns Goal from row columns
-    pub fn goal_from_row(row: &hkask_database::value::DbRow) -> Result<Goal> {
+    pub fn goal_from_row(row: &crate::database::value::DbRow) -> Result<Goal> {
         let id: GoalID = row
             .get(0)?
             .as_text()?

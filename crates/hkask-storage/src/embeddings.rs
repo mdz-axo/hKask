@@ -15,8 +15,8 @@
 use hkask_types::InfrastructureError;
 use hkask_types::NotFound;
 
-impl From<hkask_database::types::DbError> for EmbeddingError {
-    fn from(e: hkask_database::types::DbError) -> Self {
+impl From<crate::database::types::DbError> for EmbeddingError {
+    fn from(e: crate::database::types::DbError) -> Self {
         // Preserve error kind via InfrastructureError::from(DbError)
         EmbeddingError::Infrastructure(InfrastructureError::from(e))
     }
@@ -101,7 +101,7 @@ impl VectorBackend {
 /// EmbeddingStore — vector embedding storage.
 pub struct EmbeddingStore {
     backend: VectorBackend,
-    driver: Arc<dyn hkask_database::driver::DatabaseDriver>,
+    driver: Arc<dyn crate::database::driver::DatabaseDriver>,
 }
 impl EmbeddingStore {
     /// Create from a DatabaseDriver.
@@ -110,18 +110,18 @@ impl EmbeddingStore {
     /// - SqliteDriver → SqliteVec (raw conn for sqlite-vec)
     /// - PostgresDriver → PgVector (driver-based pgvector)
     pub fn from_driver(
-        driver: Arc<dyn hkask_database::driver::DatabaseDriver>,
+        driver: Arc<dyn crate::database::driver::DatabaseDriver>,
         dim: usize,
     ) -> Self {
         let backend = match driver.provider() {
-            hkask_database::types::DbProvider::Sqlite => {
+            crate::database::types::DbProvider::Sqlite => {
                 let pool = driver
                     .sqlite_pool()
                     .cloned()
                     .expect("SqliteDriver must provide sqlite_pool()");
                 VectorBackend::SqliteVec { pool, dim }
             }
-            hkask_database::types::DbProvider::Postgres => {
+            crate::database::types::DbProvider::Postgres => {
                 let pool = driver
                     .postgres_pool()
                     .cloned()
@@ -142,7 +142,7 @@ impl EmbeddingStore {
     fn exec(
         &self,
         sql: &str,
-        params: &[hkask_database::value::DbValue],
+        params: &[crate::database::value::DbValue],
     ) -> Result<usize, EmbeddingError> {
         Ok(self.driver.execute(sql, params)?)
     }
@@ -151,8 +151,8 @@ impl EmbeddingStore {
     fn query_driver(
         &self,
         sql: &str,
-        params: &[hkask_database::value::DbValue],
-    ) -> Result<Vec<hkask_database::value::DbRow>, EmbeddingError> {
+        params: &[crate::database::value::DbValue],
+    ) -> Result<Vec<crate::database::value::DbRow>, EmbeddingError> {
         Ok(self.driver.query(sql, params)?)
     }
     /// Encode f32 vector as pgvector string literal: "[1.0,2.0,3.0]".
@@ -311,7 +311,7 @@ impl EmbeddingStore {
     /// post: returns Err(NotFound) if not found
     #[must_use = "result must be used"]
     pub fn get(&self, entity_ref: &str) -> Result<StoredEmbedding, EmbeddingError> {
-        use hkask_database::value::DbValue;
+        use crate::database::value::DbValue;
         let rows = self.query_driver(
             "SELECT id, entity_ref, vector, dimensions, model FROM embeddings WHERE entity_ref = ?",
             &[DbValue::Text(entity_ref.to_string())],
@@ -430,7 +430,7 @@ impl EmbeddingStore {
     /// pre:  entity_ref is non-empty
     /// post: embedding deleted if existed
     pub fn delete(&self, entity_ref: &str) -> Result<(), EmbeddingError> {
-        use hkask_database::value::DbValue;
+        use crate::database::value::DbValue;
         let rows = self.query_driver(
             "SELECT id FROM embeddings WHERE entity_ref = ?",
             &[DbValue::Text(entity_ref.to_string())],
@@ -675,8 +675,8 @@ impl hkask_ports::embedding_port::EmbeddingPort for EmbeddingStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
-    use hkask_storage_core::Database;
+    use crate::database::sqlite::SqliteDriver;
+    use crate::core::Database;
     use std::sync::Arc;
 
     /// Regression test for the self-deadlock in `delete`.

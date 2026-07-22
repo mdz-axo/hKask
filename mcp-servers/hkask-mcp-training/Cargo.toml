@@ -20,9 +20,7 @@ hkask-ports = { path = "../../crates/hkask-ports" }
 hkask-capability = { path = "../../crates/hkask-capability" }
 hkask-memory = { path = "../../crates/hkask-memory" }
 hkask-storage = { path = "../../crates/hkask-storage" }
-hkask-database = { path = "../../crates/hkask-database" }
 hkask-inference = { path = "../../crates/hkask-inference" }
-hkask-storage-core = { path = "../../crates/hkask-storage-core" }
 rusqlite.workspace = true
 r2d2.workspace = true
 r2d2_sqlite.workspace = true

@@ -18,7 +18,6 @@ hkask-mcp = { path = "../hkask-mcp" }
 hkask-git-cas = { path = "../hkask-git-cas" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-storage = { path = "../hkask-storage" }
-hkask-database = { path = "../hkask-database" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-types = { path = "../hkask-types" }
 hkask-capability = { path = "../hkask-capability" }

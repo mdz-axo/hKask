@@ -4,7 +4,7 @@
 //! at a point in time. This module manages the SQLite-backed transaction
 //! ledger — create, read, validate, import, export, notes, and file attachments.
 
-use hkask_database::driver::DatabaseDriver;
+use hkask_storage::database::driver::DatabaseDriver;
 use hkask_ledger::{Ledger, LedgerError, LedgerTransaction, Posting};
 use hkask_types::{WebID, agent_paths::sanitize_name, time::now_rfc3339};
 use rusqlite::{Connection, OptionalExtension, params};

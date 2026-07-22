@@ -110,7 +110,7 @@ fn request_types_have_schemas() {
 // hkask-mcp-filesystem.
 
 use hkask_adapter::AdapterStore;
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::InferenceConfig;
 use hkask_mcp_training::TrainingServer;
 use hkask_mcp_training::dataset::DatasetPipeline;
@@ -141,7 +141,7 @@ impl TrainingHost for MockTrainingHost {
 /// Construct a TrainingServer with a mock host and in-memory adapter store.
 fn test_server() -> TrainingServer {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory pool");
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     let adapter_store = Arc::new(AdapterStore::from_driver(driver));
     TrainingServer::new(
         WebID::new(),
@@ -402,9 +402,9 @@ fn get_previous_by_skill_name_returns_none_when_only_one_exists() {
     };
     use hkask_types::id::WebID;
 
-    let pool = hkask_database::sqlite::SqliteDriver::in_memory_pool().unwrap();
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
-        Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+    let pool = hkask_storage::database::sqlite::SqliteDriver::in_memory_pool().unwrap();
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
+        Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool));
     let store = AdapterStore::from_driver(driver);
 
     // Store one adapter with skill_name "test-skill"

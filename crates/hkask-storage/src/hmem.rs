@@ -2,7 +2,7 @@
 pub mod archive;
 
 use chrono::{DateTime, Utc};
-use hkask_database::value::{DbRow, DbValue};
+use crate::database::value::{DbRow, DbValue};
 use hkask_ports::git_cas::HMemEntry;
 use hkask_types::id::{HMemId, WebID};
 use hkask_types::time::now_rfc3339;
@@ -25,8 +25,8 @@ impl From<NotFound> for HMemError {
     }
 }
 
-impl From<hkask_database::types::DbError> for HMemError {
-    fn from(e: hkask_database::types::DbError) -> Self {
+impl From<crate::database::types::DbError> for HMemError {
+    fn from(e: crate::database::types::DbError) -> Self {
         HMemError::Infra(InfrastructureError::from(e))
     }
 }
@@ -133,13 +133,13 @@ impl HMem {
 /// HMem store — backed by a provider-agnostic DatabaseDriver.
 #[derive(Clone)]
 pub struct HMemStore {
-    driver: Arc<dyn hkask_database::driver::DatabaseDriver>,
-    encryptor: Option<Arc<hkask_database::encrypt::Encryptor>>,
+    driver: Arc<dyn crate::database::driver::DatabaseDriver>,
+    encryptor: Option<Arc<crate::database::encrypt::Encryptor>>,
 }
 
 impl HMemStore {
     /// Create from a DatabaseDriver — provider-agnostic constructor.
-    pub fn from_driver(driver: Arc<dyn hkask_database::driver::DatabaseDriver>) -> Self {
+    pub fn from_driver(driver: Arc<dyn crate::database::driver::DatabaseDriver>) -> Self {
         let store = Self {
             driver,
             encryptor: None,
@@ -170,13 +170,13 @@ impl HMemStore {
     /// Attach an encryptor for value encryption (passphrase-derived).
     pub fn with_passphrase(mut self, passphrase: &str) -> Self {
         self.encryptor = Some(Arc::new(
-            hkask_database::encrypt::Encryptor::from_passphrase(passphrase),
+            crate::database::encrypt::Encryptor::from_passphrase(passphrase),
         ));
         self
     }
 
     /// Access the underlying driver for bulk operations.
-    pub fn driver(&self) -> &Arc<dyn hkask_database::driver::DatabaseDriver> {
+    pub fn driver(&self) -> &Arc<dyn crate::database::driver::DatabaseDriver> {
         &self.driver
     }
 }
@@ -671,8 +671,8 @@ struct HMemRow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
-    use hkask_database::value::DbValue;
+    use crate::database::sqlite::SqliteDriver;
+    use crate::database::value::DbValue;
     fn make_store() -> HMemStore {
         let driver = SqliteDriver::in_memory_driver();
         let store = HMemStore::from_driver(driver);

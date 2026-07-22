@@ -6,7 +6,7 @@ license.workspace = true
 description = "Double-entry accounting ledger — immutable transactions for cost, crypto, and securities tracking"
 
 [dependencies]
-hkask-database = { path = "../hkask-database" }
+hkask-storage = { path = "../hkask-storage" }
 uuid.workspace = true
 chrono.workspace = true
 serde.workspace = true
@@ -15,6 +15,5 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-hkask-database = { path = "../hkask-database" }
 tempfile.workspace = true
 hkask-test-harness = { path = "../hkask-test-harness" }

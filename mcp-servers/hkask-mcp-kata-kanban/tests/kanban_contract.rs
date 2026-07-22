@@ -16,7 +16,7 @@ use rmcp::handler::server::wrapper::Parameters;
 use std::sync::Arc;
 
 fn setup() -> (KanbanService, WebID) {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = HMemStore::from_driver(driver);
     let service = KanbanService::new(store);
     (service, TestWebId::alice())
@@ -342,7 +342,7 @@ proptest! {
 
 /// Construct a KanbanServer backed by an in-memory database for testing.
 fn test_mcp_server() -> hkask_mcp_kata_kanban::KanbanServer {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = hkask_storage::HMemStore::from_driver(Arc::clone(&driver));
     let service = hkask_services_kata_kanban::KanbanService::new(store);
     hkask_mcp_kata_kanban::KanbanServer::new(

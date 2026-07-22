@@ -5,9 +5,9 @@
 //! - Shared data categories (require consent)
 //! - Public data categories (always accessible)
 //! - Affirmative consent requirements
-use hkask_database::driver::query_row;
-use hkask_database::value::DbValue;
-use hkask_storage_core::{define_driver_store, impl_from_db_error};
+use crate::database::driver::query_row;
+use crate::database::value::DbValue;
+use crate::core::{define_driver_store, impl_from_db_error};
 use hkask_types::InfrastructureError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -44,7 +44,7 @@ impl SovereigntyBoundaryStore {
     /// expect: "My user data and sovereignty boundaries are stored under my control"
     /// \[P1\] Motivating: User Sovereignty — schema for sovereignty boundaries
     /// post: sovereignty_boundaries table created if not exists
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
             "
             CREATE TABLE IF NOT EXISTS sovereignty_boundaries (
@@ -128,11 +128,11 @@ impl SovereigntyBoundaryStore {
                 let created_at: i64 = row.get_int(6)?;
                 let updated_at: i64 = row.get_int(7)?;
                 let sovereign_categories: Vec<String> = serde_json::from_str(&sovereign_json)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
                 let shared_categories: Vec<String> = serde_json::from_str(&shared_json)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
                 let public_categories: Vec<String> = serde_json::from_str(&public_json)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
                 Ok(SovereigntyBoundaryEntry {
                     id,
                     webid,

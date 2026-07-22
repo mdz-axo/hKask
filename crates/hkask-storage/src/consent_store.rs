@@ -2,9 +2,9 @@
 //!
 //! Persists consent records so they survive restarts, enforcing
 //! user sovereignty (Principle 1.3) in the headless system.
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
-use hkask_storage_core::{define_driver_store, impl_from_db_error};
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
+use crate::core::{define_driver_store, impl_from_db_error};
 use hkask_types::InfrastructureError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -34,7 +34,7 @@ impl ConsentStore {
     /// expect: "My consent records are stored with explicit affirmative consent"
     /// \[P2\] Motivating: Affirmative Consent — schema for consent records
     /// post: consent_records table created if not exists
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
             "CREATE TABLE IF NOT EXISTS consent_records (
                 id TEXT PRIMARY KEY,
@@ -122,8 +122,8 @@ impl ConsentStore {
 
     /// Parse a database row into a StoredConsentRecord.
     fn row_to_record(
-        row: &hkask_database::value::DbRow,
-    ) -> Result<StoredConsentRecord, hkask_database::types::DbError> {
+        row: &crate::database::value::DbRow,
+    ) -> Result<StoredConsentRecord, crate::database::types::DbError> {
         let id: String = row.get_str(0)?.to_string();
         let webid: String = row.get_str(1)?.to_string();
         let categories_json: String = row.get_str(2)?.to_string();
@@ -134,7 +134,7 @@ impl ConsentStore {
         };
         let active_int: i64 = row.get_int(5)?;
         let granted_categories: HashSet<String> = serde_json::from_str(&categories_json)
-            .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+            .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
         Ok(StoredConsentRecord {
             id,
             webid,

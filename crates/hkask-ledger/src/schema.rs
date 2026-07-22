@@ -1,7 +1,7 @@
 //! Ledger schema DDL — table creation and metadata initialization.
 
-use hkask_database::driver::DatabaseDriver;
-use hkask_database::value::DbValue;
+use hkask_storage::database::driver::DatabaseDriver;
+use hkask_storage::database::value::DbValue;
 
 /// The SQL DDL for ledger schema initialization.
 ///

@@ -37,7 +37,7 @@ fn gas_report_calibrates_dynamic_table_from_settled_events() {
     let agent = WebID::new();
     let server = "hkask-mcp-media";
 
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let event_store: Arc<RegulationArchive> = Arc::new(RegulationArchive::from_driver(driver));
 
     // Actual cost is double the reserved cost → ratio 2.0 → cost should double.
@@ -67,7 +67,7 @@ fn calibrated_table_flows_into_composite_estimator() {
     let agent = WebID::new();
     let server = "hkask-mcp-memory";
 
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let event_store: Arc<RegulationArchive> = Arc::new(RegulationArchive::from_driver(driver));
 
     // Actual is half of reserved → ratio 0.5 → cost should halve (5 → 2, floored at 1).

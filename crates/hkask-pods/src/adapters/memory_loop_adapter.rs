@@ -155,7 +155,7 @@ impl MemoryLoopForwarder {
     /// not two separate stores. Two bindings are required because each is moved
     /// into its respective memory constructor.
     pub fn from_driver(
-        driver: Arc<dyn hkask_database::driver::DatabaseDriver>,
+        driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver>,
     ) -> Result<Self, MemoryError> {
         let episodic_store = HMemStore::from_driver(Arc::clone(&driver));
         let episodic = Arc::new(EpisodicMemory::new(episodic_store));

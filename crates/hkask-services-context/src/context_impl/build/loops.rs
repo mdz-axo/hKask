@@ -1,7 +1,7 @@
 //! Loop wiring: cybernetics, inference, episodic, semantic, curation, snapshot, backup.
 
 use super::super::*;
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 
 use super::foundation::Foundation;
 use crate::reg_store_slo_provider::RegStoreSloProvider;
@@ -91,7 +91,7 @@ pub(super) async fn build_loops(
     };
 
     // Episodic + Semantic memory
-    let mem_driver: Arc<dyn hkask_database::driver::DatabaseDriver> = if config.in_memory {
+    let mem_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = if config.in_memory {
         let pool = f.db.sqlite_pool().map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,

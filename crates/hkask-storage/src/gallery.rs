@@ -9,9 +9,9 @@
 //! - `images`: path, hash, dimensions, gallery_id
 //! - `tags`: image_id, tag_type, value, confidence
 //! - `face_registry`: first_name, last_name, image_id, status, notes
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
-use hkask_storage_core::{define_driver_store, impl_from_db_error};
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
+use crate::core::{define_driver_store, impl_from_db_error};
 use hkask_types::InfrastructureError;
 use hkask_types::NotFound;
 use hkask_types::time::now_rfc3339;
@@ -130,7 +130,7 @@ impl GalleryStore {
     /// \[P3\] Motivating: Generative Space — schema for galleries, images, tags, faces
     /// pre:  conn is a valid SQLite connection
     /// post: gallery tables created if not exists
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
             "CREATE TABLE IF NOT EXISTS galleries (
                 id TEXT PRIMARY KEY,
@@ -682,8 +682,8 @@ impl GalleryStore {
     }
     // ── Row mappers ──
     fn image_from_row(
-        row: &hkask_database::value::DbRow,
-    ) -> Result<ImageRecord, hkask_database::types::DbError> {
+        row: &crate::database::value::DbRow,
+    ) -> Result<ImageRecord, crate::database::types::DbError> {
         Ok(ImageRecord {
             id: row.get_str(0)?.to_string(),
             gallery_id: row.get_str(1)?.to_string(),
@@ -698,8 +698,8 @@ impl GalleryStore {
         })
     }
     fn tag_from_row(
-        row: &hkask_database::value::DbRow,
-    ) -> Result<TagRecord, hkask_database::types::DbError> {
+        row: &crate::database::value::DbRow,
+    ) -> Result<TagRecord, crate::database::types::DbError> {
         Ok(TagRecord {
             id: row.get_str(0)?.to_string(),
             image_id: row.get_str(1)?.to_string(),
@@ -711,8 +711,8 @@ impl GalleryStore {
         })
     }
     fn face_from_row(
-        row: &hkask_database::value::DbRow,
-    ) -> Result<FaceRegistryRecord, hkask_database::types::DbError> {
+        row: &crate::database::value::DbRow,
+    ) -> Result<FaceRegistryRecord, crate::database::types::DbError> {
         Ok(FaceRegistryRecord {
             id: row.get_str(0)?.to_string(),
             first_name: row.get_str(1)?.to_string(),
@@ -732,7 +732,7 @@ impl GalleryStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
+    use crate::database::sqlite::SqliteDriver;
     use std::sync::Arc;
 
     fn setup() -> GalleryStore {

@@ -310,7 +310,7 @@ mod tests {
         let agent = WebID::new();
         let server = "hkask-mcp-media";
 
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let store: Arc<dyn LedgerStoragePort> =
             Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
@@ -338,7 +338,7 @@ mod tests {
     async fn calibrate_is_incremental() {
         let agent = WebID::new();
 
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let store: Arc<dyn LedgerStoragePort> =
             Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     fn with_initial_lookback_changes_first_window() {
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let store: Arc<dyn LedgerStoragePort> =
             Arc::clone(&event_store) as Arc<dyn LedgerStoragePort>;
@@ -397,7 +397,7 @@ mod tests {
         let agent = WebID::new();
         let server = "hkask-mcp-media";
 
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 
@@ -431,7 +431,7 @@ mod tests {
 
     #[tokio::test]
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 

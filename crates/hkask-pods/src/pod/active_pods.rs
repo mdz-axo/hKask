@@ -78,7 +78,7 @@ impl ActivePods {
         use crate::AllowAllConsent;
         use crate::a2a::A2ARuntime;
         use crate::pod::{PodFactory, system_capability_checker};
-        use hkask_database::types::DbProvider;
+        use hkask_storage::database::types::DbProvider;
 
         // A deterministic master key so token issuance and the capability checker
         // derive the SAME system OCAP key. SAFETY: test-only, single-threaded setup.

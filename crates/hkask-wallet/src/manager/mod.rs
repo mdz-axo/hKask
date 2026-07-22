@@ -422,7 +422,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         let mut chains: HashMap<ChainId, Arc<dyn ChainPort>> = HashMap::new();
         chains.insert(
@@ -709,7 +709,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         // Use a deterministic wallet ID so the monitor can find it.
         // WalletId::default() creates a random UUID each call — they won't match.
@@ -798,7 +798,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         let wallet_id = WalletId::from_name("multi_chain_wallet");
         store.ensure_wallet(wallet_id).unwrap();
@@ -1188,7 +1188,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(WalletStore::from_driver(driver));
         let wallet_id = WalletId::from_name("chain_test");
         store.ensure_wallet(wallet_id).unwrap();

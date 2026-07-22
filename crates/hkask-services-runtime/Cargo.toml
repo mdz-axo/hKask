@@ -17,7 +17,6 @@ hkask-inference = { path = "../hkask-inference" }
 hkask-ports = { path = "../hkask-ports" }
 hkask-regulation = { path = "../hkask-regulation" }
 hkask-ledger = { path = "../hkask-ledger" }
-hkask-database = { path = "../hkask-database" }
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true

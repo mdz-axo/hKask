@@ -6,7 +6,7 @@ use hkask_types::WebID;
 use hkask_types::id::BoardId;
 
 fn make_store() -> HMemStore {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = HMemStore::from_driver(driver);
     store
         .driver()

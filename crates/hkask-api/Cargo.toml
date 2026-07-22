@@ -48,5 +48,4 @@ subtle.workspace = true
 cookie = "0.18"
 
 [dev-dependencies]
-hkask-database = { path = "../hkask-database" }
 proptest = "1"

@@ -17,7 +17,7 @@
 
 #![allow(unused_crate_dependencies)]
 
-use hkask_database::sqlite::SqliteDriver;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_mcp::DaemonClient;
 use hkask_mcp::run_server;
 use hkask_mcp::server::{McpToolError, execute_tool};
@@ -243,7 +243,7 @@ fn open_regulation_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<R
             return None;
         }
     };
-    let driver: Arc<dyn hkask_database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
     Some(Arc::new(RegulationArchive::from_driver(driver)))
 }
 

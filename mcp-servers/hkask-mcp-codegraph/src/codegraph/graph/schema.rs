@@ -43,7 +43,7 @@ fn resolve_embedding_dim() -> usize {
 /// Idempotent — safe to call on an existing database.
 ///
 /// PRAGMA ordering invariant: `busy_timeout` MUST be set before
-/// `journal_mode = WAL`. See `hkask_database::init_wal_pragmas` for the
+/// `journal_mode = WAL`. See `hkask_storage::database::init_wal_pragmas` for the
 /// shared helper and rationale (this crate doesn't depend on
 /// `hkask-database` to stay lightweight).
 ///

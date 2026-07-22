@@ -1,6 +1,6 @@
 use super::WalletStore;
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
 use hkask_types::{ApiKeyId, InfrastructureError, WalletId};
 use hkask_wallet_types::{
     ChainId, PrivacyMode, RJoule, TransactionType, WalletError, WalletTransaction,
@@ -120,7 +120,7 @@ impl WalletStore {
                     created_at: row.get_str(11)?.to_string(),
                 };
                 row_to_wallet_transaction(r)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))
             },
         )?)
     }

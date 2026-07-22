@@ -15,8 +15,8 @@
 //! The existing `Checksum` (SHA-256) gives dedup for free.
 use super::HMemStore;
 use chrono::Utc;
-use hkask_database::types::DbError;
-use hkask_database::value::DbValue;
+use crate::database::types::DbError;
+use crate::database::value::DbValue;
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -58,7 +58,7 @@ pub struct BackupArchive {
 impl BackupArchive {
     /// Create a pool for the archive database, handling SQLCipher setup.
     fn open_pool(path: &str, passphrase: &str) -> Result<Pool, ArchiveError> {
-        let db = hkask_storage_core::database::Database::open(path, passphrase)
+        let db = crate::core::database::Database::open(path, passphrase)
             .map_err(|e| ArchiveError::Database(e.to_string()))?;
         db.sqlite_pool()
             .map_err(|e| ArchiveError::Database(e.to_string()))
@@ -322,7 +322,7 @@ struct HMemRow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
+    use crate::database::sqlite::SqliteDriver;
     use std::sync::Arc;
 
     fn temp_path(prefix: &str) -> PathBuf {
@@ -331,7 +331,7 @@ mod tests {
 
     fn setup_h_mem_store() -> (HMemStore, PathBuf, WebID) {
         let pool = SqliteDriver::in_memory_pool().expect("pool");
-        let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        let driver: Arc<dyn crate::database::driver::DatabaseDriver> =
             Arc::new(SqliteDriver::new(pool));
         let store = HMemStore::from_driver(driver);
         let webid = WebID::from_persona(b"test-archive-user");
@@ -422,7 +422,7 @@ mod tests {
 
         // Create a fresh empty target
         let pool = SqliteDriver::in_memory_pool().expect("pool");
-        let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        let driver: Arc<dyn crate::database::driver::DatabaseDriver> =
             Arc::new(SqliteDriver::new(pool));
         let target = HMemStore::from_driver(driver);
         let receipt = archive.restore_into(&target, &webid).expect("restore");
@@ -456,7 +456,7 @@ mod tests {
         let archive = BackupArchive::open(archive_path, "test-passphrase-123").expect("open");
 
         let pool = SqliteDriver::in_memory_pool().expect("pool");
-        let driver: Arc<dyn hkask_database::driver::DatabaseDriver> =
+        let driver: Arc<dyn crate::database::driver::DatabaseDriver> =
             Arc::new(SqliteDriver::new(pool));
         let target = HMemStore::from_driver(driver);
         archive

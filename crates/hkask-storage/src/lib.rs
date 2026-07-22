@@ -1,17 +1,28 @@
 //! hKask Storage — SQLite + SQLCipher storage backend
 //!
-//! Foundation types (`Database`, `Store`, lock helpers) are re-exported
-//! from `hkask-storage-core`. Domain-specific storage modules live here
-//! or in sub-crates behind this facade.
+//! Consolidated from hkask-storage + hkask-database + hkask-storage-core.
+//! Database driver abstraction and storage core foundation are now modules
+//! within this crate. Domain-specific storage modules follow.
 
-// ── Re-export foundation from hkask-storage-core ─────────────────────
+// ── Core modules (must precede domain modules for macro_use) ─────────
 
-pub use hkask_storage_core::database::{Database, DatabaseError};
+pub mod core;
+pub mod database;
 
-pub use hkask_storage_core::{
+// ── Re-export foundation from core ───────────────────────────────────
+
+pub use core::database::{Database, DatabaseError};
+pub use core::{
     check_passphrase, define_driver_store, impl_from_db_error, open_database, open_or_repair,
     sanitize_path,
 };
+
+// ── Re-export database driver types ──────────────────────────────────
+
+pub use database::{
+    DatabaseDriver, DbProvider, PostgresDriver, SqliteDriver, WAL_PRAGMA_BATCH, init_wal_pragmas,
+};
+
 pub use hkask_types::time::now_rfc3339;
 
 // ── Domain storage modules ───────────────────────────────────────────

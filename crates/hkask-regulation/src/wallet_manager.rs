@@ -165,7 +165,7 @@ impl WalletManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
+    use hkask_storage::database::sqlite::SqliteDriver;
     use std::sync::Arc;
 
     fn make_manager() -> WalletManager {

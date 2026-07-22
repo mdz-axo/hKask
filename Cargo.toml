@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     # Core crates
-    "crates/hkask-database",
+
     "crates/hkask-services-core",
     "crates/hkask-services-self-heal",
     "crates/hkask-goal",
@@ -29,7 +29,7 @@ members = [
     "crates/hkask-wallet-types",
     "crates/hkask-inference",
     "crates/hkask-guard",
-    "crates/hkask-storage-core",
+
     "crates/hkask-storage",
     "crates/hkask-memory",
     "crates/hkask-regulation",

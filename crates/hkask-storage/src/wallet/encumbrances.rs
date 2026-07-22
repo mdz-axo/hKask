@@ -1,6 +1,6 @@
 use super::WalletStore;
-use hkask_database::driver::query_row;
-use hkask_database::value::DbValue;
+use crate::database::driver::query_row;
+use crate::database::value::DbValue;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{ApiKeyId, InfrastructureError, WalletId};
 use hkask_wallet_types::{Encumbrance, EncumbranceStatus, RJoule, WalletError};
@@ -169,7 +169,7 @@ impl WalletStore {
     }
 
     fn diagnose_consume_failure(
-        driver: &dyn hkask_database::driver::DatabaseDriver,
+        driver: &dyn crate::database::driver::DatabaseDriver,
         key_id: ApiKeyId,
         cost_rj: RJoule,
     ) -> Result<(), WalletError> {

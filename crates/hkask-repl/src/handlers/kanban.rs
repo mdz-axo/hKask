@@ -1,7 +1,7 @@
 //! REPL handler for `/kanban` slash commands.
 
 use crate::ReplState;
-use hkask_database::driver::DatabaseDriver;
+use hkask_storage::database::driver::DatabaseDriver;
 use hkask_services_kata_kanban::{
     ColumnDef, KanbanService, SpawnSpec, TaskFilter, TaskSpec, TaskStatus, socratic,
 };
@@ -1056,8 +1056,8 @@ fn kanban_service(state: &mut ReplState) -> KanbanService {
         .kanban_service
         .get_or_insert_with(|| {
             let pool =
-                hkask_database::sqlite::SqliteDriver::in_memory_pool().expect("in-memory pool");
-            let driver = Arc::new(hkask_database::sqlite::SqliteDriver::new(pool));
+                hkask_storage::database::sqlite::SqliteDriver::in_memory_pool().expect("in-memory pool");
+            let driver = Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool));
             driver
                 .execute_batch(
                     "CREATE TABLE IF NOT EXISTS h_mems (

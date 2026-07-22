@@ -8,7 +8,7 @@
 //! secrets, or explicit parameters, then pass it to `AgentService::build()`.
 
 use crate::error::{DomainKind, ErrorKind, ServiceError};
-use hkask_database::types::DbProvider;
+use hkask_storage::database::types::DbProvider;
 use hkask_inference::InferenceConfig;
 use hkask_wallet_types::WalletConfig;
 

@@ -1,9 +1,9 @@
 //! RegulationArchive — Persistent storage for Regulation regulation records
 
 use crate::now_rfc3339;
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
-use hkask_storage_core::define_driver_store;
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
+use crate::core::define_driver_store;
 use hkask_types::event::{CyclePhase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, RegulationRecord, RegulationSink};
@@ -75,7 +75,7 @@ impl RegulationArchive {
     /// expect: "The system provides durable storage for event data"
     /// \[P3\] Motivating: Generative Space — reg_records schema
     /// post: reg_records and reg_cursors tables exist
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
             "CREATE TABLE IF NOT EXISTS reg_records (
                 id TEXT PRIMARY KEY,
@@ -330,11 +330,11 @@ impl RegulationArchive {
         query_map(&*self.driver, sql, &params, |row| {
             let cat: String = row
                 .get_str(0)
-                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?
+                .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?
                 .to_string();
             let cnt: i64 = row
                 .get_int(1)
-                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+                .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
             Ok((cat, cnt as u64))
         })
         .map_err(|e| InfrastructureError::database(e.to_string()))
@@ -382,13 +382,13 @@ impl RegulationArchive {
 }
 
 /// Small helper to map string errors to DbError.
-fn db_error(e: String) -> hkask_database::types::DbError {
-    hkask_database::types::DbError::Database(e)
+fn db_error(e: String) -> crate::database::types::DbError {
+    crate::database::types::DbError::Database(e)
 }
 
 /// Reconstruct a RegulationRecord from a database row.
 fn row_to_regulation_record(
-    row: &hkask_database::value::DbRow,
+    row: &crate::database::value::DbRow,
 ) -> anyhow::Result<RegulationRecord> {
     let id: String = row
         .get_str(0)
@@ -596,7 +596,7 @@ mod tests {
     #[test]
     fn persist_if_absent_accepts_a_regulation_record_only_once() {
         use crate::RegulationArchive;
-        use hkask_database::sqlite::SqliteDriver;
+        use crate::database::sqlite::SqliteDriver;
         use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink};
         use hkask_types::id::WebID;
         use std::sync::Arc;
@@ -659,8 +659,8 @@ mod tests {
     #[test]
     fn replay_weighted_clamps_future_timestamps() {
         use crate::{DecayConfig, RegulationArchive};
-        use hkask_database::driver::DatabaseDriver;
-        use hkask_database::sqlite::SqliteDriver;
+        use crate::database::driver::DatabaseDriver;
+        use crate::database::sqlite::SqliteDriver;
         use std::sync::Arc;
 
         let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");

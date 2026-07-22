@@ -2,11 +2,11 @@
 use crate::Database;
 use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
 use base64::Engine;
-use hkask_database::SqliteDriver;
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
+use crate::database::SqliteDriver;
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
 use hkask_identity::{HumanUser, Invite, InviteStatus, RegistrationRequest, UserPod, UserSession};
-use hkask_storage_core::{define_driver_store, impl_from_db_error};
+use crate::core::{define_driver_store, impl_from_db_error};
 use hkask_types::id::{WalletId, WebID};
 use hkask_types::identity::Role;
 use hkask_types::{InfrastructureError, NotFound, UserID};
@@ -54,19 +54,19 @@ pub type UserResult<T> = std::result::Result<T, UserStoreError>;
 define_driver_store!(UserStore);
 
 fn userpod_from_row(
-    row: &hkask_database::value::DbRow,
-) -> Result<UserPod, hkask_database::types::DbError> {
+    row: &crate::database::value::DbRow,
+) -> Result<UserPod, crate::database::types::DbError> {
     Ok(UserPod {
         userpod_name: row.get_str(0)?.to_string(),
         user_id: UserID::from_str(row.get_str(1)?)
-            .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+            .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
         webid: WebID::from_str(row.get_str(2)?)
-            .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+            .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
         wallet_id: match row.get(3)? {
             DbValue::Null => None,
             v => Some(
                 WalletId::from_str(v.as_text()?)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
             ),
         },
         first_name_enc: row.get_blob(4)?.to_vec(),
@@ -87,15 +87,15 @@ fn userpod_from_row(
 }
 
 fn session_from_row(
-    row: &hkask_database::value::DbRow,
-) -> Result<UserSession, hkask_database::types::DbError> {
+    row: &crate::database::value::DbRow,
+) -> Result<UserSession, crate::database::types::DbError> {
     Ok(UserSession {
         session_id: row.get_str(0)?.to_string(),
         userpod_name: row.get_str(1)?.to_string(),
         webid: WebID::from_str(row.get_str(2)?)
-            .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+            .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
         user_id: UserID::from_str(row.get_str(3)?)
-            .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+            .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
         session_key_salt: row.get_str(4)?.to_string(),
         expires_at: row.get_int(5)?,
         last_active: row.get_int(6)?,
@@ -108,7 +108,7 @@ impl UserStore {
     /// expect: "My user data and sovereignty boundaries are stored under my control"
     /// \[P1\] Motivating: User Sovereignty — schema for users, userpods, sessions
     /// post: users, userpods, sessions tables created if not exists
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(include_str!("sql/users.sql"));
     }
 
@@ -165,7 +165,7 @@ impl UserStore {
                     |row| row.get(0),
                 )
                 .optional()
-                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+                .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
             if existing.is_some() {
                 return Err(UserStoreError::UserPodNameTaken(userpod_name.clone()));
             }
@@ -263,7 +263,7 @@ impl UserStore {
                         |row| row.get(0),
                     )
                     .optional()
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?;
                 if exists.is_none() {
                     break;
                 }
@@ -563,7 +563,7 @@ impl UserStore {
             &[DbValue::Text(session_id.to_string())],
             |row| {
                 session_from_row(row)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))
             },
         )
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
@@ -585,7 +585,7 @@ impl UserStore {
             &[DbValue::Text(userpod_name.to_string())],
             |row| {
                 session_from_row(row)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))
             },
         )
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
@@ -606,7 +606,7 @@ impl UserStore {
             &[DbValue::Text(userpod_name.to_string())],
             |row| {
                 userpod_from_row(row)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))
             },
         )
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
@@ -702,7 +702,7 @@ impl UserStore {
             |row| {
                 Ok(Invite {
                     invite_id: row.get_str(0)?.to_string(),
-                    created_by: UserID::from_str(row.get_str(1)?).map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+                    created_by: UserID::from_str(row.get_str(1)?).map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
                     code: row.get_str(2)?.to_string(),
                     status: row.get_str(3)?.parse().unwrap_or(InviteStatus::Pending),
                     created_at: row.get_int(4)?,
@@ -710,7 +710,7 @@ impl UserStore {
                     accepted_at: match row.get(6)? { DbValue::Null => None, v => Some(v.as_int()?) },
                     accepted_user_id: match row.get(7)? {
                         DbValue::Null => None,
-                        v => Some(UserID::from_str(v.as_text()?).map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?),
+                        v => Some(UserID::from_str(v.as_text()?).map_err(|e| crate::database::types::DbError::Database(e.to_string()))?),
                     },
                 })
             },
@@ -787,7 +787,7 @@ impl UserStore {
             |row| {
                 Ok(Invite {
                     invite_id: row.get_str(0)?.to_string(),
-                    created_by: UserID::from_str(row.get_str(1)?).map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+                    created_by: UserID::from_str(row.get_str(1)?).map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
                     code: row.get_str(2)?.to_string(),
                     status: row.get_str(3)?.parse().unwrap_or(InviteStatus::Pending),
                     created_at: row.get_int(4)?,
@@ -795,7 +795,7 @@ impl UserStore {
                     accepted_at: match row.get(6)? { DbValue::Null => None, v => Some(v.as_int()?) },
                     accepted_user_id: match row.get(7)? {
                         DbValue::Null => None,
-                        v => Some(UserID::from_str(v.as_text()?).map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?),
+                        v => Some(UserID::from_str(v.as_text()?).map_err(|e| crate::database::types::DbError::Database(e.to_string()))?),
                     },
                 })
             },
@@ -817,8 +817,8 @@ impl UserStore {
                 Ok(UserSession {
                     session_id: row.get_str(0)?.to_string(),
                     userpod_name: row.get_str(1)?.to_string(),
-                    webid: WebID::from_str(row.get_str(2)?).map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
-                    user_id: UserID::from_str(row.get_str(3)?).map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+                    webid: WebID::from_str(row.get_str(2)?).map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
+                    user_id: UserID::from_str(row.get_str(3)?).map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
                     session_key_salt: row.get_str(4)?.to_string(),
                     expires_at: row.get_int(5)?,
                     last_active: row.get_int(6)?,
@@ -866,7 +866,7 @@ impl UserStore {
             |row| {
                 Ok((
                     UserID::from_str(row.get_str(0)?)
-                        .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?,
+                        .map_err(|e| crate::database::types::DbError::Database(e.to_string()))?,
                     row.get_str(1)?.to_string(),
                     match row.get(2)? {
                         DbValue::Null => "Unknown".to_string(),
@@ -896,7 +896,7 @@ impl UserStore {
             &[DbValue::Text(user_id.to_string())],
             |row| {
                 userpod_from_row(row)
-                    .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                    .map_err(|e| crate::database::types::DbError::Database(e.to_string()))
             },
         )
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
@@ -914,7 +914,7 @@ impl UserStore {
             format!("SELECT {USERPOD_COLUMNS} FROM userpod_identities ORDER BY created_at ASC");
         query_map(&*self.driver, &sql, &[], |row| {
             userpod_from_row(row)
-                .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))
+                .map_err(|e| crate::database::types::DbError::Database(e.to_string()))
         })
         .map_err(|e| UserStoreError::Infra(InfrastructureError::database(e.to_string())))
     }

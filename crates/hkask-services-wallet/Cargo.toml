@@ -25,4 +25,3 @@ thiserror.workspace = true
 async-trait.workspace = true
 
 [dev-dependencies]
-hkask-database = { path = "../hkask-database" }

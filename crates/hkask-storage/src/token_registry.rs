@@ -10,9 +10,9 @@
 use hkask_capability::{
     DelegationAction, DelegationResource, DelegationToken, TokenRegistry, TokenRegistryError,
 };
-use hkask_database::driver::{query_map, query_row};
-use hkask_database::value::DbValue;
-use hkask_storage_core::define_driver_store;
+use crate::database::driver::{query_map, query_row};
+use crate::database::value::DbValue;
+use crate::core::define_driver_store;
 use hkask_types::WebID;
 
 define_driver_store!(TokenRegistryStore);
@@ -23,7 +23,7 @@ impl TokenRegistryStore {
     /// expect: "Token issuance is persisted for consent audit"
     /// `[P2]` Motivating: Affirmative Consent — audit trail for delegation tokens
     /// post: delegation_tokens table created if not exists
-    fn init_schema(driver: &std::sync::Arc<dyn hkask_database::driver::DatabaseDriver>) {
+    fn init_schema(driver: &std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) {
         let _ = driver.execute_batch(
                 "CREATE TABLE IF NOT EXISTS delegation_tokens (
                 id TEXT PRIMARY KEY,
@@ -49,8 +49,8 @@ impl TokenRegistryStore {
     }
 
     fn row_to_token(
-        row: &hkask_database::value::DbRow,
-    ) -> Result<DelegationToken, hkask_database::types::DbError> {
+        row: &crate::database::value::DbRow,
+    ) -> Result<DelegationToken, crate::database::types::DbError> {
         let id: String = row.get_str_named("id")?.to_string();
         let resource_str: String = row.get_str_named("resource")?.to_string();
         let resource_id: String = row.get_str_named("resource_id")?.to_string();
@@ -73,20 +73,20 @@ impl TokenRegistryStore {
             "registry" | "memory" => DelegationResource::Registry,
             "key" => DelegationResource::Key,
             other => DelegationResource::parse_str(other).ok_or_else(|| {
-                hkask_database::types::DbError::Database(format!(
+                crate::database::types::DbError::Database(format!(
                     "unknown delegation resource: {other}"
                 ))
             })?,
         };
         let action = DelegationAction::parse_str(&action_str).ok_or_else(|| {
-            hkask_database::types::DbError::Database(format!(
+            crate::database::types::DbError::Database(format!(
                 "unknown delegation action: {action_str}"
             ))
         })?;
 
         let signature = {
             let bytes = hex::decode(&sig_hex).map_err(|e| {
-                hkask_database::types::DbError::Database(format!("invalid signature hex: {e}"))
+                crate::database::types::DbError::Database(format!("invalid signature hex: {e}"))
             })?;
             let mut arr = [0u8; 64];
             let len = bytes.len().min(64);
@@ -95,7 +95,7 @@ impl TokenRegistryStore {
         };
         let public_key = {
             let bytes = hex::decode(&pk_hex).map_err(|e| {
-                hkask_database::types::DbError::Database(format!("invalid public key hex: {e}"))
+                crate::database::types::DbError::Database(format!("invalid public key hex: {e}"))
             })?;
             let mut arr = [0u8; 32];
             let len = bytes.len().min(32);
@@ -104,12 +104,12 @@ impl TokenRegistryStore {
         };
 
         let from_wid: WebID = from_str.parse().map_err(|e| {
-            hkask_database::types::DbError::Database(format!(
+            crate::database::types::DbError::Database(format!(
                 "invalid delegated_from WebID '{from_str}': {e}"
             ))
         })?;
         let to_wid: WebID = to_str.parse().map_err(|e| {
-            hkask_database::types::DbError::Database(format!(
+            crate::database::types::DbError::Database(format!(
                 "invalid delegated_to WebID '{to_str}': {e}"
             ))
         })?;
@@ -255,7 +255,7 @@ mod tests {
     use hkask_capability::DelegationAction;
     use hkask_capability::DelegationResource;
     use hkask_capability::token_types::TokenSignature;
-    use hkask_database::sqlite::SqliteDriver;
+    use crate::database::sqlite::SqliteDriver;
     use hkask_types::WebID;
     use std::sync::Arc;
 

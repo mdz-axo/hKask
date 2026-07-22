@@ -25,8 +25,8 @@ pub use error::{MediaError, map_media_error};
 
 use gallery::GalleryState;
 use gallery::vision::{self};
-use hkask_database::sqlite::SqliteDriver;
-use hkask_database::value::DbValue;
+use hkask_storage::database::sqlite::SqliteDriver;
+use hkask_storage::database::value::DbValue;
 use hkask_inference::InferenceRouter;
 use hkask_mcp::DaemonClient;
 use hkask_mcp::server::{McpToolError, execute_tool, validate_tool_url};
@@ -1437,7 +1437,7 @@ mod integration_tests {
 
     fn setup_store() -> (Arc<GalleryStore>, TempDir) {
         let temp = TempDir::new().expect("tempdir");
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(GalleryStore::from_driver(driver));
         (store, temp)
     }

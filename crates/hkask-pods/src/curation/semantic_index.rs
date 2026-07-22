@@ -90,7 +90,7 @@ impl SemanticIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_database::sqlite::SqliteDriver;
+    use hkask_storage::database::sqlite::SqliteDriver;
     use hkask_types::{Visibility, WebID};
 
     fn make_store() -> HMemStore {

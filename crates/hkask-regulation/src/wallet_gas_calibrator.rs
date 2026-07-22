@@ -279,7 +279,7 @@ mod tests {
                 "xXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxX",
             );
         }
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let store = Arc::new(hkask_storage::WalletStore::from_driver(driver));
         let manager = WalletManager::build(
             hkask_wallet::WalletConfig::default(),
@@ -313,7 +313,7 @@ mod tests {
         let wallet_manager = make_wallet_manager();
         assert_eq!(wallet_manager.gas_per_rjoule(), GAS_PER_RJOULE);
 
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         event_store
             .persist(&settled_event(agent, 100, 200))
@@ -336,7 +336,7 @@ mod tests {
         let agent = WebID::new();
         let wallet_manager = make_wallet_manager();
 
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
         event_store
@@ -369,7 +369,7 @@ mod tests {
     #[tokio::test]
     async fn calibrate_does_not_emit_span_when_not_adjusted() {
         let wallet_manager = make_wallet_manager();
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
         let sink = Arc::new(CaptureSink::new());
 
@@ -390,7 +390,7 @@ mod tests {
     #[tokio::test]
     async fn calibrate_no_events_leaves_rate_unchanged() {
         let wallet_manager = make_wallet_manager();
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
 
         let store: Arc<dyn LedgerStoragePort> =
@@ -404,7 +404,7 @@ mod tests {
     #[test]
     fn with_initial_lookback_changes_first_window() {
         let wallet_manager = make_wallet_manager();
-        let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+        let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
         let event_store = Arc::new(RegulationArchive::from_driver(driver));
 
         let store: Arc<dyn LedgerStoragePort> =

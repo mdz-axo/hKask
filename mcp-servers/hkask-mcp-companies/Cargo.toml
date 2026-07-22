@@ -14,6 +14,7 @@ name = "hkask-mcp-companies"
 path = "src/main.rs"
 
 [dependencies]
+hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
@@ -33,7 +34,6 @@ base64.workspace = true
 regex.workspace = true
 dirs = "6"
 hkask-ledger = { path = "../../crates/hkask-ledger" }
-hkask-database = { path = "../../crates/hkask-database" }
 hkask-forecast = { path = "../../crates/hkask-forecast" }
 thiserror.workspace = true
 
