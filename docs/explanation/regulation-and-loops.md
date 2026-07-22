@@ -705,7 +705,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 This class diagram maps the internal structure of `hkask-regulation` after the StorageGuard extraction and WalletBudgetPort introduction. The Regulation crate previously conflated seven distinct responsibilities; two have been addressed:
 
-- **StorageGuard** — extracted to `hkask-storage-guard` crate (2026-07-11)
+- **StorageGuard** — extracted to `hkask-services-context::storage_guard` module (2026-07-11)
 - **Wallet coupling** — resolved via `WalletBudgetPort` trait in `hkask-ports` (2026-07-11). Regulation no longer depends on `hkask-wallet`; it depends on the abstract port.
 
 Remaining responsibility clusters still in Regulation:
@@ -849,8 +849,8 @@ classDiagram
         +enforce_limits()
     }
 
-    %% StorageGuard — extracted to hkask-storage-guard
-    StorageGuardLoop ..> RegulationLoop : implements (in hkask-storage-guard)
+    %% StorageGuard — merged into hkask-services-context::storage_guard
+    StorageGuardLoop ..> RegulationLoop : implements (in hkask-services-context::storage_guard)
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-006
@@ -866,7 +866,7 @@ status: VERIFIED
 | `CyberneticsLoop → WalletBudgetPort` | Port trait (hexagonal) | ✅ Resolved — Regulation depends on abstract port, not concrete `WalletManager` |
 | `WalletBackedBudget → WalletBudgetPort` | Port trait | ✅ Resolved — uses `Arc<dyn WalletBudgetPort>` |
 | `WalletGasCalibrator → WalletBudgetPort` | Port trait | ✅ Resolved — uses `Arc<dyn WalletBudgetPort>` |
-| `StorageGuardLoop` | Extracted | ✅ Resolved — now in `hkask-storage-guard` crate |
+| `StorageGuardLoop` | Extracted | ✅ Resolved — now in `hkask-services-context::storage_guard` module |
 | `SeamWatcher` in Regulation | Wrong crate | ⬜ Candidate for extraction — seam observability is not regulation |
 | `SloManager` in Regulation | Wrong crate | ⬜ Candidate for extraction — SLO evaluation is independent of the cybernetic loop |
 
@@ -874,7 +874,7 @@ status: VERIFIED
 
 | Step | Extract | Target Crate | Status |
 |------|---------|-------------|--------|
-| 2a | `StorageGuardLoop` + `StorageGuardConfig` | `hkask-storage-guard` | ✅ Done 2026-07-11 |
+| 2a | `StorageGuardLoop` + `StorageGuardConfig` | `hkask-services-context::storage_guard` | ✅ Done 2026-07-11 |
 | — | `WalletBudgetPort` trait | `hkask-ports` | ✅ Done 2026-07-11 |
 
 ## Remaining Extraction Candidates
@@ -990,7 +990,7 @@ status: VERIFIED
 | GovernedTool membrane | `crates/hkask-regulation/src/governed_tool.rs` |
 | SloManager::evaluate | `crates/hkask-regulation/src/slo_manager.rs` |
 | SeamWatcher | `crates/hkask-regulation/src/seam_watcher.rs` |
-| StorageGuardLoop | `crates/hkask-storage-guard/src/lib.rs` |
+| StorageGuardLoop | `crates/hkask-services-context/src/storage_guard.rs` |
 | SetPoints | `crates/hkask-regulation/src/set_points.rs` |
 | SetPointCalibrator | `crates/hkask-regulation/src/set_point_calibrator.rs` |
 | ObservableSpan trait | `crates/hkask-types/src/observable_span.rs` |

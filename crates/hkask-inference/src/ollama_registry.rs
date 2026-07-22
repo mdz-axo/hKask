@@ -88,8 +88,8 @@ pub struct ModelfileSpec {
 
 /// Minimal view of a trained LoRA adapter for local registration.
 ///
-/// Lives in `hkask-inference` (not `hkask-adapter`) to keep the dependency
-/// direction one-way (`hkask-adapter → hkask-inference`). The adapter layer
+/// Lives in `hkask-inference` (not the adapter module in `hkask-mcp-training`) to keep the dependency
+/// direction one-way (`hkask-mcp-training::adapter → hkask-inference`). The adapter layer
 /// constructs this from `TrainedLoRAAdapter` in one line — this is the seam
 /// that closes the orphan edge between `AdapterStore` and `OllamaRegistry`
 /// without a cycle.

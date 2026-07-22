@@ -265,7 +265,7 @@ An adapter moves through five macro-stages:
 
 #### AdapterStore CRUD
 
-The `AdapterStore` (in `crates/hkask-adapter/src/adapter_store.rs`) is a SQLite-backed persistence layer for trained adapters. It follows the `hkask-storage` `define_store!` pattern — auto-migrated schema, content-addressed storage, owner-scoped access.
+The `AdapterStore` (in `mcp-servers/hkask-mcp-training/src/adapter/adapter_store.rs`) is a SQLite-backed persistence layer for trained adapters. It follows the `hkask-storage` `define_store!` pattern — auto-migrated schema, content-addressed storage, owner-scoped access.
 
 The `TrainedLoRAAdapter` type carries: `id` (Uuid), `owner` (WebID), `expertise` (Expertise), `base_model_family` (String), `source` (AdapterSource), `checksum` (Checksum — SHA-256 of adapter weights), `storage_path` (String), `version` (Option<String>), `size_bytes` (Option<u64>), `skill_name` (Option<String>), `lifecycle` (AdapterLifecycle: Durable | Ephemeral), `created_at` (ISO 8601 timestamp).
 
@@ -275,7 +275,7 @@ Error variants: `NotFound`, `ExpertiseNotFound`, `ChecksumMismatch`, `Database`,
 
 #### AdapterRouter — Composition and Routing
 
-The `AdapterRouter` (in `crates/hkask-adapter/src/adapter_router/mod.rs`) composes adapters with base models via cloud inference providers. It implements the `AdapterPort` trait — the 6-method, OCAP-gated boundary for all adapter lifecycle operations:
+The `AdapterRouter` (in `mcp-servers/hkask-mcp-training/src/adapter/adapter_router/mod.rs`) composes adapters with base models via cloud inference providers. It implements the `AdapterPort` trait — the 6-method, OCAP-gated boundary for all adapter lifecycle operations:
 
 | Method | Capability Required | Purpose |
 |--------|-------------------|---------|
@@ -329,7 +329,7 @@ The guard's `Drop` implementation calls `teardown_endpoint()` automatically — 
 
 #### EndpointLifecycle — 5-Phase State Machine
 
-Every inference endpoint is governed by a validated state machine (`crates/hkask-adapter/src/endpoint_lifecycle.rs`):
+Every inference endpoint is governed by a validated state machine (`mcp-servers/hkask-mcp-training/src/adapter/endpoint_lifecycle.rs`):
 
 | From | To | Allowed? | Regulation Span |
 |------|----|----------|----------|
@@ -428,8 +428,8 @@ The P2 (Affirmative Consent) enforcement on provider selection is noteworthy —
 - `crates/hkask-database/src/sqlite.rs` — SqliteDriver
 - `crates/hkask-database/src/postgres.rs` — PostgresDriver
 - `crates/hkask-database/src/encrypt.rs` — Column-level AES-256-GCM encryption
-- `crates/hkask-adapter/src/adapter_store.rs` — AdapterStore + TrainedLoRAAdapter
-- `crates/hkask-adapter/src/adapter_router/mod.rs` — AdapterRouter + EndpointGuard
-- `crates/hkask-adapter/src/adapter_port.rs` — AdapterPort trait (6 OCAP-gated methods)
-- `crates/hkask-adapter/src/endpoint_lifecycle.rs` — 5-phase state machine
-- `crates/hkask-adapter/src/provider_cost.rs` — CostModel + ProviderCapability
+- `mcp-servers/hkask-mcp-training/src/adapter/adapter_store.rs` — AdapterStore + TrainedLoRAAdapter
+- `mcp-servers/hkask-mcp-training/src/adapter/adapter_router/mod.rs` — AdapterRouter + EndpointGuard
+- `mcp-servers/hkask-mcp-training/src/adapter/adapter_port.rs` — AdapterPort trait (6 OCAP-gated methods)
+- `mcp-servers/hkask-mcp-training/src/adapter/endpoint_lifecycle.rs` — 5-phase state machine
+- `mcp-servers/hkask-mcp-training/src/adapter/provider_cost.rs` — CostModel + ProviderCapability

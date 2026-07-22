@@ -47,7 +47,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TUI-005
 verified_date: 2026-07-20
-verified_against: crates/hkask-cli/src/commands/tui.rs:16-92, crates/hkask-repl/src/lib.rs:285-374, crates/hkask-tui/src/lib.rs:73-227, crates/hkask-tui/src/workspace.rs:280-409, crates/hkask-tui/src/window_catalog.rs:48-240
+verified_against: crates/hkask-cli/src/commands/tui.rs:16-92, crates/hkask-repl/src/lib.rs:285-374, crates/hkask-repl/src/tui/src/lib.rs:73-227, crates/hkask-repl/src/tui/src/workspace.rs:280-409, crates/hkask-repl/src/tui/src/window_catalog.rs:48-240
 reference_sources: cockburn-hexagonal
 status: VERIFIED
 -->
@@ -71,17 +71,17 @@ This table records observed implementation behavior, not intended future behavio
 
 | Area | Status | Evidence |
 |------|--------|----------|
-| Window catalog | Implemented: 16 kinds | `crates/hkask-tui/src/window.rs:18-265` |
-| Domain bridge surface | Implemented: 15 optional traits | `crates/hkask-tui/src/bridges/mod.rs:7-37` |
-| MCP-tabbed behavior | Implemented by 11 windows; Scenarios uses custom section keys | `crates/hkask-tui/src/windows/`, `crates/hkask-tui/src/window.rs:219-224` |
-| Layout validation | Implemented | `crates/hkask-tui/src/layout.rs:49-112` |
+| Window catalog | Implemented: 16 kinds | `crates/hkask-repl/src/tui/src/window.rs:18-265` |
+| Domain bridge surface | Implemented: 15 optional traits | `crates/hkask-repl/src/tui/src/bridges/mod.rs:7-37` |
+| MCP-tabbed behavior | Implemented by 11 windows; Scenarios uses custom section keys | `crates/hkask-repl/src/tui/src/windows/`, `crates/hkask-repl/src/tui/src/window.rs:219-224` |
+| Layout validation | Implemented | `crates/hkask-repl/src/tui/src/layout.rs:49-112` |
 | Configuration snapshot | Recursive-lock defect removed | `crates/hkask-repl/src/tui_bridges.rs:40-63` |
-| Inference routing | Implemented: request-owned receiver and stream state; one active request per window | `crates/hkask-tui/src/repl_bridge.rs`, `crates/hkask-repl/src/lib.rs`, `crates/hkask-tui/src/mcp_tabbed.rs` |
-| Render isolation | Degraded: domain bridge calls still execute on the TUI event-loop thread; the timed `tick` cache experiment was reverted because it did not provide asynchronous isolation | `crates/hkask-tui/src/windows/` |
-| Domain-state fidelity | Partial: Backup and Wallet use explicit `Unavailable/Ready/Failed` snapshots; pod scan failure is optional rather than fabricated | `crates/hkask-tui/src/bridges/backup.rs`, `crates/hkask-tui/src/bridges/wallet.rs`, `crates/hkask-tui/src/repl_bridge.rs` |
-| Text editing | Implemented: shared UTF-8 byte-boundary cursor operations cover Chat, Curator, Terminal, and Editor | `crates/hkask-tui/src/text_cursor.rs` |
-| Terminal creation | Implemented: PTY and shell failures render an unavailable state instead of panicking | `crates/hkask-tui/src/windows/terminal.rs` |
-| Window lifecycle policy | Implemented: singleton kinds refocus; `Ctrl+W` closes closeable focused leaves; persistent Logo is protected | `crates/hkask-tui/src/workspace.rs` |
+| Inference routing | Implemented: request-owned receiver and stream state; one active request per window | `crates/hkask-repl/src/tui/src/repl_bridge.rs`, `crates/hkask-repl/src/lib.rs`, `crates/hkask-repl/src/tui/src/mcp_tabbed.rs` |
+| Render isolation | Degraded: domain bridge calls still execute on the TUI event-loop thread; the timed `tick` cache experiment was reverted because it did not provide asynchronous isolation | `crates/hkask-repl/src/tui/src/windows/` |
+| Domain-state fidelity | Partial: Backup and Wallet use explicit `Unavailable/Ready/Failed` snapshots; pod scan failure is optional rather than fabricated | `crates/hkask-repl/src/tui/src/bridges/backup.rs`, `crates/hkask-repl/src/tui/src/bridges/wallet.rs`, `crates/hkask-repl/src/tui/src/repl_bridge.rs` |
+| Text editing | Implemented: shared UTF-8 byte-boundary cursor operations cover Chat, Curator, Terminal, and Editor | `crates/hkask-repl/src/tui/src/text_cursor.rs` |
+| Terminal creation | Implemented: PTY and shell failures render an unavailable state instead of panicking | `crates/hkask-repl/src/tui/src/windows/terminal.rs` |
+| Window lifecycle policy | Implemented: singleton kinds refocus; `Ctrl+W` closes closeable focused leaves; persistent Logo is protected | `crates/hkask-repl/src/tui/src/workspace.rs` |
 | TUI fallback | Implemented: initialized `ReplState` is recovered for line-REPL fallback | `crates/hkask-repl/src/lib.rs` |
 
 ## Adversarial architecture review

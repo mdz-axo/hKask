@@ -219,25 +219,22 @@ co-equal artifact.[^skills-model]
 | `hkask-inference` | Inference router — 9 provider backends, fusion, circuit breakers, fal.ai workflow DAGs |
 | `hkask-communication` | Matrix transport, agent registry, 7R7 listener |
 | `hkask-condenser` | Context condensation engine |
-| `hkask-codegraph` | Native code understanding (tree-sitter, FTS5, recursive CTE, context assembly) |
 | `hkask-acp` | Agent Client Protocol — IDE integration |
-| `hkask-adapter` | Trained adapter lifecycle — store, expertise, endpoint, provider cost model |
 | `hkask-guard` | Content safety — mandatory LLM boundary scanning, OWASP LLM Top 10 aligned |
-| `hkask-repl` | Interactive REPL — slash commands, tab completion, fuzzy matching |
+| `hkask-repl` | Interactive REPL — slash commands, tab completion, fuzzy matching, TUI module (feature-gated) |
 | `hkask-forecast` | Superforecasting engine (Fermi decomposition, Bayesian update, Brier scoring) |
-| `hkask-storage-guard` | Autonomous disk-space loop — monitors `/data`, prunes old exports |
 | `hkask-git-cas` | Git content-addressable storage (BLAKE3 object store) |
 | `hkask-goal` | Goal specification and completion verification |
 | `hkask-identity` | Human identity & access control (`HumanUser`, OAuth, roles) |
 | `hkask-test-harness` | Test infrastructure (`TestDb`, `TestWebId`, mocks, strategies) |
 | `hkask-mcp-cloud-gateway` | Cloud MCP gateway for remote tool dispatch |
-| `hkask-tui` | Terminal UI (ratatui-based interactive workspace) |
+
 
 ### Services
 | Crate | Purpose |
 |-------|--------|
 | `hkask-services-core` | Service-layer foundation — `ServiceError`, `ServiceConfig`, `HkaskSettings` |
-| `hkask-services-context` | `AgentService` context, Regulation runtime, cybernetic loops |
+| `hkask-services-context` | `AgentService` context, Regulation runtime, cybernetic loops, storage guard |
 | `hkask-services-runtime` | Runtime services — text classification, provider intelligence, daemon |
 | `hkask-services-chat` | Chat session management and history |
 | `hkask-services-compose` | Style composition — exemplar retrieval, prose generation, centroid-distance voice validation |
@@ -245,10 +242,8 @@ co-equal artifact.[^skills-model]
 | `hkask-services-inference` | Inference provider intelligence and dispatch |
 | `hkask-services-kata-kanban` | Toyota Kata coaching/improvement + Kanban coordination |
 | `hkask-services-onboarding` | First-run and user onboarding |
-| `hkask-services-research` | Research pipeline (web search, extraction, feed management) |
 | `hkask-services-self-heal` | Autonomous self-healing loop |
 | `hkask-services-skill` | Skill discovery, publishing, hashing, auditing, bundle composition |
-| `hkask-services-verification` | Magna Carta verification — manifest-driven structural audits |
 | `hkask-services-wallet` | Gas budgeting, price feeds, Regulation integration |
 
 ### Wallet, Identity & Ledger
@@ -267,9 +262,6 @@ co-equal artifact.[^skills-model]
 | Crate | Purpose |
 |-------|--------|
 | `hkask-bridge-dublincore` | Dublin Core + BIBO + CiTO (bibliographic metadata, citations) |
-| `hkask-bridge-eso` | Epistemic Science Ontology (hypotheses, evidence, falsification) |
-| `hkask-bridge-fibo` | Financial Industry Business Ontology (valuation, capital, risk) |
-| `hkask-bridge-golem` | GOLEM narrative/literary ontology (characters, themes, devices) |
 | `hkask-bridge-pko` | Procedural Knowledge Ontology (procedures, steps, executions, feedback) |
 
 ### MCP Servers (16)

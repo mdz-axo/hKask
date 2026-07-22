@@ -3,7 +3,7 @@
 #
 # Generalizable: any userpod that needs to understand code structure — for
 # debugging, refactoring, impact analysis, onboarding, or context assembly —
-# can invoke this skill. The skill orchestrates the hkask-codegraph MCP tools
+# can invoke this skill. The skill orchestrates the hkask-mcp-codegraph MCP tools
 # (query, traverse, impact, analysis, context, structure, stats, reindex,
 # feedback, embed) through a convergent PDCA cycle.
 

@@ -14,7 +14,7 @@
 ## Findings (5 HIGH, fixed)
 
 ### H1: Tinker inference URL fabricated
-- **Bug**: `crates/hkask-adapter/src/adapter_router/tinker.rs:62` built `https://api.tinker.ai/v1/openai/{model_name}` — this domain does not exist. The real Tinker OpenAI-compatible endpoint is `https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1` with `tinker://<run_id>/sampler_weights/<step>` as the model path (not appended to the URL).
+- **Bug**: `mcp-servers/hkask-mcp-training/src/adapter/src/adapter_router/tinker.rs:62` built `https://api.tinker.ai/v1/openai/{model_name}` — this domain does not exist. The real Tinker OpenAI-compatible endpoint is `https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1` with `tinker://<run_id>/sampler_weights/<step>` as the model path (not appended to the URL).
 - **Additional**: `AdapterSource` had only a `HuggingFace { repo }` variant — no `Tinker { checkpoint_path }` variant to carry the `tinker://` URI. The backend was a pass-through abstraction (P4 violation) that could never have worked.
 - **Fix**: Deleted the Tinker inference adapter backend entirely. Tinker remains a training host; inference of Tinker-trained adapters goes through download → HuggingFace upload → Together/Runpod inference. Regression test `tinker_inference_backend_is_not_registered` added to prevent re-introduction.
 
@@ -38,7 +38,7 @@
 
 ## Additional fixes
 
-- **RunPod inference teardown**: `crates/hkask-adapter/src/adapter_router/runpod.rs` teardown was HTTP-DELETEing the OpenAI inference URL — wrong (serverless endpoints scale to zero automatically). Fixed to no-op with documentation pointing to `podTerminate` for future dedicated-pod support.
+- **RunPod inference teardown**: `mcp-servers/hkask-mcp-training/src/adapter/src/adapter_router/runpod.rs` teardown was HTTP-DELETEing the OpenAI inference URL — wrong (serverless endpoints scale to zero automatically). Fixed to no-op with documentation pointing to `podTerminate` for future dedicated-pod support.
 - **Thrashed handoff doc**: `docs/handoffs/runpod_axolotl_design.md` restated "Adapter weights MISSING. Retrain blocked" 4+ times — classic agent thrashing signature. Deleted.
 
 ## What would have prevented this
@@ -50,8 +50,8 @@
 
 ## Verification
 
-- `cargo clippy -p hkask-adapter -- -D warnings`: clean
-- `cargo test -p hkask-adapter`: 47 passed, 0 failed, 7 ignored (live tests)
+- `cargo clippy -p hkask-mcp-training -- -D warnings`: clean
+- `cargo test -p hkask-mcp-training`: 47 passed, 0 failed, 7 ignored (live tests)
 - `cargo clippy -p hkask-mcp-training -- -D warnings`: clean
 - `cargo test -p hkask-mcp-training`: 16 passed, 0 failed
 

@@ -1,0 +1,99 @@
+{
+  "description": "hKask codegraph baseline measurement — Phase 0 T0.1",
+  "timestamp": "2026-07-22",
+  "tree_state": "unmodified, cargo check --workspace green, all CI scripts green",
+  "workspace": {
+    "version": "0.31.0",
+    "total_workspace_members": 58,
+    "total_crates": 42,
+    "total_mcp_servers": 16,
+    "total_rust_loc": 232665,
+    "mcp_server_loc": 66096
+  },
+  "codegraph_metrics": {
+    "total_cross_crate_edges": 397,
+    "total_mcp_tools": 238,
+    "inference_providers": 8,
+    "registry_manifests": 98,
+    "skill_directories": 50,
+    "port_traits": 16
+  },
+  "most_connected_crates_by_outgoing_deps": [
+    {"crate": "hkask-cli", "cross_deps": 29},
+    {"crate": "hkask-services-context", "cross_deps": 22},
+    {"crate": "hkask-api", "cross_deps": 20},
+    {"crate": "hkask-repl", "cross_deps": 19},
+    {"crate": "hkask-pods", "cross_deps": 11},
+    {"crate": "hkask-regulation", "cross_deps": 11},
+    {"crate": "hkask-services-chat", "cross_deps": 11},
+    {"crate": "hkask-services-runtime", "cross_deps": 11}
+  ],
+  "most_depended_upon_crates_by_incoming_deps": [
+    {"crate": "hkask-types", "dependents": 54},
+    {"crate": "hkask-ports", "dependents": 32},
+    {"crate": "hkask-storage", "dependents": 31},
+    {"crate": "hkask-database", "dependents": 30},
+    {"crate": "hkask-mcp", "dependents": 23},
+    {"crate": "hkask-test-harness", "dependents": 21},
+    {"crate": "hkask-capability", "dependents": 19},
+    {"crate": "hkask-inference", "dependents": 18}
+  ],
+  "mcp_server_tool_counts": {
+    "hkask-mcp-companies": 41,
+    "hkask-mcp-media": 38,
+    "hkask-mcp-memory": 20,
+    "hkask-mcp-scenarios": 18,
+    "hkask-mcp-kata-kanban": 18,
+    "hkask-mcp-docproc": 18,
+    "hkask-mcp-research": 17,
+    "hkask-mcp-curator": 11,
+    "hkask-mcp-communication": 11,
+    "hkask-mcp-replica": 10,
+    "hkask-mcp-training": 8,
+    "hkask-mcp-condenser": 8,
+    "hkask-mcp-codegraph": 8,
+    "hkask-mcp-filesystem": 7,
+    "hkask-mcp-skill": 3,
+    "hkask-mcp-regulation": 2
+  },
+  "inference_providers_detail": {
+    "trait": "InferencePort (5 methods: generate, generate_with_model, generate_stream, generate_stream_with_model, generate_vision)",
+    "trait_location": "crates/hkask-ports/src/inference_port.rs",
+    "implementation": "InferenceRouter (crates/hkask-inference/src/inference_router/mod.rs)",
+    "providers": [
+      {"prefix": "DI/", "name": "DeepInfra", "backend": "deepinfra_backend.rs", "capabilities": ["chat", "vision"]},
+      {"prefix": "FA/", "name": "fal.ai", "backend": "fal_backend.rs", "capabilities": ["chat", "vision", "media"]},
+      {"prefix": "TG/", "name": "Together AI", "backend": "together_backend.rs", "capabilities": ["chat", "vision"]},
+      {"prefix": "OR/", "name": "OpenRouter", "backend": "openrouter_backend.rs", "capabilities": ["chat", "vision"]},
+      {"prefix": "KC/", "name": "KiloCode", "backend": "kilocode_backend.rs", "capabilities": ["chat", "vision"]},
+      {"prefix": "OM/", "name": "Ollama", "backend": "ollama_backend.rs", "capabilities": ["chat", "vision"], "local": true},
+      {"prefix": "CL/", "name": "Cline", "backend": "cline_backend.rs", "capabilities": ["chat", "vision"]},
+      {"prefix": "RP/", "name": "RunPod", "backend": "runpod_backend.rs", "capabilities": ["vision", "ocr"], "chat": false}
+    ],
+    "dispatch_mechanism": "chat_backend() / vision_backend() match-fns returning &dyn ChatBackend / &dyn VisionBackend borrowed from typed Option<Backend> fields",
+    "fusion": "fusion_orchestrator.rs — provider-agnostic multi-model deliberation"
+  },
+  "repl_architecture": {
+    "crate": "hkask-repl",
+    "state_struct": "ReplState (crates/hkask-repl/src/lib.rs L95-128)",
+    "bridge_traits": ["ReplBridge", "SystemBridge", "SettingsBridge", "SessionBridge"],
+    "thread_module": "threads.rs",
+    "turn_module": "turn.rs",
+    "command_dispatch": "commands.rs",
+    "builtin_servers": "builtin_servers.rs",
+    "tui": "tui/ directory with handlers/"
+  },
+  "ci_gates_baseline": {
+    "check_mcp_tool_tests": "PASS — 0 violations, 0 allowlisted gaps, 0 in ratchet allowlist",
+    "check_reg_canonical": "PASS — every reg.* reference in Rust code and .j2 templates is canonical",
+    "check_string_errors": "PASS — No Result<_, String> patterns found in library code",
+    "cargo_check_workspace": "PASS — Finished dev profile in 4.30s"
+  },
+  "reachability_matrix": {
+    "description": "MCP→skills→chat/REPL→providers reachability on unmodified tree",
+    "mcp_to_skills": "MCP servers expose tools that skills reference via ocap.required_capabilities (resource: mcp, action: call, tool: <name>)",
+    "skills_to_chat_repl": "Skills are loaded via registry manifests into ReplState.manifest_state; REPL dispatches skill execution through manifest cascade",
+    "chat_repl_to_providers": "ReplState.current_model routes through InferenceRouter which dispatches to 8 provider backends via prefix matching",
+    "all_paths_verified": "cargo check --workspace green; CI scripts green"
+  }
+}

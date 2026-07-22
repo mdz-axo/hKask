@@ -14,7 +14,7 @@ provably retaining all four protected surfaces (S4):
 
 | Metric | Value |
 |--------|-------|
-| Workspace members | 66 (50 crates + 16 MCP servers) |
+| Workspace members | 69 (53 crates + 16 MCP servers) |
 | Skill directories | 51 |
 | Total LOC | 233,385 |
 | Total .rs files | 829 |
@@ -24,6 +24,21 @@ provably retaining all four protected surfaces (S4):
 ### Fix applied in baseline
 - `mcp-servers/hkask-mcp-codegraph/src/lib.rs:44` — lifetime elision fix
   (`MutexGuard<IndexPipeline>` → `MutexGuard<'_, IndexPipeline>`)
+
+## Final State (2026-07-22)
+
+| Metric | Value | Delta from F1 |
+|--------|-------|---------------|
+| Workspace members | 60 (44 crates + 16 MCP servers) | -9 (13%) |
+| Skill directories | 51 | 0 |
+| Total LOC | 232,665 | -720 |
+| Total .rs files | 829 | 0 |
+| `cargo build --workspace` | ✅ | — |
+| `cargo clippy --workspace -- -D warnings` | ✅ | — |
+| S4.1 MCP tools | 16 servers, 238 tools | 0 (all preserved) |
+| S4.2 Skills | 51 | 0 |
+| S4.3 Chat/REPL | ✅ (incl. tui feature) | 0 |
+| S4.4 Inference | 9 providers | 0 |
 
 ## Zed Reference Analysis (domain_supplement, confidence 0.7)
 

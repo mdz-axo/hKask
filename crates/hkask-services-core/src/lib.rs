@@ -2,7 +2,7 @@
 //!
 //! This crate is the foundation for most service-layer modules: `ServiceError`,
 //! `ServiceConfig`, and `HkaskSettings` are consumed by every service crate
-//! except `hkask-services-research`, which intentionally keeps its own
+//! except the research module (now in hkask-mcp-research), which intentionally keeps its own
 //! provider-shaped `WebError` (see ADR-054). Extracted from `hkask-services` to
 //! enable parallel compilation and clear architectural boundaries.
 //!

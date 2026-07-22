@@ -13,7 +13,7 @@ mds_categories: [lifecycle]
 
 Single source of truth for build, test, and CI health. Updated per session.
 
-**Current session:** v0.31.0 — Ratatui architecture hardening. Request-owned inference routing, MCP completion delivery, UTF-8-safe input, fallible PTY startup, enforced window lifecycle policy, single-pass fallback bootstrap, and explicit Backup/Wallet/pod unavailability are implemented. The synchronous timed-cache experiment was reverted because `tick` shares the event-loop thread. `hkask-tui`: 127 tests pass (32 unit + 95 integration); strict clippy passes for TUI and REPL-with-TUI.
+**Current session:** v0.31.0 — Ratatui architecture hardening. Request-owned inference routing, MCP completion delivery, UTF-8-safe input, fallible PTY startup, enforced window lifecycle policy, single-pass fallback bootstrap, and explicit Backup/Wallet/pod unavailability are implemented. The synchronous timed-cache experiment was reverted because `tick` shares the event-loop thread. `hkask-repl` (tui module): 127 tests pass (32 unit + 95 integration); strict clippy passes for TUI and REPL-with-TUI.
 
 **This session (2026-07-20):**
 - Added the source-aligned [Terminal UI Architecture](../explanation/tui-architecture.md) explanation and `DIAG-TUI-005` sequence diagram.
@@ -23,7 +23,7 @@ Single source of truth for build, test, and CI health. Updated per session.
 - Reverted timed Kanban/Media cache refreshes after determining that `tick` runs on the same event-loop thread and therefore does not provide asynchronous isolation.
 - Replaced fabricated Backup, Wallet, and pod telemetry with explicit unavailable/ready/failed semantics.
 - Corrected active TUI launch, keybinding, persistence, bridge-count, and dependency documentation.
-- `cargo test -p hkask-tui`: 127 passed; strict clippy passed for `hkask-tui` and `hkask-repl --features tui`.
+- `cargo test -p hkask-tui`: 127 passed; strict clippy passed for `hkask-repl` (tui module) and `hkask-repl --features tui`.
 
 **Previous session (2026-07-17):**
 - Documentation consolidation (diataxis-diagram + grill-me + kata-improvement skills).
@@ -97,10 +97,10 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | hkask-communication | 25 |
 | hkask-mcp | 38 |
 | hkask-cli | 43 |
-| hkask-tui | 127 |
+| hkask-repl (tui) | 127 |
 | hkask-api | 12 |
 | hkask-acp | 4 |
-| hkask-adapter | 51 |
+| hkask-mcp-training | 51 |
 | hkask-codegraph | 22 |
 | MCP servers (16) | ~770 |
 | **Workspace total** | **~1,460** |

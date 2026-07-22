@@ -93,7 +93,7 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 `docs/reference/api/hkask-ports.md` — Hexagonal port traits: InferencePort, ToolPort, LedgerObserver, FederationDispatch
 `docs/reference/api/hkask-regulation.md` — RegulationLedger, CyberneticsLoop, GovernedTool, SetPoints, GasBudget
 `docs/reference/api/hkask-mcp.md` — MCP runtime, dispatch, DaemonClient, `bootstrap_mcp_server`, `mcp_server!`
-`docs/reference/api/hkask-codegraph.md` — Symbol, Edge, IndexPipeline, AssembledContext (10 MCP tools)
+`docs/reference/api/hkask-mcp-codegraph.md` — Symbol, Edge, IndexPipeline, AssembledContext (10 MCP tools)
 `docs/reference/api/hkask-pods.md` — PodManager, CuratorAgent, ConsentManager, A2ARuntime, PodDeployment
 `docs/reference/api/hkask-memory.md` — EpisodicMemory, SemanticMemory, ConsolidationBridge
 `docs/reference/api/hkask-inference.md` — InferenceRouter, EmbeddingRouter, FusionOrchestrator
@@ -203,7 +203,7 @@ docs/
 │   │   ├── hkask-ports.md
 │   │   ├── hkask-regulation.md
 │   │   ├── hkask-mcp.md
-│   │   ├── hkask-codegraph.md
+│   │   ├── hkask-mcp-codegraph.md
 │   │   ├── hkask-pods.md
 │   │   ├── hkask-memory.md
 │   │   ├── hkask-inference.md

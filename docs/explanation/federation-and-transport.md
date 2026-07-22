@@ -303,9 +303,9 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 ## Description
 
-The `EndpointLifecycle` in `hkask-adapter` governs every inference endpoint through five strictly-validated phases. Construction enters `Provisioning`. The `create_endpoint()` flow in `AdapterRouter` uploads the adapter and transitions to `Ready`. First inference triggers `Ready → Active`. Teardown (explicit or via RAII `EndpointGuard` drop) moves through `Draining` to `Terminated`. Cost accrues only in billable phases (`Provisioning`, `Ready`, `Active`). Every transition is validated by `valid_next()` and emits a Regulation span.
+The `EndpointLifecycle` in `hkask-mcp-training::adapter` governs every inference endpoint through five strictly-validated phases. Construction enters `Provisioning`. The `create_endpoint()` flow in `AdapterRouter` uploads the adapter and transitions to `Ready`. First inference triggers `Ready → Active`. Teardown (explicit or via RAII `EndpointGuard` drop) moves through `Draining` to `Terminated`. Cost accrues only in billable phases (`Provisioning`, `Ready`, `Active`). Every transition is validated by `valid_next()` and emits a Regulation span.
 
-**Key source:** `crates/hkask-adapter/src/endpoint_lifecycle.rs:14-45` (enum + `valid_next`), `crates/hkask-adapter/src/adapter_router/mod.rs:464-649` (transition triggers).
+**Key source:** `mcp-servers/hkask-mcp-training/src/adapter/endpoint_lifecycle.rs:14-45` (enum + `valid_next`), `mcp-servers/hkask-mcp-training/src/adapter/adapter_router/mod.rs:464-649` (transition triggers).
 
 ```mermaid
 stateDiagram-v2
@@ -407,6 +407,6 @@ status: VERIFIED
 ## Cross-Reference
 
 - [`hKask-architecture-master.md` § LoRA Adapter Lifecycle & Inference Composition](../architecture/core/hKask-architecture-master.md#lora-adapter-lifecycle--inference-composition)
-- [`endpoint_lifecycle.rs`](crates/hkask-adapter/src/endpoint_lifecycle.rs) — `EndpointPhase` enum, `valid_next()`, `EndpointLifecycle::transition()`
-- [`adapter_router/mod.rs`](crates/hkask-adapter/src/adapter_router/mod.rs) — `create_endpoint()`, `infer()`, `teardown_endpoint()`, `EndpointGuard`
+- [`endpoint_lifecycle.rs`](mcp-servers/hkask-mcp-training/src/adapter/endpoint_lifecycle.rs) — `EndpointPhase` enum, `valid_next()`, `EndpointLifecycle::transition()`
+- [`adapter_router/mod.rs`](mcp-servers/hkask-mcp-training/src/adapter/adapter_router/mod.rs) — `create_endpoint()`, `infer()`, `teardown_endpoint()`, `EndpointGuard`
 

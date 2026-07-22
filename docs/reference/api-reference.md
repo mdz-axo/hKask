@@ -300,7 +300,7 @@ Cybernetic Nervous System for hKask.
 | `slo_manager` | `SloManager`, `SloDataProvider`, `SloDataPoint`, `SloManagerError` |
 | `slo_span` | `SloSpan` |
 | `slo_types` | `SloDefinition`, `SloEvaluation`, `SloSeverity`, `seed_slos()` |
-| `storage_guard` | Moved to `hkask-storage-guard` crate |
+| `storage_guard` | Merged into `hkask-services-context::storage_guard` |
 | `types` | Loop core types: re-exports from `hkask_types::loops` |
 | `wallet_budget` | `WalletBackedBudget` |
 | `wallet_energy_estimator` | `WalletEnergyEstimator` |
@@ -775,7 +775,7 @@ Context condensation domain logic — compression algorithms, classification, pr
 
 ---
 
-### hkask-codegraph
+### hkask-mcp-codegraph (codegraph module)
 
 Code understanding engine — tree-sitter based semantic code graph for hKask.
 
@@ -833,7 +833,7 @@ ACP (Agent Client Protocol) userpod — presents hKask coding agents in IDEs via
 
 ---
 
-### hkask-adapter
+### hkask-mcp-training (adapter module)
 
 Trained adapter lifecycle — adapter store, expertise, endpoint lifecycle, provider cost model.
 
@@ -940,7 +940,7 @@ hKask REPL — interactive agent session with slash-command dispatch.
 
 **Public Functions:** `run()`, `run_tui()` (TUI feature only), `single_agent_turn_captured()` (TUI feature only).
 
-**Feature Flags:** `tui` — enables TUI mode via `run_tui()`, pulls in `hkask-tui`. `communication` — enables Matrix commands (`/matrix`, `/msg`).
+**Feature Flags:** `tui` — enables TUI mode via `run_tui()`, enables the `tui` module (ratatui+crossterm). `communication` — enables Matrix commands (`/matrix`, `/msg`).
 
 **Internal Modules (not public):** `builtin_servers`, `reg_display`, `commands`, `energy`, `helper`, `init`, `threads`, `tool_augmented`, `tui_bridges` (TUI feature only), `turn`.
 
@@ -958,7 +958,7 @@ Shared superforecasting computation engine — Fermi decomposition, outside/insi
 
 ---
 
-### hkask-storage-guard
+### hkask-services-context (storage_guard module)
 
 Autonomous disk space management loop — monitors /data volume, prunes old exports.
 
@@ -1274,7 +1274,7 @@ Federation CRDT sync, link lifecycle, and merged registries for hKask.
 
 ---
 
-### hkask-tui
+### hkask-repl (tui feature module)
 
 Terminal UI workspace for hKask — multi-window agent interface.
 
@@ -1316,7 +1316,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 # CodeGraph Type System
 
-The `hkask-codegraph` crate provides a native Rust code understanding engine. It uses tree-sitter to parse Rust source into a semantic graph stored in SQLite, with FTS5 keyword search, recursive CTE graph traversal, impact analysis, dead code detection, and token-budgeted context assembly for LLM prompts.
+The `codegraph` module in `hkask-mcp-codegraph` provides a native Rust code understanding engine. It uses tree-sitter to parse Rust source into a semantic graph stored in SQLite, with FTS5 keyword search, recursive CTE graph traversal, impact analysis, dead code detection, and token-budgeted context assembly for LLM prompts.
 
 This diagram shows the core type hierarchy and the relationships between the indexing pipeline, graph store, search engine, and MCP server layer.
 
@@ -1560,7 +1560,7 @@ status: VERIFIED
 - [Service Layer Class Diagram](../explanation/architecture-patterns.md#service-layer-class-diagram) — Service layer class diagram (hexagonal ports)
 - [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch sequence
 - [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (four patterns, crate-to-loop mapping)
-- [`hkask-codegraph`](../../crates/hkask-codegraph/) — Implementation crate (original design plan absorbed)
+- [`hkask-codegraph`](../../mcp-servers/hkask-mcp-codegraph/src/codegraph/) — Implementation crate (original design plan absorbed)
 
 
 ### CodeGraph Indexing Pipeline — Flowchart
@@ -1649,7 +1649,7 @@ The pipeline emits tracing events for cybernetic observability:
 - [CodeGraph Type System](#codegraph-type-system) — Type system class diagram
 - [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch sequence (applies to codegraph tools)
 - [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (crate-to-loop mapping)
-- [`hkask-codegraph`](../../crates/hkask-codegraph/) — Implementation crate (original design plan absorbed)
+- [`hkask-codegraph`](../../mcp-servers/hkask-mcp-codegraph/src/codegraph/) — Implementation crate (original design plan absorbed)
 
 
 ### CodeGraph Database Schema — ERD
@@ -1962,9 +1962,9 @@ Current behavior is limited to call-driven indexing. `finalize()` resets the sta
 
 # TUI Window Trait Hierarchy
 
-**Type:** class diagram | **Target:** `hkask-tui` window architecture | **Diataxis quadrant:** Reference
+**Type:** class diagram | **Target:** `hkask-repl` tui module window architecture | **Diataxis quadrant:** Reference
 
-The `hkask-tui` crate uses a single `Window` trait (9 methods) implemented by 21 concrete window types. Windows that connect to an MCP server additionally implement `McpTabbedWindow` for two-tab Chat/Data layout. All data flows through 15 domain-specific bridge traits, each providing a focused surface for one service domain.
+The `tui` module in `hkask-repl` uses a single `Window` trait (9 methods) implemented by 21 concrete window types. Windows that connect to an MCP server additionally implement `McpTabbedWindow` for two-tab Chat/Data layout. All data flows through 15 domain-specific bridge traits, each providing a focused surface for one service domain.
 
 ## Diagram
 
@@ -2130,7 +2130,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TUI-001
 verified_date: 2026-07-20
-verified_against: crates/hkask-tui/src/window.rs:18-301, crates/hkask-tui/src/mcp_tabbed.rs:20-160, crates/hkask-tui/src/bridges/mod.rs:7-37, crates/hkask-tui/src/window_catalog.rs:48-240
+verified_against: crates/hkask-repl/src/tui/src/window.rs:18-301, crates/hkask-repl/src/tui/src/mcp_tabbed.rs:20-160, crates/hkask-repl/src/tui/src/bridges/mod.rs:7-37, crates/hkask-repl/src/tui/src/window_catalog.rs:48-240
 status: VERIFIED
 -->
 
@@ -2169,7 +2169,7 @@ Each of the 15 domain bridge traits exposes ≤7 methods, following deep-module 
 
 ---
 
-*Generated from `crates/hkask-tui/src/window.rs`, `bridges/mod.rs`, `mcp_tabbed.rs`, `window_catalog.rs` — v0.31.0*
+*Generated from `crates/hkask-repl/src/tui/src/window.rs`, `bridges/mod.rs`, `mcp_tabbed.rs`, `window_catalog.rs` — v0.31.0*
 
 
 ### TUI Event Dispatch Pipeline
@@ -2243,7 +2243,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TUI-002
 verified_date: 2026-07-20
-verified_against: crates/hkask-tui/src/lib.rs:126-221, crates/hkask-tui/src/workspace.rs:541-635, crates/hkask-tui/src/window.rs:66-265
+verified_against: crates/hkask-repl/src/tui/src/lib.rs:126-221, crates/hkask-repl/src/tui/src/workspace.rs:541-635, crates/hkask-repl/src/tui/src/window.rs:66-265
 status: VERIFIED
 -->
 
@@ -2272,7 +2272,7 @@ The event dispatch loop is a **negative feedback loop**: input → render → ti
 
 ---
 
-*Generated from `crates/hkask-tui/src/lib.rs:145-218`, `workspace.rs:543-646`, `mcp_tabbed.rs` — v0.31.0*
+*Generated from `crates/hkask-repl/src/tui/src/lib.rs:145-218`, `workspace.rs:543-646`, `mcp_tabbed.rs` — v0.31.0*
 
 
 ### TUI Workspace State Lifecycle
@@ -2342,7 +2342,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TUI-003
 verified_date: 2026-07-20
-verified_against: crates/hkask-tui/src/workspace.rs:342-390, crates/hkask-tui/src/workspace.rs:541-973, crates/hkask-tui/src/layout.rs:14-112
+verified_against: crates/hkask-repl/src/tui/src/workspace.rs:342-390, crates/hkask-repl/src/tui/src/workspace.rs:541-973, crates/hkask-repl/src/tui/src/layout.rs:14-112
 status: VERIFIED
 -->
 
@@ -2403,7 +2403,7 @@ Window state (chat messages, input buffers) is NOT persisted — only the struct
 
 ---
 
-*Generated from `crates/hkask-tui/src/workspace.rs`, `layout.rs`, `window.rs` — v0.31.0*
+*Generated from `crates/hkask-repl/src/tui/src/workspace.rs`, `layout.rs`, `window.rs` — v0.31.0*
 
 
 ### TUI Bridge Wiring Architecture
@@ -2414,7 +2414,7 @@ Window state (chat messages, input buffers) is NOT persisted — only the struct
 
 **Type:** flowchart | **Target:** Bridge injection from CLI into TUI windows | **Diataxis quadrant:** Reference
 
-The `hkask-tui` crate defines bridge traits; `hkask-repl` implements them on `TuiReplBridge`. The `hkask-cli` crate wires them via the `with_bridges!` macro-generated builder methods. This separation enforces the dependency rule: TUI never depends on CLI.
+The `tui` module in `hkask-repl` defines bridge traits; `hkask-repl` implements them on `TuiReplBridge`. The `hkask-cli` crate wires them via the `with_bridges!` macro-generated builder methods. This separation enforces the dependency rule: TUI never depends on CLI.
 
 ```mermaid
 flowchart TD
@@ -2510,7 +2510,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TUI-004
 verified_date: 2026-07-20
-verified_against: crates/hkask-cli/src/commands/tui.rs:16-92, crates/hkask-repl/src/lib.rs:285-374, crates/hkask-tui/src/lib.rs:73-227, crates/hkask-tui/src/workspace.rs:280-409, crates/hkask-tui/src/window_catalog.rs:48-240
+verified_against: crates/hkask-cli/src/commands/tui.rs:16-92, crates/hkask-repl/src/lib.rs:285-374, crates/hkask-repl/src/tui/src/lib.rs:73-227, crates/hkask-repl/src/tui/src/workspace.rs:280-409, crates/hkask-repl/src/tui/src/window_catalog.rs:48-240
 status: VERIFIED
 -->
 
@@ -2527,7 +2527,7 @@ hkask-tui ──✗→ hkask-cli (PROHIBITED — would be circular)
 
 | Phase | Action | Location |
 |-------|--------|----------|
-| 1. Trait definition | `trait WalletDataBridge { ... }` | `hkask-tui/src/bridges/wallet.rs` |
+| 1. Trait definition | `trait WalletDataBridge { ... }` | `hkask-repl/src/tui/bridges/wallet.rs` |
 | 2. Mock implementation | `impl WalletDataBridge for MockWalletBridge` | Same file (tests + dev) |
 | 3. Production implementation | `impl WalletDataBridge for TuiReplBridge` | `hkask-repl/src/tui_bridges.rs` |
 | 4. Injection | `session.with_wallet_bridge(bridge)` | `hkask-cli` (builder pattern) |
@@ -2543,5 +2543,5 @@ Bridges are `Option<Arc<dyn Trait>>` — windows gracefully degrade when a bridg
 
 ---
 
-*Generated from `crates/hkask-tui/src/bridges/mod.rs`, `window_catalog.rs`, `crates/hkask-repl/src/tui_bridges.rs` — v0.31.0*
+*Generated from `crates/hkask-repl/src/tui/src/bridges/mod.rs`, `window_catalog.rs`, `crates/hkask-repl/src/tui_bridges.rs` — v0.31.0*
 

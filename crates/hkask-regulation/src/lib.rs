@@ -44,8 +44,8 @@ pub mod set_points; // Loop 6 — set-points config & loaders
 pub mod slo_manager; // Loop 6 — SLO evaluation, error budgets, breach escalation
 pub mod slo_types;
 pub(crate) mod snapshot_loop; // Loop 6 — scheduled CAS snapshots
-// StorageGuard extracted to hkask-storage-guard crate.
-// Consumers should depend on hkask-storage-guard directly.
+// StorageGuard merged into hkask-services-context::storage_guard module.
+// Consumers should use hkask-services-context::storage_guard.
 pub mod agent_wallet_store;
 pub(crate) mod table_energy_estimator; // Per-server energy cost table
 pub mod wallet_budget; // Loop 6 — wallet-backed energy budgets (Phase 5)
