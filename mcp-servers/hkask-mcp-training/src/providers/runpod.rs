@@ -470,7 +470,6 @@ struct PodDeploySpec<'a> {
 /// G6 gate determines which harness to use; this method generates the script
 /// that makes that recommendation real on the pod.
 fn generate_install_script(
-    &self,
     job: &TrainingJob,
     harness: TrainingHarnessId,
 ) -> Result<String, ProviderError> {

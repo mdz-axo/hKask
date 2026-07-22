@@ -30,7 +30,7 @@ impl DocumentBackend for XlsxBackend {
             };
             let rows: Vec<Vec<String>> = range
                 .rows()
-                .map(|row| row.iter().map(|cell| cell_to_string(cell)).collect())
+                .map(|row| row.iter().map(cell_to_string).collect())
                 .collect();
             if !rows.is_empty() {
                 blocks.push(Block::Table { rows });

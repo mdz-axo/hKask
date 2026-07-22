@@ -90,7 +90,6 @@ done
 TEMPLATE_ALLOWLIST=(
   # Empty — all references are now canonical or retargeted to hkask.*
 )
-)
 
 is_template_allowlisted() {
   local ns="$1"
@@ -101,7 +100,7 @@ is_template_allowlisted() {
 }
 
 mapfile -t J2_REFS < <(
-  grep -rhoE 'reg\.[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*' registry/templates/ \
+  grep -rhoE 'reg\.[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+' registry/templates/ \
     --include='*.j2' \
     2>/dev/null \
     | sort -u
