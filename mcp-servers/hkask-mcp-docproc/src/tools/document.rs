@@ -441,6 +441,8 @@ impl DocProcServer {
             // Resolve the source text
             let source_text: String;
             let source_label: String;
+            // Structure from office-format backends — enables section-aware chunking.
+            let mut source_structure: Option<hkask_types::document::DocStructure> = None;
 
             if let Some(ref raw_text) = text
                 && !raw_text.is_empty()
@@ -457,17 +459,16 @@ impl DocProcServer {
                         structure: Some(doc_structure),
                         ..
                     } => {
-                        // Structure-aware chunking: chunk at block boundaries
-                        // when a DocStructure is available (office formats).
-                        // Falls back to the flat text if structure is empty.
+                        // Preserve structure for section-aware chunking later.
                         let structure_text = doc_structure.text();
-                        if structure_text.split_whitespace().count()
+                        source_text = if structure_text.split_whitespace().count()
                             >= extracted.split_whitespace().count()
                         {
-                            source_text = structure_text;
+                            structure_text
                         } else {
-                            source_text = extracted;
-                        }
+                            extracted
+                        };
+                        source_structure = Some(doc_structure);
                     }
                     ExtractOutcome::Success {
                         text: extracted, ..
