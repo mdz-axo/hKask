@@ -32,7 +32,7 @@ use super::types::{PodID, PodKind};
 use super::{AgentPod, AgentPodError};
 use crate::SovereigntyChecker;
 use crate::curation::SemanticIndex;
-use crate::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_memory::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_templates::TemplateCrateLoader;
 
 // ── PodDeployment — The pod IS the deployment unit ──────────────────────────

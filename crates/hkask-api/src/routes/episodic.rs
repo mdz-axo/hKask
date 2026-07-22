@@ -13,7 +13,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::ApiState;
 use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
-use hkask_pods::{RecallRequest, StorageRequest};
+use hkask_memory::{RecallRequest, StorageRequest};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_types::Confidence;
 

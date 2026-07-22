@@ -49,10 +49,6 @@ pub use inference_sensors::{
 };
 pub use loop_system::LoopScheduler;
 pub use pod::{ActivePods, PodDeployment, PodFactory, PodID, PodKind, PodRegistry};
-pub use ports::{
-    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
-    StorageRequest,
-};
 pub use sovereignty::{AllowAllConsent, DenyAllConsent, SovereigntyChecker, SovereigntyConsent};
 
 // Agent types remain in hkask-types (canonical location for SQL impls).

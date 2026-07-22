@@ -13,7 +13,7 @@ use crate::ApiState;
 use crate::error::ServiceErrorResponse;
 use crate::middleware::AuthContext;
 use crate::routes::episodic::EpisodeResponse;
-use hkask_pods::RecallRequest;
+use hkask_memory::RecallRequest;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 
 #[derive(Serialize, Deserialize, ToSchema)]

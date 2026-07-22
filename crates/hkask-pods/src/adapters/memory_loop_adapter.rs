@@ -329,16 +329,7 @@ impl SemanticStoragePort for MemoryLoopForwarder {
         for r in results {
             if let Ok(matches) = self.semantic.query_deduped(&r.embedding.entity_ref) {
                 for t in matches {
-                    h_mems.push(RecalledSemantic {
-                        id: t.id.to_string(),
-                        entity: t.entity,
-                        attribute: t.attribute,
-                        value: t.value,
-                        confidence: t.confidence,
-                        visibility: t.access.visibility,
-                        observed_at: t.observed_at.to_rfc3339(),
-                        dimension: t.dimension,
-                    });
+                    h_mems.push(h_mem_to_recalled_semantic(t));
                 }
             }
         }

@@ -14,7 +14,7 @@ use futures_util::Stream;
 use futures_util::StreamExt;
 
 use hkask_capability::DelegationAction;
-use hkask_pods::ports::{EpisodicStoragePort, SemanticStoragePort};
+use hkask_memory::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_ports::InferencePort;
 use hkask_types::regulation::RegulationSpan;
 

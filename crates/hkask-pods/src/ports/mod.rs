@@ -12,15 +12,10 @@
 //!
 //! - `EpisodicStoragePort` / `SemanticStoragePort` → promoted to `hkask-memory`
 //!   (two consumers: `hkask-agents` + `hkask-services-context`)
-
-pub mod memory_storage;
+//!   Re-export shim removed (ADR-042 migration complete; see ADR-060).
 
 pub use crate::types::audit::{AuditEntry, AuditOutcome};
 pub use hkask_ports::consent_port::ConsentPort;
 pub use hkask_ports::escalation::{
     EscalationBatch, EscalationEntry, EscalationPort, EscalationStatus,
-};
-pub use memory_storage::{
-    EpisodicStoragePort, MemoryPortError, RecallRequest, RecalledEpisode, RecalledSemantic,
-    SemanticStoragePort, StorageRequest,
 };

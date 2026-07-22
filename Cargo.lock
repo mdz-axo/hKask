@@ -4753,6 +4753,7 @@ dependencies = [
  "hkask-capability",
  "hkask-communication",
  "hkask-condenser",
+ "hkask-memory",
  "hkask-pods",
  "hkask-ports",
  "hkask-regulation",

@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use hkask_capability::DelegationToken;
-use hkask_pods::ports::{
+use hkask_memory::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };
