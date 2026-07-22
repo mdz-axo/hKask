@@ -13,7 +13,7 @@
   "codegraph_metrics": {
     "total_cross_crate_edges": 397,
     "total_mcp_tools": 238,
-    "inference_providers": 9,
+    "inference_providers": 8,
     "registry_manifests": 98,
     "skill_directories": 51,
     "port_traits": 16
@@ -68,8 +68,7 @@
       {"prefix": "KC/", "name": "KiloCode", "backend": "kilocode_backend.rs", "capabilities": ["chat", "vision"]},
       {"prefix": "OM/", "name": "Ollama", "backend": "ollama_backend.rs", "capabilities": ["chat", "vision"], "local": true},
       {"prefix": "CL/", "name": "Cline", "backend": "cline_backend.rs", "capabilities": ["chat", "vision"]},
-      {"prefix": "RP/", "name": "RunPod", "backend": "runpod_backend.rs", "capabilities": ["vision", "ocr"], "chat": false},
-      {"prefix": "TK/", "name": "Tinker", "backend": "(scaffolded, not registered)", "capabilities": [], "chat": false, "scaffolded": true}
+      {"prefix": "RP/", "name": "RunPod", "backend": "runpod_backend.rs", "capabilities": ["vision", "ocr"], "chat": false}
     ],
     "dispatch_mechanism": "chat_backend() / vision_backend() match-fns returning &dyn ChatBackend / &dyn VisionBackend borrowed from typed Option<Backend> fields",
     "fusion": "fusion_orchestrator.rs — provider-agnostic multi-model deliberation"

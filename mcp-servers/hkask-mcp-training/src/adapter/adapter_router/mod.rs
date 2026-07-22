@@ -805,24 +805,6 @@ mod tests {
         assert_eq!(providers.len(), 1);
     }
 
-    // Regression: TinkerAdapterBackend was deleted because it used a fabricated
-    // API URL (https://api.tinker.ai/v1/openai/ -- does not exist) and had no
-    // AdapterSource::Tinker variant to carry the tinker:// checkpoint path.
-    // Tinker remains a training host; inference of Tinker-trained adapters
-    // goes through download -> HuggingFace upload -> Together/Runpod inference.
-    // This test ensures Tinker is NOT re-registered as an inference backend.
-    #[test]
-    fn tinker_inference_backend_is_not_registered() {
-        let driver = SqliteDriver::in_memory_driver();
-        let store = Arc::new(AdapterStore::from_driver(driver));
-        let router = AdapterRouter::new(store);
-        let result = router.resolve_backend(ProviderId::Tinker);
-        assert!(
-            matches!(result, Err(AdapterError::ProviderUnavailable(_))),
-            "Tinker must not be registered as an inference backend"
-        );
-    }
-
     #[test]
     #[ignore = "requires RUNPOD_API_KEY"]
     fn create_endpoint_returns_handle() {

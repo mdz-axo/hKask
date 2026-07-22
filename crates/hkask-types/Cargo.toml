@@ -26,6 +26,7 @@ tracing.workspace = true
 rusqlite = { workspace = true, optional = true }
 
 [dev-dependencies]
+serde_yaml_neo.workspace = true
 hkask-capability = { path = "../hkask-capability" }
 hkask-goal = { path = "../hkask-goal" }
 tokio = { workspace = true, features = ["macros", "rt"] }

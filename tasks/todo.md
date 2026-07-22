@@ -169,7 +169,7 @@ benefit. Zed's pattern applies to single-consumer code, not shared code.
 | S4.1 MCP tools | ✅ GREEN | 16 MCP servers, 238 total tools, all compile |
 | S4.2 Skills | ✅ GREEN | 51 skill directories unchanged |
 | S4.3 Chat/REPL | ✅ GREEN | hkask-repl with tui feature, hkask-services-chat present |
-| S4.4 Inference | ✅ GREEN | 9 ProviderId variants (DeepInfra, Fal, Together, OpenRouter, KiloCode, Ollama, Cline, Runpod, Tinker), 8 active backends + 1 scaffolded |
+| S4.4 Inference | ✅ GREEN | 8 ProviderId variants (DeepInfra, Fal, Together, OpenRouter, KiloCode, Ollama, Cline, Runpod), all backends present |
 
 ### Convergence Gate
 

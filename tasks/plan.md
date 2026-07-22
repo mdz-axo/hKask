@@ -38,7 +38,7 @@ provably retaining all four protected surfaces (S4):
 | S4.1 MCP tools | 16 servers, 238 tools | 0 (all preserved) |
 | S4.2 Skills | 51 | 0 |
 | S4.3 Chat/REPL | ✅ (incl. tui feature) | 0 |
-| S4.4 Inference | 9 ProviderId variants (8 active + 1 scaffolded) | 0 |
+| S4.4 Inference | 8 ProviderId variants (all active) | 0 |
 
 ## Zed Reference Analysis (domain_supplement, confidence 0.7)
 
