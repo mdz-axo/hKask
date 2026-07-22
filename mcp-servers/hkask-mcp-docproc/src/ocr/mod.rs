@@ -19,6 +19,7 @@ pub mod pipeline;
 pub mod routing;
 pub mod server;
 pub mod tesseract;
+pub mod triage;
 pub mod verification;
 
 pub use config::*;

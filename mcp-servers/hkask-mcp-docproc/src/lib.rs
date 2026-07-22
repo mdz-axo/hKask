@@ -455,6 +455,22 @@ enum ExtractOutcome {
         partial_text: String,
         word_count: usize,
     },
+    /// Per-page triage found a mix of text-native and OCR-needing pages.
+    ///
+    /// `native_text` is the text of the text-native pages only (OCR-needing
+    /// pages are omitted, to be filled in by the caller's selective OCR pass).
+    /// `ocr_pages` are 0-based page indices that must go through the OCR
+    /// pipeline. `verdicts` is the full per-page triage for reporting/CNS.
+    ///
+    /// This outcome replaces the former silent-loss path where a mixed PDF
+    /// with ≥100 whole-doc words returned `Success` and dropped per-page
+    /// scanned regions entirely.
+    PartialOcr {
+        native_text: String,
+        word_count: usize,
+        ocr_pages: Vec<usize>,
+        verdicts: Vec<crate::ocr::TriageVerdict>,
+    },
 }
 
 // ── Combined tool router (P5 Essentialism — modular tool groups) ──────────
