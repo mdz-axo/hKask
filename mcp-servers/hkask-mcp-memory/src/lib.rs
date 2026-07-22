@@ -34,7 +34,7 @@ pub mod types;
 use hkask_database::sqlite::SqliteDriver;
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_mcp::validate_identifier;
-use hkask_memory::{EpisodicMemory, SemanticMemory};
+use hkask_memory::{ChatTurn, EpisodicMemory, SemanticMemory};
 use hkask_storage::HMem;
 use hkask_types::Visibility;
 use rmcp::handler::server::wrapper::Parameters;
@@ -155,25 +155,20 @@ impl MemoryServer {
 
             if let Some(ref ctx) = context {
                 // Salience-scored: build keywords from context, score each episode
-                let ctx_lower = ctx.to_lowercase();
-                let keywords: Vec<&str> = ctx_lower
-                    .split_whitespace()
-                    .filter(|w| w.len() > 2)
-                    .collect();
+                let keywords = hkask_memory::salience::extract_keywords(ctx);
 
                 let mut scored: Vec<(usize, serde_json::Value)> = h_mems
                     .iter()
                     .filter_map(|t| {
-                        let v = t.value.as_object()?;
-                        let ui = v.get("user_input")?.as_str()?;
-                        let ar = v.get("agent_response")?.as_str()?;
-                        let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
-                        let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
+                        let ct = ChatTurn::from_value(&t.value)?;
+                        let combined = format!("{} {}", ct.user_input, ct.agent_response);
+                        let score =
+                            hkask_memory::salience::keyword_overlap_score(&keywords, &combined);
                         Some((
                             score,
                             json!({
-                                "user_input": ui,
-                                "agent_response": ar,
+                                "user_input": ct.user_input,
+                                "agent_response": ct.agent_response,
                                 "salience": score,
                                 "confidence": t.confidence,
                                 "valid_from": t.observed_at.to_rfc3339(),
@@ -198,12 +193,10 @@ impl MemoryServer {
                     .rev()
                     .take(limit)
                     .filter_map(|t| {
-                        let v = t.value.as_object()?;
-                        let ui = v.get("user_input")?.as_str()?;
-                        let ar = v.get("agent_response")?.as_str()?;
+                        let ct = ChatTurn::from_value(&t.value)?;
                         Some(json!({
-                            "user_input": ui,
-                            "agent_response": ar,
+                            "user_input": ct.user_input,
+                            "agent_response": ct.agent_response,
                             "confidence": t.confidence,
                             "valid_from": t.observed_at.to_rfc3339(),
                         }))
@@ -415,25 +408,20 @@ impl MemoryServer {
 
             let episodic = if let Some(ref ctx) = context {
                 // Salience-scored episodic recall (mirrors ChatService::recall_episodic)
-                let ctx_lower = ctx.to_lowercase();
-                let keywords: Vec<&str> = ctx_lower
-                    .split_whitespace()
-                    .filter(|w| w.len() > 2)
-                    .collect();
+                let keywords = hkask_memory::salience::extract_keywords(ctx);
 
                 let mut scored: Vec<(usize, serde_json::Value)> = episodic_triples
                     .iter()
                     .filter_map(|t| {
-                        let v = t.value.as_object()?;
-                        let ui = v.get("user_input")?.as_str()?;
-                        let ar = v.get("agent_response")?.as_str()?;
-                        let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
-                        let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
+                        let ct = ChatTurn::from_value(&t.value)?;
+                        let combined = format!("{} {}", ct.user_input, ct.agent_response);
+                        let score =
+                            hkask_memory::salience::keyword_overlap_score(&keywords, &combined);
                         Some((
                             score,
                             json!({
-                                "user_input": ui,
-                                "agent_response": ar,
+                                "user_input": ct.user_input,
+                                "agent_response": ct.agent_response,
                                 "salience": score,
                                 "confidence": t.confidence,
                                 "valid_from": t.observed_at.to_rfc3339(),
@@ -454,12 +442,10 @@ impl MemoryServer {
                     .rev()
                     .take(limit)
                     .filter_map(|t| {
-                        let v = t.value.as_object()?;
-                        let ui = v.get("user_input")?.as_str()?;
-                        let ar = v.get("agent_response")?.as_str()?;
+                        let ct = ChatTurn::from_value(&t.value)?;
                         Some(json!({
-                            "user_input": ui,
-                            "agent_response": ar,
+                            "user_input": ct.user_input,
+                            "agent_response": ct.agent_response,
                             "confidence": t.confidence,
                             "valid_from": t.observed_at.to_rfc3339(),
                         }))

@@ -7,6 +7,7 @@
 //! consumer needs. See ADR-060 for the decision and rationale.
 
 pub(crate) mod bayesian; // Loop 2b (semantic confidence combination)
+pub mod chat_turn; // Typed projection of chat episode content
 pub mod consolidation; // Episodic → Semantic bridge
 pub mod consolidation_auth;
 pub mod consolidation_service;
@@ -20,6 +21,7 @@ pub mod salience;
 pub mod semantic; // Loop 2b
 pub mod semantic_loop;
 
+pub use chat_turn::ChatTurn;
 pub use consolidation::ConsolidationBridge;
 pub use consolidation_auth::*;
 pub use consolidation_service::ConsolidationService;

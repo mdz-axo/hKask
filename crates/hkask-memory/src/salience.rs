@@ -1,15 +1,18 @@
 //! Salience scoring and method signal extraction for style corpora.
 //!
-//! Computes two things from raw passage text (zero LLM cost):
+//! Computes three things from raw passage text (zero LLM cost):
 //! 1. **Method signals** — cheap stylometric metrics (parataxis ratio,
 //!    adjective density, dialogue ratio, etc.) that constitute the "how"
 //!    dimension of the 5W1H framework.
 //! 2. **Salience score** — weighted graph degree centrality combining entity
 //!    tag counts, method coverage, category diversity, and positional
-//!    significance into a single 0.0–1.0+ score.
+//!    significance into a single 0.0-1.0+ score.
+//! 3. **Keyword overlap score** — lightweight keyword-matching scorer for
+//!    ranking chat episodes by relevance to a query.
 //!
-//! Used by `EmbedService` at embed time (budget gating) and by the style
-//! synthesizer at query time (salience-parameterized retrieval).
+//! Used by `EmbedService` at embed time (budget gating), by the style
+//! synthesizer at query time (salience-parameterized retrieval), and by chat
+//! recall (episode ranking via keyword overlap).
 
 // ── Method Signals ────────────────────────────────────────────────────────
 
@@ -887,6 +890,46 @@ impl BudgetConfig {
     }
 }
 
+// ── Keyword Overlap (chat recall ranking) ─────────────────────────────────
+
+/// Extract keywords from a query string for overlap-based episode ranking.
+///
+/// Lowercases the input, splits on whitespace, and filters to words longer
+/// than 2 characters. Returns owned strings so the caller does not need to
+/// hold the lowercased source.
+///
+/// Used by chat recall (`MemoryService::recall_episodic`) and the memory MCP
+/// server (`memory_recall`, `episodic_recall_context`) to rank episodic
+/// memories by keyword overlap with the user's input.
+///
+/// expect: "The system ranks recalled memories by relevance to the query"
+/// pre:  text is a valid &str
+/// post: returns lowercased keywords with length > 2, in input order
+pub fn extract_keywords(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split_whitespace()
+        .filter(|w| w.len() > 2)
+        .map(|w| w.to_string())
+        .collect()
+}
+
+/// Score how many keywords appear in a text (case-insensitive substring match).
+///
+/// Returns the count of keywords from `keywords` that appear as substrings
+/// in the lowercased `text`. Higher = more relevant. Used to rank chat
+/// episodes by keyword overlap with the query.
+///
+/// expect: "The system ranks recalled memories by relevance to the query"
+/// pre:  keywords are lowercased (as produced by `extract_keywords`)
+/// post: returns count of keywords found as substrings in text (0 if none)
+pub fn keyword_overlap_score(keywords: &[String], text: &str) -> usize {
+    let text_lower = text.to_lowercase();
+    keywords
+        .iter()
+        .filter(|kw| text_lower.contains(kw.as_str()))
+        .count()
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1157,5 +1200,38 @@ mod tests {
             prop_assert_eq!(*last, 0.0f32,
                 "empty-tag passage should score 0.0, got {}", last);
         }
+    }
+
+    // ── Keyword overlap tests ──────────────────────────────────────────
+
+    #[test]
+    fn extract_keywords_lowercases_and_filters_short_words() {
+        let kw = extract_keywords("The Quick Brown Fox");
+        assert_eq!(kw, vec!["the", "quick", "brown", "fox"]);
+    }
+
+    #[test]
+    fn extract_keywords_drops_words_of_length_2_or_less() {
+        let kw = extract_keywords("a be cat dog");
+        assert_eq!(kw, vec!["cat", "dog"]);
+    }
+
+    #[test]
+    fn keyword_overlap_score_counts_substring_matches() {
+        let kw = extract_keywords("rust memory");
+        assert_eq!(keyword_overlap_score(&kw, "I love rust programming"), 1);
+        assert_eq!(keyword_overlap_score(&kw, "rust memory and rust"), 2);
+    }
+
+    #[test]
+    fn keyword_overlap_score_is_case_insensitive() {
+        let kw = vec!["hello".to_string()];
+        assert_eq!(keyword_overlap_score(&kw, "HELLO WORLD"), 1);
+    }
+
+    #[test]
+    fn keyword_overlap_score_returns_zero_for_no_matches() {
+        let kw = extract_keywords("nonexistent");
+        assert_eq!(keyword_overlap_score(&kw, "completely different text"), 0);
     }
 }

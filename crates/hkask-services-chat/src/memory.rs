@@ -7,12 +7,26 @@ use std::sync::Arc;
 
 use hkask_capability::DelegationToken;
 use hkask_memory::{
-    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
-    StorageRequest,
+    ChatTurn, EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic,
+    SemanticStoragePort, StorageRequest,
 };
 use hkask_types::{Confidence, DataCategory, WebID};
 
 use hkask_services_context::AgentService;
+
+/// Shape for chat turn recall — controls ranking and limit.
+///
+/// Used by `MemoryService::recall_chat_turns` to share recall + projection
+/// logic across `recall_episodic`, `recall_recent_turns`, and
+/// `recall_raw_episodes`. Each caller formats the returned `Vec<ChatTurn>`
+/// for its own consumer (ADR-060: per-surface rendering).
+enum RecallShape {
+    /// Rank by keyword overlap with context, take top `limit`.
+    Ranked { context: String, limit: usize },
+    /// Take the `limit` oldest episodes (port returns most-recent-first;
+    /// this reverses and takes the oldest `limit`).
+    Recent { limit: usize },
+}
 
 pub struct MemoryService;
 
@@ -55,6 +69,47 @@ impl MemoryService {
         }
     }
 
+    /// Recall chat turns from episodic memory with the given shape.
+    ///
+    /// Shared recall + projection logic for `recall_episodic`,
+    /// `recall_recent_turns`, and `recall_raw_episodes`. Each caller formats
+    /// the returned `Vec<ChatTurn>` for its own consumer.
+    fn recall_chat_turns(
+        episodic_port: &Arc<dyn EpisodicStoragePort>,
+        agent_webid: &WebID,
+        token: &DelegationToken,
+        shape: &RecallShape,
+    ) -> Vec<ChatTurn> {
+        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
+        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
+            Ok(v) if !v.is_empty() => v,
+            _ => return Vec::new(),
+        };
+        match shape {
+            RecallShape::Ranked { context, limit } => {
+                let keywords = hkask_memory::salience::extract_keywords(context);
+                let mut scored: Vec<(usize, ChatTurn)> = episodes
+                    .iter()
+                    .filter_map(|e| {
+                        let ct = ChatTurn::from_value(&e.value)?;
+                        let combined = format!("{} {}", ct.user_input, ct.agent_response);
+                        let score =
+                            hkask_memory::salience::keyword_overlap_score(&keywords, &combined);
+                        Some((score, ct))
+                    })
+                    .collect();
+                scored.sort_by(|a, b| b.0.cmp(&a.0));
+                scored.into_iter().take(*limit).map(|(_, ct)| ct).collect()
+            }
+            RecallShape::Recent { limit } => episodes
+                .iter()
+                .rev()
+                .take(*limit)
+                .filter_map(|e| ChatTurn::from_value(&e.value))
+                .collect(),
+        }
+    }
+
     /// Recall episodic memories relevant to the input, sorted by salience.
     ///
     /// Mirrors `recall_semantic`: same return type, same take-top-N pattern.
@@ -65,33 +120,25 @@ impl MemoryService {
         agent_webid: &WebID,
         token: &DelegationToken,
     ) -> Option<String> {
-        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
-        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
-            Ok(v) if !v.is_empty() => v,
-            _ => return None,
-        };
-        let input_lower = input.to_lowercase();
-        let keywords: Vec<&str> = input_lower
-            .split_whitespace()
-            .filter(|w| w.len() > 2)
-            .collect();
-        let mut scored: Vec<(usize, String)> = episodes
-            .iter()
-            .filter_map(|e| {
-                let v = e.value.as_object()?;
-                let ui = v.get("user_input")?.as_str()?;
-                let ar = v.get("agent_response")?.as_str()?;
-                let combined = format!("{} {}", ui.to_lowercase(), ar.to_lowercase());
-                let score = keywords.iter().filter(|kw| combined.contains(*kw)).count();
-                Some((score, format!("User: {}\nAgent: {}", ui, ar)))
-            })
-            .collect();
-        scored.sort_by(|a, b| b.0.cmp(&a.0));
-        let top: Vec<String> = scored.into_iter().take(10).map(|(_, text)| text).collect();
-        if top.is_empty() {
+        let turns = Self::recall_chat_turns(
+            episodic_port,
+            agent_webid,
+            token,
+            &RecallShape::Ranked {
+                context: input.to_string(),
+                limit: 10,
+            },
+        );
+        if turns.is_empty() {
             None
         } else {
-            Some(top.join("\n\n"))
+            Some(
+                turns
+                    .iter()
+                    .map(|ct| format!("User: {}\nAgent: {}", ct.user_input, ct.agent_response))
+                    .collect::<Vec<_>>()
+                    .join("\n\n"),
+            )
         }
     }
 
@@ -103,26 +150,21 @@ impl MemoryService {
         token: &DelegationToken,
         limit: usize,
     ) -> Option<String> {
-        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
-        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
-            Ok(v) if !v.is_empty() => v,
-            _ => return None,
-        };
-        let recent: Vec<String> = episodes
-            .iter()
-            .rev()
-            .take(limit)
-            .filter_map(|e| {
-                let v = e.value.as_object()?;
-                let input = v.get("user_input")?.as_str()?;
-                let response = v.get("agent_response")?.as_str()?;
-                Some(format!("User: {}\nAgent: {}", input, response))
-            })
-            .collect();
-        if recent.is_empty() {
+        let turns = Self::recall_chat_turns(
+            episodic_port,
+            agent_webid,
+            token,
+            &RecallShape::Recent { limit },
+        );
+        if turns.is_empty() {
             None
         } else {
-            let formatted = recent.into_iter().rev().collect::<Vec<_>>().join("\n\n");
+            let formatted = turns
+                .iter()
+                .rev()
+                .map(|ct| format!("User: {}\nAgent: {}", ct.user_input, ct.agent_response))
+                .collect::<Vec<_>>()
+                .join("\n\n");
             Some(format!(
                 "[Previous conversation]\n{}\n[/Previous conversation]\n\n",
                 formatted
@@ -175,21 +217,16 @@ impl MemoryService {
         token: &DelegationToken,
         limit: usize,
     ) -> Vec<serde_json::Value> {
-        let request = RecallRequest::episodic("chatted", *agent_webid, token.clone());
-        let episodes: Vec<RecalledEpisode> = match episodic_port.recall_episodic(&request) {
-            Ok(v) if !v.is_empty() => v,
-            _ => return vec![],
-        };
+        let turns = Self::recall_chat_turns(
+            episodic_port,
+            agent_webid,
+            token,
+            &RecallShape::Recent { limit },
+        );
         let mut messages: Vec<serde_json::Value> = Vec::new();
-        for e in episodes.iter().rev().take(limit) {
-            if let Some(v) = e.value.as_object() {
-                if let Some(input) = v.get("user_input").and_then(|s| s.as_str()) {
-                    messages.push(serde_json::json!({"role": "user", "content": input}));
-                }
-                if let Some(response) = v.get("agent_response").and_then(|s| s.as_str()) {
-                    messages.push(serde_json::json!({"role": "assistant", "content": response}));
-                }
-            }
+        for ct in &turns {
+            messages.push(serde_json::json!({"role": "user", "content": ct.user_input}));
+            messages.push(serde_json::json!({"role": "assistant", "content": ct.agent_response}));
         }
         messages.reverse();
         messages

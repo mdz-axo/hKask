@@ -137,6 +137,16 @@ impl RecallRequest {
 // ── Response DTOs ────────────────────────────────────────────────────────
 
 /// Typed DTO for recalled episodic h_mems.
+///
+/// Carries `perspective: Option<WebID>` — the owning agent's identity. This
+/// field is load-bearing for OCAP: episodic memory is perspective-bound (only
+/// the owning agent can read their own episodic h_mems). `RecalledSemantic`
+/// omits this field because semantic memory is shared (any agent with a
+/// capability token can read). The two types are deliberately separate rather
+/// than one type with an optional perspective: merging them would let callers
+/// accidentally ignore the perspective field on what should be episodic data,
+/// weakening the OCAP boundary at the type level. See ADR-042 for the port
+/// promotion rule that placed these traits in `hkask-memory`.
 #[derive(Debug, Clone)]
 pub struct RecalledEpisode {
     pub id: String,
@@ -151,6 +161,12 @@ pub struct RecalledEpisode {
 }
 
 /// Typed DTO for recalled semantic h_mems.
+///
+/// Omits `perspective` (which `RecalledEpisode` carries) because semantic
+/// memory is perspective-free and shared across agents. The absence of this
+/// field is the type-level signal that no OCAP perspective check is needed
+/// for semantic recall. See the doc on `RecalledEpisode` for the rationale
+/// behind keeping the two types separate.
 #[derive(Debug, Clone)]
 pub struct RecalledSemantic {
     pub id: String,

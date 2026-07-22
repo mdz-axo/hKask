@@ -6,6 +6,14 @@
 use std::sync::Arc;
 
 /// A single memory h_mem for TUI display.
+///
+/// Display-flattened EAV triple: `entity`, `attribute`, and `value` are all
+/// `String` (the `RecalledEpisode`/`RecalledSemantic` DTOs carry `value` as
+/// `serde_json::Value` plus metadata fields like `Confidence`, `Visibility`,
+/// `WebID`, and `Dimension`). The TUI renders to a terminal and does not need
+/// the full type hierarchy — keeping a separate display DTO decouples the TUI
+/// from the memory crate's type surface. This is a display concern, not a
+/// domain type; do not use it outside the TUI layer.
 #[derive(Debug, Clone)]
 pub struct MemoryHMem {
     pub entity: String,
