@@ -114,6 +114,91 @@ pub struct ReplState {
 
 **Design Intent:** `init::init_repl_state()` initializes `ReplState` once at REPL boot and mutates it in place across turns. One field remains private: `persona_constraints` (loaded from agent YAML, not mutated after init). A manual `Debug` impl redacts `resolved_secrets`, `manifest_state`, `service_context`, and `host` so the central state object can be inspected in diagnostics without leaking secrets or hitting non-Debug trait-object bounds. History access routes through OCAP-gated episodic storage via `ChatService::recall_recent_turns()`. `is_first_run` gates the First Steps guide shown in the welcome banner. The `tool_prompt` cache exists because `ToolPort` uses `impl Trait` returns (not dyn-compatible); re-derive when MCP servers start/stop.
 
+#### ReplState Type Hierarchy (DIAG-REPL-002)
+
+```mermaid
+classDiagram
+    class ReplState {
+        +WebID agent_webid
+        +String current_model
+        +String current_agent
+        +Option~String~ active_session
+        +Option~ResolvedSecrets~ resolved_secrets
+        -Option~PersonaConstraints~ persona_constraints
+        +ToolPrompt tool_prompt
+        +ManifestState manifest_state
+        +Arc~AgentService~ service_context
+        +ReplSettings repl_settings
+        +bool is_first_run
+        +TalkConfig talk_config
+        +Option~ImprovMode~ improv_mode
+        +Option~KanbanService~ kanban_service
+        +Vec degraded_servers
+        +ThreadRegistry thread_registry
+        +Arc~dyn ReplHost~ host
+    }
+    class ToolPrompt {
+        +String section
+        +Vec~ChatToolDefinition~ definitions
+    }
+    class ManifestCascade {
+        +BundleManifest manifest
+        +ManifestExecutor executor
+    }
+    class TalkConfig {
+        +TalkMode mode
+        +Option~String~ voice_design
+    }
+    class TalkMode {
+        <<enumeration>>
+        On
+        Off
+    }
+    class ThreadRegistry {
+        +BTreeMap threads
+        +Option~String~ active_thread_id
+        +bool seeded
+    }
+    class ReplHost {
+        <<interface>>
+        +resolve_user_webid() WebID
+        +run_onboarding(rt) Result
+        +list_templates_local() Vec
+        +run_sovereignty_status()
+    }
+    class AgentService {
+        <<external>>
+        +governed_tool(webid) Arc
+        +inference_port() Option
+        +per_agent_memory(name) Result
+        +regulation() CnsContext
+        +gas_remaining() Option
+        +gas_cap() Option
+    }
+
+    ReplState --> ToolPrompt : tool_prompt
+    ReplState --> ManifestCascade : manifest_state (Option)
+    ReplState --> TalkConfig : talk_config
+    ReplState --> ThreadRegistry : thread_registry
+    ReplState --> ReplHost : host (Arc dyn)
+    ReplState --> AgentService : service_context (Arc)
+    TalkConfig --> TalkMode : mode
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REPL-002
+verified_date: 2026-07-20
+verified_against: crates/hkask-repl/src/lib.rs:100-159; crates/hkask-services-context/src/context_impl.rs:103-474
+status: VERIFIED
+-->
+
+**Design notes:**
+
+- **`ManifestState` is a type alias** for `Option<ManifestCascade>`, not a struct. This enforces the "both present or both absent" invariant at the type level — the invalid state `Some(manifest) + None(executor)` is unrepresentable.
+- **`TalkMode` is an enum**, not a `bool`. The `enabled: bool` field was replaced with `mode: TalkMode` so the on/off decision is explicit at the type level.
+- **`tool_prompt` is a cache.** It exists because `ToolPort` uses `impl Trait` returns, making `Arc<dyn ToolPort>` infeasible. The cache is refreshed during MCP server start/stop.
+- **`host: Arc<dyn ReplHost>`** bridges the REPL crate to the CLI binary. The REPL crate cannot depend on `hkask-cli` (dependency direction violation), so `ReplHost` is a trait implemented by `CliHost` in `hkask-cli`.
+
 ### 3.3 Dependency Injection (init.rs)
 
 The `init_repl_state()` function assembles the REPL's dependency graph in order:

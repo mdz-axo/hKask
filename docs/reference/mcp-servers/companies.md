@@ -73,8 +73,6 @@ verified_against: mcp-servers/hkask-mcp-companies/src/lib.rs:499-509 (combined_r
 status: VERIFIED
 -->
 
-The standalone [Tool Routing and Dispatch Flow](../../diagrams/flowchart-companies-tool-routing.md) diagram carries the same verified content for cross-linking from other documents.
-
 ## Tools (41)
 
 ### Financial data (8)
@@ -214,6 +212,5 @@ The suite covers provider-error handling, EODHD normalization, valuation request
 - [MCP Server Registry](README.md) — catalog of all 15 built-in servers
 - [Companies User Guide](../../how-to/companies-mcp.md) — task-oriented procedures for valuation, forecasting, and portfolio operations
 - [Companies Semantic Graph Audit](../../status/companies-mcp-semantic-graph-audit-2026-07-17.md) — internal module dependency graph health
-- [Tool Routing and Dispatch Flow](../../diagrams/flowchart-companies-tool-routing.md) — standalone DIAG-RF-004 diagram
 - [Companies MCP Code Review](../../status/companies-mcp-code-review-2026-07-15.md) — adversarial code review of the companies server
 - [Diagram Index](../../DIAGRAMS_INDEX.md) — DIAG-RF-004 registration

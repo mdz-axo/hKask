@@ -215,7 +215,7 @@ Principle 4 is verified by checking that P1–P3 are correctly implemented as OC
 
 **The Catch:** We create boundaries that protect user sovereignty.
 
-**The Release:** Within those boundaries, we provide the most generative agent platform possible.
+**The Release:** Within those boundaries, we provide the most generative tool surface possible — skills, MCP servers, and LLM access for human users.
 
 The catch-and-release dialectic mirrors the Viable System Model's balance between regulation and autonomy:[^beer-vsm]
 

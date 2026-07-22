@@ -163,9 +163,9 @@ hKask's architecture has four control planes (surfaces), each with distinct node
 
 ### 2.4 Control Plane D — The Agent Pod Plane (Pattern D: Agent Creation + Sovereign Memory)
 
-**What it is:** The pod lifecycle — how agents come into existence with identity, capabilities, memory, and consent boundaries. This is the **deployment surface** where regulated actors exist.
+**What it is:** The sovereign container infrastructure — each human user gets a userpod with its own identity, capabilities, memory, and consent boundaries. The userpod is the deployment unit that makes the human's `kask chat` experience sovereign (P1). Agent pods (`hkask-pods`) are the runtime container; the human user is the principal.
 
-**Kata correspondence:** The Agent Pod Plane is the **implementation surface** — the place where the Kata is practiced. Each UserPod is a learner practicing the Kata; the Curator is the coach.
+**Kata correspondence:** The Agent Pod Plane is the **implementation surface** — the place where the Kata is practiced. The human user is the learner practicing the Kata; the userpod is the sovereign container that carries their identity and memory. The Curator is the coach.
 
 **Nodes:**
 - `PodDeployment` — the canonical pod type (per-pod SQLCipher, Regulation, MCP)
@@ -438,7 +438,7 @@ sequenceDiagram
 | **Coaching Kata Q4: Next Step? What do you expect?** | `RegulationPolicy::decide()` → proposed action with `reason`; `FlowDef` step with `condition` expression | B + A | Hypothesis-driven action |
 | **Coaching Kata Q5: How quickly can we go and see?** | `verify_impact()` in same tick (delay = 0); `LoopScheduler` tick intervals | B | Delay minimization |
 | **The Coach (meta-regulator)** | `CuratorAgent` + `CurationLoop` + `MetacognitionLoop` | C | Conant-Ashby: regulator of the regulator |
-| **The Learner (regulated actor)** | `UserPod` + `PodDeployment` + `PerPodRegulationLedger` | D | VSM S1 Implementation |
+| **The Learner (regulated actor)** | `UserPod` + `PodDeployment` + `PerPodRegulationLedger` | D | VSM S1 Implementation — the human user is the learner; the userpod is the sovereign container that carries their identity and memory |
 | **The Kata Storyboard** | `RegulationArchive` (ν-events) + `KataHistory` + `regulation_history` ring buffer | B + C | Cybernetic audit trail |
 | **The Obstacles Parking Lot** | `EscalationEntry` queue; `StagnationDetector` stagnation keys | B + C | Disturbance inventory |
 | **Practice Frequency / Streaks** | `KataHistory::PracticeEntry`; `reg.kata` spans | C | Habit formation tracking |

@@ -42,7 +42,7 @@ Curation: Merge | Revise | Defer | Discard
 ### REQ-DOM-001: Bounded Context Identity
 
 - **Category:** Domain
-- **Text:** When operating an agent platform, I want a clear bounded context, so I can reason about what hKask owns vs. delegates.
+- **Text:** When using hKask as a human user (via `kask chat`), I want a clear bounded context, so I can reason about what hKask owns vs. delegates.
 - **Criteria:**
   - [x] Bounded context documented and verified against code
   - [x] External dependencies (Okapi, SQLCipher) are delegated, not owned
@@ -224,7 +224,7 @@ Curation: Merge | Revise | Defer | Discard
 ### REQ-COM-003: Agent Pod Composition
 
 - **Category:** Composition, Trust
-- **Text:** When creating an agent, I want pod-based composition, so I can bundle identity, capabilities, and templates.
+- **Text:** When the human user's sovereign container (userpod) is provisioned, I want pod-based composition so identity, capabilities, and templates are bundled for the user's `kask chat` session.
 - **Criteria:**
   - [x] `AgentPod` composes identity, capabilities, templates, lifecycle state
   - [x] `ActivePods` with builder pattern
@@ -436,7 +436,7 @@ Curation: Merge | Revise | Defer | Discard
 ### REQ-COM-004: Matrix Communication Transport
 
 - **Category:** Curation, Composition
-- **Text:** When agents need to communicate with humans or other agents, I want Matrix-based transport with Regulation-observable message flow, so I can interact with my agents from mobile devices and federate across hKask instances.
+- **Text:** When the human user opts into cross-device or federated communication, I want Matrix-based transport with Regulation-observable message flow, so I can interact with my chat session from mobile devices and federate across hKask instances. Matrix is opt-in infrastructure; the primary surface is `kask chat`.
 - **Criteria:**
   - [x] `hkask-communication` core infrastructure crate (952 LOC)
   - [x] `MatrixTransport` — matrix-sdk wrapper: login, send/receive, rooms, files
@@ -461,7 +461,7 @@ Curation: Merge | Revise | Defer | Discard
 ### REQ-COM-005: WebSocket Streaming Chat
 
 - **Category:** Composition, Lifecycle
-- **Text:** When interacting with agents via a browser or API client, I want a persistent WSS (WebSocket Secure) chat endpoint with streaming token output and MCP tool integration, so I can have real-time bidirectional conversations with full memory pipeline support.
+- **Text:** When the human user chooses a browser-based chat experience, I want a persistent WSS (WebSocket Secure) chat endpoint with streaming token output and MCP tool integration, so I can have real-time bidirectional conversations with full memory pipeline support.
 - **Criteria:**
   - [x] `GET /api/v1/chat/ws` — WebSocket upgrade with session cookie auth
   - [x] JSON protocol: `{"type":"prompt"}` → `{"type":"token",...}` → `{"type":"done",...}`

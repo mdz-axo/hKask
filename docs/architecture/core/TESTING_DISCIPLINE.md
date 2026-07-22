@@ -246,9 +246,9 @@ Every test verifies an IS claim about system behavior. The Regulation span regis
 - **Test coverage is variety.** The Regulation tracks test coverage per domain as variety (Ashby's Law). A drop in variety triggers an alert.
 - **Mutation testing measures regulator quality.** `cargo-mutants` injects bugs; the percentage caught measures how well the test suite models the system.
 
-### 5.4 P6 — Space for UserPods
+### 5.4 P6 — Space for Human Users and Their Tools
 
-UserPods propose tests for their own behavior. A userpod can open a PR containing a property-based test verifying its intended behavior, with the userpod's WebID as the authenticated author (P12). A human operator provides affirmative consent (P2) to merge.
+Developers (and AI coding agents acting on their behalf) propose tests for behavior. The author identity is the authenticated user (P12); a userpod may carry the WebID. A human operator provides affirmative consent (P2) to merge. Post-pivot, the human user is the principal; the userpod is the sovereign container that carries their identity.
 
 ### 5.5 P7 — Evolutionary Architecture
 
@@ -295,7 +295,7 @@ Tests accumulate the scar tissue of every production incident. They become the r
 | **P2** | One test per TDD cycle (vertical slice, not horizontal) |
 | **P3** | Refactor only when GREEN — never while RED |
 | **P4** | After every bug fix, add a regression test that captures that class of bug |
-| **P5** | UserPods may propose tests; humans provide consent to merge (P2, P6) |
+| **P5** | Developers and AI coding agents may propose tests; the human user provides consent to merge (P2, P6). The userpod carries the author WebID (P12) |
 | **P6** | Every test action carries an authenticated author (TestWebId or userpod WebID) (P12) |
 
 ### 6.4 Quality Rules

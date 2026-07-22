@@ -208,7 +208,7 @@ The replica server provides 9 tools for style corpus management, prose generatio
 |--------|-------|--------|--------|
 | `hkask-mcp-replica` | `replica_build`, `replica_compose`, `replica_rewrite`, `replica_mashup`, `replica_compare`, `replica_registry`, `replica_explain`, `replica_discover`, `replica_cache_work` | Style replication + prose rewriting | ✅ Implemented |
 
-### 4.7 UserPod Architecture
+### 4.7 Replica Exemplar Architecture
 
 The replica system models a **human exemplar** — a named individual whose body of work constitutes a representational corpus. The logical validity of the replica derives from the relationship between the human and their work: the corpus *is* the evidence of their voice, style, and intellectual framework. Each passage is a sample of that relationship.
 
