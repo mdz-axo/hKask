@@ -61,7 +61,7 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 
 ### 1.3 Adapter Domain
 
-**Crate:** `hkask-adapter` | **Goal Principle:** P3 (Generative Space) — LoRA adapter lifecycle management for agent-specialized inference
+**Crate:** `hkask-mcp-training::adapter` | **Goal Principle:** P3 (Generative Space) — LoRA adapter lifecycle management for agent-specialized inference
 
 | Entity | Description | Key Attributes |
 |--------|-------------|---------------|

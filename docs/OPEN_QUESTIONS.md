@@ -736,7 +736,7 @@ Regulation spans like `reg.training.sweep.iteration` and `reg.training.retrain.a
 
 **Decision:** Format validation lives in `ProviderCapability` and `AdapterConfig`. The `AdapterConfig` type parses `adapter_config.json` (PEFT standard). Provider backends validate compatibility through `ProviderCapability::can_compose()`. Normalization is the training pipeline's responsibility, not the storage layer's.
 
-**Implementation:** `hkask-adapter::adapter_config::AdapterConfig::validate_base_model()`, `hkask-adapter::provider_cost::ProviderCapability::can_compose()`
+**Implementation:** `hkask-mcp-training::adapter::adapter_config::AdapterConfig::validate_base_model()`, `hkask-mcp-training::adapter::provider_cost::ProviderCapability::can_compose()`
 
 ### ADT-002: Adapter versioning ✅ RESOLVED
 
@@ -760,7 +760,7 @@ Regulation spans like `reg.training.sweep.iteration` and `reg.training.retrain.a
 
 **Decision:** `AdapterSource` enum with `HuggingFace { repo: String }` as the initial variant. All three inference providers (Together, Runpod, Baseten) can pull adapters from Hugging Face Hub natively. The enum is designed for extension — adding a second source is just an enum arm with no schema migration.
 
-**Implementation:** `hkask-adapter::adapter_store::AdapterSource`
+**Implementation:** `hkask-mcp-training::adapter::adapter_store::AdapterSource`
 
 ### ADT-004: Cross-model-family safety ✅ RESOLVED
 
@@ -772,7 +772,7 @@ Regulation spans like `reg.training.sweep.iteration` and `reg.training.retrain.a
 
 **Decision:** `ProviderCapability::can_compose()` checks the provider's supported base model families against the adapter's `base_model_family`. Incompatible compositions are rejected at `create_endpoint()` time. The system does not warn about cross-family matches — it prevents them.
 
-**Implementation:** `hkask-adapter::provider_cost::ProviderCapability::can_compose()`
+**Implementation:** `hkask-mcp-training::adapter::provider_cost::ProviderCapability::can_compose()`
 
 ### ADT-005: Adapter sharing between users ✅ RESOLVED
 
@@ -792,7 +792,7 @@ Regulation spans like `reg.training.sweep.iteration` and `reg.training.retrain.a
 **Status:** **Resolved**
 **Resolution Date:** 2026-07-17
 
-**Original question:** The training MCP server had its own `AdapterStore` trait, `LoRAAdapter` struct, `InMemoryAdapterStore`, and `SqliteAdapterStore` — a parallel implementation to `hkask-adapter::AdapterStore` + `TrainedLoRAAdapter`. Connected by `to_canonical()` which filled in fake data (zero checksum, empty storage_path). Actively used by 8+ tool methods.
+**Original question:** The training MCP server had its own `AdapterStore` trait, `LoRAAdapter` struct, `InMemoryAdapterStore`, and `SqliteAdapterStore` — a parallel implementation to `hkask-mcp-training::adapter::AdapterStore` + `TrainedLoRAAdapter`. Connected by `to_canonical()` which filled in fake data (zero checksum, empty storage_path). Actively used by 8+ tool methods.
 
 **Decision:** Merge. The canonical `hkask_adapter::AdapterStore` now has all methods the training server needs (`store`, `get_by_id`, `list_all`, `delete`, `get_by_skill_name`, `store_blob`, `get_blob`). The training server's `adapter_store` field type changed from `Arc<dyn AdapterStore>` to `Arc<hkask_adapter::AdapterStore>`. All tool methods construct `TrainedLoRAAdapter` directly. `LoRAAdapter`, `InMemoryAdapterStore`, `SqliteAdapterStore`, the training `AdapterStore` trait, and `to_canonical()` are deleted.
 

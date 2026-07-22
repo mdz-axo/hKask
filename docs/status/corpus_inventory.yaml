@@ -148,7 +148,7 @@ documents:
     mds_categories: [lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-adapter]
+    code_artifacts: [mcp-servers/hkask-mcp-training/src/adapter]
     disposition: keep
 
   - path: docs/architecture/ADRs/ADR-042-port-promotion-rule.md
@@ -321,7 +321,7 @@ documents:
     mds_categories: [domain, lifecycle]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-adapter]
+    code_artifacts: [mcp-servers/hkask-mcp-training/src/adapter]
     disposition: keep
 
   - path: docs/diagrams/state-kata-pdca.md
@@ -400,7 +400,7 @@ documents:
     mds_categories: [domain, composition, trust, lifecycle]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-adapter, crates/hkask-mcp]
+    code_artifacts: [mcp-servers/hkask-mcp-training/src/adapter, crates/hkask-mcp]
     disposition: keep
 
   # ── Research ──────────────────────────────────────────────────────────────
@@ -641,7 +641,7 @@ documents:
     staleness_signal: none
     drift_verdict: aligned
     code_artifacts:
-      [crates/hkask-adapter, crates/hkask-types, crates/hkask-storage]
+      [mcp-servers/hkask-mcp-training/src/adapter, crates/hkask-types, crates/hkask-storage]
     disposition: keep
 
   - path: docs/user-guides/lora-training-guide.md
@@ -652,7 +652,7 @@ documents:
     mds_categories: [composition, lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-adapter, crates/hkask-types, crates/hkask-mcp]
+    code_artifacts: [mcp-servers/hkask-mcp-training/src/adapter, crates/hkask-types, crates/hkask-mcp]
     disposition: keep
 
   - path: docs/user-guides/skill-composition-guide.md

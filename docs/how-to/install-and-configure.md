@@ -271,7 +271,7 @@ assert_eq!(decrypted, "sensitive data");
 
 ### Schema Initialization
 
-hKask does not use a separate migration tool. Schema initialization happens in-store via `DatabaseDriver::execute_batch()`. Each store module (HMem, embeddings, etc.) calls its own `CREATE TABLE IF NOT EXISTS` statements on first access. The `AdapterStore` in `crates/hkask-adapter/src/adapter_store.rs` is a representative example with `init_schema()`.
+hKask does not use a separate migration tool. Schema initialization happens in-store via `DatabaseDriver::execute_batch()`. Each store module (HMem, embeddings, etc.) calls its own `CREATE TABLE IF NOT EXISTS` statements on first access. The `AdapterStore` in `mcp-servers/hkask-mcp-training/src/adapter/adapter_store.rs` is a representative example with `init_schema()`.
 
 ---
 

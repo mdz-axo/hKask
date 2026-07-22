@@ -376,7 +376,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TRN-004
 verified_date: 2026-07-12
-verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+verified_against: mcp-servers/hkask-mcp-training/src/adapter/mod.rs, crates/hkask-inference/src/lib.rs
 status: VERIFIED
 -->
 
@@ -448,7 +448,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TRN-005
 verified_date: 2026-07-12
-verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+verified_against: mcp-servers/hkask-mcp-training/src/adapter/mod.rs, crates/hkask-inference/src/lib.rs
 status: VERIFIED
 -->
 
@@ -599,7 +599,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TRN-006
 verified_date: 2026-07-12
-verified_against: crates/hkask-adapter/src/lib.rs, crates/hkask-inference/src/lib.rs
+verified_against: mcp-servers/hkask-mcp-training/src/adapter/mod.rs, crates/hkask-inference/src/lib.rs
 status: VERIFIED
 -->
 

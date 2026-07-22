@@ -417,7 +417,7 @@ CLOUD SERVER (single binary, all crates compiled)
   hkask-mcp - MCP server runtime
   hkask-pods - userpod lifecycle
   hkask-regulation - cybernetic nervous system
-  hkask-codegraph - code understanding engine (tree-sitter, FTS5, recursive CTE, context assembly)
+  hkask-mcp-codegraph - code understanding engine (tree-sitter, FTS5, recursive CTE, context assembly)
   hkask-wallet + hkask-memory - wallet and memory subsystems
   Per-pod SQLCipher files (`{data_dir}/agents/{sanitized_name}/pod.db`) — one database per agent, two-kind (Curator/UserPod)
 
@@ -501,12 +501,12 @@ core/PRINCIPLES.md  ←  12 principles (P1-P12), constraint forces, 5 anchors
 | [`Regulation Domain Specification`](FUNCTIONAL_SPECIFICATION.md#regulation-domain-specification) | Regulation Domain Specification — 8 sub-domains, contract counts, Rust module mapping |
 | [`hkask-ledger.md`](../../reference/api-reference.md) | Ledger specification — triple-entry accounting, three-domain schema |
 
-**TUI specification** — 22 windows with 15 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-tui/` for implementation. Diagrams: [class hierarchy](../../reference/api-reference.md#tui-window-trait-hierarchy), [event dispatch](../../reference/api-reference.md#tui-event-dispatch-pipeline), [workspace lifecycle](../../reference/api-reference.md#tui-workspace-state-lifecycle), [bridge wiring](../../reference/api-reference.md#tui-bridge-wiring-architecture).
+**TUI specification** — 22 windows with 15 live domain bridges, ratatui+crossterm framework, Zed-style workspace model. See `crates/hkask-repl/src/tui/` for implementation. Diagrams: [class hierarchy](../../reference/api-reference.md#tui-window-trait-hierarchy), [event dispatch](../../reference/api-reference.md#tui-event-dispatch-pipeline), [workspace lifecycle](../../reference/api-reference.md#tui-workspace-state-lifecycle), [bridge wiring](../../reference/api-reference.md#tui-bridge-wiring-architecture).
 
 **Curator persona** — The Curator is the canonical system daemon. Defined in Pattern C above (§Curator Persona & Behavioral Specification).
 
 | [`../plans/k8s-admin-guide.md`](../../plans/k8s-admin-guide.md) | Kubernetes deployment and backup guide |
-| [`hkask-codegraph`](../../../crates/hkask-codegraph/) (plan absorbed into implementation) | CodeGraph crate — two-crate pattern, 10-tool MCP server, Regulation integration |
+| [`hkask-mcp-codegraph`](../../../mcp-servers/hkask-mcp-codegraph/) (plan absorbed into implementation) | CodeGraph crate — two-crate pattern, 10-tool MCP server, Regulation integration |
 
 ### Supplementary Architecture Patterns
 
@@ -560,16 +560,16 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 | `hkask-templates` | Curation | Skill registry, FlowDef execution |
 | `hkask-communication` | Transport | Matrix transport, 7R7 listener, Regulation bridge, response dispatch |
 
-**Shared substrate (no loop ownership):** `hkask-storage` (storage backend — v0.31.0: modularized into 9 sub-crates: `-core`, `-gallery`, `-kata`, `-hmem`, `-archive`, `-token_registry`, `-consent_store`, `-sovereignty`, `-escalation` behind a facade; 8 modules remain in facade), `hkask-types` (shared types), `hkask-codegraph` (code understanding engine — tree-sitter parsing, FTS5 keyword search, recursive CTE traversal, token-budgeted context assembly for LLM prompts). Every loop imports them; neither loop owns them.
+**Shared substrate (no loop ownership):** `hkask-storage` (storage backend — v0.31.0: modularized into 9 sub-crates: `-core`, `-gallery`, `-kata`, `-hmem`, `-archive`, `-token_registry`, `-consent_store`, `-sovereignty`, `-escalation` behind a facade; 8 modules remain in facade), `hkask-types` (shared types), `hkask-mcp-codegraph` (code understanding engine — tree-sitter parsing, FTS5 keyword search, recursive CTE traversal, token-budgeted context assembly for LLM prompts). Every loop imports them; neither loop owns them.
 
-**v0.31.0 additions:** `hkask-repl` (extracted from `hkask-cli/src/repl/`, uses `ReplHost` trait to bridge CLI cross-cuts), `hkask-codegraph` (code understanding engine — see below). See [ADR-046](../ADRs/ADR-046-repl-extraction-path.md), [ADR-047](../ADRs/ADR-047-storage-modularization.md).
+**v0.31.0 additions:** `hkask-repl` (extracted from `hkask-cli/src/repl/`, uses `ReplHost` trait to bridge CLI cross-cuts), `hkask-mcp-codegraph` (code understanding engine — see below). See [ADR-046](../ADRs/ADR-046-repl-extraction-path.md), [ADR-047](../ADRs/ADR-047-storage-modularization.md).
 
 ##### CodeGraph — Native Code Understanding Subsystem
 
 **What it is:** A self-contained code understanding engine that builds a semantic graph from Rust source code, stores it in SQLite, and exposes 11 MCP tools for agents to query, traverse, analyze, and assemble context from the codebase.
 
 **Two-crate pattern** (matching `hkask-condenser` + `hkask-mcp-condenser`):
-- `hkask-codegraph` — domain library: tree-sitter parser, indexer, graph engine (FTS5 search, recursive CTE traversal, PageRank), dead code analysis, context assembly
+- `hkask-mcp-codegraph` — codegraph module: tree-sitter parser, indexer, graph engine (FTS5 search, recursive CTE traversal, PageRank), dead code analysis, context assembly
 - `hkask-mcp-codegraph` — thin MCP wrapper: 11 tools, OCAP-gated, capability tier enforcement, embedding router integration
 
 **Key design invariants:**
@@ -604,7 +604,7 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 **Current implementation diagrams:** [CodeGraph Type System](../../reference/api-reference.md#codegraph-type-system-class-diagram), [CodeGraph Schema ERD](../../reference/api-reference.md#codegraph-database-schema-erd), [CodeGraph Pipeline](../../reference/api-reference.md#codegraph-indexing-pipeline-flowchart), [CodeGraph Agent Workflow](../../reference/api-reference.md#codegraph-agent-workflow-sequence). The [CodeGraph Pipeline Lifecycle](../../reference/api-reference.md#codegraph-indexpipeline-lifecycle-state) document is a proposed lifecycle model, not current implementation behavior.
 
-**Plan:** Original plan absorbed into the [`hkask-codegraph`](../../../crates/hkask-codegraph/) crate (Complete — 22 tests, 11 tools, Regulation integration)
+**Plan:** Original plan absorbed into the [`hkask-mcp-codegraph`](../../../mcp-servers/hkask-mcp-codegraph/) crate (Complete — 22 tests, 11 tools, Regulation integration)
 
 **If removed:** Agents lose the ability to understand the codebase they operate on — all codebase context must be provided manually in prompts. Reduces agent autonomy from code-aware to text-only. P3 (Generative Space) partially degraded.
 
@@ -1167,7 +1167,7 @@ reg.kata.improv.effectiveness → variety_feedback → Regulation homeostatic lo
 
 ## LoRA Adapter Lifecycle & Inference Composition
 
-**Crates:** `hkask-adapter` (lifecycle, routing, store), `hkask-types` (Regulation spans), `hkask-services-runtime` (orchestration)
+**Crates:** `hkask-mcp-training::adapter` (lifecycle, routing, store), `hkask-types` (Regulation spans), `hkask-services-runtime` (orchestration)
 
 **MCP surface:** Training via `hkask-mcp-training` (17 tools, 5 providers)
 
@@ -1175,7 +1175,7 @@ reg.kata.improv.effectiveness → variety_feedback → Regulation homeostatic lo
 
 ### Summary
 
-`hkask-adapter` manages the full lifecycle of trained LoRA adapters — from training provenance through cloud deployment to cost-tracked inference and teardown. Every operation is OCAP-gated (P4). Every state transition emits a Regulation span (P9). Every adapter has an owner WebID (P12).
+`hkask-mcp-training::adapter` manages the full lifecycle of trained LoRA adapters — from training provenance through cloud deployment to cost-tracked inference and teardown. Every operation is OCAP-gated (P4). Every state transition emits a Regulation span (P9). Every adapter has an owner WebID (P12).
 
 | Component | Type | Purpose |
 |-----------|------|---------|
@@ -1233,7 +1233,7 @@ status: VERIFIED
 
 ```mermaid
 graph TD
-    TRAIN["hkask-mcp-training"] --> ADAPTER["hkask-adapter"]
+    TRAIN["hkask-mcp-training"] --> ADAPTER["hkask-mcp-training::adapter"]
     ADAPTER --> TYPES["hkask-types (Regulation spans, WebID)"]
     ADAPTER --> STORAGE["hkask-storage (define_store!)"]
     ADAPTER --> INFERENCE["hkask-inference (provider routing)"]
@@ -1505,7 +1505,7 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 | `hkask-templates` | 22 | Jinja2 rendering, registry, template types | Template engine. Registry, rendering, classification are distinct concerns. |
 | `hkask-wallet` | 22 | WalletManager, rJoule, multi-chain bridges | Domain boundary. Keys, balances, deposits are distinct operations. |
 | `hkask-inference` | 18 | InferenceRouter, provider backends, budget tracking | Provider abstraction. Each backend scales with provider support. |
-| `hkask-adapter` | 17 | Expertise, AdapterStore, AdapterRouter, EndpointLifecycle | Multi-concern spanning types, persistence, lifecycle, routing. |
+| `hkask-mcp-training::adapter` | 17 | Expertise, AdapterStore, AdapterRouter, EndpointLifecycle | Multi-concern spanning types, persistence, lifecycle, routing. |
 | `hkask-mcp` | 17 | MCP gateway, capability verification, transport | Protocol surface. Gateway, transport, governance are distinct layers. |
 | `hkask-api` | 16 | HTTP router, OpenAPI, endpoint handlers | API surface. Each endpoint group is a resource. |
 | `hkask-memory` | 16 | Episodic/semantic memory, narrative generation, port traits (ADR-041) | Memory subsystem. Each memory type is distinct. EpisodicStoragePort + SemanticStoragePort promoted here per ADR-042 (two consumers: agents + services-context). |

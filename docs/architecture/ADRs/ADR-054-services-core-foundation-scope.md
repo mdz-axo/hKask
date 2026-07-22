@@ -18,7 +18,7 @@ mds_categories: [lifecycle]
 `hkask-services-core`'s `lib.rs` historically claimed to be "the universal
 foundation that **all** other service-layer modules depend on." A dependency
 graph audit of the eleven service-layer crates under `crates/` found this claim to
-be false: `hkask-services-research` does not depend on `hkask-services-core`.
+be false: `hkask-mcp-research` does not depend on `hkask-services-core`.
 Research uses its own `WebError` (provider-shaped: `ProviderUnavailable`,
 rate-limit, extraction errors) and its own `RateLimiter`, none of which map
 cleanly onto `ServiceError`'s domain-oriented variants.
@@ -43,12 +43,12 @@ service-layer contract; the architecture review that surfaced the drift.
 
 **Chosen Approach:** Weaken the spec to match the implementation, and record
 the exception explicitly. `hkask-services-core`'s `lib.rs` now states it is the
-foundation for *most* service-layer modules and names `hkask-services-research`
+foundation for *most* service-layer modules and names `hkask-mcp-research`
 as the intentional exception with its own provider-shaped error type. The
 decision is recorded here so the exclusion is conscious, not silent drift.
 
 **Alternatives Considered:**
-1. **Make `hkask-services-research` depend on `core`** — Rejected: research
+1. **Make `hkask-mcp-research` depend on `core`** — Rejected: research
    would gain a compile-time dependency on `self_heal`, `model_cache`,
    `verification`, `goal`, `identity`, and `inference_svc` (the broader
    scope-creep problem flagged by the same review) for zero behavioral benefit.
@@ -72,7 +72,7 @@ would widen `core`'s reach to serve a claim rather than a need.
 
 ### Positive
 - `hkask-services-core`'s doc comment is now truthful; spec/impl drift closed.
-- `hkask-services-research`'s independent error model is legitimized, not
+- `hkask-mcp-research`'s independent error model is legitimized, not
   treated as an oversight.
 - Future readers can trust the foundation claim for the ten crates it covers.
 - The exclusion is auditable (this ADR) rather than implicit.
@@ -85,7 +85,7 @@ would widen `core`'s reach to serve a claim rather than a need.
   nuance must be carried forward in future docs.
 
 ### Neutral
-- `hkask-services-research`'s `Cargo.toml` is unchanged; no dependency added or
+- `hkask-mcp-research`'s `Cargo.toml` is unchanged; no dependency added or
   removed. The change is documentation + this ADR only.
 
 ## Compliance
@@ -110,7 +110,7 @@ would widen `core`'s reach to serve a claim rather than a need.
 grep -n "universal foundation that all other" crates/hkask-services-core/src/lib.rs
 # Expected: no matches
 
-grep -n "hkask-services-research" crates/hkask-services-core/src/lib.rs
+grep -n "hkask-mcp-research" crates/hkask-services-core/src/lib.rs
 # Expected: 1 match naming the exception
 
 # The crate still builds (doc-only change)
@@ -120,7 +120,7 @@ cargo check -p hkask-services-core
 
 **Expected Results:**
 - The old "all other service-layer modules depend on" phrase is gone.
-- `hkask-services-research` is named as the intentional exception.
+- `hkask-mcp-research` is named as the intentional exception.
 - `hkask-services-core` compiles.
 
 ## Related Documents

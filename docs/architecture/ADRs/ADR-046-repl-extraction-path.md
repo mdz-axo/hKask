@@ -44,7 +44,7 @@ The `CliHost` struct in `hkask-cli` implements the trait.
 
 ### Phase 3: TUI bridges ✅
 - `tui_bridges.rs` lives in `hkask-repl` (behind `tui` feature)
-- Bridges implement traits from `hkask-tui`
+- Bridges implement traits from `hkask-repl` (tui module)
 - `CliHost` implements `open_transcript_viewer` for the TUI feature
 
 ### Extraction plan (original estimate):

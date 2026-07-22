@@ -101,7 +101,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | hkask-api | 12 |
 | hkask-acp | 4 |
 | hkask-mcp-training | 51 |
-| hkask-codegraph | 22 |
+| hkask-mcp-codegraph | 22 |
 | MCP servers (16) | ~770 |
 | **Workspace total** | **~1,460** |
 

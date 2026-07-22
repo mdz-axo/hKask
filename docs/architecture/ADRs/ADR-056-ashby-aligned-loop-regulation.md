@@ -138,7 +138,7 @@ cargo test -p hkask-regulation regulation_policy
 cargo test -p hkask-regulation default_substitution_ladders
 
 # Verify verify_impact is implemented for StorageGuard and McpServerGuard
-cargo test -p hkask-storage-guard verify_impact
+cargo test -p hkask-services-context storage_guard verify_impact
 cargo test -p hkask-regulation verify_impact
 
 # Verify no SignalMetric is unregulated

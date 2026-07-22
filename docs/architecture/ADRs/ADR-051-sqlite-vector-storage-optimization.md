@@ -63,7 +63,7 @@ with the connection, not orphaned at process exit. This is the documented canoni
 for static-linked extensions.
 
 **Implemented:** `init_sqlite_vec_on(&Connection)` replaces the global `Once` +
-`sqlite3_auto_extension` in both `hkask-storage-core` and `hkask-codegraph`.
+`sqlite3_auto_extension` in both `hkask-storage-core` and `hkask-mcp-codegraph`.
 
 ### 2. SQLCipher Reopen Configuration Inconsistency
 
@@ -274,7 +274,7 @@ metadata (`valid_from`, `valid_to`, `recalled_at`) and provenance (`perspective`
 
 3. **FTS5 on triple text** — an FTS5 virtual table on `entity || ' ' || attribute || ' ' ||
    value` would enable keyword-grounded recall over triples, complementing the vector KNN
-   path. This is the hybrid search pattern already implemented in `hkask-codegraph`'s
+   path. This is the hybrid search pattern already implemented in `hkask-mcp-codegraph`'s
    `graph/search.rs` (FTS5 + BM25 + LIKE fallback).
 
 4. **SQLCipher encryption of shadow tables** — FTS5 and vec0 shadow tables live in the same

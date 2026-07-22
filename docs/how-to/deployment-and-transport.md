@@ -275,7 +275,7 @@ kask backup status
 
 ### Backup Configuration
 
-The `BackupDataBridge` in `crates/hkask-tui/src/bridges/backup.rs` exposes configuration fields:
+The `BackupDataBridge` in `crates/hkask-repl/src/tui/bridges/backup.rs` exposes configuration fields:
 
 - **Auto-Snapshot**: Enable/disable automatic snapshots on a schedule
 - **Verify After Snapshot**: Run integrity verification after each snapshot

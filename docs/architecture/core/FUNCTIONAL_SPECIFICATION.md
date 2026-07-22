@@ -55,7 +55,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | Users share a server with scoped data and admin-managed membership | P1 (User Sovereignty) + P2 (Affirmative Consent) |
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
 | 26 | Deployment | `deploy` | hkask-cli + hkask-pods | 20 | User deploys pods with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
-| 27 | Code Understanding | `codegraph` | hkask-codegraph | 10 | Agents query, traverse, and analyze the codebase through a semantic code graph | P3 (Generative Space) + P9 (Homeostatic Self-Regulation) |
+| 27 | Code Understanding | `codegraph` | hkask-mcp-codegraph | 10 | Agents query, traverse, and analyze the codebase through a semantic code graph | P3 (Generative Space) + P9 (Homeostatic Self-Regulation) |
 | 28 | Algo / No-Judge Classification | `classify` | hkask-services-runtime | 9 | System classifies text via the algo / no-judge fusion path: the fusion panel runs in parallel and extractions are merged algorithmically — no single model is the sole gate to semantic memory | P3 (Generative Space) + P8 (Semantic Grounding) |
 | 29 | Content Safety Guard | `guard` | hkask-guard | 6 | System enforces mandatory content safety controls — prompt injection, role override, and secret leakage detection are always active and cannot be disabled | P3.1 (Social Generativity) |
 | 30 | Memory Remember (Algo / No-Judge) | `memory-remember` | hkask-templates | 3 | System extracts episodic and semantic hMems from agent operations using algo / no-judge classification — the fusion panel renders the same template and outputs are merged algorithmically | P3.1 (Social Generativity) + P8 (Semantic Grounding) |
@@ -1496,11 +1496,11 @@ status: VERIFIED
 | FR-DP-T4 | `health_endpoint_returns_reg_status` |
 | FR-DP-T5 | `integration_e2e` — 9 HTTP tests against in-memory server (landing, terminal, health, auth-gating, Regulation) |
 
-### 3.18 CodeGraph (`hkask-codegraph`)
+### 3.18 CodeGraph (`hkask-mcp-codegraph`)
 
 **Goal Principle:** P3 (Generative Space) — agents query, traverse, and analyze the codebase through a semantic code graph to generate informed responses; P9 (Homeostatic Self-Regulation) — index staleness tracked via Regulation spans, stale indices trigger algedonic alerts
 **Constraining Principles:** P5 (Essentialism) — two-crate pattern (domain + thin MCP wrapper), no service layer, no external graph database; P4 (Clear Boundaries) — OCAP-gated MCP tools, capability tier enforcement per userpod
-**Crate:** `hkask-codegraph` (domain), `hkask-mcp-codegraph` (MCP server)
+**Crate:** `hkask-mcp-codegraph` (domain), `hkask-mcp-codegraph` (MCP server)
 **Sources:** `crates/hkask-codegraph/src/graph/schema.rs`, `crates/hkask-codegraph/src/indexer/pipeline.rs`, `crates/hkask-codegraph/src/graph/search.rs`, `crates/hkask-codegraph/src/graph/traversal.rs`, `crates/hkask-codegraph/src/graph/context.rs`, `crates/hkask-codegraph/src/graph/analysis.rs`, `mcp-servers/hkask-mcp-codegraph/src/lib.rs`
 
 #### Production Contracts (10)
