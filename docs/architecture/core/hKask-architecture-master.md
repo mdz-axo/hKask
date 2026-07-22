@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
-audience: [architects, developers, agents]
-last_updated: 2026-07-11
+audience: [architects, developers, contributors]
+last_updated: 2026-07-21
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -12,11 +12,13 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask — A Sovereign Chat Client for Human Users with AI Tools) v0.31.0
+**Project:** hKask (ℏKask — A Sovereign Chat Client for Human Users) v0.31.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
-**Primary user story:** A human user runs `kask chat`, authenticates via `kask login`, and gets a sovereign chat session with skills (`.agents/skills/`), 16 MCP servers, and multi-provider LLM access. Userpods, federation, and Matrix transport are infrastructure that supports this experience — not the headline use case.
+**Primary user story:** A human user runs `kask tui`. On first run, onboarding creates the user's single userpod (sovereign identity, passphrase, provider key, model). Subsequent runs drop straight into a sovereign chat session with skills (`.agents/skills/`), 16 MCP servers, and multi-provider LLM access — all under the user's own keys, memory, and governance. Userpods, federation, and Matrix transport are **opt-in infrastructure** that supports this experience — not the headline use case.
+
+**What hKask is not:** an agent platform, an agent framework, or a multi-tenant SaaS. There is no autonomous agent loop by default; the human is in the loop and skills escalate *to the user*, not away from them. The Curator is the system's cybernetic regulator (VSM S4), not an autonomous agent. Pods, federation, Matrix, wallet, and ledger exist to keep the chat session sovereign — they are means, not ends.
 
 ---
 
@@ -121,7 +123,7 @@ Sensor (MCP dispatch, Regulation spans) → Model (VarietyTracker, ν-event stor
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
 - **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`.
-- **94 canonical Regulation span variants (v0.31.0).** Every dimension observable: tools (15 MCP subsystems including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/regulation.rs` for the authoritative registry.
+- **94 canonical Regulation span variants (v0.31.0).** Every dimension observable: tools (16 MCP servers including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/regulation.rs` for the authoritative registry.
 - **Good Regulator contract enforced.** Regulation variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 - **Regulation is policy-driven.** `RegulationPolicy` consolidates `(metric, deviation) → (actions, thresholds)` into a pure-data type. Each `RegulationRule` defines a substitution ladder, stage/block thresholds, and stagnation detection — replacing the former scattered `classify_decision` and `default_substitution_ladder` free functions.
 - **Sensor providers are pluggable (Fermi Extractor pattern).** `Sensor` trait decouples metric sensing from the regulation loop. `SensorRegistry` holds providers; `CyberneticsLoop::sense()` walks them. Current providers: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`.
@@ -136,11 +138,11 @@ Sensor (MCP dispatch, Regulation spans) → Model (VarietyTracker, ν-event stor
 
 **Crates:** `hkask-regulation`, `hkask-types` (Regulation types, SpanNamespace)
 
-**If removed:** System becomes a runaway agent platform — agents act without regulation, resources deplete without backpressure, failures accumulate without detection. P9 violated entirely. P5 loses Regulation sensors.
+**If removed:** System becomes a chat client without self-regulation - the session runs, resources deplete without backpressure, failures accumulate without detection, and nothing escalates to the user. P9 violated entirely. P5 loses Regulation sensors.
 
-### Pattern C: Agentic AI Mediation — Curator + 7R7
+### Pattern C: Cybernetic Mediation — Curator + 7R7
 
-**What it is:** The meta-agent layer that maintains and curates the stack. Embodies the cybernetic separation of observation from decision.
+**What it is:** The system's cybernetic mediator that maintains and curates the stack *on behalf of the human user*. Embodies the cybernetic separation of observation from decision. The Curator is a **regulator (VSM S4 — Intelligence), not an autonomous agent**: it observes, assesses, escalates to the user, and tunes Regulation set-points — but it never bypasses OCAP, never acts without capability tokens, and never removes the human from the loop.
 
 | Component | Role | Authority |
 |-----------|------|-----------|
@@ -164,7 +166,7 @@ Sensor (MCP dispatch, Regulation spans) → Model (VarietyTracker, ν-event stor
 
 **Crates:** `hkask-pods` (curator, curator_agent), `hkask-communication` (Matrix transport, agent registry, 7R7 listener, Regulation bridge, response dispatch), `hkask-regulation` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
 
-**If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. Regulation fires alerts into a void. P12 partially violated.
+**If removed:** The chat client runs but nobody reads the monitors — Regulation fires alerts into a void, set-points drift, and the user is never escalated. P12 partially violated (no mediated observability for the human).
 
 ##### Curator Persona & Behavioral Specification
 
@@ -183,16 +185,16 @@ The Curator is a **daemon**, not a userpod — always running, hosts daemon-leve
 
 **Required patterns:** Direct answer first; minimal verbosity; stop after task completion; technical precision; code in monospace. **Forbidden patterns:** No "Great!" or enthusiasm markers; no emojis; no preamble/postamble; no unnecessary questions; no filler transitions.
 
-### Pattern D: Agent Creation with Sovereign Memory
+### Pattern D: Sovereign Identity & Memory (UserPod)
 
-**What it is:** The sovereign container infrastructure — each human user gets a userpod with its own identity, capabilities, memory, and consent boundaries. The userpod is the deployment unit that makes the human's `kask chat` experience sovereign (P1). Agent pods (`hkask-pods`) are the runtime container; the human user is the principal.
+**What it is:** The sovereign container infrastructure — the human user gets a single userpod with its own identity, capabilities, memory, and consent boundaries. The userpod is the deployment unit that makes the human's `kask tui` experience sovereign (P1). `hkask-pods` is the runtime container; **the human user is the principal**. The userpod is not an autonomous agent — it is the user's sovereign surface through which skills, MCP tools, and inference act under the user's authority and consent.
 
 ```
-Creation (kask pod create) → Populated → Registered → Activated → Deactivated
+First run (kask tui onboarding) → UserPod created → Populated → Registered → Activated → Deactivated
                               ↓
                         Operating Modes: Chat (H2A) | Server (A2A)
                               ↓
-                        Sovereign Memory: per-agent SQLCipher DB
+                        Sovereign Memory: per-userpod SQLCipher DB
                               ↓
                         Boundaries: OCAP dual gate + Visibility gating + ConsentManager
 ```
@@ -200,7 +202,7 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 **Key properties:**
 - **Separated key responsibilities.** OCAP capability signing uses the system/A2A signing authorities. SQLCipher databases consistently use `HKASK_DB_PASSPHRASE`, resolved through `hkask-keystore`; database encryption keys are not derived from WebIDs.
 - **Mode mutual exclusion (initial).** Chat OR Server, not both. Safety boundary: prevents context leakage between human dialogue and tool serving (P11).
-- **Server mode flow.** 4 gates: `kask login → pod assign → pod mode server → IDE spawns MCP binary → daemon auth → assignment → capability → serve`.
+- **Server mode flow.** 4 gates: `kask tui onboarding → pod assign → pod mode server → IDE spawns MCP binary → daemon auth → assignment → capability → serve`.
 :** Agent definitions are written as `persona_yaml` on the `userpod_identities` table during onboarding. The YAML includes capabilities, charter description, and directory declarations.
 - **Dual memory encoding.** Every tool call → `record_experience()` → daemon `store_experience` → episodic (private) + semantic (public). Every 10 experiences → `generate_narrative()`.
 - **No cross-agent memory access.** `EpisodicMemory::query_for_deduped` filters by `perspective == Some(agent_webid)`. Semantic memory is public. P11: right to choose public/private extends to agents.
@@ -208,11 +210,11 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 
 **Crates:** `hkask-pods` (pod), `hkask-memory`, `hkask-storage`, `hkask-keystore`
 
-**If removed:** System becomes a library, not a platform — all infrastructure for agency exists but no agents to inhabit it. P6, P10, P11, P12 violated.
+**If removed:** The system becomes a stateless library — all infrastructure for skills, tools, and inference exists, but the user has no sovereign identity, no persistent memory, and no consent boundary. P6, P10, P11, P12 violated.
 
-### Pattern D.1 — AgentPod as Solid Pod Isomorphism
+### Pattern D.1 — UserPod as Solid Pod Isomorphism
 
-**What it is:** The architectural grounding of the agent pod in the five invariants that define a Solid Pod: (1) per-user WebID-grounded identity, (2) self-contained storage, (3) capability-based access control, (4) interoperable data as linked-data triples, (5) the pod IS the deployment unit.
+**What it is:** The architectural grounding of the userpod in the five invariants that define a Solid Pod: (1) per-user WebID-grounded identity, (2) self-contained storage, (3) capability-based access control, (4) interoperable data as linked-data triples, (5) the pod IS the deployment unit.
 
 This isomorphism was the original architectural intent, as evidenced by the deployment model's backup design ("Backup as portable archive. Encrypted SQLCipher file. Export from one server, upload to another"). The migration from centralized `PodManager` to per-pod `PodDeployment` was completed in v0.30.0.
 
@@ -298,7 +300,7 @@ This file is the canonical source for the agent's identity, charter, capabilitie
 public/private directory declarations, and persona constraints.
 
 **Creation paths:**
-- **Onboarding (`register_userpod`):** Writes the full YAML during `kask chat` first run.
+- **Onboarding (`register_userpod`):** Writes the full YAML during `kask tui` first run.
   Stored as `persona_yaml` on the `userpod_identities` table so the REPL can load
   `persona_constraints` and `process_manifest` without re-reading from disk.
 - **CLI registration (`agent_register`):** Writes YAML from WebID, agent type, and
@@ -354,12 +356,12 @@ graph TD
         CN["Variety → Algedonic → Backpressure\n28 canonical span namespaces"]
     end
 
-    subgraph Curator["Pattern C: Agentic AI Mediation"]
-        CU["CuratorAgent + 7R7 + R7.3 Seam Watcher<br/>observe → assess → intervene → escalate"]
+    subgraph Curator["Pattern C: Cybernetic Mediation"]
+        CU["Curator + 7R7 + R7.3 Seam Watcher<br/>observe → assess → escalate to user"]
     end
 
-    subgraph Agents["Pattern D: Agent Creation + Sovereign Memory"]
-        AG["Pod lifecycle + per-agent DB<br/>identity, capabilities, memory, consent"]
+    subgraph Agents["Pattern D: Sovereign Identity & Memory"]
+        AG["UserPod lifecycle + per-userpod DB<br/>identity, capabilities, memory, consent"]
     end
 
     SK -->|"templates drive"| AG
@@ -382,19 +384,23 @@ verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.r
 status: VERIFIED
 -->
 
-**The composition chain:**
-1. **Skills drive Agents.** Pods created from FlowDef templates. Personas are WordAct. Cognitive strategies are KnowAct. Templates are the loom; agents are the fabric.
-2. **Regulation monitors Agents.** Every tool call, inference, memory operation emits Regulation span. Variety counter tracks behavioral diversity. Algedonic alerts fire on deficit.
-3. **Regulation signals Curator.** AlgedonicManager → RuntimeAlert → RegulationArchive → CurationLoop reads via cursor → CuratorAgent assesses via metacognition. Contract violations flow through the same path.
+**The composition chain (user-centric):**
+1. **Skills act under the user's userpod.** Skills compose templates (WordAct personas, KnowAct strategies, FlowDef procedures) and execute through the userpod's OCAP authority. Templates are the loom; the userpod is the user's sovereign surface; the human is the principal.
+2. **Regulation monitors the session.** Every tool call, inference, memory operation emits a Regulation span. Variety counter tracks behavioral diversity. Algedonic alerts fire on deficit.
+3. **Regulation signals the Curator.** AlgedonicManager → RuntimeAlert → RegulationArchive → CurationLoop reads via cursor → Curator assesses via metacognition and escalates to the user.
 4. **Regulation self-tunes.** SetPointCalibrator queries regulation outcome events from RegulationArchive, detects patterns (plateaus, blocks, substitutions), and adjusts SetPoints within bounded ranges — closing the Conant-Ashby loop.
-5. **Curator regulates Regulation.** `CuratorDirective::CalibrateThreshold` on direct `mpsc` channel → `CyberneticsLoop` → `RegulationLedger::calibrate_threshold()`. Brain regulates autonomic nervous system.
-6. **Curator curates Skills.** `DefaultSpecCurator` evaluates coherence, detects drift, recommends revisions. Ensures template DNA stays aligned with implemented system.
-6. **Agents produce Regulation data.** Agency produces observability; observability enables regulation; regulation ensures healthy agency. Virtuous cycle.
+5. **Curator regulates Regulation.** `CuratorDirective::CalibrateThreshold` on direct `mpsc` channel → `CyberneticsLoop` → `RegulationLedger::calibrate_threshold()`. The regulator tunes the autonomic nervous system; it never bypasses OCAP.
+6. **Curator curates Skills.** `DefaultSpecCurator` evaluates coherence, detects drift, recommends revisions. Ensures template DNA stays aligned with the implemented system.
+7. **The session produces Regulation data.** Observability enables regulation; regulation keeps the session healthy; the user stays in the loop. Virtuous cycle.
 
 
 ## Deployment Model
 
-**Decision (2026-06-17):** hKask deploys as a single cloud server. There is no client binary. Users access hKask through a browser: OAuth sign-in (GitHub/Google), then an xterm.js terminal connected via WebSocket. The server spawns `kask repl` on a PTY and pipes I/O.
+**Primary mode (local):** A human user runs `kask tui` on their own machine against their own keys and their own SQLCipher database. This is the default and the headline use case — no server required.
+
+**Optional mode (cloud server):** For users who want browser-based or multi-device access, hKask can deploy as a single cloud server. There is no separate client binary. Users access hKask through a browser: OAuth sign-in (GitHub/Google), then an xterm.js terminal connected via WebSocket. The server spawns `kask tui` on a PTY and pipes I/O. This is **opt-in infrastructure**, not the primary mode.
+
+**Decision (2026-06-17):** the cloud-server topology below documents the optional deployment; the local `kask tui` flow is covered in [`docs/how-to/getting-started.md`](../../how-to/getting-started.md).
 
 ### Topology
 
@@ -406,15 +412,15 @@ CLOUD SERVER (single binary, all crates compiled)
   hkask-api - OAuth, WebSocket /terminal, backup endpoints
   hkask-services-runtime - daemon orchestration
   hkask-mcp - MCP server runtime
-  hkask-pods - bot/userpod lifecycle
+  hkask-pods - userpod lifecycle
   hkask-regulation - cybernetic nervous system
   hkask-codegraph - code understanding engine (tree-sitter, FTS5, recursive CTE, context assembly)
   hkask-wallet + hkask-memory - wallet and memory subsystems
-  Per-pod SQLCipher files (`{data_dir}/agents/{sanitized_name}/pod.db`) — one database per agent, three-tier (Curator/Team/UserPod)
+  Per-pod SQLCipher files (`{data_dir}/agents/{sanitized_name}/pod.db`) — one database per agent, two-kind (Curator/UserPod)
 
 Access (all via HTTPS/Caddy):
   Browser (xterm.js) - primary terminal
-  Browser (WSS chat) - streaming agent conversation (GET /api/v1/chat/ws)
+  Browser (WSS chat) - streaming chat conversation (GET /api/v1/chat/ws)
   SSH (optional) - power users
   Matrix (Element) - chat clients
   mTLS (port 9443) - remote IDE agents and MCP servers
@@ -424,7 +430,7 @@ Access (all via HTTPS/Caddy):
 
 - **Single binary.** All crates compiled. No Cargo features for client/server.
 - **Browser-only access.** User visits a URL, signs in, gets a terminal. No install.
-- **Per-pod storage.** Each agent owns its own SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`. No shared hMemStore. Data isolation is structural, not row-level.
+- **Per-userpod storage.** Each userpod owns its own SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`. No shared hMemStore. Data isolation is structural, not row-level.
 - **Caddy + Conduit sidecars.** Docker containers. hKask generates config; user runs Docker.
 - **Backup as portable archive.** Encrypted SQLCipher file. Export from one server, upload to another. No server-to-server protocol.
 - **Wallet cloud-only.** Crypto operations never leave the server.
@@ -720,7 +726,7 @@ See `docs/architecture/well-wallet-architecture.md` for full architecture.
 
 ## REPL Architecture
 
-`kask chat` is the primary user surface. It implements four features that govern inference behavior for the human user. For browser-based streaming chat without a terminal, the WSS endpoint (`GET /api/v1/chat/ws`) provides the same memory pipeline and MCP tool integration over a persistent WebSocket connection. See `docs/plans/wss-chat-endpoint.md`.
+`kask tui` is the primary user surface. It implements four features that govern inference behavior for the human user. For browser-based streaming chat without a terminal, the WSS endpoint (`GET /api/v1/chat/ws`) provides the same memory pipeline and MCP tool integration over a persistent WebSocket connection. See `docs/plans/wss-chat-endpoint.md`.
 
 ### Context Injection
 
@@ -1299,7 +1305,7 @@ status: VERIFIED
 
 ### Startup Flow
 
-1. `kask login <userpod>` — authenticate (creates session in UserStore)
+1. `kask tui onboarding <userpod>` — authenticate (creates session in UserStore)
 2. `kask pod assign <userpod> <role>` — assign MCP role (P4 Gate 2: sovereignty/consent)
 3. `kask pod mode <userpod> server -r <role>` — enter server mode (P4 Gate 1: OCAP)
 4. IDE spawns MCP binary with `HKASK_MCP_HOST=<userpod>`
@@ -1324,7 +1330,7 @@ Concurrent chat+server mode planned for future release (3-6 months).
 ### Key Constraints
 
 1. **P4 Dual Gate:** Every MCP server startup requires both capability verification (OCAP token) and assignment verification (sovereignty/consent).
-2. **P2 Affirmative Consent:** Passphrase entry via `kask login` creates session. Daemon checks session existence — no passphrase stored with MCP binary.
+2. **P2 Affirmative Consent:** Passphrase entry via `kask tui onboarding` creates session. Daemon checks session existence — no passphrase stored with MCP binary.
 3. **Out-of-process isolation:** MCP binaries communicate with hKask only through the daemon socket. No direct access to ActivePods, memory, or inference.
 4. **Mode mutual exclusion (initial):** An agent can be in Chat mode OR Server mode, not both.
 
@@ -1412,7 +1418,7 @@ The userpod streams inference output as `session/update` notifications while the
 
 1. **P2 Affirmative Consent:** The ACP userpod never initiates without user invocation. Sessions are created by the IDE (user action), not by the userpod.
 2. **1:1 session isolation:** One ACP userpod process = one IDE connection. Concurrent multi-IDE support is gated on usage data (P7 — Evolutionary Architecture).
-3. **Surface-independent identity:** An agent registered in hKask uses the same `WebID`, capability tokens, and memory store whether it's accessed via REPL (`kask chat`), ACP (IDE), or MCP (tools).
+3. **Surface-independent identity:** An agent registered in hKask uses the same `WebID`, capability tokens, and memory store whether it's accessed via REPL (`kask tui`), ACP (IDE), or MCP (tools).
 
 ---
 
@@ -2284,7 +2290,7 @@ The QR code / emoji SAS verification in Phase 2 step 4 is the **critical securit
 
 Agents do not poll. Agents do not have inboxes. Agents do not maintain persistent connections.
 
-An agent is a **program invoked by the Curator when there is work to do.** The agent's experience of a Matrix conversation is identical to its experience of a `kask chat` REPL session: it receives input, recalls previous turns from its episodic memory, thinks, responds, and stores the exchange as a new memory.
+An agent is a **program invoked by the Curator when there is work to do.** The agent's experience of a Matrix conversation is identical to its experience of a `kask tui` REPL session: it receives input, recalls previous turns from its episodic memory, thinks, responds, and stores the exchange as a new memory.
 
 The "always listening" property comes from the **Matrix sync loop** running inside the `hkask-mcp-communication` MCP server. This sync loop maintains a long-lived HTTP connection to the Conduit homeserver. When a Matrix event arrives for an agent, the MCP server:
 
@@ -2292,7 +2298,7 @@ The "always listening" property comes from the **Matrix sync loop** running insi
 2. Translates it into a `TurnRequest` (the same struct `ChatService::execute_turn()` already accepts)
 3. Routes it to the Curator via the daemon socket
 4. The Curator activates the agent on its next curation cycle
-5. The agent processes the turn exactly as it would in `kask chat`
+5. The agent processes the turn exactly as it would in `kask tui`
 6. The response is routed back through the MCP server to the Matrix room
 
 The agent never waits. The agent never checks a queue. The agent is activated when a message arrives, processes it, and yields. This is the same activation pattern as every other agent invocation in hKask.
@@ -2855,7 +2861,7 @@ Agents do NOT poll. The `matrix-rust-sdk` `SyncService` maintains a long-lived `
 4. **MatrixTransport** routes `TurnRequest` to agent via daemon socket
 5. **Curator** reads pending turn on next curation cycle
 6. **Curator** invokes agent with `TurnRequest`
-7. **Agent** calls `ChatService::execute_turn()` — identical to `kask chat` turn processing
+7. **Agent** calls `ChatService::execute_turn()` — identical to `kask tui` turn processing
 8. **Agent** responds → `MatrixTransport.send_response()` → Matrix room
 
 This is event-driven, not polling. The sync loop is the SDK's responsibility, not hKask's. Energy consumption is bounded by the sync interval (configurable, default ~30s idle).
@@ -2942,7 +2948,7 @@ matrix-sdk = { version = "0.9", features = ["e2e-encryption", "sqlite-cryptostor
 2. Exposes exactly 4 public functions: `start_sync`, `send_response`, `bootstrap`, `health` (G2 compliance)
 3. Stores E2EE keys in `hkask-keystore` via a custom `CryptoStore` impl
 4. Maintains an event-driven sync connection in the MCP server process (agents don't poll)
-5. Routes incoming Matrix messages as `TurnRequest`s to `ChatService::execute_turn()` — the same pipeline as `kask chat`
+5. Routes incoming Matrix messages as `TurnRequest`s to `ChatService::execute_turn()` — the same pipeline as `kask tui`
 6. Emits `reg.communication.matrix.*` spans for observability
 7. Provides `kask matrix deploy-sidecar` — generates docker-compose.yml for Conduit + optional Hydrogen
 8. Provides `kask matrix register --agent` — registers agent on Conduit using full credential (FirstName-LastName/Passphrase), outputs labeled QR code for human SAS verification. No AI involvement in credential check.
@@ -3873,7 +3879,7 @@ When MCP client support is added:
 
 ### 1.1 Horizontal Extension of the Pod Architecture
 
-The federation extends the existing three-tier pod architecture **horizontally**:
+The federation extends the existing two-kind pod architecture **horizontally**:
 
 ```
 ┌──────────────────────────────────┐     ┌──────────────────────────────────┐

@@ -104,20 +104,16 @@ pub fn register_userpod_with_passphrase(
         email: email.to_string(),
         phone: phone.map(|s| s.to_string()),
         passphrase: (*passphrase).clone(),
+        capabilities: hkask_identity::UserPod::DEFAULT_CAPABILITIES
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
     };
     validate_registration(&request)?;
     store
         .lock()
         .expect("CLI operation")
-        .register_userpod(
-            request.userpod_name,
-            request.email,
-            request.phone,
-            request.first_name,
-            request.last_name,
-            request.passphrase,
-            hkask_identity::UserPod::DEFAULT_CAPABILITIES.iter().map(|s| s.to_string()).collect(),
-        )
+        .register_userpod(&request)
         .map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,

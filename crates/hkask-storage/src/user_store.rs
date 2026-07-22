@@ -5,7 +5,7 @@ use base64::Engine;
 use hkask_database::SqliteDriver;
 use hkask_database::driver::{query_map, query_row};
 use hkask_database::value::DbValue;
-use hkask_identity::{HumanUser, Invite, InviteStatus, UserPod, UserSession};
+use hkask_identity::{HumanUser, Invite, InviteStatus, RegistrationRequest, UserPod, UserSession};
 use hkask_storage_core::{define_driver_store, impl_from_db_error};
 use hkask_types::id::{WalletId, WebID};
 use hkask_types::identity::Role;
@@ -135,21 +135,19 @@ impl UserStore {
     /// \[P2\] Constraining: Affirmative Consent — passphrase requirements enforced
     /// pre:  userpod_name is non-empty, passphrase meets requirements
     /// post: userpod and user records created
-    pub fn register_userpod(
-        &self,
-        userpod_name: String,
-        email: String,
-        phone: Option<String>,
-        first_name: String,
-        last_name: String,
-        passphrase: String,
-        capabilities: Vec<String>,
-    ) -> UserResult<UserPod> {
+    pub fn register_userpod(&self, request: &RegistrationRequest) -> UserResult<UserPod> {
+        let userpod_name = &request.userpod_name;
+        let email = &request.email;
+        let phone = &request.phone;
+        let first_name = &request.first_name;
+        let last_name = &request.last_name;
+        let passphrase = &request.passphrase;
+        let capabilities = &request.capabilities;
         let user_id = UserID::new();
         let salt = Self::generate_salt();
         let master_salt = Self::generate_salt();
-        let passphrase_hash = Self::hash_passphrase(&passphrase, &salt)?;
-        let pii_key = Self::derive_pii_key(&passphrase, &master_salt)?;
+        let passphrase_hash = Self::hash_passphrase(passphrase, &salt)?;
+        let pii_key = Self::derive_pii_key(passphrase, &master_salt)?;
         let email_enc = Self::encrypt_pii(email.as_bytes(), &pii_key)?;
         let phone_enc = phone
             .as_ref()
@@ -169,7 +167,7 @@ impl UserStore {
                 .optional()
                 .map_err(|e| hkask_database::types::DbError::Database(e.to_string()))?;
             if existing.is_some() {
-                return Err(UserStoreError::UserPodNameTaken(userpod_name));
+                return Err(UserStoreError::UserPodNameTaken(userpod_name.clone()));
             }
             conn.execute(
                 "INSERT INTO human_users (user_id, email_enc, phone_enc, passphrase_hash, salt, master_salt, created_at, passphrase_set_at)
@@ -185,9 +183,9 @@ impl UserStore {
                     chrono::Utc::now().timestamp(),
                 ],
             )?;
-            let caps_json = serde_json::to_string(&capabilities).unwrap_or_else(|_| "[]".to_string());
+            let caps_json = serde_json::to_string(capabilities).unwrap_or_else(|_| "[]".to_string());
             let identity =
-                UserPod::new(userpod_name, user_id, first_name_enc, last_name_enc, capabilities);
+                UserPod::new(userpod_name.clone(), user_id, first_name_enc, last_name_enc, capabilities.clone());
             conn.execute(
                 "INSERT INTO userpod_identities
                  (userpod_name, user_id, webid, first_name_enc, last_name_enc, capabilities, created_at)

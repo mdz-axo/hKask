@@ -19,6 +19,10 @@ use crate::types::loops::{
 /// serve as documentation of each rule's intent. `data` is `None` in
 /// the policy table because concrete values come from the `Deviation`
 /// at runtime.
+// Fields serve as documentation of each rule's intent; `build_regulation_action`
+// reads via string matching on `reason`. `data` is `None` in the policy table
+// because concrete values come from the `Deviation` at runtime.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ProposedAction {
     pub target: LoopId,

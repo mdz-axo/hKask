@@ -213,6 +213,7 @@ pub struct RegistrationRequest {
     pub email: String,
     pub phone: Option<String>,
     pub passphrase: String,
+    pub capabilities: Vec<String>,
 }
 
 #[derive(Debug, Clone, thiserror::Error)]

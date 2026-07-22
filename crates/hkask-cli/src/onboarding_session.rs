@@ -5,6 +5,7 @@
 //! derive secrets → create the userpod (SQLCipher DB) → register in A2A.
 //! Each step is independently callable and carries its own recovery logic.
 
+use hkask_identity::RegistrationRequest;
 use hkask_pods::A2ARuntime;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
 use hkask_services_onboarding::{OnboardingService, ResolvedSecrets};
@@ -180,15 +181,18 @@ impl OnboardingSession {
             );
         } else {
             store
-                .register_userpod(
-                    self.userpod_name.clone(),
-                    self.email.clone(),
-                    None,
-                    self.first_name.clone(),
-                    self.last_name.clone(),
-                    passphrase.to_string(),
-                    hkask_identity::UserPod::DEFAULT_CAPABILITIES.iter().map(|s| s.to_string()).collect(),
-                )
+                .register_userpod(&RegistrationRequest {
+                    userpod_name: self.userpod_name.clone(),
+                    first_name: self.first_name.clone(),
+                    last_name: self.last_name.clone(),
+                    email: self.email.clone(),
+                    phone: None,
+                    passphrase: passphrase.to_string(),
+                    capabilities: hkask_identity::UserPod::DEFAULT_CAPABILITIES
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                })
                 .map_err(|e| {
                     eprintln!("  \x1b[31m✗\x1b[0m Failed to create userpod: {}", e);
                     OnboardingError::Service(ServiceError::Domain {
