@@ -1,7 +1,7 @@
 {# gml/assess-coherence.j2 - KnowAct: evaluate, reflect, calibrate #}
 {# Purpose: Evaluate network homeostasis #}
 
-{% from 'gml/regulation-instrument.j2' import start_span, end_span, record_error, check_variety %}
+{% from 'gml/reg-instrument.j2' import start_span, end_span, record_error, check_variety %}
 
 {% set shift = inputs.shift %}
 {% set network = inputs.network | default(None) %}

@@ -52,15 +52,16 @@ recommendation. The runtime enforces harness-method compatibility via G-H1.
 
 ## Gate Catalog
 
-17 quality gates enforced by the `audit-config` phase, plus the 7-gate
-recommendation refinement in `select-method`. Each gate is a single assertion
-with a citation.
+17 quality gates enforced by the `audit-config` phase, plus the 8-gate
+recommendation refinement in `select-method` (G0, G-D0, G1-G6). Each gate is a
+single assertion with a citation.
 
 ### Recommendation Gates (select-method phase)
 
 | Gate | ID | Purpose | Source |
 |------|----|---------|--------|
 | Adapter purpose | G0 | Establishes what kind of adapter is being produced (instruction, reasoning, vision, preference, reward_model). Determines baseline rank, target modules, and learning-forgetting posture. Runs first, constrains all subsequent gates. | Biderman et al. arXiv:2405.09673; Raschka 2025 |
+| Dataset analysis | G-D0 | Probes the actual dataset file to derive format, sample count, content length stats, token estimates, role distribution, multi-turn detection, vision data detection, and preference pair balance. Feeds into G0, G3, G6. Best-effort — falls back to declared inputs if unavailable. | QLoRA §5; TRL dataset formats |
 | Inference constraint | G1 | Must-merge vs dynamic-switching vs either-ok. Constrains adapter form. | LoRA §4.2 |
 | Memory budget | G2 | Full precision vs quantized 4bit. Model_size_b × 2 as approximate floor only. | QLoRA §3 |
 | Task distance | G3 | Refines rank_range within G0 baseline. Light/moderate/heavy. | LoRA §4.3; Biderman et al. |

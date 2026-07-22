@@ -1,5 +1,5 @@
 ---
-title: "ADR-043: Eliminate Nested Runtime Panics in CLI Context Construction"
+title: "ADR-058: Eliminate Nested Runtime Panics in CLI Context Construction"
 audience: [architects, developers]
 last_updated: 2026-07-02
 version: "0.31.0"
@@ -8,7 +8,7 @@ domain: "Cross-cutting"
 mds_categories: [lifecycle]
 ---
 
-# ADR-043: Eliminate Nested Runtime Panics in CLI Context Construction
+# ADR-058: Eliminate Nested Runtime Panics in CLI Context Construction
 
 **Date:** 2026-07-02
 **Status:** Active

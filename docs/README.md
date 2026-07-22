@@ -41,7 +41,7 @@ flowchart TD
     Reference --> RefSkills["skills/<br/>Skills registry"]
 
     Explanation --> ExplArch["architecture-patterns.md<br/>Hexagonal ports, VSM"]
-    Explanation --> ExplCNS["cns-and-loops.md<br/>Homeostatic regulation"]
+    Explanation --> ExplCNS["regulation-and-loops.md<br/>Homeostatic regulation"]
     Explanation --> ExplSov["sovereignty-and-ocap.md<br/>OCAP dispatch"]
     Explanation --> ExplFed["federation-and-transport.md<br/>Federation protocol"]
     Explanation --> ExplEnergy["energy-and-economy.md<br/>Gas + ledger system"]
@@ -77,7 +77,7 @@ status: VERIFIED
 
 > **Lifecycle:** Retired documents are removed; git history preserves all versions.
 >
-> **Diagram policy:** Per `DOCUMENTATION_STANDARDS.md` §1, Mermaid diagrams are inline in the documents they describe. The `docs/diagrams/` directory is being consolidated — see [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) for the verification registry.
+> **Diagram policy:** Per `DOCUMENTATION_STANDARDS.md` §1, Mermaid diagrams are inline in the documents they describe. The `docs/diagrams/` directory is now empty — all standalone diagrams have been inlined or deleted as duplicates. See [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) for the verification registry.
 
 ---
 
@@ -118,7 +118,7 @@ status: VERIFIED
 | Document | Topic |
 |----------|-------|
 | [`architecture-patterns.md`](explanation/architecture-patterns.md) | Hexagonal ports, service layer, template cascade, MCP dispatch patterns (includes 7 inlined diagrams + template authorship) |
-| [`cns-and-loops.md`](explanation/cns-and-loops.md) | Regulation homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
+| [`regulation-and-loops.md`](explanation/regulation-and-loops.md) | Regulation homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
 | [`cognition-and-replica.md`](explanation/cognition-and-replica.md) | Memory pipeline, classification, embedding architecture (includes 4 inlined diagrams) |
 | [`sovereignty-and-ocap.md`](explanation/sovereignty-and-ocap.md) | OCAP attenuation, consent flow, guard pipeline (includes 4 inlined diagrams) |
 | [`federation-and-transport.md`](explanation/federation-and-transport.md) | Federation dispatch model, adapter lifecycle (includes 1 inlined diagram) |

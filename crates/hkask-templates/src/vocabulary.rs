@@ -247,6 +247,7 @@ const KNOWN_TERMS: &[&str] = &[
     "profile",
     "prompt",
     "propose",
+    "purpose",
     "quality",
     "query",
     "question",

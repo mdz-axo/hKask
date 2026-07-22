@@ -215,7 +215,7 @@ This removes the deployed inference endpoint and releases associated resources.
 - [Unsloth Qwen3.5 Fine-tuning Guide](https://unsloth.ai/docs/models/qwen3.5/fine-tune) — QLoRA not recommended for Qwen3.5/3.6
 - [QwenLM Qwen3 Training with Unsloth](https://github.com/QwenLM/Qwen3/blob/main/docs/source/training/unsloth.md) — 75% reasoning / 25% non-reasoning dataset ratio
 - [Qwen3.6 Training Reference](#qwen36-training-hyperparameters-merged-from-qwen36-training-hyperparametersmd) — Full hyperparameter rationale and literature survey
-- [Replica, Corpus, and Training Readiness](../status/replica-corpus-training-readiness.md) — Verified state of training paths
+- [Replica, Corpus, and Training Readiness](../status/userpod-corpus-training-readiness.md) — Verified state of training paths
 ---
 
 ## Qwen3.6 Training Hyperparameters
@@ -256,7 +256,7 @@ verified_against: corpus/chunks/chunks.jsonl; corpus/chunks/tagged_chunks.jsonl;
 status: VERIFIED
 -->
 
-The operational assessment and remediation sequence are in [Replica, Corpus, and Training Readiness](../status/replica-corpus-training-readiness.md).
+The operational assessment and remediation sequence are in [Replica, Corpus, and Training Readiness](../status/userpod-corpus-training-readiness.md).
 
 
 ### Replica Pipeline Dispatch
@@ -292,7 +292,7 @@ flowchart TD
 ```
 `execute_tool` wraps the MCP call with a tool span and records success or error against the caller's WebID. That is observability, not authorization: per [P4 — Clear Boundaries](../architecture/core/PRINCIPLES.md#p4--clear-boundaries-ocap), operators must not treat this dispatcher as a replacement for an OCAP check. The checkpoint/result path supports [P9 — Homeostatic Self-Regulation](../architecture/core/PRINCIPLES.md#p9--homeostatic-self-regulation) by retaining the last step outcome for inspection and retry.
 
-The complete, aspirational corpus workflow is in [`corpus/pipeline-capabilities-researcher.yaml`](../../corpus/pipeline-capabilities-researcher.yaml); its initial `docproc_convert` step is outside this executor's current dispatch set. See also [Replica, Corpus, and Training Readiness](../status/replica-corpus-training-readiness.md) and [the replica server reference](../reference/mcp-servers/README.md).
+The complete, aspirational corpus workflow is in [`corpus/pipeline-capabilities-researcher.yaml`](../../corpus/pipeline-capabilities-researcher.yaml); its initial `docproc_convert` step is outside this executor's current dispatch set. See also [Replica, Corpus, and Training Readiness](../status/userpod-corpus-training-readiness.md) and [the replica server reference](../reference/mcp-servers/README.md).
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-TRAIN-003

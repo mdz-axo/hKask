@@ -1,5 +1,5 @@
 ---
-title: "ADR-046: tool_calls Deserialization Fix"
+title: "ADR-059: tool_calls Deserialization Fix"
 audience: [developers]
 last_updated: 2026-07-18
 version: "0.31.0"
@@ -8,7 +8,7 @@ domain: "Core"
 mds_categories: [domain, composition]
 ---
 
-# ADR-046: tool_calls Deserialization Fix
+# ADR-059: tool_calls Deserialization Fix
 
 **Date:** 2026-07-18
 **Status:** Accepted

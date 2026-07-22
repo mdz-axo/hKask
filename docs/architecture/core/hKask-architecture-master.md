@@ -1548,7 +1548,7 @@ Detailed lookup tables and diagrams in `reference/`:
 | [`ADRs/ADR-037-blake3-content-addressing.md`](../ADRs/ADR-037-blake3-content-addressing.md) | blake3 content addressing for agent artifacts |
 | [`ADRs/ADR-041-dynamic-model-discovery.md`](../ADRs/ADR-041-dynamic-model-discovery.md) | Dynamic model discovery via inference provider catalog |
 | [`ADRs/ADR-042-port-promotion-rule.md`](../ADRs/ADR-042-port-promotion-rule.md) | Port trait location — promotion rule (1 consumer = local, 2+ = promote to domain or shared crate) |
-| [`ADRs/ADR-043-eliminate-nested-runtime-panics.md`](../ADRs/ADR-043-eliminate-nested-runtime-panics.md) | Eliminate nested runtime panics in Regulation loop executor |
+| [`ADRs/ADR-058-eliminate-nested-runtime-panics.md`](../ADRs/ADR-058-eliminate-nested-runtime-panics.md) | Eliminate nested runtime panics in Regulation loop executor |
 | [`ADRs/ADR-044-ledger-wallet-separation.md`](../ADRs/ADR-044-ledger-wallet-separation.md) | Separation of ledger accounting from wallet operations |
 | [`ADRs/ADR-045-cli-bootstrap-strategy.md`](../ADRs/ADR-045-cli-bootstrap-strategy.md) | CLI bootstrap strategy — database initialization and first-run experience |
 | [`ADRs/ADR-046-repl-extraction-path.md`](../ADRs/ADR-046-repl-extraction-path.md) | REPL extraction into standalone crate with ReplHost trait |
@@ -1601,7 +1601,7 @@ docs/architecture/
 │   ├── ADR-037-blake3-content-addressing.md    # Active
 │   ├── ADR-041-dynamic-model-discovery.md      # Active
 │   ├── ADR-042-port-promotion-rule.md          # Active
-│   ├── ADR-043-eliminate-nested-runtime-panics.md  # Active
+│   ├── ADR-058-eliminate-nested-runtime-panics.md  # Active
 │   ├── ADR-044-ledger-wallet-separation.md     # Active
 │   ├── ADR-045-cli-bootstrap-strategy.md       # Active
 │   ├── ADR-046-repl-extraction-path.md         # Active

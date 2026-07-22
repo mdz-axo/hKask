@@ -432,7 +432,6 @@ fn validate_no_silent_upcast(params: &TrainingParams, findings: &mut Vec<Validat
 /// - harness=axolotl → SFT only (no preference optimization). If a TRL trainer
 ///   is selected, refuse — axolotl cannot run TRL trainers.
 /// - harness=trl → All trainers (SFT, DPO, KTO, ORPO, Reward) are supported.
-///   refuse — not yet implemented.
 /// - harness=None → not_evaluated (runtime defaults to axolotl).
 ///
 /// Citation: TRL trainer taxonomy — https://huggingface.co/docs/trl/index

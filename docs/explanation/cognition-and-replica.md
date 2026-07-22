@@ -754,7 +754,7 @@ status: VERIFIED
 | [`ToolSpanGuard` experience callback](crates/hkask-mcp/src/server/tool_span.rs:78-84) | Experience callback wiring for tool span guards |
 | [Magna Carta P1](../reference/magna-carta.md#p1-user-sovereignty) | User Sovereignty — episodic memory as sovereign first-person |
 | Consent flow sequence (inlined in `sovereignty-and-ocap.md`) | Consent flow for visibility gating (DIAG-TO-006-CM) |
-| Regulation span emission sequence (inlined in `cns-and-loops.md`) | Regulation span emission for memory encode spans (DIAG-TO-004) |
+| Regulation span emission sequence (inlined in `regulation-and-loops.md`) | Regulation span emission for memory encode spans (DIAG-TO-004) |
 
 
 ### Memory Remember — Algo / No-Judge Template Cascade

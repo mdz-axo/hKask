@@ -38,7 +38,7 @@ pub enum TrainingHarnessId {
     Axolotl,
     /// trl — HuggingFace TRL Python library, dispatched to Runpod.
     /// Supports SFT (SFTTrainer) and preference optimization (DPO/KTO/ORPO/Reward).
-    /// Phase 1 (v0.31.0): SFTTrainer only. Phase 2 will add DPO/KTO/ORPO.
+    /// All trainers are implemented: SFT, DPO, KTO, ORPO, Reward.
     Trl,
     /// ludwig — declarative YAML deep-learning framework (Linux Foundation AI & Data),
     /// dispatched to Runpod. Supports SFT, DPO/KTO/ORPO, and GRPO (reward-model-free

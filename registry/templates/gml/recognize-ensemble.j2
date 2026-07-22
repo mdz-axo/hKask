@@ -4,7 +4,7 @@
 {# The hKask ensemble module was removed 2026-06-14; future multi-agent mode will evolve from dual-presence. #}
 
 {% from 'gml/validate-inputs.j2' import validate_concept %}
-{% from 'gml/regulation-instrument.j2' import start_span, end_span, record_error, audit_log %}
+{% from 'gml/reg-instrument.j2' import start_span, end_span, record_error, audit_log %}
 {% from 'gml/macros.j2' import mwc_state_function, hill_coefficient, partition_function %}
 
 {% set concept = inputs.concept %}
