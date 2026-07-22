@@ -105,7 +105,7 @@ erDiagram
     LEAST_ACTION ||--|| HAMILTON_PRINCIPLE : formalized_as
     HAMILTON_PRINCIPLE ||--|| STATIONARY_PATH : selects
     LEAST_ACTION ||--o{ DESIGN_RULE : echoes_in
-    DESIGN_RULE ||--o{ CNS_SPAN : sensed_by
+    DESIGN_RULE ||--o{ REG_SPAN : sensed_by
     DESIGN_RULE ||--o{ CONDENSER_PROFILE : tuned_by
     DESIGN_RULE ||--o{ HLX_TERM : expressed_in
     PRINCIPLE {
@@ -128,17 +128,17 @@ erDiagram
         string predicate "deletion_energy(M) < 0 → delete M"
         string sensor "module_depth"
     }
-    CNS_SPAN {
+    REG_SPAN {
         string namespace "reg.condenser.compression_ratio"
         float threshold "1.0"
         string alert_level "Warning after 3 cycles"
     }
-    CNS_SPAN2 {
+    REG_SPAN2 {
         string namespace "reg.evolution.energy_delta"
         float threshold "0.0"
         string alert_level "Critical after 5 cycles"
     }
-    CNS_SPAN3 {
+    REG_SPAN3 {
         string namespace "reg.architecture.module_depth"
         float threshold "0.5"
         string alert_level "Warning when ratio > 0.5"

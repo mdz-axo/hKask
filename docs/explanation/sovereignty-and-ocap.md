@@ -549,7 +549,7 @@ flowchart TD
     CL([Model API Call])
     OR([Model Output])
     SL{Secret Leakage\nDetection}
-    SK[Strip Secrets\nCNS: guard.violation]
+    SK[Strip Secrets\nRegulation: guard.violation]
     PS([Parse + Store])
 
     IN --> TL

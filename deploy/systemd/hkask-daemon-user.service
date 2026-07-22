@@ -1,5 +1,5 @@
 [Unit]
-Description=hKask Daemon — MCP server authentication and CNS monitoring
+Description=hKask Daemon — MCP server authentication and Regulation monitoring
 Documentation=https://github.com/mdz-axo/hKask
 After=network.target dbus.service gnome-keyring.service
 

@@ -982,8 +982,8 @@ stateDiagram-v2
 
     state Act {
         [*] --> ComputeSignal : improvement_signal
-        ComputeSignal --> CNS_Alerts : check_reg_alerts
-        CNS_Alerts --> RecordResult : kata.practices completed
+        ComputeSignal --> Reg_Alerts : check_reg_alerts
+        Reg_Alerts --> RecordResult : kata.practices completed
         RecordResult --> ActDone
         --
         note left of ComputeSignal
@@ -991,7 +991,7 @@ stateDiagram-v2
             /Stalled/NotMeasured
             Regulation: has_signal emitted
         end note
-        note left of CNS_Alerts
+        note left of Reg_Alerts
             Regulation algedonic check
             threshold: 100 variety
             escalation: Curator

@@ -3,7 +3,7 @@ name = "hkask-services-wallet"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "hKask wallet service — gas budgeting, price feeds, CNS integration"
+description = "hKask wallet service — gas budgeting, price feeds, Regulation integration"
 
 [features]
 hedera = []

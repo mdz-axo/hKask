@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "hKask API",
-    "description": "A Minimal Viable Container for Replicants — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nCNS Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2).",
+    "description": "A Minimal Viable Container for Replicants — HTTP API.\n\nhKask is an agent runtime grounded in 12 architectural principles\n(P0–P12) expressed through four composable patterns: Skills Model,\nRegulation Feedback Loop, Agentic AI Mediation, and Agent Creation with\nSovereign Memory. This API exposes all capabilities equally across\nCLI, API, and MCP surfaces under P3 (Equal Surface Exposure).\n\nAll endpoints carry OCAP DelegationToken authentication (P4).\nData access is governed by user sovereignty and affirmative\nconsent (P1, P2).",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -91,20 +91,20 @@
         }
       }
     },
-    "/api/cns/health": {
+    "/api/regulation/health": {
       "get": {
         "tags": [
-          "cns"
+          "regulation"
         ],
-        "summary": "CNS health endpoint",
-        "operationId": "cns_health",
+        "summary": "Regulation health endpoint",
+        "operationId": "reg_health",
         "responses": {
           "200": {
-            "description": "CNS health status",
+            "description": "Regulation health status",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CnsHealthResponse"
+                  "$ref": "#/components/schemas/RegHealthResponse"
                 }
               }
             }
@@ -115,19 +115,19 @@
         }
       }
     },
-    "/api/cns/subscribe": {
+    "/api/regulation/subscribe": {
       "get": {
         "tags": [
-          "cns"
+          "regulation"
         ],
-        "summary": "Subscribe to CNS events as an SSE stream.",
+        "summary": "Subscribe to Regulation events as an SSE stream.",
         "description": "The endpoint upgrades the HTTP response to a long-lived SSE connection.\nEvents matching the requested span namespaces are forwarded in real time.\nLag notifications are emitted when the client falls behind.",
-        "operationId": "cns_subscribe",
+        "operationId": "reg_subscribe",
         "parameters": [
           {
             "name": "spans",
             "in": "query",
-            "description": "Span namespaces to subscribe to (e.g., [\"cns.tool\", \"cns.inference\"])",
+            "description": "Span namespaces to subscribe to (e.g., [\"reg.tool\", \"reg.inference\"])",
             "required": false,
             "schema": {
               "type": "array",
@@ -150,20 +150,20 @@
         }
       }
     },
-    "/api/cns/variety": {
+    "/api/regulation/variety": {
       "get": {
         "tags": [
-          "cns"
+          "regulation"
         ],
-        "summary": "CNS variety endpoint",
-        "operationId": "cns_variety",
+        "summary": "Regulation variety endpoint",
+        "operationId": "reg_variety",
         "responses": {
           "200": {
-            "description": "CNS variety counters",
+            "description": "Regulation variety counters",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CnsVarietyResponse"
+                  "$ref": "#/components/schemas/RegVarietyResponse"
                 }
               }
             }
@@ -2184,9 +2184,9 @@
           }
         }
       },
-      "CnsHealthResponse": {
+      "RegHealthResponse": {
         "type": "object",
-        "description": "CNS health response — P9 (Homeostatic Self-Regulation).\n\n`healthy: false` means one or more variety domains are in deficit (below\ntheir configured threshold). Check `critical_count` and `warning_count` for\nseverity. `overall_deficit` is the sum of all per-domain deficits.",
+        "description": "Regulation health response — P9 (Homeostatic Self-Regulation).\n\n`healthy: false` means one or more variety domains are in deficit (below\ntheir configured threshold). Check `critical_count` and `warning_count` for\nseverity. `overall_deficit` is the sum of all per-domain deficits.",
         "required": [
           "overall_deficit",
           "critical_count",
@@ -2216,22 +2216,22 @@
           }
         }
       },
-      "CnsSubscribeParams": {
+      "RegSubscribeParams": {
         "type": "object",
-        "description": "Query parameters for CNS SSE subscription",
+        "description": "Query parameters for Regulation SSE subscription",
         "properties": {
           "spans": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Span namespaces to subscribe to (e.g., [\"cns.tool\", \"cns.inference\"])"
+            "description": "Span namespaces to subscribe to (e.g., [\"reg.tool\", \"reg.inference\"])"
           }
         }
       },
-      "CnsVarietyResponse": {
+      "RegVarietyResponse": {
         "type": "object",
-        "description": "CNS variety response — per-domain variety counters for the Cybernetic Nervous System (Pattern B).\n\n`domains` lists all canonical CNS span namespaces registered (e.g., cns.tool,\ncns.inference, cns.memory). `total_deficit` is the aggregate variety gap across\nall domains.",
+        "description": "Regulation variety response — per-domain variety counters for the Regulation System (Pattern B).\n\n`domains` lists all canonical Regulation span namespaces registered (e.g., reg.tool,\nreg.inference, reg.memory). `total_deficit` is the aggregate variety gap across\nall domains.",
         "required": [
           "domains",
           "total_deficit",
@@ -2253,7 +2253,7 @@
             "items": {
               "type": "string"
             },
-            "description": "All registered CNS span namespace domains"
+            "description": "All registered Regulation span namespace domains"
           },
           "total_deficit": {
             "type": "integer",
@@ -3445,7 +3445,7 @@
       },
       "VarietyCounterResponse": {
         "type": "object",
-        "description": "CNS variety counter for a single domain.\n\n`variety` is the tracked behavioral diversity for this domain.\n`entropy` is the Shannon entropy of the domain's observation distribution\n(0.0 when not yet computed).",
+        "description": "Regulation variety counter for a single domain.\n\n`variety` is the tracked behavioral diversity for this domain.\n`entropy` is the Shannon entropy of the domain's observation distribution\n(0.0 when not yet computed).",
         "required": [
           "variety",
           "total",
@@ -3632,8 +3632,8 @@
       "description": "MCP servers and tools — tool discovery and invocation across out-of-process MCP servers"
     },
     {
-      "name": "cns",
-      "description": "Cybernetic Nervous System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"
+      "name": "regulation",
+      "description": "Regulation System — variety tracking, algedonic alerts, and homeostatic self-regulation (P9, Pattern B)"
     },
     {
       "name": "chat",

@@ -231,7 +231,7 @@ graph TD
 
     subgraph PlaneD["Plane D: Agent Pods (Implementation)"]
         PD["PodDeployment"]
-        PCNS["PerPodRegulationLedger"]
+        PReg["PerPodRegulationLedger"]
         A2A["A2ARuntime"]
         CS["CuratorSync"]
     end
@@ -257,8 +257,8 @@ graph TD
     SW -->|"seam coverage"| CR
     DSC -->|"spec drift"| CUL
 
-    PD -->|"spawns"| PCNS
-    PCNS -->|"reg.agent_pod.*"| CR
+    PD -->|"spawns"| PReg
+    PReg -->|"reg.agent_pod.*"| CR
     PD -->|"emits spans"| CR
     CS -->|"aggregates"| SR
 
@@ -399,14 +399,14 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant PD as PodDeployment
-    participant PCNS as PerPodRegulationLedger
+    participant PReg as PerPodRegulationLedger
     participant CR as RegulationLedger
     participant CL as CyberneticsLoop
     participant CUL as CurationLoop
 
-    PD->>PCNS: tool invocation
-    PCNS->>PCNS: increment_variety(reg.agent_pod.{pod_id}.tool.{name})
-    PCNS->>CR: variety counter (per-pod)
+    PD->>PReg: tool invocation
+    PReg->>PReg: increment_variety(reg.agent_pod.{pod_id}.tool.{name})
+    PReg->>CR: variety counter (per-pod)
     CR->>CL: sense (aggregate variety deficit)
     CL->>CL: compare (deficit > threshold?)
     CL->>CUL: escalate (algedonic alert)

@@ -584,7 +584,7 @@ flowchart TD
 
     AS --> INFRA["InfraContext\n(inference, memory, MCP, pods,\nwallet, daemon, matrix, seams,\ngas calibration, federation)"]
     AS --> GOV["GovernanceContext\n(OCAP, consent, dispatch, A2A,\nescalations)"]
-    AS --> CNS_CTX["RegulationContext\n(variety, cybernetics,\nloop orchestration, events)"]
+    AS --> REG_CTX["RegulationContext\n(variety, cybernetics,\nloop orchestration, events)"]
     AS --> STOR["StorageContext\n(registry, goals, agents, users,\nsovereignty, wallet store)"]
 ```
 <!-- DIAGRAM_ALIGNMENT

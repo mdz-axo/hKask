@@ -27,7 +27,7 @@ Company-finance MCP server for provider-routed market data, fundamental analysis
 | `PortfolioManager` | SQLite-backed ledger, notes, file attachments, and durable forecast store; owner-scoped by `webid` |
 | `record_experience` | Fire-and-forget daemon `store_experience` for every tool outcome (narrative memory, salience 0.85) |
 
-Two Regulation emission paths run per tool call: the framework-level `execute_tool` span (tool name + outcome) and the server-level experience recording (daemon narrative). Provider routing additionally emits `reg.tool.companies.provider.*` spans via `providers::emit_provider_cns`.
+Two Regulation emission paths run per tool call: the framework-level `execute_tool` span (tool name + outcome) and the server-level experience recording (daemon narrative). Provider routing additionally emits `reg.tool.companies.provider.*` spans via `providers::emit_provider_reg`.
 
 ## Tool routing and dispatch flow
 
@@ -188,7 +188,7 @@ export HKASK_FERMI_DEFAULTS='{"growth":[{"estimate":0.70,"confidence":0.8}],"mar
 | Span | When emitted |
 |------|--------------|
 | `reg.tool.companies.<tool>` | Every tool call via `execute_tool` (success and error paths) |
-| `reg.tool.companies.provider.<provider>` | Provider selection and outcome via `providers::emit_provider_cns` |
+| `reg.tool.companies.provider.<provider>` | Provider selection and outcome via `providers::emit_provider_reg` |
 | `reg.mcp.companies.memory` | Daemon experience store result (`debug` on success, `warn` on failure) |
 
 ## Quick start

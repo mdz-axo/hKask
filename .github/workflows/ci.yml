@@ -23,7 +23,7 @@
 # Wall time: max(lint, test) = ~5-7 min cold, ~3-4 min warm.
 # Reliably <15 min.
 #
-# Tests are deterministic: CuratorSync::tick() called directly, CNS
+# Tests are deterministic: CuratorSync::tick() called directly, Regulation
 # observer uses Notify. No polling, no timeouts, no flakiness.
 
 name: CI
@@ -72,7 +72,7 @@ jobs:
         run: bash scripts/check-forecast-conformance.sh
       - name: MCP tool-behavior test coverage (ratcheted)
         run: bash scripts/check-mcp-tool-tests.sh
-      - name: CNS canonical namespace invariant
+      - name: Regulation canonical namespace invariant
         run: bash scripts/check-reg-canonical.sh
       - name: Security regression library
         run: bash scripts/check-kali-regressions.sh

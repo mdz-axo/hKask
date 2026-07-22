@@ -9,9 +9,9 @@ description = "Cybernetic Nervous System for hKask"
 hkask-types = { path = "../hkask-types" }
 hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
-# CNS depends on the WalletBudgetPort trait (hkask-ports) and wallet value types
+# Regulation depends on the WalletBudgetPort trait (hkask-ports) and wallet value types
 # (hkask-wallet-types), NOT on concrete hkask-wallet. The port inverts the
-# dependency per hexagonal architecture: CNS defines the interface it needs,
+# dependency per hexagonal architecture: Regulation defines the interface it needs,
 # and hkask-wallet implements it. Per Conant-Ashby, the regulator models the
 # system via the abstract port, not the concrete type.
 hkask-wallet-types = { path = "../hkask-wallet-types" }

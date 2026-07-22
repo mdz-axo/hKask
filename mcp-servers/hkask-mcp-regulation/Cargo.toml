@@ -3,7 +3,7 @@ name = "hkask-mcp-regulation"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "CNS span history query MCP server — runtime telemetry for security skills"
+description = "Regulation span history query MCP server — runtime telemetry for security skills"
 
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }

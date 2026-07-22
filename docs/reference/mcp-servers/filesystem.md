@@ -24,11 +24,11 @@ behavior of the shipping code and the standing properties of its sandbox design.
 | `FileSystemServer` | Server struct (`mcp_server!` macro): `webid`, `userpod`, `daemon`, `project_root`, `capability_tier` |
 | `sandbox_path` | Security boundary: resolve → canonicalize → containment check |
 | `execute_tool` | Framework wrapper: Regulation tool span (`reg.tool.filesystem.*`) + daemon outcome recording |
-| `emit_cns` | Operation-level span emission (`file.read`, `file.written`, …) |
+| `emit_reg` | Operation-level span emission (`file.read`, `file.written`, …) |
 
 Two distinct Regulation emission paths run per tool call: the framework-level
 `execute_tool` span (tool name + outcome, via `ToolSpanGuard`) and the
-server-level `emit_cns` span (operation verb, via `RegulationSpan::Tool`). Both target
+server-level `emit_reg` span (operation verb, via `RegulationSpan::Tool`). Both target
 `reg.tool.filesystem.*`; the operation span carries the verb.
 
 ## Sandbox path resolution and tool dispatch
@@ -56,7 +56,7 @@ graph TD
     K -->|"yes"| N["Ok canonical_ancestor<br/>+ non-existent tail"]
     M --> O["tool body<br/>read/write/list/..."]
     N --> O
-    O --> P["emit_cns operation"]
+    O --> P["emit_reg operation"]
     P --> Q["return JSON<br/>span.finish"]
     L --> Q
 ```
@@ -139,7 +139,7 @@ The following are standing properties of the sandbox design (not defects):
   user's sovereignty and cooperate — but it is exploitable if agents within a
   workspace are ever mutually adversarial (a symlink swap races the check).
   Flagged here so a future multi-tenant workspace design is not misled.
-- **Operation spans are success-path only.** `emit_cns` fires the operation
+- **Operation spans are success-path only.** `emit_reg` fires the operation
   verb (`file.read`, …) on the success path of each tool. The framework
   `execute_tool` span records outcome (`ok`/`error`) for all calls, so failed
   calls remain observable at the tool level even when the operation verb is

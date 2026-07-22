@@ -16,7 +16,7 @@ mds_categories: [domain, composition, curation]
 
 ## Context
 
-The current naming uses metaphors ("Regulation", "ν-event") that require reading the architecture docs to decode. A code reviewer seeing `CnsRuntime`, `NuEventStore`, or `SensorRegistry` for the first time cannot infer the cybernetic function from the name alone. The `CnsRuntime` is a god object that conflates afferent (sensing) and efferent (recording) functions under one name.
+The current naming uses metaphors ("Regulation", "ν-event") that require reading the architecture docs to decode. A code reviewer seeing `RegulationLedger`, `NuEventStore`, or `SensorRegistry` for the first time cannot infer the cybernetic function from the name alone. The `RegulationLedger` is a god object that conflates afferent (sensing) and efferent (recording) functions under one name.
 
 **Problem Statement:** The naming obscures the cybernetic function of each component, making the codebase harder to review and maintain.
 
@@ -34,15 +34,15 @@ The current naming uses metaphors ("Regulation", "ν-event") that require readin
 | `SensorProvider` | `Sensor` | Afferent — senses current state |
 | `SensorRegistry` (per-loop) | `SensorBus` | Afferent — actively walks sensors each tick |
 | `SensorCatalog` (system-level) | `SensorRegistry` | Afferent — cross-loop registration and inventory |
-| `CnsRuntime` | `RegulationLedger` | Efferent — records regulation outcomes, variety, alerts |
+| `RegulationLedger` | `RegulationLedger` | Efferent — records regulation outcomes, variety, alerts |
 | `NuEvent` | `RegulationRecord` | Efferent — a single audit trail entry |
 | `NuEventStore` | `RegulationArchive` | Efferent — persistent query store for historical records |
 | `NuEventSink` | `RegulationSink` | Efferent — write-side trait |
-| `PerPodCnsRuntime` | `PerPodLedger` | Efferent — per-pod regulation ledger |
-| `CnsSpan` | `RegulationSpan` | Efferent — typed span enum |
-| `CnsHealth` | `LedgerHealth` | Efferent — health of the regulation ledger |
-| `CnsObserver` | `LedgerObserver` | Efferent — observer trait for ledger events |
-| `CnsStoragePort` | `LedgerStoragePort` | Efferent — storage port for ledger data |
+| `PerPodRegulationLedger` | `PerPodLedger` | Efferent — per-pod regulation ledger |
+| `RegulationSpan` | `RegulationSpan` | Efferent — typed span enum |
+| `LedgerHealth` | `LedgerHealth` | Efferent — health of the regulation ledger |
+| `LedgerObserver` | `LedgerObserver` | Efferent — observer trait for ledger events |
+| `LedgerStoragePort` | `LedgerStoragePort` | Efferent — storage port for ledger data |
 | `Loop` / `HkaskLoop` | `RegulationLoop` | Infrastructure — the sense→compare→compute→act→verify trait |
 | `LoopSystem` | `LoopScheduler` | Infrastructure — schedules loop ticks |
 | `LoopQuality` | `LoopMetrics` | Infrastructure — metrics about a loop's performance |
@@ -69,7 +69,7 @@ The current naming uses metaphors ("Regulation", "ν-event") that require readin
 | Current | Proposed |
 |---------|----------|
 | `hkask-regulation` | `hkask-regulation` |
-| `hkask_cns` (in code) | `hkask_regulation` |
+| `hkask_regulation` (in code) | `hkask_regulation` |
 
 ### Script Rename
 
@@ -93,21 +93,21 @@ The current naming uses metaphors ("Regulation", "ν-event") that require readin
 2. Update `Cargo.toml`: `name = "hkask-regulation"`
 3. Update workspace `Cargo.toml` member list
 4. Update all `Cargo.toml` files that depend on `hkask-regulation` → `hkask-regulation`
-5. Update all `use hkask_cns::` → `use hkask_regulation::` in `.rs` files
-6. Update all `extern crate hkask_cns` → `extern crate hkask_regulation`
+5. Update all `use hkask_regulation::` → `use hkask_regulation::` in `.rs` files
+6. Update all `extern crate hkask_regulation` → `extern crate hkask_regulation`
 
 ### Phase 2: Type renames (compile-checked)
 
 For each type rename, use `sed` to replace across all `.rs` files:
-1. `CnsRuntime` → `RegulationLedger`
+1. `RegulationLedger` → `RegulationLedger`
 2. `NuEventStore` → `RegulationArchive`
 3. `NuEventSink` → `RegulationSink`
 4. `NuEvent` → `RegulationRecord`
-5. `CnsSpan` → `RegulationSpan`
-6. `CnsHealth` → `LedgerHealth`
-7. `CnsObserver` → `LedgerObserver`
-8. `CnsStoragePort` → `LedgerStoragePort`
-9. `PerPodCnsRuntime` → `PerPodLedger`
+5. `RegulationSpan` → `RegulationSpan`
+6. `LedgerHealth` → `LedgerHealth`
+7. `LedgerObserver` → `LedgerObserver`
+8. `LedgerStoragePort` → `LedgerStoragePort`
+9. `PerPodRegulationLedger` → `PerPodLedger`
 10. `SensorProvider` → `Sensor`
 11. `SensorRegistry` → `SensorBus` (per-loop)
 12. `SensorCatalog` → `SensorRegistry` (system-level)
@@ -143,7 +143,7 @@ For each type rename, use `sed` to replace across all `.rs` files:
 1. `cargo check --workspace` — zero errors
 2. `cargo test --workspace` — all tests pass
 3. `scripts/check-reg-canonical.sh` — passes
-4. `grep -r "CnsRuntime\|NuEvent\|SensorCatalog\|regulation\." crates/ --include="*.rs"` — zero matches (except in historical ADRs)
+4. `grep -r "RegulationLedger\|NuEvent\|SensorCatalog\|regulation\." crates/ --include="*.rs"` — zero matches (except in historical ADRs)
 
 ## Consequences
 
@@ -151,11 +151,11 @@ For each type rename, use `sed` to replace across all `.rs` files:
 
 - **Reviewer clarity:** A new contributor can infer the cybernetic function from the name alone.
 - **Afferent/efferent distinction:** `SensorBus` (afferent) vs `RegulationLedger` (efferent) makes the cybernetic loop structure visible in the type names.
-- **God object decomposition:** `CnsRuntime` → `RegulationLedger` makes it clear this is a recording surface, not a sensing surface. The sensing is in `SensorBus`.
+- **God object decomposition:** `RegulationLedger` → `RegulationLedger` makes it clear this is a recording surface, not a sensing surface. The sensing is in `SensorBus`.
 
 ### Negative
 
-- **Large diff:** ~84 files reference `hkask-regulation`/`hkask_cns`, ~88 files have `reg.` tracing targets, ~57 files reference `NuEvent`. The rename touches a significant portion of the codebase.
+- **Large diff:** ~84 files reference `hkask-regulation`/`hkask_regulation`, ~88 files have `reg.` tracing targets, ~57 files reference `NuEvent`. The rename touches a significant portion of the codebase.
 - **Fresh NuEventStore:** Persisted regulation records on disk will be invalidated by the namespace rename. This is acceptable — no backward compatibility requirement.
 
 ### Neutral
@@ -167,7 +167,7 @@ For each type rename, use `sed` to replace across all `.rs` files:
 
 ```bash
 # Verify no old names remain in code
-grep -rn "CnsRuntime\|NuEvent\|NuEventStore\|NuEventSink\|CnsSpan\|CnsHealth\|CnsObserver\|CnsStoragePort\|PerPodCnsRuntime\|SensorCatalog\|SensorProvider\|HkaskLoop\|LoopSystem\|LoopQuality\|LoopAction" crates/ mcp-servers/ --include="*.rs" | grep -v "^.*:.*//.*" | wc -l
+grep -rn "RegulationLedger\|NuEvent\|NuEventStore\|NuEventSink\|RegulationSpan\|LedgerHealth\|LedgerObserver\|LedgerStoragePort\|PerPodRegulationLedger\|SensorCatalog\|SensorProvider\|HkaskLoop\|LoopSystem\|LoopQuality\|LoopAction" crates/ mcp-servers/ --include="*.rs" | grep -v "^.*:.*//.*" | wc -l
 # Expected: 0
 
 # Verify no old namespace remains
