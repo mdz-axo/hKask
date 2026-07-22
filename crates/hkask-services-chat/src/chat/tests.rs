@@ -365,7 +365,6 @@ fn recall_raw_episodes_returns_most_recent_with_correct_roles() {
 
     // User message should come before assistant message within each turn.
     let first_content = messages[0].get("content").and_then(|c| c.as_str());
-    let second_content = messages[1].get("content").and_then(|c| c.as_str());
     let second_role = messages[1].get("role").and_then(|r| r.as_str());
     assert_eq!(
         second_role,
