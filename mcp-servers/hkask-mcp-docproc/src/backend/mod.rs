@@ -26,6 +26,7 @@ use hkask_types::document::{Block, DocStructure, Page};
 /// on file extension (see `convert::detect_format`).
 pub trait DocumentBackend {
     /// Format name this backend handles (e.g., "docx", "xlsx", "pptx").
+    #[allow(dead_code)]
     fn format(&self) -> &'static str;
 
     /// Parse the file at `path` into a `DocStructure`.
@@ -305,5 +306,4 @@ mod tests {
         assert_eq!(doc.pages[1].blocks.len(), 1);
         assert!(matches!(doc.pages[1].blocks[0], Block::Table { .. }));
     }
-
 }

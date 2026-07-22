@@ -1222,7 +1222,7 @@ mod tests {
         assert_eq!(lines.len(), 1, "should have 1 ORPO example");
 
         let ex: PreferenceExample =
-            serde_json::from_str(&lines[0]).expect("valid PreferenceExample JSON");
+            serde_json::from_str(lines[0]).expect("valid PreferenceExample JSON");
         assert!(
             ex.prompt.is_none(),
             "ORPO should not have prompt (implicit)"

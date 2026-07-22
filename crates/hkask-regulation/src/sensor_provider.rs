@@ -176,10 +176,7 @@ impl SensorRegistry {
     /// Register a sensor for a specific loop.
     pub fn register_for(&self, loop_id: LoopId, provider: Arc<dyn Sensor>) {
         let mut registries = self.registries.lock();
-        registries
-            .entry(loop_id)
-            .or_insert_with(SensorBus::new)
-            .register(provider);
+        registries.entry(loop_id).or_default().register(provider);
     }
 
     /// Sense all signals for a specific loop.
@@ -224,7 +221,7 @@ impl SensorRegistry {
         all_loops
             .iter()
             .filter(|id| {
-                !registries.contains_key(id) || registries.get(*id).map_or(true, |r| r.is_empty())
+                !registries.contains_key(id) || registries.get(*id).is_none_or(|r| r.is_empty())
             })
             .copied()
             .collect()

@@ -39,43 +39,42 @@ pub(super) async fn build_registry_and_wallet(
     ));
 
     // Restore A2A state from persistent storage (UserStore)
-    {
+    let registered_userpods = {
         let user_guard = f.user_store.lock().map_err(|_| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
             source: None,
             message: hkask_types::InfrastructureError::LockPoisoned.to_string(),
         })?;
-        let registered_userpods =
-            user_guard
-                .list_userpods()
-                .map_err(|e| ServiceError::Domain {
-                    kind: ErrorKind::BadRequest,
-                    domain: DomainKind::Agent,
-                    source: None,
-                    message: e.to_string(),
-                })?;
-        if !registered_userpods.is_empty() {
-            let agents: Vec<hkask_pods::a2a::A2AAgent> = registered_userpods
-                .iter()
-                .map(|up| hkask_pods::a2a::A2AAgent {
-                    webid: up.webid,
-                    capabilities: up.capabilities.clone(),
-                    registered_at: up.created_at,
-                    active: true,
-                })
-                .collect();
-            let tokens = std::collections::HashMap::new();
-            l.a2a_runtime
-                .restore_from_storage(agents, tokens)
-                .await
-                .map_err(|e| ServiceError::Domain {
-                    kind: ErrorKind::BadRequest,
-                    domain: DomainKind::Agent,
-                    source: None,
-                    message: e.to_string(),
-                })?;
-        }
+        user_guard
+            .list_userpods()
+            .map_err(|e| ServiceError::Domain {
+                kind: ErrorKind::BadRequest,
+                domain: DomainKind::Agent,
+                source: None,
+                message: e.to_string(),
+            })?
+    };
+    if !registered_userpods.is_empty() {
+        let agents: Vec<hkask_pods::a2a::A2AAgent> = registered_userpods
+            .iter()
+            .map(|up| hkask_pods::a2a::A2AAgent {
+                webid: up.webid,
+                capabilities: up.capabilities.clone(),
+                registered_at: up.created_at,
+                active: true,
+            })
+            .collect();
+        let tokens = std::collections::HashMap::new();
+        l.a2a_runtime
+            .restore_from_storage(agents, tokens)
+            .await
+            .map_err(|e| ServiceError::Domain {
+                kind: ErrorKind::BadRequest,
+                domain: DomainKind::Agent,
+                source: None,
+                message: e.to_string(),
+            })?;
     }
 
     // Wallet — non-fatal if config or build fails (daemon can run without wallet)
@@ -249,33 +248,31 @@ fn build_wallet(
         })?;
         if let Ok(Some(system_identity)) = user_guard.get_userpod(&config.user_name) {
             let user_id = system_identity.user_id;
-            if let Ok(Some(identity)) = user_guard.get_userpod_by_user(&user_id) {
-                if identity.wallet_id.is_none() {
-                    let wallet_id = WalletId::from_name(&identity.userpod_name);
-                    if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
-                        tracing::warn!(
-                            target: "reg.wallet",
-                            userpod = %identity.userpod_name,
-                            error = %e,
-                            "Failed to create wallet for userpod"
-                        );
-                    } else if let Err(e) =
-                        user_guard.set_wallet_id(&identity.userpod_name, wallet_id)
-                    {
-                        tracing::warn!(
-                            target: "reg.wallet",
-                            userpod = %identity.userpod_name,
-                            error = %e,
-                            "Failed to bind wallet to userpod"
-                        );
-                    } else {
-                        tracing::info!(
-                            target: "reg.wallet",
-                            userpod = %identity.userpod_name,
-                            wallet_id = %wallet_id,
-                            "Wallet created and bound to userpod"
-                        );
-                    }
+            if let Ok(Some(identity)) = user_guard.get_userpod_by_user(&user_id)
+                && identity.wallet_id.is_none()
+            {
+                let wallet_id = WalletId::from_name(&identity.userpod_name);
+                if let Err(e) = wallet_manager.ensure_wallet(wallet_id) {
+                    tracing::warn!(
+                        target: "reg.wallet",
+                        userpod = %identity.userpod_name,
+                        error = %e,
+                        "Failed to create wallet for userpod"
+                    );
+                } else if let Err(e) = user_guard.set_wallet_id(&identity.userpod_name, wallet_id) {
+                    tracing::warn!(
+                        target: "reg.wallet",
+                        userpod = %identity.userpod_name,
+                        error = %e,
+                        "Failed to bind wallet to userpod"
+                    );
+                } else {
+                    tracing::info!(
+                        target: "reg.wallet",
+                        userpod = %identity.userpod_name,
+                        wallet_id = %wallet_id,
+                        "Wallet created and bound to userpod"
+                    );
                 }
             }
         }

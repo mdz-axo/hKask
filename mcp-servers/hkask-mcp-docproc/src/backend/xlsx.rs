@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn cell_to_string_float_fractional() {
-        assert_eq!(cell_to_string(&Data::Float(3.14)), "3.14");
+        assert_eq!(cell_to_string(&Data::Float(3.15)), "3.15");
     }
 
     #[test]

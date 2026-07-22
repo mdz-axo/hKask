@@ -179,6 +179,7 @@ mod tests {
     ///   any tool not in this set is denied.
     struct GateMock {
         authenticated: AtomicBool,
+        #[allow(dead_code)]
         assigned: AtomicBool,
         granted_tools: Vec<String>,
     }
