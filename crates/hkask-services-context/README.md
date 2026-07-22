@@ -45,7 +45,7 @@ AgentService
 
 ## Dependencies
 
-Directly depends on: `hkask-agents`, `hkask-cns`, `hkask-mcp`, `hkask-memory`,
+Directly depends on: `hkask-pods`, `hkask-regulation`, `hkask-mcp`, `hkask-memory`,
 `hkask-storage`, `hkask-templates`, `hkask-types`, `hkask-wallet`, `hkask-wallet-types`,
 `hkask-services-core`, `hkask-services-runtime`, `hkask-services-wallet`,
 `hkask-capability`, `hkask-ports`, `hkask-federation`

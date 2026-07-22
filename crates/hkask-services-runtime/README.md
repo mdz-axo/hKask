@@ -21,5 +21,5 @@ Runtime orchestration service: daemon lifecycle, event loop, process management,
 ## Dependencies
 
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`
-- `hkask-cns` — CNS span emission and variety tracking
+- `hkask-regulation` — CNS span emission and variety tracking
 - `hkask-types` — nu-event, CNS spans

@@ -4,7 +4,7 @@ StorageGuard Loop — Autonomous disk space management (Loop 7).
 
 ## Purpose
 
-Implements the HkaskLoop (sense → compare → compute → act) cycle to monitor disk usage on the `/data` volume and take corrective action. Extracted from `hkask-cns` to separate disk space management from cybernetic regulation.
+Implements the HkaskLoop (sense → compare → compute → act) cycle to monitor disk usage on the `/data` volume and take corrective action. Extracted from `hkask-regulation` to separate disk space management from cybernetic regulation.
 
 ## Guardrail Contract
 
@@ -16,8 +16,8 @@ Implements the HkaskLoop (sense → compare → compute → act) cycle to monito
 
 ## Dependencies
 
-- `hkask-cns` — Loop trait
+- `hkask-regulation` — Loop trait
 
 ## See also
 
-- [`hkask-cns`](../hkask-cns/) — Cybernetic Nervous System
+- [`hkask-regulation`](../hkask-regulation/) — Cybernetic Nervous System

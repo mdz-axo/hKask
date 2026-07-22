@@ -28,4 +28,4 @@ No environment variables required. Connects to the hKask daemon via `McpRuntime`
 
 - `hkask-mcp` — MCP runtime and dispatch
 - `hkask-services-context` — AgentService context
-- `hkask-cns` — Cybernetic Nervous System spans
+- `hkask-regulation` — Cybernetic Nervous System spans

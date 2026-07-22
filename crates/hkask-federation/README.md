@@ -18,5 +18,5 @@ Enables hKask pods to federate — discovering agents in remote pods, routing A2
 
 - `hkask-types` — WebID, CNS spans
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`
-- `hkask-cns` — CNS span emission
+- `hkask-regulation` — CNS span emission
 - `hkask-communication` — Agent registry, Matrix transport

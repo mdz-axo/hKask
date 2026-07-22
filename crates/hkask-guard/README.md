@@ -96,7 +96,7 @@ match output.output {
 
 ## Dependencies
 
-- `hkask-cns` — CNS span emission
+- `hkask-regulation` — CNS span emission
 - `hkask-types` — `InfrastructureError`
 - `llm-guard` — Core scanning primitives (BanSubstrings, Deobfuscate, Secrets, TokenLimit, RoleOverride)
 - `tracing` — CNS event logging

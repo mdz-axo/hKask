@@ -1,6 +1,6 @@
-# hkask-agents
+# hkask-pods
 
-Agent pods, ACP, and bot/userpod management for hKask.
+UserPods, ACP, and pod management for hKask. Each user gets exactly one userpod (1:1) - their sovereign identity, memory, capabilities, and consent boundary within a shared install.
 
 ## Key Concepts
 

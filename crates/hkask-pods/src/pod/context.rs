@@ -24,7 +24,7 @@ use super::deployment::{PerPodLedger, PodDeployment};
 use super::types::PodID;
 use crate::SovereigntyChecker;
 use crate::curation::SemanticIndex;
-use crate::ports::{
+use hkask_memory::{
     EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
     StorageRequest,
 };

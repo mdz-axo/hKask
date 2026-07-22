@@ -1,6 +1,6 @@
-# hkask-cns — Cybernetic Nervous System
+# hkask-regulation — Cybernetic Nervous System
 
-Homeostatic self-regulation engine for the hKask agent platform. CNS enforces Ashby's Law of Requisite Variety through variety sensing, algedonic alerts, energy budgets, OCAP governance, and sovereignty enforcement (Loop 6).
+Homeostatic self-regulation engine for hKask. Regulation enforces Ashby's Law of Requisite Variety through variety sensing, algedonic alerts, energy budgets, OCAP governance, and sovereignty enforcement (Loop 6).
 
 ## Public Modules
 

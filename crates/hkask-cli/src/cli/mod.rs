@@ -13,7 +13,7 @@ pub use helpers::{init_logging, parse_template_type};
 #[command(name = "kask")]
 #[command(author = "hKask Team")]
 #[command(version)]
-#[command(about = "A Minimal Viable Container for UserPods - CLI", long_about = None)]
+#[command(about = "A Minimal Viable Container for Users and AI Tools - CLI", long_about = None)]
 pub struct Cli {
     /// Enable verbose output
     #[arg(short, long)]

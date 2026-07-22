@@ -49,11 +49,11 @@ Plan → Backlog | Do → InProgress | Check → Review | Act → Done
 ## Dependencies
 
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`
-- `hkask-cns` — CNS span emission
+- `hkask-regulation` — CNS span emission
 - `hkask-storage` — TripleStore, kata history persistence
 - `hkask-templates` — Jinja2 template rendering
 - `hkask-types` — ID types, CNS spans, WebID
 - `hkask-ports` — Hexagonal port traits
 - `hkask-inference` — Inference router
-- `hkask-agents` — ActivePods for sub-userpod spawning
+- `hkask-pods` — ActivePods for sub-userpod spawning
 - `hkask-capability` — OCAP delegation tokens

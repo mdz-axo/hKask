@@ -24,4 +24,4 @@ Multi-chain wallet service providing crypto wallet operations, chain port select
 - `hkask-wallet` — Core wallet crate (Ed25519, multi-chain)
 - `hkask-wallet-types` — Value types (Hbar, GasEstimate, etc.)
 - `hkask-services-core` — `ServiceConfig`, `ServiceError`
-- `hkask-cns` — CNS span emission for wallet operations
+- `hkask-regulation` — CNS span emission for wallet operations

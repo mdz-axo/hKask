@@ -5,13 +5,13 @@
 //! temporal attention weighting) through the loop membrane.
 
 use crate::error::MemoryError;
-use crate::ports::{
-    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
-    StorageRequest,
-};
 use hkask_capability::{DelegationToken, require_read_access, require_write_access};
 use hkask_memory::MemoryPortError;
 use hkask_memory::{EpisodicMemory, SemanticMemory};
+use hkask_memory::{
+    EpisodicStoragePort, RecallRequest, RecalledEpisode, RecalledSemantic, SemanticStoragePort,
+    StorageRequest,
+};
 use hkask_regulation::ExperienceClassification;
 use hkask_storage::{EmbeddingStore, HMem, HMemStore};
 use hkask_types::Confidence;
