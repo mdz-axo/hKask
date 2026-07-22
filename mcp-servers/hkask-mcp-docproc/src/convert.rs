@@ -5,8 +5,8 @@
 /// Returns `(format_name, supported, note)` where `supported` indicates whether
 /// `docproc_convert` can extract text from this format.
 ///
-/// Supported formats (text extraction works): pdf, markdown, html, plain
-/// Recognized but unsupported (needs additional Rust crates): docx, pptx, xlsx, csv, rtf
+/// Supported formats (text extraction works): pdf, markdown, html, plain,
+/// docx, pptx, xlsx, csv (csv via xlsx backend)
 pub fn detect_format(path: &str) -> (&'static str, bool, Option<&'static str>) {
     let ext = std::path::Path::new(path)
         .extension()
@@ -19,26 +19,9 @@ pub fn detect_format(path: &str) -> (&'static str, bool, Option<&'static str>) {
         "md" | "markdown" => ("markdown", true, None),
         "html" | "htm" => ("html", true, None),
         "txt" => ("plain", true, None),
-        "docx" | "doc" => (
-            "docx",
-            false,
-            Some("DOCX support requires additional Rust crate"),
-        ),
-        "pptx" | "ppt" => (
-            "pptx",
-            false,
-            Some("PPTX support requires additional Rust crate"),
-        ),
-        "xlsx" | "xls" => (
-            "xlsx",
-            false,
-            Some("XLSX support requires additional Rust crate"),
-        ),
-        "csv" => (
-            "csv",
-            false,
-            Some("CSV support requires additional Rust crate"),
-        ),
+        "docx" | "doc" => ("docx", true, None),
+        "pptx" | "ppt" => ("pptx", true, None),
+        "xlsx" | "xls" | "csv" => ("xlsx", true, None),
         "rtf" => (
             "rtf",
             false,
@@ -50,7 +33,10 @@ pub fn detect_format(path: &str) -> (&'static str, bool, Option<&'static str>) {
 
 /// Whether a format is supported for text extraction by `docproc_convert`.
 pub fn is_format_supported(format: &str) -> bool {
-    matches!(format, "pdf" | "markdown" | "html" | "plain")
+    matches!(
+        format,
+        "pdf" | "markdown" | "html" | "plain" | "docx" | "pptx" | "xlsx"
+    )
 }
 
 /// Strip YAML frontmatter (delimited by `---`) from content.

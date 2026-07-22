@@ -364,6 +364,19 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
                 )));
             }
         },
+        // Office format backends (S2: backend/pipeline separation)
+        "docx" | "pptx" | "xlsx" => {
+            let structure = parse_with_backend(format, path)?;
+            let word_count = structure.word_count();
+            let text = structure.text();
+            if word_count == 0 {
+                return Err(McpToolError::internal(format!(
+                    "Backend '{}' extracted 0 words from '{}'",
+                    format, path
+                )));
+            }
+            ExtractOutcome::Success { text, word_count }
+        }
         _ => unreachable!("supported check above guards this branch"),
     };
 
@@ -383,6 +396,27 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
 /// to the absolute path of the `registry/userpods` directory.
 pub(crate) fn default_owner() -> String {
     DEFAULT_OWNER.to_string()
+}
+
+/// Dispatch to the appropriate `DocumentBackend` based on format name.
+///
+/// Returns the parsed `DocStructure`. Used by `extract_text` for office
+/// formats (docx, pptx, xlsx) — the structure is flattened to text for the
+/// `ExtractOutcome::Success` path, but future structure-aware tools can
+/// call the backends directly.
+fn parse_with_backend(
+    format: &str,
+    path: &str,
+) -> Result<hkask_types::document::DocStructure, McpToolError> {
+    use backend::{DocumentBackend, DocxBackend, PptxBackend, XlsxBackend};
+    let structure = match format {
+        "docx" => DocxBackend.parse(path),
+        "pptx" => PptxBackend.parse(path),
+        "xlsx" => XlsxBackend.parse(path),
+        _ => unreachable!("parse_with_backend called with unsupported format: {format}"),
+    }
+    .map_err(|e| McpToolError::internal(format!("Backend error: {e}")))?;
+    Ok(structure)
 }
 
 // ── Extract outcome enum ───────────────────────────────────────────────────
