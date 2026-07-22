@@ -11,7 +11,7 @@
 //! - `face_registry`: first_name, last_name, image_id, status, notes
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
-use crate::core::{define_driver_store, impl_from_db_error};
+use crate::{define_driver_store, impl_from_db_error};
 use hkask_types::InfrastructureError;
 use hkask_types::NotFound;
 use hkask_types::time::now_rfc3339;

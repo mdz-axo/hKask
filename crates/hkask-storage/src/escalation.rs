@@ -5,7 +5,7 @@
 //! and escalation signals from algedonic variety deficit detection.
 use chrono::{DateTime, Utc};
 use crate::database::value::DbValue;
-use crate::core::impl_from_db_error;
+use crate::impl_from_db_error;
 use hkask_types::time::now_rfc3339;
 use hkask_types::{BotID, EscalationID, InfrastructureError, NotFound, TemplateID};
 use serde::{Deserialize, Serialize};

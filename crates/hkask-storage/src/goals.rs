@@ -4,7 +4,7 @@ use crate::now_rfc3339;
 use chrono::Utc;
 use crate::database::value::DbValue;
 use hkask_goal::{Goal, GoalArtifact, GoalCriterion};
-use crate::core::impl_from_db_error;
+use crate::impl_from_db_error;
 use hkask_types::GoalID;
 use hkask_types::GoalState;
 use hkask_types::InfrastructureError;

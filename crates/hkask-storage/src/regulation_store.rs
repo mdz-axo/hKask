@@ -3,7 +3,7 @@
 use crate::now_rfc3339;
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
-use crate::core::define_driver_store;
+use crate::define_driver_store;
 use hkask_types::event::{CyclePhase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, RegulationRecord, RegulationSink};

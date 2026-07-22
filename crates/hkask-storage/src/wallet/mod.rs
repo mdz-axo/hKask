@@ -15,7 +15,7 @@ pub mod encumbrances;
 mod tests;
 pub mod transactions;
 
-use crate::core::define_driver_store;
+use crate::define_driver_store;
 use hkask_wallet_types::WalletError;
 
 define_driver_store!(WalletStore);

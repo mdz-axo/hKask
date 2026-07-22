@@ -4,28 +4,16 @@
 //! Database driver abstraction and storage core foundation are now modules
 //! within this crate. Domain-specific storage modules follow.
 
-// ── Core modules (must precede domain modules for macro_use) ─────────
-
 pub mod core;
 pub mod database;
 
-// ── Re-export foundation from core ───────────────────────────────────
-
+pub use core::DatabaseDriverTrait;
 pub use core::database::{Database, DatabaseError};
-pub use core::{
-    check_passphrase, define_driver_store, impl_from_db_error, open_database, open_or_repair,
-    sanitize_path,
-};
-
-// ── Re-export database driver types ──────────────────────────────────
-
+pub use core::{check_passphrase, open_database, open_or_repair, sanitize_path};
 pub use database::{
     DatabaseDriver, DbProvider, PostgresDriver, SqliteDriver, WAL_PRAGMA_BATCH, init_wal_pragmas,
 };
-
 pub use hkask_types::time::now_rfc3339;
-
-// ── Domain storage modules ───────────────────────────────────────────
 
 pub mod consent_store;
 pub mod embeddings;
@@ -39,8 +27,6 @@ pub mod sovereignty;
 pub mod token_registry;
 pub mod user_store;
 pub mod wallet;
-
-// ── Domain re-exports ────────────────────────────────────────────────
 
 pub use consent_store::{ConsentStore, ConsentStoreError, StoredConsentRecord};
 pub use embeddings::{EmbeddingError, EmbeddingStore, SimilarityResult, StoredEmbedding};
@@ -60,6 +46,5 @@ pub use kata::{KataHistoryEntry, KataHistoryError, KataHistoryStore};
 pub use regulation_store::{DecayConfig, RegulationArchive, WeightedEvent};
 pub use sovereignty::{SovereigntyBoundaryEntry, SovereigntyBoundaryStore, SovereigntyStoreError};
 pub use token_registry::TokenRegistryStore;
-
 pub use user_store::UserStoreError;
 pub use wallet::WalletStore;

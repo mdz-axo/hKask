@@ -6,7 +6,7 @@ use crate::database::SqliteDriver;
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
 use hkask_identity::{HumanUser, Invite, InviteStatus, RegistrationRequest, UserPod, UserSession};
-use crate::core::{define_driver_store, impl_from_db_error};
+use crate::{define_driver_store, impl_from_db_error};
 use hkask_types::id::{WalletId, WebID};
 use hkask_types::identity::Role;
 use hkask_types::{InfrastructureError, NotFound, UserID};

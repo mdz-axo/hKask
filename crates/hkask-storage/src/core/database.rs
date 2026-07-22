@@ -330,7 +330,7 @@ impl Database {
             conn.execute_batch(&format!("PRAGMA key = 'x\"{}\"';", key_hex))?;
             // Standard WAL PRAGMAs — busy_timeout MUST precede journal_mode = WAL
             // (see super::database::init_wal_pragmas for rationale).
-            conn.execute_batch(super::database::WAL_PRAGMA_BATCH)?;
+            conn.execute_batch(crate::database::WAL_PRAGMA_BATCH)?;
             // Additional performance tuning for the main registry DB pool.
             conn.execute_batch(
                 "PRAGMA synchronous = NORMAL;

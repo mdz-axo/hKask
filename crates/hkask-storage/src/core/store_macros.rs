@@ -45,7 +45,7 @@ macro_rules! define_driver_store {
 }
 
 /// Re-export for macro hygiene — the macro references this path.
-pub use super::database::driver::DatabaseDriver as DatabaseDriverTrait;
+pub use crate::database::driver::DatabaseDriver as DatabaseDriverTrait;
 
 /// Implement `From<DbError>` for a store error type, mapping to
 /// `XxxError::Infra(InfrastructureError::from(e))`.

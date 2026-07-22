@@ -8,7 +8,7 @@
 use hkask_storage::database::driver::{query_map, query_row};
 use hkask_storage::database::types::DbError;
 use hkask_storage::database::value::DbValue;
-use hkask_storage::core::define_driver_store;
+use hkask_storage::define_driver_store;
 use hkask_types::{InfrastructureError, WebID};
 use thiserror::Error;
 

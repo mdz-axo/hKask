@@ -4,7 +4,7 @@
 //! user sovereignty (Principle 1.3) in the headless system.
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
-use crate::core::{define_driver_store, impl_from_db_error};
+use crate::{define_driver_store, impl_from_db_error};
 use hkask_types::InfrastructureError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;

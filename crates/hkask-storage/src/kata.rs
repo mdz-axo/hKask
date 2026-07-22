@@ -5,7 +5,7 @@
 //! steps completed, and gas consumed.
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
-use crate::core::{define_driver_store, impl_from_db_error};
+use crate::{define_driver_store, impl_from_db_error};
 use hkask_types::InfrastructureError;
 define_driver_store!(KataHistoryStore);
 
