@@ -14,9 +14,6 @@ hkask-ports = { path = "../../crates/hkask-ports" }
 # Ontology bridges — vocabulary constants for metadata, provenance, and domain predicates
 hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
 hkask-bridge-pko = { path = "../../crates/hkask-bridge-pko" }
-hkask-bridge-golem = { path = "../../crates/hkask-bridge-golem" }
-hkask-bridge-fibo = { path = "../../crates/hkask-bridge-fibo" }
-hkask-bridge-eso = { path = "../../crates/hkask-bridge-eso" }
 
 # OCR pipeline (from markitdown)
 hkask-inference = { path = "../../crates/hkask-inference" }

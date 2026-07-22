@@ -24,6 +24,9 @@ mod init;
 mod threads;
 mod turn;
 
+#[cfg(feature = "tui")]
+pub mod tui;
+
 use hkask_services_context::AgentService;
 use hkask_services_kata_kanban::KanbanService;
 use hkask_templates::{BundleManifest, ManifestExecutor, SqliteRegistry};
@@ -347,7 +350,7 @@ pub fn run_tui(
         .unwrap_or_else(|| hkask_types::secret::ZeroizingSecret::new(Vec::new()));
 
     // Compute layout path before userpod_name is moved into the bridge
-    let layout_path = hkask_tui::layout::layout_path(&userpod_name);
+    let layout_path = crate::tui::layout::layout_path(&userpod_name);
 
     // Keep ReplState alive inside the bridge for full inference
     let bridge = Arc::new(TuiReplBridge {
@@ -362,8 +365,8 @@ pub fn run_tui(
         context_used: std::sync::atomic::AtomicU32::new(0),
     });
 
-    match hkask_tui::TuiSession::new(
-        bridge.clone() as Arc<dyn hkask_tui::SystemBridge>,
+    match crate::tui::TuiSession::new(
+        bridge.clone() as Arc<dyn crate::tui::SystemBridge>,
         bridge.clone(),
     ) {
         Ok(session) => {
@@ -401,7 +404,7 @@ pub fn run_tui(
 /// Receiver and partial output owned by one TUI inference request.
 #[cfg(feature = "tui")]
 struct PendingTuiInference {
-    receiver: std::sync::mpsc::Receiver<hkask_tui::TuiTurnResult>,
+    receiver: std::sync::mpsc::Receiver<crate::tui::TuiTurnResult>,
     streaming_text: Arc<std::sync::Mutex<String>>,
 }
 
@@ -414,7 +417,7 @@ struct TuiReplBridge {
     userpod_name: String,
     model: String,
     pending: std::sync::Mutex<
-        std::collections::HashMap<hkask_tui::InferenceRequestId, PendingTuiInference>,
+        std::collections::HashMap<crate::tui::InferenceRequestId, PendingTuiInference>,
     >,
     alert_count: std::sync::atomic::AtomicU32,
     /// Context window size from model metadata
@@ -425,9 +428,9 @@ struct TuiReplBridge {
 
 #[cfg(feature = "tui")]
 impl TuiReplBridge {
-    fn build_result(capture: &turn::TurnCapture) -> hkask_tui::TuiTurnResult {
+    fn build_result(capture: &turn::TurnCapture) -> crate::tui::TuiTurnResult {
         if capture.budget_exhausted {
-            return hkask_tui::TuiTurnResult {
+            return crate::tui::TuiTurnResult {
                 text: String::new(),
                 prompt_tokens: 0,
                 completion_tokens: 0,
@@ -442,7 +445,7 @@ impl TuiReplBridge {
             text.push_str("\n\n── Tool Results ──\n");
             text.push_str(&capture.tool_output);
         }
-        hkask_tui::TuiTurnResult {
+        crate::tui::TuiTurnResult {
             text,
             prompt_tokens: capture.prompt_tokens,
             completion_tokens: capture.completion_tokens,
@@ -456,14 +459,14 @@ impl TuiReplBridge {
 }
 
 #[cfg(feature = "tui")]
-impl hkask_tui::ReplBridge for TuiReplBridge {
-    fn start_inference(&self, input: String) -> hkask_tui::InferenceRequestId {
+impl crate::tui::ReplBridge for TuiReplBridge {
+    fn start_inference(&self, input: String) -> crate::tui::InferenceRequestId {
         let state = self.state.clone();
         let rt = self.rt_handle.clone();
         let a2a = self.a2a_secret.clone();
         let (tx, rx) = std::sync::mpsc::channel();
         let streaming = Arc::new(std::sync::Mutex::new(String::new()));
-        let request = hkask_tui::InferenceRequestId::new();
+        let request = crate::tui::InferenceRequestId::new();
         self.pending
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -501,14 +504,14 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         &self,
         input: String,
         mcp_server: &str,
-    ) -> hkask_tui::InferenceRequestId {
+    ) -> crate::tui::InferenceRequestId {
         let state = self.state.clone();
         let rt = self.rt_handle.clone();
         let a2a = self.a2a_secret.clone();
         let (tx, rx) = std::sync::mpsc::channel();
         let streaming = Arc::new(std::sync::Mutex::new(String::new()));
         let scope = mcp_server.to_string();
-        let request = hkask_tui::InferenceRequestId::new();
+        let request = crate::tui::InferenceRequestId::new();
         self.pending
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -562,10 +565,13 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         request
     }
 
-    fn poll_inference(&self, request: hkask_tui::InferenceRequestId) -> hkask_tui::InferenceState {
+    fn poll_inference(
+        &self,
+        request: crate::tui::InferenceRequestId,
+    ) -> crate::tui::InferenceState {
         let mut pending = self.pending.lock().unwrap_or_else(|e| e.into_inner());
         let Some(operation) = pending.get(&request) else {
-            return hkask_tui::InferenceState::Idle;
+            return crate::tui::InferenceState::Idle;
         };
         match operation.receiver.try_recv() {
             Ok(result) => {
@@ -590,17 +596,17 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                     self.context_window
                         .store(ctx_len, std::sync::atomic::Ordering::Relaxed);
                 }
-                hkask_tui::InferenceState::Done(result)
+                crate::tui::InferenceState::Done(result)
             }
-            Err(std::sync::mpsc::TryRecvError::Empty) => hkask_tui::InferenceState::Thinking,
+            Err(std::sync::mpsc::TryRecvError::Empty) => crate::tui::InferenceState::Thinking,
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                 pending.remove(&request);
-                hkask_tui::InferenceState::Idle
+                crate::tui::InferenceState::Idle
             }
         }
     }
 
-    fn streaming_text(&self, request: hkask_tui::InferenceRequestId) -> String {
+    fn streaming_text(&self, request: crate::tui::InferenceRequestId) -> String {
         let streaming = self
             .pending
             .lock()
@@ -633,7 +639,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         }
     }
 
-    fn handle_command(&self, cmd: &str) -> hkask_tui::CommandResult {
+    fn handle_command(&self, cmd: &str) -> crate::tui::CommandResult {
         let parts: Vec<&str> = cmd.splitn(3, ' ').collect();
         let primary = parts.first().copied().unwrap_or("");
         match primary {
@@ -641,12 +647,12 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
             "fusion" => {
                 let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
                 if let Some(ref fusion) = state.service_context.config().inference_config.fusion {
-                    hkask_tui::CommandResult {
+                    crate::tui::CommandResult {
                         text: format!("Fusion: {:?} — {}", fusion.mode, fusion.description()),
                         should_quit: false,
                     }
                 } else {
-                    hkask_tui::CommandResult {
+                    crate::tui::CommandResult {
                         text: "Fusion not configured. Set HKASK_FUSION_MODE + HKASK_FUSION_PANEL_MODELS env vars.".into(),
                         should_quit: false,
                     }
@@ -657,7 +663,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                 let agent = parts.get(1).copied().unwrap_or("");
                 let message = parts.get(2).copied().unwrap_or("");
                 if agent.is_empty() || message.is_empty() {
-                    return hkask_tui::CommandResult {
+                    return crate::tui::CommandResult {
                         text: "Usage: /ask <agent> <message>".into(),
                         should_quit: false,
                     };
@@ -670,7 +676,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                     self.a2a_secret.as_bytes(),
                     agent,
                 );
-                hkask_tui::CommandResult {
+                crate::tui::CommandResult {
                     text: if capture.response_text.is_empty() {
                         format!(
                             "({} produced no response — check agent registration and provider reachability.)",
@@ -690,7 +696,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                     .active_thread_id
                     .clone()
                     .unwrap_or_else(|| "none".into());
-                hkask_tui::CommandResult {
+                crate::tui::CommandResult {
                     text: format!(
                         "Active thread: {}\nThreads: {}\nSeeded: {}\nUse `kask thread` CLI for full management.",
                         active,
@@ -700,7 +706,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                     should_quit: false,
                 }
             }
-            _ => hkask_tui::CommandResult {
+            _ => crate::tui::CommandResult {
                 text: format!(
                     "Command /{} not available in TUI. Use `kask {}` in the CLI.",
                     primary, primary
@@ -712,7 +718,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
 }
 
 #[cfg(feature = "tui")]
-impl hkask_tui::SystemBridge for TuiReplBridge {
+impl crate::tui::SystemBridge for TuiReplBridge {
     fn userpod_name(&self) -> &str {
         &self.userpod_name
     }
@@ -796,17 +802,17 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
 }
 
 #[cfg(feature = "tui")]
-impl hkask_tui::SettingsBridge for TuiReplBridge {
-    fn set_model(&self, name: &str) -> hkask_tui::ModelSwitchResult {
+impl crate::tui::SettingsBridge for TuiReplBridge {
+    fn set_model(&self, name: &str) -> crate::tui::ModelSwitchResult {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let r = handlers::model::resolve_and_set_model(&mut state, &self.rt_handle, name);
-        hkask_tui::ModelSwitchResult {
+        crate::tui::ModelSwitchResult {
             resolved_name: r.resolved_name,
             detail: r.detail,
         }
     }
 
-    fn list_models(&self) -> anyhow::Result<Vec<hkask_tui::TuiModelInfo>> {
+    fn list_models(&self) -> anyhow::Result<Vec<crate::tui::TuiModelInfo>> {
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         let ctx = hkask_services_inference::InferenceContext::from(state.service_context.as_ref());
         let models =
@@ -816,7 +822,7 @@ impl hkask_tui::SettingsBridge for TuiReplBridge {
                 ))?;
         Ok(models
             .into_iter()
-            .map(|m| hkask_tui::TuiModelInfo {
+            .map(|m| crate::tui::TuiModelInfo {
                 name: m.name,
                 family: m.family,
                 parameter_size: m.parameter_size,
@@ -838,7 +844,7 @@ impl hkask_tui::SettingsBridge for TuiReplBridge {
 }
 
 #[cfg(feature = "tui")]
-impl hkask_tui::SessionBridge for TuiReplBridge {
+impl crate::tui::SessionBridge for TuiReplBridge {
     fn current_agent(&self) -> String {
         self.state
             .lock()

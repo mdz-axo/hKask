@@ -1,7 +1,9 @@
 #![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
 
+pub mod research;
+
 // Re-export service crate modules for test compatibility
-pub use hkask_services_research::{cache, db, providers, rss_types, strip_html, types};
+pub use crate::research::{cache, db, providers, rss_types, strip_html, types};
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,8 +17,8 @@ use reqwest::Client;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use rusqlite::Connection;
 
-use hkask_services_research::db::*;
-use hkask_services_research::{
+use crate::research::db::*;
+use crate::research::{
     BrowseOutput, BrowseRequest, Continuation, DEFAULT_CACHE_MAX_ENTRIES, DEFAULT_CACHE_TTL_SECS,
     DiscoverRequest, EditTagRequest, ExtractOptions, ExtractOutput, ExtractRequest, FetchRequest,
     FindSimilarOutput, FindSimilarRequest, FindSimilarResultOutput, GetEntriesRequest,
@@ -207,7 +209,7 @@ impl ResearchServer {
             let freshness = req
                 .freshness
                 .as_deref()
-                .and_then(|f| f.parse::<hkask_services_research::types::Freshness>().ok());
+                .and_then(|f| f.parse::<crate::research::types::Freshness>().ok());
 
             let fingerprint = self.pool.provider_fingerprint();
             let ckey = cache_key(
@@ -743,8 +745,8 @@ impl ResearchServer {
     #[tool(description = "Full-text search across feed entries")]
     pub async fn rss_search(
         &self,
-        Parameters(hkask_services_research::rss_types::SearchRequest { query, limit }): Parameters<
-            hkask_services_research::rss_types::SearchRequest,
+        Parameters(crate::research::rss_types::SearchRequest { query, limit }): Parameters<
+            crate::research::rss_types::SearchRequest,
         >,
     ) -> String {
         execute_tool(self, "rss_search", async {

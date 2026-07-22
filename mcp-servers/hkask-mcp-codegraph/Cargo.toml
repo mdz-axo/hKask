@@ -3,10 +3,9 @@ name = "hkask-mcp-codegraph"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Code understanding MCP server — thin wrapper around hkask-codegraph domain crate"
+description = "Code understanding MCP server — semantic code graph with tree-sitter indexing"
 
 [dependencies]
-hkask-codegraph = { path = "../../crates/hkask-codegraph" }
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-ports = { path = "../../crates/hkask-ports" }
@@ -19,10 +18,19 @@ serde_json = { workspace = true }
 schemars = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-rusqlite = { workspace = true }
+rusqlite = { workspace = true, features = ["bundled"] }
 anyhow = { workspace = true }
 dotenvy = { workspace = true }
 minijinja = { workspace = true }
+
+# Codegraph engine dependencies
+sqlite-vec = "0.1"
+thiserror = { workspace = true }
+blake3 = { workspace = true }
+walkdir = { workspace = true }
+uuid = { workspace = true }
+tree-sitter = "0.25"
+tree-sitter-rust = "0.23"
 
 [lib]
 name = "hkask_mcp_codegraph"

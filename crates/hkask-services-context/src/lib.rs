@@ -12,4 +12,5 @@ pub mod mcp_server_guard;
 pub mod reg_store_slo_provider;
 pub mod regulation;
 pub mod storage;
+pub mod storage_guard;
 pub use context_impl::{AgentService, PerAgentMemory};

@@ -2,9 +2,9 @@
 //!
 //! Used by `docproc_extract_triples` in `mod.rs`.
 
-use hkask_bridge_eso as eso;
-use hkask_bridge_fibo as fibo;
-use hkask_bridge_golem as golem;
+use crate::bridge::eso;
+use crate::bridge::fibo;
+use crate::bridge::golem;
 
 /// Map an RDF predicate to a 5W1H dimension.
 ///

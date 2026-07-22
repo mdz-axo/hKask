@@ -30,3 +30,4 @@ pub mod onboarding_session;
 pub mod repl_host;
 #[cfg(feature = "tui")]
 pub mod transcript_viewer;
+pub mod verification;

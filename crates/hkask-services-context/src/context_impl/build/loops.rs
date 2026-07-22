@@ -186,11 +186,11 @@ pub(super) async fn build_loops(
     loop_system.register_loop(metacognition_loop).await;
 
     // ── StorageGuard (Loop 7) — autonomous disk space management ──────
-    let storage_guard_config = hkask_storage_guard::StorageGuardConfig {
+    let storage_guard_config = crate::storage_guard::StorageGuardConfig {
         data_dir: std::env::var("HKASK_DATA_DIR").unwrap_or_else(|_| "/data".to_string()),
         ..Default::default()
     };
-    let storage_guard = Arc::new(hkask_storage_guard::StorageGuardLoop::new(
+    let storage_guard = Arc::new(crate::storage_guard::StorageGuardLoop::new(
         storage_guard_config,
     ));
     loop_system.register_loop(storage_guard).await;

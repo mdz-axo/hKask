@@ -25,7 +25,6 @@ hkask-database = { path = "../hkask-database" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
-hkask-tui = { path = "../hkask-tui", optional = true }
 hkask-communication = { path = "../hkask-communication", optional = true }
 tokio.workspace = true
 serde.workspace = true
@@ -40,11 +39,13 @@ thiserror.workspace = true
 	base64.workspace = true
 
 anyhow.workspace = true
+ratatui = { workspace = true, optional = true }
+crossterm = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = "3"
 
 [features]
 default = []
-tui = ["hkask-tui"]
+tui = ["dep:ratatui", "dep:crossterm"]
 communication = ["hkask-communication"]

@@ -7,7 +7,7 @@ use std::net::IpAddr;
 
 /// URL validation error types
 #[derive(Debug, thiserror::Error)]
-pub enum SecurityError {
+pub(crate) enum SecurityError {
     #[error("Non-HTTP(S) scheme not allowed: {0}")]
     DisallowedScheme(String),
 
@@ -32,7 +32,7 @@ pub enum SecurityError {
 /// user-curated URL lists like RSS subscriptions where the user has
 /// explicitly chosen to fetch from a local network address.
 #[derive(Debug, Clone, Default)]
-pub struct UrlValidationConfig {
+pub(crate) struct UrlValidationConfig {
     /// Allow private IP addresses (10.x, 172.16-31.x, 192.168.x, 169.254.x)
     pub allow_private_ips: bool,
     /// Allow loopback addresses (127.x.x.x, ::1)
@@ -63,7 +63,7 @@ impl UrlValidationConfig {
 /// - Rejects URLs with embedded credentials (user:pass@host)
 /// - Rejects private IPs unless explicitly permitted
 /// - Rejects loopback addresses unless explicitly permitted
-pub fn validate_url(raw_url: &str, config: &UrlValidationConfig) -> Result<(), SecurityError> {
+pub(crate) fn validate_url(raw_url: &str, config: &UrlValidationConfig) -> Result<(), SecurityError> {
     let scheme_end = raw_url
         .find("://")
         .ok_or_else(|| SecurityError::InvalidUrl("No scheme separator '://' found".to_string()))?;

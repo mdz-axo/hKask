@@ -14,7 +14,6 @@ hkask-services-runtime = { path = "../hkask-services-runtime" }
 hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-pods = { path = "../hkask-pods" }
 hkask-regulation = { path = "../hkask-regulation" }
-hkask-storage-guard = { path = "../hkask-storage-guard" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-git-cas = { path = "../hkask-git-cas" }
 hkask-memory = { path = "../hkask-memory" }
@@ -29,6 +28,7 @@ hkask-federation = { path = "../hkask-federation" }
 serde.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
+parking_lot = "0.12"
 tokio.workspace = true
 tracing.workspace = true
 thiserror.workspace = true

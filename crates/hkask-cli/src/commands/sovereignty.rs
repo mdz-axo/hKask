@@ -18,7 +18,7 @@ pub fn run(action: SovereigntyAction) {
 fn run_verify(principle: Option<String>, json: bool) {
     if json {
         let result =
-            hkask_services_verification::VerificationService::verify_json(principle.as_deref());
+            crate::verification::VerificationService::verify_json(principle.as_deref());
         println!(
             "{}",
             serde_json::to_string_pretty(&result)
@@ -26,7 +26,7 @@ fn run_verify(principle: Option<String>, json: bool) {
         );
         return;
     }
-    let report = hkask_services_verification::VerificationService::verify(principle.as_deref());
+    let report = crate::verification::VerificationService::verify(principle.as_deref());
     if report.principles.is_empty() {
         eprintln!(
             "No Magna Carta manifests found. Expected manifests in .agents/skills/magna-carta-verifier/manifests/"

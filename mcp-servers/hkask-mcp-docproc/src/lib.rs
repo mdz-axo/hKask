@@ -10,6 +10,7 @@
 #![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only
 
 mod backend;
+pub mod bridge;
 pub mod convert;
 mod helpers;
 mod json_extract;

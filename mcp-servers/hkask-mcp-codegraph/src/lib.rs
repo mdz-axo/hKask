@@ -1,18 +1,17 @@
 //! MCP server for hkask-codegraph — code understanding tools.
 #![allow(unused_crate_dependencies)]
 
-use hkask_codegraph::graph::analysis;
-use hkask_codegraph::graph::traversal;
-use hkask_codegraph::indexer::pipeline::IndexPipeline;
-use hkask_codegraph::types::Direction;
-use hkask_codegraph::{ContextBudget, graph};
-use hkask_inference::config::InferenceConfig;
-use hkask_inference::embedding_router::EmbeddingRouter;
+pub mod codegraph;
+
+use crate::codegraph::graph::analysis;
+use crate::codegraph::graph::traversal;
+use crate::codegraph::indexer::pipeline::IndexPipeline;
+use crate::codegraph::types::Direction;
+use crate::codegraph::{ContextBudget, graph};
 use hkask_mcp::DaemonClient;
 use hkask_mcp::run_server;
 use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_types::WebID;
-use minijinja::Environment;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -25,8 +24,6 @@ hkask_mcp::mcp_server!(
     pub struct CodeGraphServer {
         pub capability_tier: CapabilityTier,
         pipeline: Arc<Mutex<IndexPipeline>>,
-        embed_router: Option<EmbeddingRouter>,
-        jinja: Environment<'static>,
         /// Tracks whether the workspace has been indexed at least once.
         /// `ensure_indexed()` checks this to avoid re-walking the workspace on
         /// every read tool call. `codegraph_reindex` resets it to force a
@@ -41,7 +38,7 @@ fn db_err(e: impl std::fmt::Display) -> McpToolError {
 }
 
 impl CodeGraphServer {
-    fn pipeline_guard(&self) -> Result<std::sync::MutexGuard<IndexPipeline>, McpToolError> {
+    fn pipeline_guard(&self) -> Result<std::sync::MutexGuard<'_, IndexPipeline>, McpToolError> {
         self.pipeline
             .lock()
             .map_err(|_| McpToolError::internal("pipeline lock poisoned"))
@@ -154,30 +151,8 @@ pub struct StatsRequest {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct FeedbackRequest {
-    context_id: String,
-    #[serde(default)]
-    symbols_provided: Vec<String>,
-    #[serde(default)]
-    symbols_used: Vec<String>,
-}
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct EmbedIndexRequest {
-    /// Embedding model to use (defaults to HKASK_EMBEDDING_MODEL env var, or DI/Qwen/Qwen3-Embedding-0.6B)
-    #[serde(default = "default_embed_model")]
-    model: String,
-    /// Batch size for embedding calls (default 32)
-    #[serde(default = "default_batch")]
-    batch_size: u64,
-}
-fn default_embed_model() -> String {
-    std::env::var("HKASK_EMBEDDING_MODEL")
-        .unwrap_or_else(|_| "DI/Qwen/Qwen3-Embedding-0.6B".to_string())
-}
-fn default_batch() -> u64 {
-    32
-}
 
 // ── Tools ─────────────────────────────────────────────────────────
 
@@ -215,8 +190,8 @@ impl CodeGraphServer {
         execute_tool(self, "codegraph_traverse", async {
             self.ensure_indexed()?;
             let pipeline = self.pipeline_guard()?;
-            let id = traversal::find_symbol_id(pipeline.store().conn(), &req.symbol)
-                .map_err(db_err)?;
+            let id =
+                traversal::find_symbol_id(pipeline.store().conn(), &req.symbol).map_err(db_err)?;
             match id {
                 Some(id) => {
                     let nodes = traversal::traverse(
@@ -241,8 +216,8 @@ impl CodeGraphServer {
         execute_tool(self, "codegraph_impact", async {
             self.ensure_indexed()?;
             let pipeline = self.pipeline_guard()?;
-            let id = traversal::find_symbol_id(pipeline.store().conn(), &req.symbol)
-                .map_err(db_err)?;
+            let id =
+                traversal::find_symbol_id(pipeline.store().conn(), &req.symbol).map_err(db_err)?;
             match id {
                 Some(id) => {
                     let results = traversal::impact_analysis(
@@ -272,8 +247,8 @@ impl CodeGraphServer {
             let pipeline = self.pipeline_guard()?;
             match req.kind {
                 AnalysisKind::DeadCode => {
-                    let findings = analysis::find_dead_code(pipeline.store().conn())
-                        .map_err(db_err)?;
+                    let findings =
+                        analysis::find_dead_code(pipeline.store().conn()).map_err(db_err)?;
                     Ok(serde_json::json!(findings))
                 }
                 AnalysisKind::Complexity => {
@@ -292,7 +267,7 @@ impl CodeGraphServer {
             self.ensure_indexed()?;
             let pipeline = self.pipeline_guard()?;
             let assembled =
-                hkask_codegraph::assemble_context(pipeline.store().conn(), &req.query, req.budget)
+                crate::codegraph::assemble_context(pipeline.store().conn(), &req.query, req.budget)
                     .map_err(db_err)?;
             Ok(serde_json::json!({
                 "context_id": assembled.context_id.to_string(),
@@ -348,9 +323,7 @@ impl CodeGraphServer {
             // tool call, stats returns zeros. Call codegraph_reindex or any other
             // tool first to populate the index.
             let pipeline = self.pipeline_guard()?;
-            let stats = pipeline
-                .stats()
-                .map_err(db_err)?;
+            let stats = pipeline.stats().map_err(db_err)?;
             let mut output = serde_json::json!({
                 "files": stats.files, "symbols": stats.symbols, "edges": stats.edges,
             });
@@ -420,149 +393,6 @@ impl CodeGraphServer {
         }).await
     }
 
-    #[tool(
-        description = "Log which symbols from a context_id were actually used. \
-         Emits a tracing event only — feedback is NOT persisted to the store, \
-         so it does not influence future context assembly. The log event is \
-         consumed by the Regulation tracing substrate for observability."
-    )]
-    pub async fn codegraph_feedback(&self, Parameters(req): Parameters<FeedbackRequest>) -> String {
-        execute_tool(self, "codegraph_feedback", async {
-            let ratio = if req.symbols_provided.is_empty() {
-                0.0
-            } else {
-                req.symbols_used.len() as f64 / req.symbols_provided.len() as f64
-            };
-            tracing::info!(
-                target: "hkask.codegraph.context_efficiency",
-                context_id = %req.context_id,
-                symbols_provided = req.symbols_provided.len(),
-                symbols_used = req.symbols_used.len(),
-                ratio = ratio,
-            );
-            // NOTE: feedback is logged but not persisted — the G12 feedback loop
-            // is not yet wired to the store. A future `context_feedback` table
-            // would close the loop by letting `assemble_context` weight symbols
-            // by historical usage.
-            Ok(serde_json::json!({"logged": true, "context_id": req.context_id, "ratio": ratio, "persisted": false}))
-        })
-        .await
-    }
-
-    #[tool(
-        description = "Generate embeddings for all symbols using the inference router, enabling semantic vector search (G13)"
-    )]
-    pub async fn codegraph_index_embeddings(
-        &self,
-        Parameters(req): Parameters<EmbedIndexRequest>,
-    ) -> String {
-        execute_tool(self, "codegraph_index_embeddings", async {
-            let embed_router = self.embed_router.as_ref()
-                .ok_or_else(|| McpToolError::invalid_argument(
-                    "No embedding provider configured. Set DEEPINFRA_API_KEY or OPENROUTER_API_KEY."
-                ))?;
-
-            // Phase 1: extract all symbol data from DB (before any .await)
-            let rows: Vec<(i64, serde_json::Value)> = {
-                let pipeline = self.pipeline_guard()?;
-                let conn = pipeline.store().conn();
-                let mut stmt = conn.prepare(
-                    "SELECT s.id, s.name, s.kind, s.signature, s.doc_comment,
-                            s.visibility, f.path
-                     FROM symbols s
-                     JOIN code_files f ON s.file_id = f.id
-                     WHERE NOT EXISTS (
-                         SELECT 1 FROM symbols_vec WHERE rowid = s.id
-                     )
-                     ORDER BY s.name"
-                ).map_err(db_err)?;
-                stmt.query_map([], |row| {
-                    Ok((row.get::<_, i64>(0)?, serde_json::json!({
-                        "name": row.get::<_, String>(1)?,
-                        "kind": row.get::<_, String>(2)?,
-                        "signature": row.get::<_, String>(3)?,
-                        "doc": row.get::<_, Option<String>>(4)?,
-                        "visibility": row.get::<_, String>(5)?,
-                        "file": row.get::<_, String>(6)?,
-                    })))
-                }).map_err(db_err)?
-                .filter_map(|r| r.ok()).collect()
-            };
-            // Connection dropped here — safe to .await now
-
-            if rows.is_empty() {
-                return Ok(serde_json::json!({"indexed": 0, "message": "All symbols already have embeddings"}));
-            }
-
-            let batch_size = req.batch_size as usize;
-            let mut all_embeddings: Vec<(i64, Vec<f32>)> = Vec::new();
-
-            // Phase 2: generate embeddings (safe to .await, no SQLite references)
-            for chunk in rows.chunks(batch_size) {
-                let texts: Vec<String> = chunk.iter().map(|(_, ctx)| {
-                    match self.jinja.get_template("symbol-embedding.j2") {
-                        Ok(tmpl) => tmpl.render(ctx).unwrap_or_else(|e| {
-                            tracing::warn!(target: "hkask.mcp.codegraph", error = %e, "Template render failed");
-                            ctx["signature"].as_str().unwrap_or("").to_string()
-                        }),
-                        Err(_) => ctx["signature"].as_str().unwrap_or("").to_string(),
-                    }
-                }).collect();
-
-                let text_refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
-                let embeddings = embed_router.embed_sentences(&req.model, &text_refs).await
-                    .map_err(|e| McpToolError::internal(format!("Embedding failed: {e}")))?;
-
-                // Reject partial responses — a provider returning fewer embeddings than
-                // requested would silently drop symbols if we just skipped the extras.
-                if embeddings.len() != chunk.len() {
-                    return Err(McpToolError::internal(format!(
-                        "Embedding provider returned {} vectors for {} symbols — \
-                         refusing to silently drop symbols (model: {})",
-                        embeddings.len(),
-                        chunk.len(),
-                        req.model,
-                    )));
-                }
-
-                for (i, (id, _ctx)) in chunk.iter().enumerate() {
-                    // Length already validated above, but guard defensively against panics.
-                    if i < embeddings.len() {
-                        all_embeddings.push((*id, embeddings[i].clone()));
-                    }
-                }
-            }
-
-            // Phase 3: insert into DB (re-acquire connection)
-            let indexed = {
-                let pipeline = self.pipeline_guard()?;
-                let conn = pipeline.store().conn();
-                let mut count = 0usize;
-                for (id, embedding) in &all_embeddings {
-                    let blob: Vec<u8> = embedding.iter().flat_map(|f| f.to_le_bytes()).collect();
-                    conn.execute(
-                        "INSERT OR IGNORE INTO symbols_vec(rowid, embedding) VALUES (?1, ?2)",
-                        rusqlite::params![id, blob],
-                    ).map_err(db_err)?;
-                    count += 1;
-                }
-                count
-            };
-
-            tracing::info!(
-                target: "hkask.codegraph.embeddings",
-                model = %req.model,
-                indexed = indexed,
-                "Embedding batch indexed"
-            );
-
-            Ok(serde_json::json!({
-                "indexed": indexed,
-                "model": req.model,
-                "message": format!("Indexed {indexed} symbol embeddings via {}", req.model),
-            }))
-        }).await
-    }
 }
 
 pub async fn run(
@@ -576,9 +406,9 @@ pub async fn run(
         |_ctx| {
             let webid = WebID::new();
             let store = match &db_path {
-                Some(path) => hkask_codegraph::graph::store::GraphStore::open(path)
+                Some(path) => crate::codegraph::graph::store::GraphStore::open(path)
                     .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?,
-                None => hkask_codegraph::graph::store::GraphStore::open_in_memory()
+                None => crate::codegraph::graph::store::GraphStore::open_in_memory()
                     .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?,
             };
             let pipeline = IndexPipeline::new(store);
