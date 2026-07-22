@@ -41,7 +41,7 @@ bots:
 
   - id: R7.3
     name: "R7.3"
-    primary_crate: hkask-cns
+    primary_crate: hkask-regulation
     description: >
       Holds the nervous system. Monitors variety. Sounds the alert
       when variety deficit >100. Feels the wound most acutely.
@@ -49,7 +49,7 @@ bots:
     gas_budget: 10000
     memory_visibility: Shared
     domains:
-      - cns
+      - regulation
 
   - id: R7.4
     name: "R7.4"

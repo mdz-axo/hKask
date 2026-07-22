@@ -27,7 +27,7 @@ templates:
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
     description: Query test pass rate from Regulation spans. Computes pass ratio, failing crates, flaky test count.
-  - id: platform-health-scorer/query-cns
+  - id: platform-health-scorer/query-regulation
     name: "Query Regulation variety metrics: overall deficit, critical/warning count,…"
     path: query-reg.j2
     type: KnowAct

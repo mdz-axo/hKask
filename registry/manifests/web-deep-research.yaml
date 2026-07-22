@@ -149,7 +149,7 @@ ocap:
     - resource: web
       action: extract
       gas_budget: 4096
-    - resource: cns
+    - resource: regulation
       action: emit
       gas_budget: 500
   delegation_chain_required: true

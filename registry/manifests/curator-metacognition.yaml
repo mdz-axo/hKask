@@ -102,7 +102,7 @@ ocap:
       can_access: [all]
       requires_consent: false
   required_capabilities:
-    - resource: cns
+    - resource: regulation
       action: emit
       gas_budget: 2000
     - resource: memory
@@ -143,7 +143,7 @@ ledger:
 # Bot Report Integration
 # bot_reporting: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   ingest_from:
-#     - cns-curator-bot
+#     - regulation-curator-bot
 #     - memory-curator-bot
 #     - inference-curator-bot
 #     - mcp-dispatch-bot

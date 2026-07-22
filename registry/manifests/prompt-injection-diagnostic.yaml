@@ -243,7 +243,7 @@ ocap:
       action: execute
       template_id: prompt-injection-diagnostic
       gas_budget: 500
-    - resource: cns
+    - resource: regulation
       action: emit
       template_id: prompt-injection-diagnostic
       gas_budget: 500

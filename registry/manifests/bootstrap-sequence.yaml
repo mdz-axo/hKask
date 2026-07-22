@@ -40,7 +40,7 @@ manifest:
 #     depends_on: [hkask-storage]
 
 #   - ordinal: 3
-#     component: hkask-cns
+#     component: hkask-regulation
 #     type: crate
 #     description: Cybernetic Nervous System span emitter
 #     readiness_probe: cns_ping
@@ -55,12 +55,12 @@ manifest:
 #     readiness_probe: mcp_ping
 #     timeout_seconds: 60
 #     critical: true
-#     depends_on: [hkask-storage, hkask-cns]
+#     depends_on: [hkask-storage, hkask-regulation]
 
 #   - ordinal: 5
-#     component: cns-curator-bot
+#     component: regulation-curator-bot
 #     type: bot
-#     manifest: registry/bots/cns-curator-bot.yaml
+#     manifest: registry/bots/regulation-curator-bot.yaml
 #     readiness_probe: bot_ping
 #     timeout_seconds: 60
 #     critical: true
@@ -128,7 +128,7 @@ manifest:
 #     timeout_seconds: 60
 #     critical: true
 #     depends_on:
-#       - cns-curator-bot
+#       - regulation-curator-bot
 #       - memory-curator-bot
 #       - inference-curator-bot
 #       - mcp-dispatch-bot
@@ -154,7 +154,7 @@ manifest:
 
 #   cns_ping:
 #     type: health_check
-#     endpoint: cns::ping
+#     endpoint: regulation::ping
 #     expected: { status: ok }
 #     retry_count: 3
 #     retry_delay_seconds: 5

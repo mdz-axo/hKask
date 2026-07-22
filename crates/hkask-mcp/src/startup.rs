@@ -312,21 +312,7 @@ mod tests {
         );
     }
 
-    // ── Gate 2 failure: assignment ──────────────────────────────────────
-
-    #[tokio::test]
-    async fn gate2_assignment_fails() {
-        let (client, _path) = setup_gate_test(true, false, vec![]).await;
-        let err = verify_startup_gates(&client, "alice", "condenser", &[])
-            .await
-            .expect_err("should fail on assignment rejection");
-
-        let msg = err.to_string();
-        assert!(
-            msg.contains("not assigned"),
-            "expected assignment error, got: {msg}"
-        );
-    }
+    // ── Gate 2: assignment system was removed — no gate2_assignment_fails test ──
 
     // ── Gate 3: partial capability denial (non-fatal) ───────────────────
 

@@ -184,7 +184,7 @@ ocap:
       template_id: woolf-style-synthesizer
       gas_budget: 500
       description: "Compute style centroid for validation distance check"
-    - resource: cns
+    - resource: regulation
       action: emit
       template_id: woolf-style-synthesizer
       gas_budget: 500

@@ -356,7 +356,7 @@ ocap:
     - resource: memory
       action: infer
       gas_budget: 8192
-    - resource: cns
+    - resource: regulation
       action: emit
       gas_budget: 500
   delegation_chain_required: true

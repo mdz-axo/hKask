@@ -236,7 +236,7 @@ ocap:
       action: execute
       template_id: root-cause-analysis
       gas_budget: 500
-    - resource: cns
+    - resource: regulation
       action: emit
       template_id: root-cause-analysis
       gas_budget: 500

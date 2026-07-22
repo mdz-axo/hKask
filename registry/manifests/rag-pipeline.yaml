@@ -237,7 +237,7 @@ ocap:
       action: execute
       template_id: rag-pipeline
       gas_budget: 500
-    - resource: cns
+    - resource: regulation
       action: emit
       template_id: rag-pipeline
       gas_budget: 500

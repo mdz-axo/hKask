@@ -95,7 +95,7 @@ steps:
       Weight: 0.15 in composite.
 
     renderer: minijinja
-    template_ref: platform-health-scorer/query-cns
+    template_ref: platform-health-scorer/query-regulation
     gas_cap: 3000
     timeout_seconds: 30
     input_mapping:
@@ -171,7 +171,7 @@ ocap:
       gas_budget: 3000
     - resource: template
       action: render
-      template_id: platform-health-scorer/query-cns
+      template_id: platform-health-scorer/query-regulation
       gas_budget: 3000
     - resource: template
       action: render

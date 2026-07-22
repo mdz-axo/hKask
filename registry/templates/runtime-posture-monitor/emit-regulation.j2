@@ -31,7 +31,7 @@ SYNTHESIS ACTIONS:
    not vulnerability claim), `owasp_llm_2025: LLM06` or `LLM07`,
    `atlas_tactic: AML.TA0010`, `discovered_in: <span_target>`,
    `discovered_by: runtime-posture-monitor`, `discovered_at`, `severity`,
-   `detection` (`kind: cns-span` with `pattern` referencing span target or
+   `detection` (`kind: regulation-span` with `pattern` referencing span target or
    signal value — concrete regex against span target, NOT source-file grep;
    runtime threats are observed in Regulation telemetry, not source files. Use
    `kind: grep` only if the threat has a static code correlate detectable
@@ -83,7 +83,7 @@ emit Regulation spans + compute verdict. All 6 present — passes gate.
 RELATIONSHIP (explicit): Complements `supply-chain-sentinel` (static manifest
 audit, distinct P4 boundary) and `adversarial-red-team` (synthetic LLM I/O
 attacks). References `security/regressions/README.md` format directly.
-References `hkask-cns` cybernetics loop for `reg.regulation` consumption.
+References `hkask-regulation` cybernetics loop for `reg.regulation` consumption.
 References `hkask-guard` pipeline for `reg.guard.violation` consumption.
 MINIMAL: This is one template (`KnowAct`) — no bundle, no sub-agent.
 EVIDENCE-BACKED ONLY: Every proposed regression includes concrete `pattern`
@@ -112,7 +112,7 @@ SOURCE REFERENCES (concrete — P8):
 - MITRE ATLAS (AML.TA0010 — Exfiltration)
 - `security/regressions/README.md` (local project standard — authoritative)
 - `hkask-guard` pipeline docs (reg.guard.* span sources)
-- `hkask-cns` cybernetics loop docs (reg.regulation span sink)
+- `hkask-regulation` cybernetics loop docs (reg.regulation span sink)
 - `supply-chain-sentinel` SKILL.md (complementary relationship — distinct
   P4 boundaries)
 - `adversarial-red-team` SKILL.md (zero overlap — synthetic vs real traffic)

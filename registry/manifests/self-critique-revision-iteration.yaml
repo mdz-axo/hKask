@@ -220,7 +220,7 @@ ocap:
       action: execute
       template_id: self-critique-revision-iteration
       gas_budget: 500
-    - resource: cns
+    - resource: regulation
       action: emit
       template_id: self-critique-revision-iteration
       gas_budget: 500

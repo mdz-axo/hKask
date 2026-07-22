@@ -90,7 +90,7 @@ ocap:
       action: call
       template_id: prompt-templates/inference_call
       gas_budget: 8192
-    - resource: cns
+    - resource: regulation
       action: emit
       template_id: prompt-templates/inference_call
       gas_budget: 500

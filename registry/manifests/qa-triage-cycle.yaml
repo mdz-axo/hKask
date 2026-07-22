@@ -38,7 +38,7 @@ steps:
   # Step 1: Run full contract test suite across priority crates
   - ordinal: 1
     action: run_command
-    command: "cargo test -p hkask-cns -p hkask-types -p hkask-storage -p hkask-keystore -p hkask-capability 2>&1 | tail -30"
+    command: "cargo test -p hkask-regulation -p hkask-types -p hkask-storage -p hkask-keystore -p hkask-capability 2>&1 | tail -30"
     description: "Run contract and property tests across priority crates"
     branching:
       success: 2
@@ -48,7 +48,7 @@ steps:
   - ordinal: 2
     action: classify
     classifier: qa-triage
-    description: "Test suite: hKask priority crates (cns, types, storage, keystore, capability). Property-based tests use proptest for randomized input generation. Classify any failures by type (panic, assertion, logic error, flake) and confidence."
+    description: "Test suite: hKask priority crates (regulation, types, storage, keystore, capability). Property-based tests use proptest for randomized input generation. Classify any failures by type (panic, assertion, logic error, flake) and confidence."
     branching:
       high_confidence: 3
       medium_confidence: 4

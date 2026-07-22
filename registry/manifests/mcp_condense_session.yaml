@@ -89,7 +89,7 @@ ocap:
       action: call
       template_id: prompt-templates/condense_session
       gas_budget: 4096
-    - resource: cns
+    - resource: regulation
       action: emit
       template_id: prompt-templates/condense_session
       gas_budget: 500

@@ -2,7 +2,7 @@
 # ℏKask v0.21.2
 
 manifest:
-  id: cns-gas-tracking
+  id: regulation-gas-tracking
   category: runtime-config
   name: Regulation Gas Tracking
   description: Regulation energy budget and alert configuration

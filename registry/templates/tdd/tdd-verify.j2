@@ -83,7 +83,7 @@ Verify every contract carries the full structure:
 - [ ] No contradiction: `expect:` does not assert something the pre/post denies
 - [ ] Not vacuously equivalent: `expect:` differs meaningfully from the `post:` text
 
-Where contracts lack `expect:`, severity is `critical` with violation type `missing-user-expectation`. Where `[P{N}]` is missing, severity is `critical` with type `missing-goal-principle`. Verification failures must emit `reg.contract.violated` spans via `hkask-cns::contract_discipline::emit_contract_violated()`.
+Where contracts lack `expect:`, severity is `critical` with violation type `missing-user-expectation`. Where `[P{N}]` is missing, severity is `critical` with type `missing-goal-principle`. Verification failures must emit `reg.contract.violated` spans via `hkask-regulation::contract_discipline::emit_contract_violated()`.
 
 ### Implementation Quality
 - [ ] Code is minimal for the behaviors tested (no speculative features)
@@ -109,12 +109,12 @@ Respond with a JSON object:
       "behavior": "description of tested behavior",
       "covered": true,
       "seam": "which public interface covers it",
-      "fr_reference": "P9-cns-energy-budget-can-proceed"
+      "fr_reference": "P9-regulation-energy-budget-can-proceed"
     }
   ],
   "functional_gaps": [
     {
-      "fr_reference": "P9-cns-energy-budget-can-proceed",
+      "fr_reference": "P9-regulation-energy-budget-can-proceed",
       "requirement": "description of uncovered requirement",
       "priority": "P0|P1|P2",
       "recommendation": "tracer-bullet|defer-to-OPEN_QUESTIONS"
@@ -131,7 +131,7 @@ Respond with a JSON object:
   ],
   "contract_expectations_valid": [
     {
-      "fr_reference": "P9-cns-energy-budget-can-proceed",
+      "fr_reference": "P9-regulation-energy-budget-can-proceed",
       "expect_field_present": true,
       "goal_principle_tag_present": true,
       "constraining_annotations_present": true,
@@ -144,7 +144,7 @@ Respond with a JSON object:
     {
       "span_id": "reg.contract.violated:uuid",
       "violation_type": "missing-user-expectation|missing-goal-principle|missing-constraining-annotation|expectation-postcondition-mismatch",
-      "fr_reference": "P9-cns-energy-budget-can-proceed"
+      "fr_reference": "P9-regulation-energy-budget-can-proceed"
     }
   ],
   "passed": true

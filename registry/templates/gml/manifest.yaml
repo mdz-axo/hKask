@@ -30,9 +30,9 @@ templates:
       equilibrium shift via the MWC state function, and generate a binding
       analogy interpreting the directional effect.
 
-  - id: gml/cns-instrument
+  - id: gml/regulation-instrument
     name: "Regulation instrumentation macros"
-    path: cns-instrument.j2
+    path: regulation-instrument.j2
     type: KnowAct
     lexicon_terms: [instrument, monitor, observe]
     description: >

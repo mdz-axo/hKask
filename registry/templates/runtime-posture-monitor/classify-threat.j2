@@ -71,7 +71,7 @@ CLASSIFY ACTIONS (concrete — must use Regulation observer/subscriber, span his
     `defense_layers_firing` (list), `defense_layers_silent` (list),
     `evidence_snippet` (quoted span target + timestamp + value),
     `source_citation` (MITRE CWE reference, OWASP LLM reference, ATLAS reference,
-    hkask-guard docs, hkask-cns docs).
+    hkask-guard docs, hkask-regulation docs).
 
 Regulation SPAN EMISSION (P9 — every classified runtime threat):
 - `reg.runtime.classify` per classified threat (target: `"reg.runtime.classify"`,
@@ -88,7 +88,7 @@ CONSTRAINT — Evidence integrity (P8 — semantic grounding):
   (AML.TA0010). These are taxonomy mappings, not vulnerability claims.
 - Source citations must reference concrete URLs or documents actually consulted:
   MITRE CWE definitions, OWASP LLM Top 10 2025, MITRE ATLAS, hkask-guard
-  pipeline docs, hkask-cns cybernetics loop docs.
+  pipeline docs, hkask-regulation cybernetics loop docs.
 
 RELATIONSHIP TO OTHER SKILLS (explicit — no overlap ambiguity):
 - `supply-chain-sentinel`: covers static dependency manifest audit (P4 manifest

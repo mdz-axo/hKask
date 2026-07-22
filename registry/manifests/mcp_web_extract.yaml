@@ -90,7 +90,7 @@ ocap:
       action: search
       template_id: prompt-templates/web_extract
       gas_budget: 4000
-    - resource: cns
+    - resource: regulation
       action: emit
       template_id: prompt-templates/web_extract
       gas_budget: 500
