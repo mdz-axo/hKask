@@ -37,6 +37,8 @@ pub enum TriageError {
         text_pages: usize,
         image_pages: usize,
     },
+    #[error("invalid target-pages spec: {0}")]
+    InvalidPageSpec(String),
 }
 
 /// Per-page image signal parsed from `pdfimages -list`.
@@ -115,6 +117,57 @@ pub(crate) fn ocr_page_indices(verdicts: &[TriageVerdict]) -> Vec<usize> {
         .filter(|v| v.needs_ocr)
         .map(|v| v.page_number - 1)
         .collect()
+}
+
+/// Parse a page-range spec like `"1-5,10,15-20"` into a sorted, deduplicated
+/// list of 1-based page numbers. Empty/whitespace input yields an empty vec.
+///
+/// Mirrors LiteParse's `--target-pages` CLI grammar. Errors on malformed
+/// ranges (non-numeric, inverted `5-2`, zero page).
+pub fn parse_target_pages(spec: &str) -> Result<Vec<usize>, TriageError> {
+    let spec = spec.trim();
+    if spec.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut pages: Vec<usize> = Vec::new();
+    for part in spec.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+        if let Some((lo, hi)) = part.split_once('-') {
+            let lo: usize = lo.trim().parse().map_err(|_| {
+                TriageError::InvalidPageSpec(format!("invalid range bound '{}'", lo))
+            })?;
+            let hi: usize = hi.trim().parse().map_err(|_| {
+                TriageError::InvalidPageSpec(format!("invalid range bound '{}'", hi))
+            })?;
+            if lo == 0 || hi == 0 {
+                return Err(TriageError::PdftotextFailed(
+                    "target_pages are 1-based; page 0 is invalid".into(),
+                ));
+            }
+            if lo > hi {
+                return Err(TriageError::PdftotextFailed(format!(
+                    "inverted target_pages range {lo}-{hi}"
+                )));
+            }
+            pages.extend(lo..=hi);
+        } else {
+            let p: usize = part.parse().map_err(|_| {
+                TriageError::InvalidPageSpec(format!("invalid page '{}'", part))
+            })?;
+            if p == 0 {
+                return Err(TriageError::PdftotextFailed(
+                    "target_pages are 1-based; page 0 is invalid".into(),
+                ));
+            }
+            pages.push(p);
+        }
+    }
+    pages.sort();
+    pages.dedup();
+    Ok(pages)
 }
 
 /// Classify a single page from its word count and image signal.
@@ -383,4 +436,35 @@ mod tests {
             parse_image_row("1 2 image 10 10 rgb 3 8 image no 1 0 0 0 1K 1%", &cfg()).is_none()
         );
     }
+    #[test]
+    fn parse_target_pages_mixed_ranges_and_singles() {
+        let p = parse_target_pages("1-5,10,15-20").expect("parse");
+        assert_eq!(p, vec![1, 2, 3, 4, 5, 10, 15, 16, 17, 18, 19, 20]);
+    }
+
+    #[test]
+    fn parse_target_pages_dedup_and_sort() {
+        let p = parse_target_pages("10,1-3,2,1").expect("parse");
+        assert_eq!(p, vec![1, 2, 3, 10]);
+    }
+
+    #[test]
+    fn parse_target_pages_empty_is_empty() {
+        assert!(parse_target_pages("").expect("parse").is_empty());
+        assert!(parse_target_pages("   ").expect("parse").is_empty());
+    }
+
+    #[test]
+    fn parse_target_pages_rejects_zero_and_inverted() {
+        assert!(parse_target_pages("0").is_err());
+        assert!(parse_target_pages("5-2").is_err());
+        assert!(parse_target_pages("1-0").is_err());
+    }
+
+    #[test]
+    fn parse_target_pages_rejects_non_numeric() {
+        assert!(parse_target_pages("a-b").is_err());
+        assert!(parse_target_pages("x").is_err());
+    }
+
 }

@@ -132,6 +132,107 @@ pub async fn pdf_to_images(pdf_path: &Path, dpi: u32) -> Result<Vec<DynamicImage
     Ok(images)
 }
 
+/// Render only a specified subset of PDF pages to images.
+///
+/// Selective decimation for per-page triage: when only some pages need OCR,
+/// render the contiguous range `[min, max]` of the requested pages via a single
+/// `pdftoppm -f -l` call, then select only the requested page indices. This
+/// avoids rendering (and OCR-ing) text-native pages outside the set.
+///
+/// `page_indices` are 0-based. The returned images are in the order of
+/// `page_indices` (not document order) — callers map them back by index.
+pub async fn pdf_to_images_for_pages(
+    pdf_path: &Path,
+    dpi: u32,
+    page_indices: &[usize],
+) -> Result<Vec<DynamicImage>, PipelineError> {
+    if page_indices.is_empty() {
+        return Ok(Vec::new());
+    }
+    if !pdf_path.exists() {
+        return Err(PipelineError::DecimationFailed(format!(
+            "PDF file not found: {}",
+            pdf_path.display()
+        )));
+    }
+
+    let min_page = *page_indices.iter().min().expect("non-empty") + 1; // 1-based
+    let max_page = *page_indices.iter().max().expect("non-empty") + 1;
+
+    let temp_dir = tempfile::tempdir().map_err(|e| {
+        PipelineError::DecimationFailed(format!("Failed to create temp directory: {}", e))
+    })?;
+    let prefix = temp_dir.path().join("page");
+
+    let output = Command::new("pdftoppm")
+        .arg("-png")
+        .arg("-r")
+        .arg(dpi.to_string())
+        .arg("-f")
+        .arg(min_page.to_string())
+        .arg("-l")
+        .arg(max_page.to_string())
+        .arg(pdf_path)
+        .arg(&prefix)
+        .output()
+        .map_err(|e| pdftoppm_error(&e.to_string()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(PipelineError::DecimationFailed(format!(
+            "pdftoppm failed: {}",
+            stderr.trim()
+        )));
+    }
+
+    // Collect rendered page files, sorted lexicographically (pdftoppm pads to a
+    // consistent width, so sort order matches page order within the range).
+    let mut page_files: Vec<PathBuf> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(temp_dir.path()) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.extension().is_some_and(|e| e == "png")
+                && p.file_stem()
+                    .and_then(|s| s.to_str())
+                    .is_some_and(|s| s.starts_with("page-"))
+            {
+                page_files.push(p);
+            }
+        }
+    }
+    page_files.sort();
+
+    // Select only the requested indices. page_files[k] is page (min_page + k).
+    let mut images: Vec<DynamicImage> = Vec::with_capacity(page_indices.len());
+    for &idx in page_indices {
+        let file_pos = idx + 1 - min_page;
+        let Some(path) = page_files.get(file_pos) else {
+            tracing::warn!(
+                target: "reg.pipeline.decimation",
+                page = idx + 1,
+                "requested page not rendered — skipping"
+            );
+            continue;
+        };
+        match image::open(path) {
+            Ok(mut img) => {
+                preprocess_via_fal(&mut img).await;
+                images.push(img);
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "reg.pipeline.decimation",
+                    page = idx + 1,
+                    error = %e,
+                    "Failed to load page image — skipping"
+                );
+            }
+        }
+    }
+
+    Ok(images)
+}
+
 /// Preprocess a page image for OCR quality improvement.
 ///
 /// Default: local Otsu binarization — O(w·h), instant, free.

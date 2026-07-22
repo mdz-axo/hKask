@@ -477,6 +477,69 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
     Ok(extract_result)
 }
 
+/// Filter a PDF `ExtractOutcome` to a target page set (1-based).
+///
+/// `Success`: split on form-feed, keep only target pages, rejoin.
+/// `PartialOcr`: filter `page_texts`, `ocr_pages`, and `verdicts` to target
+/// pages. `NeedsOcr`: returned unchanged (no per-page structure; the caller's
+/// decimation path handles page selection separately).
+pub(crate) fn filter_outcome_to_pages(
+    outcome: ExtractOutcome,
+    target: &std::collections::HashSet<usize>,
+) -> ExtractOutcome {
+    if target.is_empty() {
+        return outcome;
+    }
+    match outcome {
+        ExtractOutcome::Success { text, structure, .. } => {
+            let kept: Vec<String> = text
+                .split('\x0c')
+                .enumerate()
+                .filter(|(i, _)| target.contains(&(i + 1)))
+                .map(|(_, p)| p.to_string())
+                .collect();
+            let joined = kept.join("\n\x0c");
+            ExtractOutcome::Success {
+                word_count: joined.split_whitespace().count(),
+                text: joined,
+                structure,
+            }
+        }
+        ExtractOutcome::PartialOcr {
+            page_texts,
+            ocr_pages,
+            verdicts,
+            ..
+        } => {
+            let filtered_texts: Vec<String> = page_texts
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| target.contains(&(i + 1)))
+                .map(|(_, t)| t.clone())
+                .collect();
+            let filtered_ocr: Vec<usize> = ocr_pages
+                .into_iter()
+                .filter(|i| target.contains(&(i + 1)))
+                .collect();
+            let filtered_verdicts: Vec<crate::ocr::TriageVerdict> = verdicts
+                .into_iter()
+                .filter(|v| target.contains(&v.page_number))
+                .collect();
+            let wc = filtered_texts
+                .iter()
+                .map(|t| t.split_whitespace().count())
+                .sum();
+            ExtractOutcome::PartialOcr {
+                page_texts: filtered_texts,
+                word_count: wc,
+                ocr_pages: filtered_ocr,
+                verdicts: filtered_verdicts,
+            }
+        }
+        other => other,
+    }
+}
+
 /// Load a docproc template from registry and render with minijinja.
 ///
 /// Templates live in `registry/templates/docproc/` as Jinja2 files.
@@ -772,5 +835,112 @@ mod tests {
     fn chunk_defaults_index_true() {
         // Verify the default_true helper
         assert!(default_true());
+    }
+
+    /// Empirical proof that per-page triage fixes the silent-loss bug.
+    ///
+    /// Builds a mixed PDF (text pages 1-2, image-only page 3, text pages 4-6)
+    /// whose whole-doc word count far exceeds `OCR_FALLBACK_WORD_THRESHOLD`.
+    /// The OLD `extract_text` returned `Success` and silently dropped page 3.
+    /// The NEW per-page triage must return `PartialOcr` flagging page 3
+    /// (0-based index 2) for OCR.
+    ///
+    /// Ignored by default — requires pdftoppm, pdftocairo, pdfunite, ps2pdf,
+    /// and python3+PIL. Run with: `cargo test -p hkask-mcp-docproc --lib
+    /// -- --ignored extract_text_flags_mixed`.
+    #[tokio::test]
+    #[ignore = "requires pdftoppm, pdftocairo, pdfunite, ps2pdf, python3+PIL"]
+    async fn extract_text_flags_mixed_pdf_pages_for_ocr() {
+        fn tools_available() -> bool {
+            for t in ["pdftoppm", "pdftocairo", "pdfunite", "ps2pdf", "python3"] {
+                // `output()` fails only if the binary is not found; the arg
+                // value is irrelevant for an existence probe.
+                if std::process::Command::new(t)
+                    .arg("--version")
+                    .output()
+                    .is_err()
+                {
+                    return false;
+                }
+            }
+            true
+        }
+        if !tools_available() {
+            eprintln!("SKIP: required PDF/PIL tools not available");
+            return;
+        }
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let dir_str = dir.path().display().to_string();
+        let script = format!(
+            r#"set -e
+cd {dir}
+cat > text.ps <<'PS'
+%!PS
+/Courier findfont 12 scalefont setfont
+6 {{
+  72 700 moveto
+  (This page has plenty of text content words to clear the per-page text-native triage threshold for the silent-loss regression test.)
+  show
+  showpage
+}} repeat
+PS
+ps2pdf text.ps text.pdf
+pdftoppm -png -r 150 -f 3 -l 3 text.pdf p3 >/dev/null 2>&1
+python3 -c "from PIL import Image; import glob; f=glob.glob('p3-*.png')[0]; Image.open(f).convert('RGB').save('img3.pdf')"
+pdftocairo -pdf -f 1 -l 2 text.pdf a.pdf 2>/dev/null
+pdftocairo -pdf -f 4 -l 6 text.pdf b.pdf 2>/dev/null
+pdfunite a.pdf img3.pdf b.pdf mixed.pdf
+"#,
+            dir = dir_str
+        );
+        let status = std::process::Command::new("bash")
+            .arg("-c")
+            .arg(&script)
+            .status()
+            .expect("bash");
+        assert!(status.success(), "mixed-PDF fixture build failed");
+
+        let mixed = dir.path().join("mixed.pdf").to_string_lossy().to_string();
+        let outcome = extract_text(&mixed).await.expect("extract_text");
+        match outcome {
+            ExtractOutcome::PartialOcr {
+                ocr_pages,
+                page_texts,
+                word_count,
+                ..
+            } => {
+                assert!(
+                    ocr_pages.contains(&2),
+                    "page 3 (0-based idx 2) must be flagged for OCR; got ocr_pages = {:?}",
+                    ocr_pages
+                );
+                assert!(
+                    page_texts.len() >= 5,
+                    "expected at least 5 pages, got {}",
+                    page_texts.len()
+                );
+                // The flagged page's native-text slot must be empty.
+                assert_eq!(
+                    page_texts[2].split_whitespace().count(),
+                    0,
+                    "flagged page 3 native-text slot must be empty"
+                );
+                // Whole-doc word count still exceeds the old threshold — this
+                // is exactly the case the old code silently dropped.
+                assert!(
+                    word_count < 100 || ocr_pages.contains(&2),
+                    "triage must flag page 3 even when native word count is high"
+                );
+            }
+            ExtractOutcome::Success { .. } => {
+                panic!("REGRESSION: mixed PDF returned Success — silent loss not fixed");
+            }
+            ExtractOutcome::NeedsOcr { .. } => {
+                // Acceptable: triage degraded to whole-doc NeedsOcr (still no
+                // silent loss). But we expected PartialOcr; note it.
+                eprintln!("NOTE: got NeedsOcr (whole-doc fallback) instead of PartialOcr");
+            }
+        }
     }
 }

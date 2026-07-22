@@ -15,6 +15,7 @@ impl DocProcServer {
             path,
             output,
             force_ocr,
+            target_pages,
         }): Parameters<ConvertRequest>,
     ) -> String {
         if std::path::Path::new(&path).is_dir() {
@@ -29,6 +30,26 @@ impl DocProcServer {
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
 
             let (format, _, _) = convert::detect_format(&path);
+
+            // Parse target_pages (PDF only) into a 1-based page set. Parsed once
+            // here so both the force_ocr and text-extraction paths can use it.
+            let target_set: Option<std::collections::HashSet<usize>> =
+                if format == "pdf" {
+                    target_pages.as_deref()
+                        .filter(|s| !s.trim().is_empty())
+                        .map(|s| -> Result<std::collections::HashSet<usize>, McpToolError> {
+                            Ok(crate::ocr::triage::parse_target_pages(s)
+                                .map_err(|e| McpToolError::invalid_argument(e.to_string()))?
+                                .into_iter().collect())
+                        })
+                        .transpose()?
+                } else { None };
+            // 0-based page indices for decimation, derived from target_set.
+            let target_indices = |ts: &std::collections::HashSet<usize>| -> Vec<usize> {
+                let mut v: Vec<usize> = ts.iter().map(|p| p - 1).collect();
+                v.sort();
+                v
+            };
 
             // Read the file
             let file_bytes = match std::fs::read(&path) {
@@ -73,7 +94,12 @@ impl DocProcServer {
 
                 // Not an image — try decimation + pipeline for PDFs (72 DPI JPEG to stay within 128K token limit)
                 if format == "pdf" {
-                    match decimation::pdf_to_images(std::path::Path::new(&path), 72).await {
+                    let imgs_res = if let Some(ref ts) = target_set {
+                        decimation::pdf_to_images_for_pages(std::path::Path::new(&path), 72, &target_indices(ts)).await
+                    } else {
+                        decimation::pdf_to_images(std::path::Path::new(&path), 72).await
+                    };
+                    match imgs_res {
                         Ok(page_images) => {
                             let model = match self.resolve_ocr_model(None).await {
                                 Ok(m) => m,
@@ -169,7 +195,11 @@ impl DocProcServer {
             // extract_text() twice on the slow path (B1 audit fix).
             let mut pdf_extract_result: Option<ExtractOutcome> = None;
             if format == "pdf" {
-                let quick_result = extract_text(&path).await?;
+                let mut quick_result = extract_text(&path).await?;
+                if let Some(ref ts) = target_set {
+                    quick_result = filter_outcome_to_pages(quick_result, ts);
+                }
+                let quick_result = quick_result;
                 if let ExtractOutcome::Success { ref text, word_count, .. } = quick_result
                     && word_count >= OCR_FALLBACK_WORD_THRESHOLD
                 {
@@ -181,11 +211,102 @@ impl DocProcServer {
                     return Ok(result);
                 }
 
+                // Per-page triage found a mix of text-native + OCR-needing pages.
+                // Selective OCR (Tier 1): decimate only the flagged pages, run the
+                // pipeline on those, and interleave with native text in page
+                // order. Avoids re-OCRing text-native pages.
+                if let ExtractOutcome::PartialOcr {
+                    ref page_texts,
+                    ref ocr_pages,
+                    ref verdicts,
+                    ..
+                } = quick_result
+                    && !ocr_pages.is_empty()
+                    && self.has_ocr()
+                    && let Ok(model) = self.resolve_ocr_model(None).await
+                {
+                    match decimation::pdf_to_images_for_pages(
+                        std::path::Path::new(&path),
+                        72,
+                        ocr_pages,
+                    )
+                    .await
+                    {
+                        Ok(page_images) if !page_images.is_empty() => {
+                            let expected = page_images.len();
+                            let emb = self.embedding_router.as_ref().map(|r| {
+                                (r, default_embedding_model())
+                            });
+                            let outcome = pipeline::run_pipeline(
+                                page_images, expected,
+                                Arc::clone(&self.pipeline_executor) as Arc<dyn OcrExecutor>,
+                                &self.ocr_thresholds, Some(&model), emb,
+                                Some(ocr_concurrency()),
+                            ).await;
+                            self.persist_pipeline_outcome(&outcome).await;
+                            let mut per_page: Vec<String> = page_texts.clone();
+                            for (k, result) in outcome.results.iter().enumerate() {
+                                if let Some(&page_idx) = ocr_pages.get(k)
+                                    && page_idx < per_page.len()
+                                {
+                                    per_page[page_idx] = result.text.clone();
+                                }
+                            }
+                            let text = per_page.join("\n\n");
+                            let word_count = text.split_whitespace().count();
+                            let triage_summary: Vec<serde_json::Value> = verdicts
+                                .iter()
+                                .filter(|v| v.needs_ocr)
+                                .map(|v| serde_json::json!({
+                                    "page": v.page_number,
+                                    "reasons": v.reasons.iter().map(|r| r.as_str()).collect::<Vec<_>>(),
+                                }))
+                                .collect();
+                            let result = serde_json::json!({
+                                "format": format, "path": path, "method": "selective_ocr",
+                                "model": model, "text": text, "word_count": word_count,
+                                "pages": page_texts.len(),
+                                "ocr_pages": ocr_pages.len(),
+                                "triage": triage_summary,
+                                "verification_passed": outcome.report.passed,
+                                "page_count_match": outcome.report.page_count_match,
+                                "empty_pages": outcome.report.empty_pages,
+                                "error_count": outcome.errors.len(),
+                            });
+                            self.record_experience(
+                                "docproc_convert",
+                                &path_clone,
+                                "success",
+                                result.clone(),
+                            );
+                            return Ok(result);
+                        }
+                        Ok(_) => {
+                            tracing::warn!(
+                                target: "hkask.docproc",
+                                "selective OCR rendered no pages — falling back to whole-doc path"
+                            );
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "hkask.docproc",
+                                error = %e,
+                                "selective decimation failed — falling back to whole-doc pipeline"
+                            );
+                        }
+                    }
+                }
+
                 // Insufficient text — try the typed OCR pipeline (72 DPI JPEG to stay within 128K token limit)
                 if self.has_ocr()
                     && let Ok(model) = self.resolve_ocr_model(None).await
                 {
-                    match decimation::pdf_to_images(std::path::Path::new(&path), 72).await {
+                    let imgs_res = if let Some(ref ts) = target_set {
+                        decimation::pdf_to_images_for_pages(std::path::Path::new(&path), 72, &target_indices(ts)).await
+                    } else {
+                        decimation::pdf_to_images(std::path::Path::new(&path), 72).await
+                    };
+                    match imgs_res {
                         Ok(page_images) => {
                         let expected = page_images.len();
                         let emb = self.embedding_router.as_ref().map(|r| {
@@ -330,6 +451,29 @@ impl DocProcServer {
                         }
                     }
                 }
+                ExtractOutcome::PartialOcr {
+                    page_texts,
+                    word_count,
+                    ocr_pages,
+                    verdicts: _,
+                } => {
+                    // Selective OCR was unavailable or decimation failed; OCR
+                    // is also unavailable here. Return the native text of the
+                    // text-native pages only, explicitly flagging that the OCR
+                    // pages were skipped (no silent loss — the caller sees the
+                    // gap).
+                    let native_text = page_texts.join("\n\n");
+                    Ok(serde_json::json!({
+                        "format": format,
+                        "path": path,
+                        "method": "text_extraction_partial",
+                        "text": native_text,
+                        "word_count": word_count,
+                        "pages": page_texts.len(),
+                        "ocr_pages_skipped": ocr_pages.len(),
+                        "ocr_available": false,
+                    }))
+                }
             }
         })
         .await
@@ -381,6 +525,79 @@ impl DocProcServer {
                 }
                 Err(e) => Err(McpToolError::unavailable(e.to_string())),
             }
+        })
+        .await
+    }
+
+    /// Cheaply check whether a PDF needs OCR or heavier parsing, *before*
+    /// committing to a full parse. Runs a text-layer pass (`pdftotext`) plus an
+    /// image inventory (`pdfimages`) -- no page rendering -- and classifies each
+    /// page as text-native or needing OCR, with typed reasons.
+    ///
+    /// The docproc-native analogue of LiteParse's `lit is-complex`. Use it to
+    /// route, reject, or estimate cost before calling `docproc_convert`.
+    /// Emits `reg.pipeline.triage` spans. PDF only.
+    #[tool(
+        description = "Check whether a PDF needs OCR before a full parse. Returns per-page triage verdicts with typed reasons (scanned, no-text, sparse-text, embedded-images). PDF only. No page rendering -- cheap text-layer + image-inventory pass."
+    )]
+    pub async fn docproc_is_complex(
+        &self,
+        Parameters(IsComplexRequest { path, target_pages }): Parameters<IsComplexRequest>,
+    ) -> String {
+        execute_tool(self, "docproc_is_complex", async {
+            let path_clone = path.clone();
+            hkask_mcp::validate_path("path", &path, 4096)
+                .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
+            let (format, _, _) = convert::detect_format(&path);
+            if format != "pdf" {
+                return Err(McpToolError::invalid_argument(
+                    "docproc_is_complex supports PDF only",
+                ));
+            }
+            let cfg = crate::ocr::TriageConfig::default();
+            let mut verdicts = crate::ocr::triage::triage_pdf(
+                std::path::Path::new(&path),
+                &cfg,
+            )
+            .await
+            .map_err(|e| McpToolError::internal(format!("triage failed: {e}")))?;
+
+            if let Some(spec) = target_pages.as_deref().filter(|s| !s.trim().is_empty()) {
+                let target: std::collections::HashSet<usize> = crate::ocr::triage::parse_target_pages(spec)
+                    .map_err(|e| McpToolError::invalid_argument(e.to_string()))?
+                    .into_iter()
+                    .collect();
+                verdicts.retain(|v| target.contains(&v.page_number));
+            }
+
+            let needs_ocr = verdicts.iter().any(|v| v.needs_ocr);
+            let ocr_page_count = verdicts.iter().filter(|v| v.needs_ocr).count();
+            let pages: Vec<serde_json::Value> = verdicts
+                .iter()
+                .map(|v| serde_json::json!({
+                    "page": v.page_number,
+                    "word_count": v.word_count,
+                    "needs_ocr": v.needs_ocr,
+                    "reasons": v.reasons.iter().map(|r| r.as_str()).collect::<Vec<_>>(),
+                }))
+                .collect();
+            tracing::info!(
+                target: "reg.pipeline.triage",
+                path = path,
+                pages = verdicts.len(),
+                ocr_pages = ocr_page_count,
+                needs_ocr,
+                "is-complex triage complete"
+            );
+            let result = serde_json::json!({
+                "path": path,
+                "pages": pages,
+                "page_count": verdicts.len(),
+                "ocr_pages": ocr_page_count,
+                "needs_ocr": needs_ocr,
+            });
+            self.record_experience("docproc_is_complex", &path_clone, "success", result.clone());
+            Ok(result)
         })
         .await
     }
@@ -500,6 +717,39 @@ impl DocProcServer {
                             }
                         } else {
                             source_text = partial_text;
+                        }
+                    }
+                    ExtractOutcome::PartialOcr {
+                        page_texts,
+                        ocr_pages,
+                        ..
+                    } => {
+                        // Mixed PDF: some pages text-native, some need OCR.
+                        // Chunk's selective-OCR optimization is deferred; for
+                        // now, fall back to whole-doc OCR (like NeedsOcr) so no
+                        // page is silently lost. The joined native text is the
+                        // fallback if OCR is unavailable.
+                        let partial = page_texts.join("\n\x0c");
+                        if !ocr_pages.is_empty()
+                            && let Ok(model) = self.resolve_ocr_model(None).await
+                        {
+                            let file_bytes = std::fs::read(file_path).map_err(|e| {
+                                McpToolError::internal(format!(
+                                    "Failed to read '{}': {}",
+                                    file_path, e
+                                ))
+                            })?;
+                            match self
+                                .do_ocr(&file_bytes, &model, default_ocr_max_tokens())
+                                .await
+                            {
+                                Ok(ocr_text) if !ocr_text.is_empty() => {
+                                    source_text = ocr_text;
+                                }
+                                _ => source_text = partial,
+                            }
+                        } else {
+                            source_text = partial;
                         }
                     }
                 }
@@ -680,6 +930,7 @@ impl DocProcServer {
                     path: source.to_string_lossy().into_owned(),
                     output: None,
                     force_ocr,
+                    target_pages: None,
                 })))
                 .await;
 
@@ -880,6 +1131,11 @@ pub struct ConvertRequest {
     /// If true, skip text extraction and go directly to OCR.
     #[serde(default)]
     pub force_ocr: bool,
+    /// Target pages to parse (1-based), e.g. `"1-5,10,15-20"`. PDF only.
+    /// When set, pages outside the set are skipped in extraction, triage, and
+    /// OCR. Mirrors LiteParse's `--target-pages`. `None` = all pages.
+    #[serde(default)]
+    pub target_pages: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -892,6 +1148,15 @@ pub struct OcrRequest {
     /// Maximum tokens for OCR output.
     #[serde(default = "default_ocr_max_tokens")]
     pub max_tokens: u32,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct IsComplexRequest {
+    /// Path to the PDF file to triage.
+    pub path: String,
+    /// Optional target pages (1-based), e.g. "1-5,10,15-20". None = all pages.
+    #[serde(default)]
+    pub target_pages: Option<String>,
 }
 
 fn default_ocr_max_tokens() -> u32 {
