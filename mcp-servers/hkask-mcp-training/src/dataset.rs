@@ -1254,4 +1254,104 @@ mod tests {
             DatasetError::Validation { .. }
         ));
     }
+
+    // ── Dataset profiling tests ──
+
+    #[test]
+    fn profile_chatml_dataset() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("test.jsonl");
+
+        let records = vec![
+            serde_json::json!({"messages": [
+                {"role": "system", "content": "You are helpful."},
+                {"role": "user", "content": "What is P5?"},
+                {"role": "assistant", "content": "Minimal Architecture."}
+            ]}),
+            serde_json::json!({"messages": [
+                {"role": "user", "content": "What is P1?"},
+                {"role": "assistant", "content": "User Sovereignty."}
+            ]}),
+        ];
+        let mut file = std::fs::File::create(&input).expect("create input");
+        for record in &records {
+            writeln!(file, "{}", serde_json::to_string(record).unwrap()).expect("write");
+        }
+
+        let profile = DatasetPipeline::profile(&input);
+
+        assert_eq!(profile.format, Some(DatasetFormat::ChatML));
+        assert_eq!(profile.n_samples, Some(2));
+        assert!(profile.avg_content_chars.is_some());
+        assert!(profile.max_content_chars.is_some());
+        assert!(profile.avg_token_estimate.is_some());
+        assert!(profile.max_token_estimate.is_some());
+        assert_eq!(profile.avg_messages_per_example, Some(2.5)); // (3+2)/2
+        assert_eq!(profile.has_system_messages, Some(true));
+        assert_eq!(profile.has_multi_turn, Some(false)); // neither has >2 msgs
+        assert_eq!(profile.has_vision_data, Some(false));
+        assert!(profile.role_distribution.is_some());
+        // Role distribution: system=1, user=2, assistant=2 → total=5
+        let dist = profile.role_distribution.unwrap();
+        assert!((dist["system"].as_f64().unwrap() - 0.2).abs() < 0.01);
+        assert!((dist["user"].as_f64().unwrap() - 0.4).abs() < 0.01);
+        assert!((dist["assistant"].as_f64().unwrap() - 0.4).abs() < 0.01);
+    }
+
+    #[test]
+    fn profile_dpo_preference_dataset() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("dpo.jsonl");
+
+        let records = vec![
+            serde_json::json!({
+                "prompt": "What is P5?",
+                "chosen": "Minimal Architecture.",
+                "rejected": "Maximum Architecture."
+            }),
+            serde_json::json!({
+                "prompt": "What is P1?",
+                "chosen": "User Sovereignty.",
+                "rejected": "Admin Control."
+            }),
+        ];
+        let mut file = std::fs::File::create(&input).expect("create input");
+        for record in &records {
+            writeln!(file, "{}", serde_json::to_string(record).unwrap()).expect("write");
+        }
+
+        let profile = DatasetPipeline::profile(&input);
+
+        assert_eq!(profile.format, Some(DatasetFormat::PreferenceDpo));
+        assert_eq!(profile.n_samples, Some(2));
+        assert!(profile.chosen_rejected_length_ratio.is_some());
+        // chosen="Minimal Architecture." (21 chars), rejected="Maximum Architecture." (21 chars)
+        // ratio = 21/21 = 1.0
+        assert!((profile.chosen_rejected_length_ratio.unwrap() - 1.0).abs() < 0.01);
+        assert_eq!(profile.has_vision_data, Some(false));
+    }
+
+    #[test]
+    fn profile_nonexistent_file_returns_empty_profile() {
+        let profile = DatasetPipeline::profile(std::path::Path::new("/nonexistent/path.jsonl"));
+        assert_eq!(profile.format, None);
+        assert_eq!(profile.n_samples, None);
+    }
+
+    #[test]
+    fn profile_detects_vision_data() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let input = dir.path().join("vlm.jsonl");
+        let record = serde_json::json!({
+            "messages": [
+                {"role": "user", "content": "Describe this image"},
+                {"role": "assistant", "content": "A cat sitting on a mat."}
+            ],
+            "image": "path/to/image.jpg"
+        });
+        std::fs::write(&input, format!("{}\n", record)).expect("write");
+
+        let profile = DatasetPipeline::profile(&input);
+        assert_eq!(profile.has_vision_data, Some(true));
+    }
 }
