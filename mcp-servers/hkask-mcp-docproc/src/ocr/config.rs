@@ -187,8 +187,6 @@ pub struct TriageVerdict {
 pub struct TriageConfig {
     /// Per-page word count at/above which a page is text-native (no OCR).
     pub text_native_min_words: usize,
-    /// Per-page word count below which (but >0) a page is sparse-text.
-    pub sparse_text_max_words: usize,
     /// Minimum image side length (points) to count as a substantial image.
     /// Filters out bullets, rule lines, and icons.
     pub min_image_size_pt: f32,
@@ -211,12 +209,40 @@ impl Default for TriageConfig {
             // likely figure/divider chrome or a scanned page. Tuned to be
             // conservative (favor OCR over silent loss).
             text_native_min_words: 20,
-            sparse_text_max_words: 20,
             min_image_size_pt: 25.0,
             // ~80% of a letter-page width (612pt) / height (792pt).
             full_page_image_min_pt: 500.0,
             embedded_image_min_pt: 150.0,
             tuneable: true,
+        }
+    }
+}
+
+impl TriageConfig {
+    /// Build from env vars, falling back to defaults. Mirrors the
+    /// `HKASK_OCR_*` threshold pattern in `lib.rs::run`.
+    pub fn from_env() -> Self {
+        Self {
+            text_native_min_words: std::env::var("HKASK_OCR_TRIAGE_TEXT_NATIVE_MIN")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(20),
+            min_image_size_pt: std::env::var("HKASK_OCR_TRIAGE_MIN_IMAGE_PT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(25.0),
+            full_page_image_min_pt: std::env::var("HKASK_OCR_TRIAGE_FULL_PAGE_PT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(500.0),
+            embedded_image_min_pt: std::env::var("HKASK_OCR_TRIAGE_EMBEDDED_IMAGE_PT")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(150.0),
+            tuneable: std::env::var("HKASK_OCR_TRIAGE_TUNEABLE")
+                .ok()
+                .map(|v| v == "true" || v == "1")
+                .unwrap_or(true),
         }
     }
 }

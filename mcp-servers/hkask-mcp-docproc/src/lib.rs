@@ -301,7 +301,7 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
                     if per_page.last().is_some_and(|p| p.trim().is_empty()) {
                         per_page.pop();
                     }
-                    let triage_cfg = crate::ocr::TriageConfig::default();
+                    let triage_cfg = crate::ocr::TriageConfig::from_env();
                     match crate::ocr::triage::triage_pages(
                         std::path::Path::new(path),
                         &per_page,

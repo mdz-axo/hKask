@@ -572,7 +572,7 @@ impl DocProcServer {
                     "docproc_is_complex supports PDF only",
                 ));
             }
-            let cfg = crate::ocr::TriageConfig::default();
+            let cfg = crate::ocr::TriageConfig::from_env();
             let mut verdicts = crate::ocr::triage::triage_pdf(
                 std::path::Path::new(&path),
                 &cfg,
