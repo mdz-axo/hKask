@@ -294,18 +294,90 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
                 .await;
             match output {
                 Ok(output) if output.status.success() => {
-                    let text = String::from_utf8_lossy(&output.stdout).into_owned();
-                    let word_count = text.split_whitespace().count();
-                    if word_count < OCR_FALLBACK_WORD_THRESHOLD {
-                        ExtractOutcome::NeedsOcr {
-                            partial_text: text,
-                            word_count,
+                    let raw = String::from_utf8_lossy(&output.stdout).into_owned();
+                    // Per-page triage: split on form-feed, classify each page.
+                    // This fixes the silent-loss bug where a mixed PDF with
+                    // ≥100 whole-doc words returned Success and dropped any
+                    // per-page scanned/image-only regions. On any triage error,
+                    // fall back to the legacy whole-doc word-count check.
+                    let per_page: Vec<String> = raw.split('\x0c').map(String::from).collect();
+                    let mut per_page = per_page;
+                    if per_page.last().is_some_and(|p| p.trim().is_empty()) {
+                        per_page.pop();
+                    }
+                    let triage_cfg = crate::ocr::TriageConfig::default();
+                    match crate::ocr::triage::triage_pages(
+                        std::path::Path::new(path),
+                        &per_page,
+                        &triage_cfg,
+                    )
+                    .await
+                    {
+                        Ok(verdicts) => {
+                            let ocr_pages = crate::ocr::triage::ocr_page_indices(&verdicts);
+                            tracing::info!(
+                                target: "reg.pipeline.triage",
+                                path = path,
+                                pages = verdicts.len(),
+                                ocr_pages = ocr_pages.len(),
+                                "per-page triage complete"
+                            );
+                            if ocr_pages.is_empty() {
+                                // All pages text-native — fast path, no OCR.
+                                let text = per_page.join("\n\x0c");
+                                let word_count = text.split_whitespace().count();
+                                ExtractOutcome::Success {
+                                    text,
+                                    word_count,
+                                    structure: None,
+                                }
+                            } else {
+                                // Mixed or scanned: keep per-page native text
+                                // (OCR pages emptied) so the caller can
+                                // interleave OCR results in page order.
+                                let page_texts: Vec<String> = per_page
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, t)| {
+                                        if ocr_pages.contains(&i) {
+                                            String::new()
+                                        } else {
+                                            t.clone()
+                                        }
+                                    })
+                                    .collect();
+                                let native_wc = page_texts
+                                    .iter()
+                                    .map(|t| t.split_whitespace().count())
+                                    .sum();
+                                ExtractOutcome::PartialOcr {
+                                    page_texts,
+                                    word_count: native_wc,
+                                    ocr_pages,
+                                    verdicts,
+                                }
+                            }
                         }
-                    } else {
-                        ExtractOutcome::Success {
-                            text,
-                            word_count,
-                            structure: None,
+                        Err(e) => {
+                            tracing::warn!(
+                                target: "reg.pipeline.triage",
+                                path = path,
+                                error = %e,
+                                "triage failed — falling back to whole-doc word-count check"
+                            );
+                            let word_count = raw.split_whitespace().count();
+                            if word_count < OCR_FALLBACK_WORD_THRESHOLD {
+                                ExtractOutcome::NeedsOcr {
+                                    partial_text: raw,
+                                    word_count,
+                                }
+                            } else {
+                                ExtractOutcome::Success {
+                                    text: raw,
+                                    word_count,
+                                    structure: None,
+                                }
+                            }
                         }
                     }
                 }
@@ -466,7 +538,7 @@ enum ExtractOutcome {
     /// with ≥100 whole-doc words returned `Success` and dropped per-page
     /// scanned regions entirely.
     PartialOcr {
-        native_text: String,
+        page_texts: Vec<String>,
         word_count: usize,
         ocr_pages: Vec<usize>,
         verdicts: Vec<crate::ocr::TriageVerdict>,
