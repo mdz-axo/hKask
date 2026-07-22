@@ -150,13 +150,6 @@ pub struct StatsRequest {
     include_meta: bool,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
-
-#[derive(Debug, Deserialize, JsonSchema)]
-
-// ── Tools ─────────────────────────────────────────────────────────
-
-#[tool_router(server_handler)]
 impl CodeGraphServer {
     #[tool(
         description = "Search the codebase for symbols, or look up a specific symbol by name (set 'name' field)"
@@ -412,57 +405,12 @@ pub async fn run(
                     .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?,
             };
             let pipeline = IndexPipeline::new(store);
-            let config = InferenceConfig::from_env();
-            let embed_router =
-                if config.deepinfra_api_key.is_empty() && config.openrouter_api_key.is_empty() {
-                    None
-                } else {
-                    Some(EmbeddingRouter::new(config))
-                };
-            let mut jinja = Environment::new();
-            jinja
-                .add_template_owned(
-                    "symbol-embedding.j2",
-                    include_str!("../../../registry/templates/codegraph/symbol-embedding.j2")
-                        .to_string(),
-                )
-                .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
-            jinja
-                .add_template_owned(
-                    "symbol-summarize.j2",
-                    include_str!("../../../registry/templates/codegraph/symbol-summarize.j2")
-                        .to_string(),
-                )
-                .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
-            jinja
-                .add_template_owned(
-                    "fix-suggestion.j2",
-                    include_str!("../../../registry/templates/codegraph/fix-suggestion.j2")
-                        .to_string(),
-                )
-                .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
-            jinja
-                .add_template_owned(
-                    "analysis-dead-code.j2",
-                    include_str!("../../../registry/templates/codegraph/analysis-dead-code.j2")
-                        .to_string(),
-                )
-                .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
-            jinja
-                .add_template_owned(
-                    "analysis-complexity.j2",
-                    include_str!("../../../registry/templates/codegraph/analysis-complexity.j2")
-                        .to_string(),
-                )
-                .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
             Ok(CodeGraphServer::new(
                 webid,
                 userpod.clone(),
                 daemon_client.clone(),
                 CapabilityTier::detect(&std::collections::HashMap::new()),
                 Arc::new(Mutex::new(pipeline)),
-                embed_router,
-                jinja,
                 Arc::new(std::sync::atomic::AtomicBool::new(false)),
             ))
         },

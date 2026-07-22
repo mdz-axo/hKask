@@ -6,7 +6,7 @@ description: "Code understanding: query, traverse, analyze, and assemble context
 
 # Codegraph
 
-Code understanding engine skill. Any userpod that needs to understand code structure — for debugging, refactoring, impact analysis, onboarding, or context assembly — can invoke this skill. Orchestrates the `hkask-mcp-codegraph` MCP server's 11 tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) through a convergent PDCA cycle that iterates until the userpod has sufficient code understanding to act.
+Code understanding engine skill. Any userpod that needs to understand code structure — for debugging, refactoring, impact analysis, onboarding, or context assembly — can invoke this skill. Orchestrates the `hkask-mcp-codegraph` MCP server's 8 tools (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) through a convergent PDCA cycle that iterates until the userpod has sufficient code understanding to act.
 
 ## When to Use
 
@@ -88,8 +88,6 @@ The convergence metric measures whether the code understanding gathered is suffi
 2. Invoke `codegraph_context` with the query and budget (`small`/`medium`/`large`).
 3. The `codegraph-context.j2` template formats the assembled context from the raw context results and analysis output, within the specified token budget.
 4. The assembled context includes symbol definitions, doc comments, and relevant code snippets prioritized by relevance and impact.
-5. After using the context, invoke `codegraph_feedback` to record which symbols were actually used — this feeds the G12 feedback loop for future context assembly quality.
-6. Optionally invoke `codegraph_index_embeddings` to generate embeddings for semantic vector search (G13).
 
 ### 5. Check Convergence
 
@@ -118,7 +116,6 @@ The convergence metric measures whether the code understanding gathered is suffi
 | `analysis-complexity.j2` | `KnowAct` | SQL query for complexity analysis (utility, used by MCP server). |
 | `analysis-dead-code.j2` | `KnowAct` | SQL query for dead code detection (utility, used by MCP server). |
 | `fix-suggestion.j2` | `KnowAct` | Generate fix suggestions for code issues (utility, used by MCP server). |
-| `symbol-embedding.j2` | `KnowAct` | Format symbols for embedding vector generation (utility, used by MCP server). |
 
 ## MCP Tools
 
@@ -134,8 +131,6 @@ The skill delegates to the `hkask-mcp-codegraph` MCP server:
 | `codegraph_structure` | Project overview — top symbols by PageRank |
 | `codegraph_stats` | Index statistics (symbol/file/edge counts) |
 | `codegraph_reindex` | Force full re-index of the workspace |
-| `codegraph_feedback` | Record which symbols from a context were actually used (G12 feedback) |
-| `codegraph_index_embeddings` | Generate embeddings for semantic vector search (G13) |
 
 ## Constraints
 

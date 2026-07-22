@@ -5,14 +5,13 @@
 //!
 //! Tested seam: `GraphStore` (in-memory), `find_symbol_by_name`, and traversal.
 
-use hkask_codegraph::graph::store::GraphStore;
-use hkask_codegraph::graph::traversal;
-use hkask_codegraph::indexer::pipeline::IndexPipeline;
-use hkask_codegraph::types::Direction;
+use hkask_mcp_codegraph::codegraph::graph::store::GraphStore;
+use hkask_mcp_codegraph::codegraph::graph::traversal;
+use hkask_mcp_codegraph::codegraph::indexer::pipeline::IndexPipeline;
+use hkask_mcp_codegraph::codegraph::types::Direction;
 use hkask_mcp::server::CapabilityTier;
 use hkask_mcp_codegraph::CodeGraphServer;
 use hkask_types::WebID;
-use minijinja::Environment;
 use rmcp::handler::server::wrapper::Parameters;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -101,10 +100,10 @@ fn direction_variants_exist() {
 #[test]
 fn context_budget_variants_exist() {
     let budgets = [
-        hkask_codegraph::ContextBudget::Minimal,
-        hkask_codegraph::ContextBudget::Focused,
-        hkask_codegraph::ContextBudget::Standard,
-        hkask_codegraph::ContextBudget::Full,
+        hkask_mcp_codegraph::codegraph::ContextBudget::Minimal,
+        hkask_mcp_codegraph::codegraph::ContextBudget::Focused,
+        hkask_mcp_codegraph::codegraph::ContextBudget::Standard,
+        hkask_mcp_codegraph::codegraph::ContextBudget::Full,
     ];
     assert_eq!(budgets.len(), 4);
 }
@@ -126,8 +125,7 @@ fn test_server() -> CodeGraphServer {
         None,
         CapabilityTier::detect(&HashMap::new()),
         Arc::new(Mutex::new(pipeline)),
-        None, // no embed router — embedding tools return invalid_argument
-        Environment::new(),
+        
         Arc::new(std::sync::atomic::AtomicBool::new(false)),
     )
 }
@@ -214,35 +212,4 @@ async fn codegraph_context_rejects_invalid_budget_via_parameters_seam() {
     );
 }
 
-// REQ: codegraph_feedback logs symbol usage ratio (P5).
-// expect: feedback returns logged=true, persisted=false, and a ratio of used/provided.
-#[tokio::test]
-async fn codegraph_feedback_records_ratio_via_parameters_seam() {
-    let server = test_server();
-    let req: hkask_mcp_codegraph::FeedbackRequest = serde_json::from_value(serde_json::json!({
-        "context_id": "test-ctx-1",
-        "symbols_provided": ["foo", "bar", "baz"],
-        "symbols_used": ["foo"]
-    }))
-    .expect("deserialize FeedbackRequest");
-    let out = server.codegraph_feedback(Parameters(req)).await;
-    let content = parse_content(&out);
-    assert_eq!(content["logged"], true);
-    assert_eq!(content["persisted"], false);
-    assert_eq!(content["context_id"], "test-ctx-1");
-    // 1 used / 3 provided = 0.333...
-    let ratio = content["ratio"].as_f64().expect("ratio should be a number");
-    assert!((ratio - (1.0 / 3.0)).abs() < 1e-9, "got ratio: {ratio}");
-}
 
-// REQ: codegraph_index_embeddings rejects when no embed router is configured (P5).
-// expect: without an embedding provider, returns kind=invalid_argument.
-#[tokio::test]
-async fn codegraph_index_embeddings_rejects_without_router_via_parameters_seam() {
-    let server = test_server();
-    let req: hkask_mcp_codegraph::EmbedIndexRequest =
-        serde_json::from_value(serde_json::json!({})).expect("deserialize EmbedIndexRequest");
-    let out = server.codegraph_index_embeddings(Parameters(req)).await;
-    let kind = error_kind(&out).expect("expected error kind for missing embed router");
-    assert_eq!(kind, "invalid_argument", "got: {out}");
-}
