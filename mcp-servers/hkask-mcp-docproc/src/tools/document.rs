@@ -128,11 +128,17 @@ impl DocProcServer {
                                 .map(|r| r.text.as_str())
                                 .collect::<Vec<_>>()
                                 .join("\n\n");
+                            let structure = crate::backend::markdown_pages_to_structure(
+                                outcome.results.iter().map(|r| (r.page_index + 1, r.text.clone())),
+                                "pdf",
+                            );
                             let result = serde_json::json!({
                                 "format": format, "path": path, "method": "ocr_pipeline",
                                 "model": model, "text": text,
                                 "word_count": text.split_whitespace().count(),
                                 "pages": expected,
+                                "block_count": structure.pages.iter().map(|p| p.blocks.len()).sum::<usize>(),
+                                "structure": serde_json::to_value(&structure).unwrap_or(serde_json::Value::Null),
                                 "verification_passed": outcome.report.passed,
                                 "page_count_match": outcome.report.page_count_match,
                                 "empty_pages": outcome.report.empty_pages,
@@ -254,6 +260,10 @@ impl DocProcServer {
                             }
                             let text = per_page.join("\n\n");
                             let word_count = text.split_whitespace().count();
+                            let structure = crate::backend::markdown_pages_to_structure(
+                                per_page.iter().enumerate().map(|(i, t)| (i + 1, t.clone())),
+                                "pdf",
+                            );
                             let triage_summary: Vec<serde_json::Value> = verdicts
                                 .iter()
                                 .filter(|v| v.needs_ocr)
@@ -267,6 +277,8 @@ impl DocProcServer {
                                 "model": model, "text": text, "word_count": word_count,
                                 "pages": page_texts.len(),
                                 "ocr_pages": ocr_pages.len(),
+                                "block_count": structure.pages.iter().map(|p| p.blocks.len()).sum::<usize>(),
+                                "structure": serde_json::to_value(&structure).unwrap_or(serde_json::Value::Null),
                                 "triage": triage_summary,
                                 "verification_passed": outcome.report.passed,
                                 "page_count_match": outcome.report.page_count_match,
@@ -321,9 +333,15 @@ impl DocProcServer {
                         self.persist_pipeline_outcome(&outcome).await;
                         let text = outcome.results.iter().map(|r| r.text.as_str()).collect::<Vec<_>>().join("\n\n");
                         let word_count = text.split_whitespace().count();
+                        let structure = crate::backend::markdown_pages_to_structure(
+                            outcome.results.iter().map(|r| (r.page_index + 1, r.text.clone())),
+                            "pdf",
+                        );
                         let result = serde_json::json!({
                             "format": format, "path": path, "method": "ocr_pipeline",
                             "model": model, "text": text, "word_count": word_count,
+                            "block_count": structure.pages.iter().map(|p| p.blocks.len()).sum::<usize>(),
+                            "structure": serde_json::to_value(&structure).unwrap_or(serde_json::Value::Null),
                             "pages": expected,
                             "verification_passed": outcome.report.passed,
                             "page_count_match": outcome.report.page_count_match,
@@ -709,6 +727,9 @@ impl DocProcServer {
                                 .await
                             {
                                 Ok(ocr_text) if !ocr_text.is_empty() => {
+                                    source_structure = Some(
+                                        crate::backend::markdown_to_structure(&ocr_text, "pdf"),
+                                    );
                                     source_text = ocr_text;
                                 }
                                 _ => {
@@ -744,6 +765,9 @@ impl DocProcServer {
                                 .await
                             {
                                 Ok(ocr_text) if !ocr_text.is_empty() => {
+                                    source_structure = Some(
+                                        crate::backend::markdown_to_structure(&ocr_text, "pdf"),
+                                    );
                                     source_text = ocr_text;
                                 }
                                 _ => source_text = partial,

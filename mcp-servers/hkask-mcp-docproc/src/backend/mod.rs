@@ -68,6 +68,30 @@ pub(crate) fn markdown_to_structure(markdown: &str, source_format: &str) -> DocS
     }
 }
 
+/// Convert per-page markdown into a `DocStructure` with one `Page` per entry.
+///
+/// Used by the OCR pipeline path: vision OCR models (OLMOCR-2 et al.) emit
+/// per-page markdown (headings, tables, LaTeX), so each `OcrResult.text`
+/// becomes one page of blocks — enabling heading-aware `chunk_structure` for
+/// OCR'd PDFs, the same way office-format backends enable it for DOCX/PPTX.
+///
+/// `pages` yields `(page_number, markdown_text)` in document order.
+pub(crate) fn markdown_pages_to_structure(
+    pages: impl IntoIterator<Item = (usize, String)>,
+    source_format: &str,
+) -> DocStructure {
+    DocStructure {
+        source_format: source_format.to_string(),
+        pages: pages
+            .into_iter()
+            .map(|(page_number, md)| Page {
+                page_number,
+                blocks: parse_markdown_blocks(&md),
+            })
+            .collect(),
+    }
+}
+
 /// Parse markdown text into a sequence of `Block`s.
 fn parse_markdown_blocks(markdown: &str) -> Vec<Block> {
     let mut blocks = Vec::new();
@@ -259,4 +283,27 @@ mod tests {
         assert_eq!(doc.pages[0].page_number, 1);
         assert_eq!(doc.pages[0].blocks.len(), 2);
     }
+
+    #[test]
+    fn markdown_pages_to_structure_one_page_per_entry() {
+        // Simulates OLMOCR-2 per-page markdown output: page 1 has a heading +
+        // paragraph; page 2 has a table. Each entry becomes one Page with
+        // parsed blocks (the payoff of wiring OCR markdown -> DocStructure).
+        let pages = vec![
+            (1, "# Introduction\nThis is the body text.".to_string()),
+            (2, "| A | B |\n| 1 | 2 |".to_string()),
+        ];
+        let doc = markdown_pages_to_structure(pages, "pdf");
+        assert_eq!(doc.source_format, "pdf");
+        assert_eq!(doc.pages.len(), 2);
+        assert_eq!(doc.pages[0].page_number, 1);
+        assert_eq!(doc.pages[1].page_number, 2);
+        // Page 1: heading + paragraph
+        assert_eq!(doc.pages[0].blocks.len(), 2);
+        assert!(doc.pages[0].blocks[0].is_heading());
+        // Page 2: a table block
+        assert_eq!(doc.pages[1].blocks.len(), 1);
+        assert!(matches!(doc.pages[1].blocks[0], Block::Table { .. }));
+    }
+
 }
