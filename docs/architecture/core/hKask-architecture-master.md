@@ -28,20 +28,21 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 hKask's architecture is governed by **four irreducible patterns** that compose into a single cybernetic whole. Remove any one and the system collapses into a qualitatively different — and non-viable — system. These patterns were identified through systematic pragmatics review (pragmatic-semantics + pragmatic-cybernetics + pragmatic-laziness + essentialist + coding-guidelines) and stress-tested via Socratic interrogation (grill-me).
 
-### Pattern A: The Skills Model — WordAct / FlowDef / KnowAct
+### Pattern A: The Skills Model - WordAct / FlowDef / KnowAct / RenderAct
 
-**What it is:** A tripartite template type system that governs how hKask composes behavior. Mirrors the structure of human cognition: speech acts (WordAct), procedural memory (FlowDef), and metacognition (KnowAct).
+**What it is:** A template type system that governs how hKask composes behavior. The cognitive-act triad mirrors the structure of human cognition - speech acts (WordAct), procedural memory (FlowDef), and metacognition (KnowAct) - and RenderAct is the non-inference render layer for content that is never sent to the LLM.
 
 | Type | Format | Governs |
 |------|--------|---------|
-| **WordAct** | Jinja2 `.j2` | "What to say" — system prompts, persona definitions, performative utterances |
-| **FlowDef** | YAML `.yaml` | "What to do" — `select → populate → execute` cascade, choice/escalate/abort/delegate verbs |
-| **KnowAct** | Jinja2 `.j2` | "How to think" — pattern recognition, classification, reflection, calibration |
+| **WordAct** | Jinja2 `.j2` | "What to say" - system prompts, persona definitions, performative utterances (inference-invoked) |
+| **FlowDef** | YAML `.yaml` | "What to do" - `select - populate - execute` cascade, choice/escalate/abort/delegate verbs |
+| **KnowAct** | Jinja2 `.j2` | "How to think" - pattern recognition, classification, reflection, calibration (inference-invoked) |
+| **RenderAct** | Jinja2 `.j2` | "What to render" - non-inference content: macro libraries, error views, reference material. Never sent to the LLM; loaded for rendering/reference only |
 
 **Key properties:**
 - Selection intelligence lives in **Jinja2/LLM**, not Rust code (P3 Generative Space)
 - `ManifestExecutor` drives the cascade: render selector → LLM → parse JSON → follow chosen path
-- Cascade is recursive — a FlowDef step can contain nested WordAct/KnowAct/FlowDef, bounded by matryoshka limit (7)
+- Cascade is recursive — a FlowDef step can contain nested WordAct/KnowAct/FlowDef/RenderAct, bounded by matryoshka limit (7)
 - Specifications are FlowDef manifests — not a separate type (unification principle)
 - Energy-accounted and OCAP-gated: every execute step goes through `GovernedTool`
 - **PDCA convergence**: Skills declare `convergence.threshold` (quality gate) and iterate via `loop` actions until metric ≤ threshold or `max_iterations` exhausted
@@ -351,7 +352,7 @@ as the ground-truth canonical store.
 ```mermaid
 graph TD
     subgraph Skills["Pattern A: Skills Model"]
-        SK["WordAct / FlowDef / KnowAct<br/>select → populate → execute"]
+        SK["WordAct / FlowDef / KnowAct / RenderAct<br/>select → populate → execute"]
     end
 
     subgraph Regulation["Pattern B: Regulation Feedback Loop"]

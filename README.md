@@ -82,7 +82,7 @@ flowchart TD
 
     subgraph Soft["Soft layer - YAML + Jinja2 (mutable, the thread)"]
         Manifests["88 manifests<br/>FlowDef: choice/escalate/abort"]
-        Templates["387 Jinja2 templates<br/>WordAct + KnowAct"]
+        Templates["387 Jinja2 templates<br/>WordAct + KnowAct + RenderAct"]
         Skills["51 skills<br/>PDCA loops, convergence"]
     end
 
@@ -144,7 +144,7 @@ status: VERIFIED
 
 | # | Anchor | Implementation |
 |---|--------|----------------|
-| 1 | **Human sovereignty** | OCAP capability tokens, SQLCipher-at-rest, OS keychain, private/public gating — Magna Carta P1–P4[^magna-carta] |
+| 1 | **User sovereignty** | OCAP capability tokens, SQLCipher-at-rest, OS keychain, private/public gating — Magna Carta P1–P4[^magna-carta] |
 | 2 | **Skills & composition** | 51 PDCA skill loops compose 88 registry manifests + 387 Jinja2 templates into iterative cycles — the soft layer that offloads selection intelligence to the LLM[^skills-model] |
 | 3 | **Tools** | 16 MCP servers + inference router over 9 LLM/media providers[^mcp] |
 | 4 | **Regulation** | `reg.*` span registry, variety counters, algedonic escalation — the cybernetic nervous system[^regulation] |
@@ -152,7 +152,7 @@ status: VERIFIED
 
 ---
 
-## The Skills Model — WordAct / FlowDef / KnowAct
+## The Skills Model - WordAct / FlowDef / KnowAct / RenderAct
 
 hKask distinguishes two layers that other systems conflate:
 
@@ -169,13 +169,14 @@ hKask distinguishes two layers that other systems conflate:
   until it converges on a quality threshold, exhausts its energy budget, or
   escalates to the user.
 
-The tripartite template type system mirrors human cognition:[^skills-model]
+The template type system spans four roles - the cognitive-act triad plus a non-inference render layer:[^skills-model]
 
 | Type | Format | Governs |
 |------|--------|---------|
-| **WordAct** | Jinja2 `.j2` | "What to say" — system prompts, personas, performative utterances |
-| **FlowDef** | YAML `.yaml` | "What to do" — `select → populate → execute` cascade, choice/escalate/abort/delegate verbs |
-| **KnowAct** | Jinja2 `.j2` | "How to think" — classification, reflection, calibration |
+| **WordAct** | Jinja2 `.j2` | "What to say" - system prompts, personas, performative utterances (inference-invoked) |
+| **FlowDef** | YAML `.yaml` | "What to do" - `select - populate - execute` cascade, choice/escalate/abort/delegate verbs |
+| **KnowAct** | Jinja2 `.j2` | "How to think" - classification, reflection, calibration (inference-invoked) |
+| **RenderAct** | Jinja2 `.j2` | "What to render" - non-inference content: macro libraries, error views, reference material. Never sent to the LLM; loaded for rendering/reference only |
 
 | Layer | Format | Count | Behavior |
 |-------|--------|-------|----------|
@@ -289,7 +290,7 @@ co-equal artifact.[^skills-model]
 | MCP servers | 16 |
 | Workspace members (excl. fuzz) | 69 |
 | Skills | 51 PDCA loops (88 registry manifests, 387 Jinja2 templates) |
-| Jinja2 templates | 387 (WordAct + KnowAct; selection intelligence offloaded to the LLM) |
+| Jinja2 templates | 387 (WordAct + KnowAct + RenderAct; selection intelligence offloaded to the LLM) |
 | Skill manifests | 88 (FlowDef: select - populate - execute, convergence, gas budget) |
 | CLI subcommands | 22 (`kask tui` is the primary entry point) |
 | Inference providers | 9 (Cline, DeepInfra, fal.ai, KiloCode, Ollama, OpenAI, OpenRouter, Runpod, Together) |
@@ -385,7 +386,7 @@ no gradients/effects. Full design principles →
 ---
 
 [^arch-master]: `docs/architecture/core/hKask-architecture-master.md` — "Primary user story" (v0.31.0).
-[^skills-model]: `docs/architecture/core/hKask-architecture-master.md` § Pattern A — The Skills Model (WordAct / FlowDef / KnowAct).
+[^skills-model]: `docs/architecture/core/hKask-architecture-master.md` § Pattern A - The Skills Model (WordAct / FlowDef / KnowAct / RenderAct; RenderAct is the non-inference render layer).
 [^mcp]: [Model Context Protocol specification](https://modelcontextprotocol.io/); runtime via the [`rmcp`](https://crates.io/crates/rmcp) crate.
 [^magna-carta]: `docs/reference/magna-carta.md` — four inviolable sovereignty principles (P1–P4).
 [^regulation]: `docs/reference/regulation-spans.md` — `reg.*` span catalog and canonical namespaces.
