@@ -860,7 +860,7 @@ impl TrainingHost for RunpodHost {
         // uploads the adapter, and writes the completion manifest.
         // It's passed to the pod as HKASK_INSTALL_SCRIPT — the generic
         // entrypoint in docker/training-base/ reads it and executes it.
-        let install_script = self.generate_install_script(job, selected_harness)?;
+        let install_script = generate_install_script(job, selected_harness)?;
         env_entries.push(("HKASK_INSTALL_SCRIPT", install_script));
 
         // HF_TOKEN — required for the pod to download private datasets and upload

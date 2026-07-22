@@ -88,16 +88,8 @@ done
 # hkask.*), remove it from the allowlist. When the allowlist is empty, the
 # standard is fully enforced and cannot regress.
 TEMPLATE_ALLOWLIST=(
-  "reg.contract.quality"
-  "reg.improv.freestyle"
-  "reg.improv.mode"
-  "reg.improv.plussing"
-  "reg.prompt.outcome"
-  "reg.prompt.render"
-  "reg.prompt.select"
-  "reg.qa.bolero_failure"
-  "reg.qa.custom"
-  "reg.qa.my_script"
+  # Empty — all references are now canonical or retargeted to hkask.*
+)
 )
 
 is_template_allowlisted() {
