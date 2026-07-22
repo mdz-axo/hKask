@@ -14,6 +14,10 @@ pub mod docx;
 pub mod pptx;
 pub mod xlsx;
 
+pub use docx::DocxBackend;
+pub use pptx::PptxBackend;
+pub use xlsx::XlsxBackend;
+
 use hkask_types::document::{Block, DocStructure, Page};
 
 /// A document backend: reads a file and produces a `DocStructure`.

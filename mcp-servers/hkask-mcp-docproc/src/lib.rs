@@ -297,7 +297,11 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
                             word_count,
                         }
                     } else {
-                        ExtractOutcome::Success { text, word_count }
+                        ExtractOutcome::Success {
+                            text,
+                            word_count,
+                            structure: None,
+                        }
                     }
                 }
                 Ok(output) => {
@@ -330,6 +334,7 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
             Ok(text) => ExtractOutcome::Success {
                 text: text.to_string(),
                 word_count: text.split_whitespace().count(),
+                structure: None,
             },
             Err(e) => {
                 return Err(McpToolError::internal(format!(
@@ -342,7 +347,11 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
             Ok(content) => {
                 let text = convert::strip_frontmatter(content);
                 let word_count = text.split_whitespace().count();
-                ExtractOutcome::Success { text, word_count }
+                ExtractOutcome::Success {
+                    text,
+                    word_count,
+                    structure: None,
+                }
             }
             Err(e) => {
                 return Err(McpToolError::internal(format!(
@@ -355,7 +364,11 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
             Ok(content) => {
                 let text = convert::strip_html(content);
                 let word_count = text.split_whitespace().count();
-                ExtractOutcome::Success { text, word_count }
+                ExtractOutcome::Success {
+                    text,
+                    word_count,
+                    structure: None,
+                }
             }
             Err(e) => {
                 return Err(McpToolError::internal(format!(
@@ -375,7 +388,11 @@ async fn extract_text(path: &str) -> Result<ExtractOutcome, McpToolError> {
                     format, path
                 )));
             }
-            ExtractOutcome::Success { text, word_count }
+            ExtractOutcome::Success {
+                text,
+                word_count,
+                structure: Some(structure),
+            }
         }
         _ => unreachable!("supported check above guards this branch"),
     };
@@ -425,6 +442,9 @@ enum ExtractOutcome {
     Success {
         text: String,
         word_count: usize,
+        /// Structural representation when a backend produced one.
+        /// `None` for plain-text/markdown/HTML extraction (no structure).
+        structure: Option<hkask_types::document::DocStructure>,
     },
     NeedsOcr {
         partial_text: String,

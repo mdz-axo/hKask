@@ -38,7 +38,8 @@
 //! Host selection: Runpod is the only cloud host. Harness default is Axolotl;
 //! per-job harness selection via `TrainingParams.harness` (operator-accepted
 //! from the lora-training skill's G6 gate) is honored at submit time.
-//! Phase 1 (v0.31.0): Axolotl (SFT) + TRL SFTTrainer + Ludwig SFT.
+//! All harnesses support their full trainer taxonomy: Axolotl (SFT),
+//! TRL (SFT/DPO/KTO/ORPO/Reward), Ludwig (SFT/DPO/KTO/ORPO/GRPO).
 //! Routed through the shared `hkask-services` config init. Host pluggability
 //! is via the `TrainingHost` trait, isolating the MCP surface from
 //! framework-specific details.
@@ -1517,8 +1518,8 @@ pub async fn run(
     // Harness default is Axolotl; per-job harness selection via TrainingParams.harness
     // (operator-accepted from the lora-training skill's G6 gate) is honored at
     // submit time — RunpodHost::submit selects the harness for config rendering.
-    // Phase 1 (v0.31.0): Axolotl (SFT) + TRL SFTTrainer + Ludwig SFT. Phase 2
-    // will add TRL DPO/KTO/ORPO trainers and Ludwig DPO/KTO/ORPO/GRPO.
+    // All harnesses and trainers are implemented: Axolotl (SFT),
+    // TRL (SFT/DPO/KTO/ORPO/Reward), Ludwig (SFT/DPO/KTO/ORPO/GRPO).
     let host_id = TrainingHostId::Runpod;
     let harness_id = TrainingHarnessId::Axolotl;
 

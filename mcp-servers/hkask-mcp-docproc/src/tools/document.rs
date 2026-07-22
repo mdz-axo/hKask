@@ -170,7 +170,7 @@ impl DocProcServer {
             let mut pdf_extract_result: Option<ExtractOutcome> = None;
             if format == "pdf" {
                 let quick_result = extract_text(&path).await?;
-                if let ExtractOutcome::Success { ref text, word_count } = quick_result
+                if let ExtractOutcome::Success { ref text, word_count, .. } = quick_result
                     && word_count >= OCR_FALLBACK_WORD_THRESHOLD
                 {
                     let result = serde_json::json!({
@@ -230,14 +230,21 @@ impl DocProcServer {
             };
 
             match extract_result {
-                ExtractOutcome::Success { text, word_count } => {
-                    let result = serde_json::json!({
+                ExtractOutcome::Success { text, word_count, structure } => {
+                    let mut result = serde_json::json!({
                         "format": format,
                         "path": path,
                         "method": "text_extraction",
                         "text": text,
                         "word_count": word_count,
                     });
+                    if let Some(doc_structure) = structure {
+                        result["structure"] = serde_json::to_value(&doc_structure)
+                            .unwrap_or(serde_json::Value::Null);
+                        result["block_count"] = serde_json::json!(
+                            doc_structure.pages.iter().map(|p| p.blocks.len()).sum::<usize>()
+                        );
+                    }
                     self.record_experience("docproc_convert", &path_clone, "success", result.clone());
                     Ok(result)
                 }
@@ -445,6 +452,23 @@ impl DocProcServer {
             {
                 // Use shared extract_text for format detection + text extraction
                 match extract_text(file_path).await? {
+                    ExtractOutcome::Success {
+                        text: extracted,
+                        structure: Some(doc_structure),
+                        ..
+                    } => {
+                        // Structure-aware chunking: chunk at block boundaries
+                        // when a DocStructure is available (office formats).
+                        // Falls back to the flat text if structure is empty.
+                        let structure_text = doc_structure.text();
+                        if structure_text.split_whitespace().count()
+                            >= extracted.split_whitespace().count()
+                        {
+                            source_text = structure_text;
+                        } else {
+                            source_text = extracted;
+                        }
+                    }
                     ExtractOutcome::Success {
                         text: extracted, ..
                     } => {
