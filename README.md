@@ -109,7 +109,7 @@ flowchart TD
     Executor --> Ocap
     Pod --> Ocap
 
-    subgraph Regulation["Regulation system"]
+    subgraph RegSys["Regulation system"]
         Regulation["reg.* spans<br/>variety, algedonic escalation"]
     end
 
