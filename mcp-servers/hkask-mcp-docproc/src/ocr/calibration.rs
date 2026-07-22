@@ -134,15 +134,13 @@ mod tests {
                 tier: ComplexityTier::Moderate,
                 backend_a: OcrBackend::Tesseract,
                 backend_b: OcrBackend::LlmOcr("test-model".into()),
-                confidence_a: 0.90,
-                confidence_b: 0.92,
                 semantic_similarity: None,
             })
             .collect();
 
         PipelineOutcome {
             results: vec![],
-            report: VerificationReport::new(true, 0.0, vec![], 0, vec![]),
+            report: VerificationReport::new(true, vec![], 0),
             cross_validations: cvs,
             errors: vec![],
         }
@@ -203,8 +201,6 @@ mod tests {
                 tier: ComplexityTier::Simple,
                 backend_a: OcrBackend::Tesseract,
                 backend_b: OcrBackend::LlmOcr("test-model".into()),
-                confidence_a: 0.95,
-                confidence_b: 0.96,
                 semantic_similarity: None,
             })
             .collect();

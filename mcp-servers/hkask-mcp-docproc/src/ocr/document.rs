@@ -38,10 +38,6 @@ pub struct CrossValidation {
     pub backend_a: super::config::OcrBackend,
     /// Second backend used.
     pub backend_b: super::config::OcrBackend,
-    /// Confidence from backend A.
-    pub confidence_a: f32,
-    /// Confidence from backend B.
-    pub confidence_b: f32,
     /// Semantic (embedding) similarity [0.0, 1.0] when available.
     /// Populated by `verify_semantic` if an embedding router is provided.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -97,17 +93,12 @@ impl std::fmt::Display for PipelineError {
 pub struct VerificationReport {
     /// Whether the assembled page count matches the expected page count.
     pub page_count_match: bool,
-    /// Percentage delta between estimated and actual word count.
-    /// Positive = more words than expected; negative = fewer.
-    pub word_count_delta_pct: f32,
     /// Indices of pages that produced zero text.
     pub empty_pages: Vec<usize>,
     /// Total number of pipeline errors across all pages.
     pub error_count: usize,
     /// Aggregate verification result. Derived from all checks.
     pub passed: bool,
-    /// Page-level details: what happened to each page.
-    pub page_details: Vec<PageVerificationDetail>,
 }
 
 impl VerificationReport {
@@ -124,34 +115,20 @@ impl VerificationReport {
     /// Create a report and compute `passed` inline.
     pub fn new(
         page_count_match: bool,
-        word_count_delta_pct: f32,
         empty_pages: Vec<usize>,
         error_count: usize,
-        page_details: Vec<PageVerificationDetail>,
     ) -> Self {
         let mut report = Self {
             page_count_match,
-            word_count_delta_pct,
             empty_pages,
             error_count,
             passed: false,
-            page_details,
         };
         report.compute_passed();
         report
     }
 }
 
-/// Per-page verification detail for fine-grained diagnostics.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PageVerificationDetail {
-    pub page_index: usize,
-    pub word_count: usize,
-    pub is_empty: bool,
-    pub backend_used: Option<super::config::OcrBackend>,
-    pub was_fallback: bool,
-    pub error: Option<String>,
-}
 
 // ── Pipeline Outcome ──────────────────────────────────────────────────────
 

@@ -110,7 +110,6 @@ impl DocProcServer {
                 "verification_passed": outcome.report.passed,
                 "page_count_match": outcome.report.page_count_match,
                 "empty_pages": outcome.report.empty_pages,
-                "word_count_delta_pct": outcome.report.word_count_delta_pct,
                 "cross_validations": outcome.cross_validations.len(),
                 "backend_distribution": outcome.results.iter()
                     .fold(std::collections::HashMap::new(), |mut acc, r| {
@@ -149,7 +148,7 @@ impl DocProcServer {
 
         let synthetic_outcome = crate::ocr::PipelineOutcome {
             results: vec![],
-            report: crate::ocr::VerificationReport::new(true, 0.0, vec![], 0, vec![]),
+            report: crate::ocr::VerificationReport::new(true, vec![], 0),
             cross_validations: acc.clone(),
             errors: vec![],
         };

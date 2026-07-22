@@ -4,7 +4,7 @@
 //! Delete it → pipeline produces output with no quality signal.
 //! It earns its existence.
 
-use crate::ocr::{OcrResult, PageVerificationDetail, PipelineError, VerificationReport};
+use crate::ocr::{OcrResult, PipelineError, VerificationReport};
 
 /// Verify assembled output against expected page count and source images.
 ///
@@ -25,39 +25,19 @@ pub(crate) fn verify_output(
 
     // Detect empty pages and collect per-page details from results
     let mut empty_pages: Vec<usize> = Vec::new();
-    let mut page_details: Vec<PageVerificationDetail> = Vec::new();
 
     for (idx, result) in results.iter().enumerate().take(actual_pages) {
-        let text = &result.text;
-        let word_count = text.split_whitespace().count();
-        let is_empty = text.trim().is_empty();
-
-        if is_empty {
+        if result.text.trim().is_empty() {
             empty_pages.push(idx);
         }
-
-        page_details.push(PageVerificationDetail {
-            page_index: idx,
-            word_count,
-            is_empty,
-            backend_used: Some(result.backend.clone()),
-            was_fallback: result.was_fallback,
-            error: None,
-        });
     }
 
-    // word_count_delta_pct is no longer computed: the former pixel-based estimate
-    // was a crude heuristic that produced false failures on low-word pages. Kept as
-    // 0.0 for serialized-shape compatibility.
-    let word_count_delta_pct = 0.0;
     let error_count = errors.len();
 
     VerificationReport::new(
         page_count_match,
-        word_count_delta_pct,
         empty_pages,
         error_count,
-        page_details,
     )
 }
 
@@ -92,12 +72,6 @@ mod tests {
         assert!(report.page_count_match, "page count should match");
         assert!(report.empty_pages.is_empty(), "no empty pages");
         assert!(report.passed, "clean document should pass: {:#?}", report);
-        // Check that per-page details have backend info
-        assert_eq!(report.page_details.len(), 2);
-        assert_eq!(
-            report.page_details[0].backend_used,
-            Some(OcrBackend::Tesseract)
-        );
     }
 
     #[test]
@@ -148,10 +122,6 @@ mod tests {
             "empty page should be flagged"
         );
         assert_eq!(report.empty_pages, vec![1]);
-        assert!(
-            report.page_details[1].was_fallback,
-            "fallback should be recorded"
-        );
         assert!(!report.passed, "empty page should cause failure");
     }
 

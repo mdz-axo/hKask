@@ -665,8 +665,6 @@ pub(crate) fn compute_cross_validation(
         tier: ComplexityTier::Moderate,
         backend_a: primary.backend.clone(),
         backend_b: secondary.backend.clone(),
-        confidence_a: primary.confidence,
-        confidence_b: secondary.confidence,
         semantic_similarity: None,
     })
 }
@@ -957,8 +955,6 @@ mod tests {
         let cv = compute_cross_validation(&primary, &secondary).unwrap();
         assert_eq!(cv.page_index, 0);
         assert!(cv.similarity > 0.5);
-        assert_eq!(cv.confidence_a, 0.95);
-        assert_eq!(cv.confidence_b, 0.89);
     }
 
     #[test]
