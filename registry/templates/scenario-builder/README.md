@@ -62,9 +62,9 @@ The `parametric_variation_flag` is consumed directly from the quality gate — i
 ## Regulation Integration
 
 The pipeline emits Regulation spans for monitoring:
-- `reg.prompt.select` — Pipeline selection
-- `reg.prompt.render` — Template execution at each step
-- `reg.prompt.outcome` — Scenario set finalized
+- `hkask.template.select` — Pipeline selection
+- `hkask.template.render` — Template execution at each step
+- `hkask.template.outcome` — Scenario set finalized
 
 ## OCAP Requirements
 

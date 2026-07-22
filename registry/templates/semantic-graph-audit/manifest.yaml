@@ -24,7 +24,7 @@ templates:
       and a per-edge rationale. Produces classified_edges + a summary flagging
       over-constraint (Prohibition used where Guideline would do).
     generates_spans:
-      - reg.prompt.semantic-graph-audit.classify
+      - hkask.template.semantic-graph-audit.classify
 
   - id: semantic-graph-audit/semantic-graph-audit-analyze
     name: "Evaluate graph health through four lenses: pragmatic-cybernetics…"
@@ -39,7 +39,7 @@ templates:
       pragmatic-semantics (force coherence + OT conflict ranking). Produces
       lens_evaluations + a synthesis.
     generates_spans:
-      - reg.prompt.semantic-graph-audit.analyze
+      - hkask.template.semantic-graph-audit.analyze
 
   - id: semantic-graph-audit/semantic-graph-audit-detect
     name: "Detect structural pathologies from graph topology: cycles,…"
@@ -53,7 +53,7 @@ templates:
       constraint force (a Prohibition cycle is critical). Produces structural_issues +
       an issue_summary.
     generates_spans:
-      - reg.prompt.semantic-graph-audit.detect
+      - hkask.template.semantic-graph-audit.detect
 
   - id: semantic-graph-audit/semantic-graph-audit-report
     name: "Synthesize the classification, four-lens analysis, and structural…"
@@ -66,4 +66,4 @@ templates:
       normalized graph-health convergence metric + a readable markdown report. The
       convergence step (convergence_field points here). Threshold 0.15.
     generates_spans:
-      - reg.prompt.semantic-graph-audit.report
+      - hkask.template.semantic-graph-audit.report

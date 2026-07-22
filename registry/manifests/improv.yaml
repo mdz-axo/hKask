@@ -219,15 +219,15 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.improv
+  span_namespace: hkask.template.improv
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator
   spans:
-    - reg.improv.mode.active
-    - reg.improv.plussing.ratio
-    - reg.improv.freestyle.coherence
-    - reg.improv.ensemble.coherence
+    - hkask.improv.mode.active
+    - hkask.improv.plussing.ratio
+    - hkask.improv.freestyle.coherence
+    - hkask.improv.ensemble.coherence
     - reg.kata.improv.effectiveness
 
 audit:

@@ -255,7 +255,7 @@ ocap:
 # Regulation Monitoring
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.rag-pipeline
+  span_namespace: hkask.template.rag-pipeline
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

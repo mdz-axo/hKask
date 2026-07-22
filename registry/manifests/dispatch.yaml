@@ -30,7 +30,7 @@ rjoule:
 #     default: 0
 #     increment_on_dispatch: true
 #   reg_monitoring:
-#     span_namespace: reg.prompt.matroshka_depth
+#     span_namespace: hkask.template.matroshka_depth
 #     alert_if_exceeds: 6
 #     rationale: "Warning before hard limit at 7"
 
@@ -70,14 +70,14 @@ steps:
 
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.dispatch
+  span_namespace: hkask.template.dispatch
   variety_monitoring: true
   algedonic_threshold: 100
   spans:
-    - reg.prompt.select
-    - reg.prompt.render
-    - reg.prompt.outcome
-    - reg.prompt.dispatch.resolved_template
+    - hkask.template.select
+    - hkask.template.render
+    - hkask.template.outcome
+    - hkask.template.dispatch.resolved_template
   instrumentation:
     log_dynamic_template_id: true
     rationale: >

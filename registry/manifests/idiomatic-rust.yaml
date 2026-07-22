@@ -172,7 +172,7 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.idiomatic-rust
+  span_namespace: hkask.template.idiomatic-rust
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

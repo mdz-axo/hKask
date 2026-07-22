@@ -92,7 +92,7 @@ templates:
       determination with actionable fix notes.
 
 # FlowDef orchestrator — chains all 7 steps with convergence criteria.
-# Regulation spans (reg.prompt.{select,render,outcome}) are emitted automatically
+# Regulation spans (hkask.template.{select,render,outcome}) are emitted automatically
 # by the flow engine for KnowAct steps; no explicit reg_spans needed.
 flowdef:
   manifest: registry/manifests/scenario-builder.yaml

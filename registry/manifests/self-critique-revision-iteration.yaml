@@ -232,7 +232,7 @@ ocap:
 # Regulation Monitoring
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.self-critique-revision.iteration
+  span_namespace: hkask.template.self-critique-revision.iteration
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

@@ -68,7 +68,7 @@ steps:
 ledger:
   spans:
     - reg.tool.invocation
-    - reg.prompt.outcome
+    - hkask.template.outcome
   fast_local: OM/llama3.2
   balanced: FW/claude-haiku
   high_quality: FW/claude-sonnet

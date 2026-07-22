@@ -43,13 +43,13 @@ steps:
 
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.tool_dispatch
+  span_namespace: hkask.template.tool_dispatch
   variety_monitoring: true
   algedonic_threshold: 100
   spans:
     - reg.tool.invocation
-    - reg.prompt.outcome
-    - reg.prompt.tool_dispatch.resolved_template
+    - hkask.template.outcome
+    - hkask.template.tool_dispatch.resolved_template
   instrumentation:
     log_dynamic_template_id: true
     rationale: >

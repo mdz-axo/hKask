@@ -44,7 +44,7 @@ responsibilities:
   - calibrate: bot_gas_budgets_and_thresholds
   - escalate: critical_alerts_to_administrator
   - maintain: system_evolution_dialogue
-  - emit: reg.prompt.metacognition
+  - emit: hkask.template.metacognition
   # - orchestrate: standing_ensemble_session  # Deferred (2026-06-14)
   - record: metacognition_operations_to_episodic_memory
   - produce: semantic_triples_from_system_insights

@@ -262,6 +262,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.qa.repair_attempted",
     "reg.qa.repair_exhausted",
     "reg.qa.repair_verified",
+    "reg.qa.bolero_failure",
     // ── Regulation (v0.31.0 Fermi impact-gate) ──
     "reg.outcome",
     "reg.outcome.calibration",

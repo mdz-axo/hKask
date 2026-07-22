@@ -157,7 +157,7 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.semantic-graph-audit
+  span_namespace: hkask.template.semantic-graph-audit
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

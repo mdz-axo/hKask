@@ -154,15 +154,15 @@ fn parse_markdown_blocks(markdown: &str) -> Vec<Block> {
             .last()
             .map(|(i, _)| i + 1)
             .unwrap_or(0);
-        if digits_end > 0 {
-            if let Some(text) = trimmed[digits_end..].strip_prefix(". ") {
-                flush_paragraph(&mut paragraph_lines, &mut blocks);
-                blocks.push(Block::List {
-                    ordered: true,
-                    items: vec![text.trim().to_string()],
-                });
-                continue;
-            }
+        if digits_end > 0
+            && let Some(text) = trimmed[digits_end..].strip_prefix(". ")
+        {
+            flush_paragraph(&mut paragraph_lines, &mut blocks);
+            blocks.push(Block::List {
+                ordered: true,
+                items: vec![text.trim().to_string()],
+            });
+            continue;
         }
 
         // Empty line — paragraph boundary

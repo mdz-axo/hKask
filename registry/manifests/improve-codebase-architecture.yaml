@@ -193,7 +193,7 @@ ocap:
 
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.arch
+  span_namespace: hkask.template.arch
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

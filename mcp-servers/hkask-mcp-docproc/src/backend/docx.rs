@@ -162,8 +162,8 @@ fn table_to_rows(rows: &[TableChild]) -> Vec<Vec<String>> {
                 let cells: Vec<String> = row
                     .cells
                     .iter()
-                    .filter_map(|rc| match rc {
-                        TableRowChild::TableCell(cell) => Some(table_cell_text(cell)),
+                    .map(|rc| match rc {
+                        TableRowChild::TableCell(cell) => table_cell_text(cell),
                     })
                     .collect();
                 if cells.is_empty() { None } else { Some(cells) }

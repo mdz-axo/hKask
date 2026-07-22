@@ -101,7 +101,7 @@ ocap:
 # Regulation Monitoring
 ledger:
   emit_spans: true
-  span_namespace: reg.prompt.condense
+  span_namespace: hkask.template.condense
   variety_monitoring: true
   algedonic_threshold: 100
   escalation_target: Curator

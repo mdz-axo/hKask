@@ -127,9 +127,9 @@ Each stage produces structured JSON output that feeds into subsequent stages:
 ## Regulation Integration
 
 The pipeline emits Regulation spans for monitoring:
-- `reg.prompt.select` — Pipeline selection
-- `reg.prompt.render` — Template execution at each stage
-- `reg.prompt.outcome` — Forecast recorded
+- `hkask.template.select` — Pipeline selection
+- `hkask.template.render` — Template execution at each stage
+- `hkask.template.outcome` — Forecast recorded
 
 **Variety Counters:**
 - `hypothesis_count` — Number of causal hypotheses generated
