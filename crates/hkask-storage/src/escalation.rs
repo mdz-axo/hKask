@@ -397,12 +397,12 @@ pub struct EscalationStats {
 
 // ── EscalationPort implementation ────────────────────────────────────
 
-use hkask_ports::escalation::EscalationPort;
+use hkask_types::escalation::EscalationPort;
 
 impl EscalationPort for EscalationQueue {
     fn list_pending(
         &self,
-    ) -> Result<Vec<hkask_ports::escalation::EscalationEntry>, InfrastructureError> {
+    ) -> Result<Vec<hkask_types::escalation::EscalationEntry>, InfrastructureError> {
         self.list_pending()
             .map(|entries| entries.into_iter().map(|e| e.into()).collect())
             .map_err(|e| InfrastructureError::database(e.to_string()))
@@ -411,7 +411,7 @@ impl EscalationPort for EscalationQueue {
     fn get(
         &self,
         id: &str,
-    ) -> Result<Option<hkask_ports::escalation::EscalationEntry>, InfrastructureError> {
+    ) -> Result<Option<hkask_types::escalation::EscalationEntry>, InfrastructureError> {
         self.get(id)
             .map(|opt| opt.map(|e| e.into()))
             .map_err(|e| InfrastructureError::database(e.to_string()))
@@ -429,7 +429,7 @@ impl EscalationPort for EscalationQueue {
 
     fn persist_batch(
         &self,
-        _batch: &hkask_ports::escalation::EscalationBatch,
+        _batch: &hkask_types::escalation::EscalationBatch,
     ) -> Result<(), InfrastructureError> {
         // Forward-compat: batch persistence not yet wired through the port.
         // Individual entries are added via `add()`.
@@ -457,7 +457,7 @@ impl EscalationPort for EscalationQueue {
     }
 }
 
-impl From<EscalationEntry> for hkask_ports::escalation::EscalationEntry {
+impl From<EscalationEntry> for hkask_types::escalation::EscalationEntry {
     fn from(e: EscalationEntry) -> Self {
         Self {
             id: e.id,
@@ -469,9 +469,9 @@ impl From<EscalationEntry> for hkask_ports::escalation::EscalationEntry {
             error_context: e.error_context,
             created_at: e.created_at,
             status: match e.status {
-                EscalationStatus::Pending => hkask_ports::escalation::EscalationStatus::Pending,
-                EscalationStatus::Resolved => hkask_ports::escalation::EscalationStatus::Resolved,
-                EscalationStatus::Dismissed => hkask_ports::escalation::EscalationStatus::Dismissed,
+                EscalationStatus::Pending => hkask_types::escalation::EscalationStatus::Pending,
+                EscalationStatus::Resolved => hkask_types::escalation::EscalationStatus::Resolved,
+                EscalationStatus::Dismissed => hkask_types::escalation::EscalationStatus::Dismissed,
             },
             resolved_at: e.resolved_at,
             resolved_by: e.resolved_by,

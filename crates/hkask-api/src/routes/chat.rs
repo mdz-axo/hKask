@@ -18,7 +18,7 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 use crate::ApiState;
 use crate::middleware::auth::AuthContext;
 use hkask_inference::model_constants;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_services_chat::{ChatService, ChatTurnRequest as ServiceChatTurnRequest};
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_types::template::LLMParameters;

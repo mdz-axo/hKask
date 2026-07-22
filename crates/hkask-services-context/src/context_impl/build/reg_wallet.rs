@@ -305,7 +305,7 @@ fn build_wallet(
         let calibrator = Arc::new(
             hkask_regulation::WalletGasCalibrator::new(
                 Arc::clone(&f.gas_event_store),
-                Arc::clone(wallet_manager) as Arc<dyn hkask_ports::WalletBudgetPort>,
+                Arc::clone(wallet_manager) as Arc<dyn hkask_types::WalletBudgetPort>,
             )
             .with_event_sink(Arc::clone(&f.reg_event_sink)),
         );

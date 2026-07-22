@@ -63,7 +63,7 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
     let consent_store = ConsentStore::from_driver(Arc::clone(&shared_driver));
     let consent_manager = Arc::new(
         ConsentManager::new(
-            Arc::new(consent_store) as Arc<dyn hkask_ports::consent_port::ConsentPort>
+            Arc::new(consent_store) as Arc<dyn hkask_types::consent_port::ConsentPort>
         )
         .with_event_sink(Arc::clone(&reg_event_sink)),
     );

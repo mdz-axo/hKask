@@ -11,7 +11,7 @@
 //! - P8 (Semantic Grounding): manifest↔template mismatches caught before runtime
 //! - P5 (Essentialism): one test, one purpose — cross-validate all manifests
 
-use hkask_ports::flowdef_validation::{
+use hkask_types::flowdef_validation::{
     parse_template_contract_inputs, validate_convergence_field, validate_step_input_mapping,
 };
 use std::collections::HashMap;

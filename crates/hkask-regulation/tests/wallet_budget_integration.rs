@@ -98,7 +98,7 @@ fn make_wallet_budget_with_key(
 
     let budget = WalletBackedBudget::new(
         wallet_id,
-        Arc::clone(&manager) as Arc<dyn hkask_ports::WalletBudgetPort>,
+        Arc::clone(&manager) as Arc<dyn hkask_types::WalletBudgetPort>,
     )
     .with_api_key(key_id, RJoule::new(limit_rj));
 

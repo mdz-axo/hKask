@@ -34,7 +34,7 @@ use crate::openrouter_backend::OpenRouterBackend;
 use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
 use futures_util::Stream;
-use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use std::future::Future;
 use std::pin::Pin;

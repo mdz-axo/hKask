@@ -2,7 +2,7 @@
 
 use crate::routes::consolidation_auth;
 use axum::{Extension, Json, extract::State};
-use hkask_ports::ConsolidationRequest;
+use hkask_types::ConsolidationRequest;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_types::WebID;
 use serde::{Deserialize, Serialize};

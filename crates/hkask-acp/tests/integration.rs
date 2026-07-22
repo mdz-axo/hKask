@@ -3,9 +3,9 @@
 use futures_util::Stream;
 use hkask_acp::HkaskAcpAgent;
 use hkask_acp::main_impl::protocol::StdioTransport;
-use hkask_ports::InferencePort;
-use hkask_ports::inference_port::InferenceStreamChunk;
-use hkask_ports::inference_types::{
+use hkask_types::InferencePort;
+use hkask_types::inference_port::InferenceStreamChunk;
+use hkask_types::inference_types::{
     ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage,
 };
 use hkask_types::template::LLMParameters;

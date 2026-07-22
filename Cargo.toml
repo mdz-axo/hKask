@@ -25,7 +25,6 @@ members = [
     "crates/hkask-types",
     "crates/hkask-forecast",
     "crates/hkask-capability",
-    "crates/hkask-ports",
     "crates/hkask-inference",
     "crates/hkask-guard",
 

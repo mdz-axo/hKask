@@ -1,7 +1,7 @@
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 use super::*;
-use hkask_ports::git_cas::{ContentHash, DiffKind, GitCASPort, GitCasError, RepoId};
+use hkask_types::git_cas::{ContentHash, DiffKind, GitCASPort, GitCasError, RepoId};
 
 #[cfg(test)]
 mod test_suite {

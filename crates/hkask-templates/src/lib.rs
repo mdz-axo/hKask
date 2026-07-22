@@ -25,9 +25,9 @@ pub use bundle::BundleManifest;
 pub use bundle::BundleRegistryIndex;
 pub use crate_loader::TemplateCrateLoader;
 pub use executor::ManifestExecutor;
-pub use hkask_ports::InferencePort;
-pub use hkask_ports::Skill;
-pub use hkask_ports::SkillZone;
+pub use hkask_types::InferencePort;
+pub use hkask_types::Skill;
+pub use hkask_types::SkillZone;
 pub use hkask_types::SkillPolarity;
 
 pub use manifest_loader::{ManifestLoadError, load_manifest_from_yaml, resolve_manifest};

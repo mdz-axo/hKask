@@ -25,7 +25,7 @@ pub mod protocol;
 use hkask_inference::{InferenceConfig, InferenceRouter, model_constants};
 use hkask_mcp::daemon::DaemonClient;
 use hkask_mcp::startup::verify_startup_gates;
-use hkask_ports::{InferencePort, InferenceStreamChunk};
+use hkask_types::{InferencePort, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use protocol::*;
 use std::collections::HashMap;
@@ -396,7 +396,7 @@ impl HkaskAcpAgent {
 }
 
 /// Map a StructuredToolCall to an ACP tool kind string.
-fn map_tool_kind(tc: &hkask_ports::inference_types::StructuredToolCall) -> String {
+fn map_tool_kind(tc: &hkask_types::inference_types::StructuredToolCall) -> String {
     match tc.tool.as_str() {
         "web_search" | "brave_search" | "tavily_search" => "search".into(),
         "web_extract" | "fetch" | "scrape" => "fetch".into(),

@@ -34,7 +34,7 @@ use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_memory::EpisodicMemory;
 use hkask_memory::SemanticMemory;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_storage::{Database, EmbeddingStore, HMem};
 use hkask_types::Visibility;
 use hkask_types::template::LLMParameters;

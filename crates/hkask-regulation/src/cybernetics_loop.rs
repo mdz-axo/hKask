@@ -57,7 +57,7 @@ use crate::types::loops::{
     RegulationLoop, RegulatoryAction, RegulatoryActionParams, Signal, SignalMetric, TriggerOrigin,
 };
 use crate::types::loops::{BudgetOption, RegulationData};
-use hkask_ports::BackpressureSignal;
+use hkask_types::BackpressureSignal;
 use hkask_types::CuratorDirective;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanKind};
@@ -460,7 +460,7 @@ impl CyberneticsLoop {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_set_point_calibrator(
         self,
-        store: Arc<dyn hkask_ports::LedgerStoragePort>,
+        store: Arc<dyn hkask_types::LedgerStoragePort>,
         interval: std::time::Duration,
     ) -> Self {
         let calibrator = Arc::new(SetPointCalibrator::new(store, chrono::Duration::hours(1)));

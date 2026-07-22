@@ -25,7 +25,7 @@
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
-use hkask_ports::{InferencePort, RegistryEntry, RegistryIndex};
+use hkask_types::{InferencePort, RegistryEntry, RegistryIndex};
 use hkask_templates::Registry;
 use hkask_types::template::LLMParameters;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};

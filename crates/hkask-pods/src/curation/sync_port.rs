@@ -4,7 +4,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use hkask_ports::federation::{
+use hkask_types::federation::{
     FederatedTriple, FederationSyncError, FederationSyncPort, ReplicaId,
 };
 use hkask_types::Visibility;

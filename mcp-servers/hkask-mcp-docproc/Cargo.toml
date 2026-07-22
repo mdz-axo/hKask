@@ -9,7 +9,6 @@ description = "Unified document processing MCP server: format conversion, OCR, c
 # Shared infrastructure
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
-hkask-ports = { path = "../../crates/hkask-ports" }
 
 # Ontology bridges — vocabulary constants for metadata, provenance, and domain predicates
 hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }

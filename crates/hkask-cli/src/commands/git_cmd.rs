@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::archival::ArchivalService;
 use crate::cli::GitAction;
 use hkask_git_cas::GixCasAdapter;
-use hkask_ports::git_cas::{GitCASPort, RepoId, TreeEntryKind};
+use hkask_types::git_cas::{GitCASPort, RepoId, TreeEntryKind};
 
 /// Resolve the concrete `GixCasAdapter` for admin operations
 /// (diff, resolve_ref) that are not part of the GitCASPort contract.

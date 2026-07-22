@@ -279,7 +279,7 @@ fn load_thread_registry(agent_name: &str, stm_life: u32) -> crate::threads::Thre
 pub(super) fn discover_tools(
     governed_tool: &Arc<McpRuntime>,
     rt: &tokio::runtime::Handle,
-) -> Vec<hkask_ports::ChatToolDefinition> {
+) -> Vec<hkask_types::ChatToolDefinition> {
     let tool_names = rt.block_on(governed_tool.discover_tools());
     let mut tools: Vec<ToolInfo> = Vec::new();
     for name in &tool_names {
@@ -289,9 +289,9 @@ pub(super) fn discover_tools(
     }
     tools
         .iter()
-        .map(|tool| hkask_ports::ChatToolDefinition {
+        .map(|tool| hkask_types::ChatToolDefinition {
             tool_type: "function".to_string(),
-            function: hkask_ports::ChatToolFunction {
+            function: hkask_types::ChatToolFunction {
                 name: format!("{}/{}", tool.server_id, tool.name),
                 description: tool.description.clone(),
                 parameters: tool.input_schema.clone(),
@@ -611,7 +611,7 @@ mod tests {
         ) -> Result<crate::host::OnboardingOutcome, crate::host::OnboardingError> {
             Err(crate::host::OnboardingError::Cancelled)
         }
-        fn list_templates_local(&self) -> Vec<hkask_ports::RegistryEntry> {
+        fn list_templates_local(&self) -> Vec<hkask_types::RegistryEntry> {
             Vec::new()
         }
         fn run_sovereignty_status(&self) {}

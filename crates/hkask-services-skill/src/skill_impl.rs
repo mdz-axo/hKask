@@ -9,7 +9,7 @@
 //!
 //! ℏKask - A Minimal Viable Container for UserPods
 
-use hkask_ports::{Skill, SkillZone};
+use hkask_types::{Skill, SkillZone};
 use hkask_templates::SkillLoader;
 use hkask_types::visibility::Visibility;
 

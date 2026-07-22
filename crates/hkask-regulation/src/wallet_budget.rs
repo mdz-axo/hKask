@@ -17,7 +17,7 @@
 
 use crate::energy::{GasCost, GasError};
 use chrono::Utc;
-use hkask_ports::WalletBudgetPort;
+use hkask_types::WalletBudgetPort;
 use hkask_types::id::{ApiKeyId, WalletId};
 use hkask_types::{ApiKeyCapability, RJoule};
 use std::sync::Arc;

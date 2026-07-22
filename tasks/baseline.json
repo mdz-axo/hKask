@@ -1,21 +1,21 @@
 {
-  "description": "hKask codegraph baseline measurement — Phase 0 T0.1",
+  "description": "hKask codegraph final state measurement — post-consolidation (T1-T14)",
   "timestamp": "2026-07-22",
-  "tree_state": "unmodified, cargo check --workspace green, all CI scripts green",
+  "tree_state": "post-consolidation, cargo build --workspace green, CI scripts green",
   "workspace": {
     "version": "0.31.0",
-    "total_workspace_members": 58,
-    "total_crates": 42,
+    "total_workspace_members": 56,
+    "total_crates": 40,
     "total_mcp_servers": 16,
-    "total_rust_loc": 232665,
+    "total_rust_loc": 232753,
     "mcp_server_loc": 66096
   },
   "codegraph_metrics": {
     "total_cross_crate_edges": 397,
     "total_mcp_tools": 238,
-    "inference_providers": 8,
+    "inference_providers": 9,
     "registry_manifests": 98,
-    "skill_directories": 50,
+    "skill_directories": 51,
     "port_traits": 16
   },
   "most_connected_crates_by_outgoing_deps": [
@@ -68,7 +68,8 @@
       {"prefix": "KC/", "name": "KiloCode", "backend": "kilocode_backend.rs", "capabilities": ["chat", "vision"]},
       {"prefix": "OM/", "name": "Ollama", "backend": "ollama_backend.rs", "capabilities": ["chat", "vision"], "local": true},
       {"prefix": "CL/", "name": "Cline", "backend": "cline_backend.rs", "capabilities": ["chat", "vision"]},
-      {"prefix": "RP/", "name": "RunPod", "backend": "runpod_backend.rs", "capabilities": ["vision", "ocr"], "chat": false}
+      {"prefix": "RP/", "name": "RunPod", "backend": "runpod_backend.rs", "capabilities": ["vision", "ocr"], "chat": false},
+      {"prefix": "TK/", "name": "Tinker", "backend": "(scaffolded, not registered)", "capabilities": [], "chat": false, "scaffolded": true}
     ],
     "dispatch_mechanism": "chat_backend() / vision_backend() match-fns returning &dyn ChatBackend / &dyn VisionBackend borrowed from typed Option<Backend> fields",
     "fusion": "fusion_orchestrator.rs — provider-agnostic multi-model deliberation"

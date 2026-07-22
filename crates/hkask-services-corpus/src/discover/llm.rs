@@ -3,7 +3,7 @@
 use crate::embed::{Entity, EntityConfig};
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_memory::salience::{DeclaredMethod, MethodThresholds};
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use std::path::{Path, PathBuf};
 

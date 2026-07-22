@@ -1,7 +1,7 @@
 //! hkask-git-cas — gix-backed Git content-addressed storage adapter.
 //!
 //! This is the backup/gitcas component: it implements
-//! [`hkask_ports::git_cas::GitCASPort`] and pod-directory backup for
+//! [`hkask_types::git_cas::GitCASPort`] and pod-directory backup for
 //! registries and artifacts (files, YAML/templates, databases, logs).
 //!
 //! It is the **only** crate in the workspace that depends on `gix`. Thin MCP

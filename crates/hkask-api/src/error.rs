@@ -163,8 +163,8 @@ impl From<hkask_pods::pod::AgentPodError> for ServiceErrorResponse {
     }
 }
 
-impl From<hkask_ports::RegistryError> for ServiceErrorResponse {
-    fn from(e: hkask_ports::RegistryError) -> Self {
+impl From<hkask_types::RegistryError> for ServiceErrorResponse {
+    fn from(e: hkask_types::RegistryError) -> Self {
         ServiceErrorResponse(hkask_services_core::ServiceError::Domain {
             kind: hkask_services_core::ErrorKind::BadRequest,
             domain: hkask_services_core::DomainKind::Storage,

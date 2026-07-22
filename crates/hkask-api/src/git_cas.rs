@@ -18,7 +18,7 @@ pub(crate) struct GitCasBundle {
     /// TemplateCrateLoader — disk-based template loading.
     pub template_adapter: Arc<hkask_templates::TemplateCrateLoader>,
     /// Trait-object `GitCASPort` (hexagonal boundary) used by stores.
-    pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
+    pub git_cas_port: Arc<dyn hkask_types::git_cas::GitCASPort>,
     /// Concrete `GixCasAdapter` for admin operations (resolve_ref, diff)
     /// that are not part of the backup contract.
     pub gix_cas: Arc<hkask_git_cas::GixCasAdapter>,
@@ -46,7 +46,7 @@ pub(crate) fn init_git_cas() -> Result<GitCasBundle, ApiError> {
                 message: format!("Failed to create GixCasAdapter: {e}"),
             })?,
     );
-    let git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort> = gix_cas.clone();
+    let git_cas_port: Arc<dyn hkask_types::git_cas::GitCASPort> = gix_cas.clone();
     Ok(GitCasBundle {
         template_adapter,
         git_cas_port,

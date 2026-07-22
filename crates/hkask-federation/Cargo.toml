@@ -7,7 +7,6 @@ description = "Federation CRDT sync, link lifecycle, and merged registries for h
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
-hkask-ports = { path = "../hkask-ports" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-memory = { path = "../hkask-memory" }
 serde.workspace = true

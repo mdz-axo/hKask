@@ -14,7 +14,7 @@
 
 use axum::Json;
 use axum::extract::{Path, State};
-use hkask_ports::RegistryIndex;
+use hkask_types::RegistryIndex;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 use crate::ApiState;

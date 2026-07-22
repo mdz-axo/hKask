@@ -18,7 +18,7 @@ use hkask_capability::CapabilityChecker;
 use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_storage::database::types::DbProvider;
 use hkask_mcp::McpRuntime;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_regulation::RegulationLedger;
 use hkask_storage::{Database, EmbeddingStore, HMemStore};
 use hkask_types::WebID;

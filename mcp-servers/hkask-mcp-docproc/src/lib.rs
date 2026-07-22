@@ -33,7 +33,7 @@ use crate::ocr::decimation;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_memory::SemanticMemory;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_services_core::settings::HkaskSettings;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;

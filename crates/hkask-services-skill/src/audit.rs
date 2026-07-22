@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use hkask_ports::{RegistryIndex, SkillRegistryIndex};
+use hkask_types::{RegistryIndex, SkillRegistryIndex};
 use hkask_templates::SkillLoader;
 use hkask_types::template_type::TemplateType;
 use hkask_types::visibility::Visibility;
@@ -754,7 +754,7 @@ impl<'a> SkillAuditor<'a> {
                         continue;
                     };
                     let contract_inputs =
-                        hkask_ports::flowdef_validation::parse_template_contract_inputs(
+                        hkask_types::flowdef_validation::parse_template_contract_inputs(
                             &template_content,
                         );
                     if contract_inputs.is_empty() {
@@ -1171,7 +1171,7 @@ mod tests {
         loader.load_into(&mut skill_index);
         // Seed registry with the template entry so list(None) returns it.
         registry
-            .register(hkask_ports::RegistryEntry {
+            .register(hkask_types::RegistryEntry {
                 id: "test-skill/test".to_string(),
                 template_type: TemplateType::KnowAct,
                 name: "test".to_string(),

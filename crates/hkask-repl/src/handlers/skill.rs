@@ -5,7 +5,7 @@
 //! (the `hkask-mcp-skill` MCP server).
 
 use crate::ReplState;
-use hkask_ports::SkillZone;
+use hkask_types::SkillZone;
 use hkask_services_skill::{SkillAuditor, discover_skills};
 use hkask_types::visibility::Visibility;
 use std::path::PathBuf;
@@ -212,7 +212,7 @@ fn skill_audit(root: &std::path::Path, json: bool) {
         }
     };
 
-    use hkask_ports::{RegistryIndex, SkillRegistryIndex};
+    use hkask_types::{RegistryIndex, SkillRegistryIndex};
     let registry_ref: &dyn RegistryIndex = &registry;
     let skill_index_ref: &dyn SkillRegistryIndex = &registry;
 

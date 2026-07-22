@@ -498,7 +498,7 @@ impl RegulationSink for RegulationArchive {
     }
 }
 
-impl hkask_ports::LedgerStoragePort for RegulationArchive {
+impl hkask_types::LedgerStoragePort for RegulationArchive {
     fn query_algedonic(
         &self,
         since: chrono::DateTime<chrono::Utc>,
@@ -511,13 +511,13 @@ impl hkask_ports::LedgerStoragePort for RegulationArchive {
         &self,
         since: chrono::DateTime<chrono::Utc>,
         limit: u64,
-        config: &hkask_ports::DecayConfig,
-    ) -> Result<Vec<hkask_ports::WeightedEvent>, InfrastructureError> {
+        config: &hkask_types::DecayConfig,
+    ) -> Result<Vec<hkask_types::WeightedEvent>, InfrastructureError> {
         self.replay_weighted(since, limit, &map_config(config))
             .map(|events| {
                 events
                     .into_iter()
-                    .map(|we| hkask_ports::WeightedEvent {
+                    .map(|we| hkask_types::WeightedEvent {
                         event: we.event,
                         weight: we.weight,
                     })
@@ -552,7 +552,7 @@ impl hkask_ports::LedgerStoragePort for RegulationArchive {
 }
 
 /// Map from port-level DecayConfig to the local storage type.
-fn map_config(config: &hkask_ports::DecayConfig) -> DecayConfig {
+fn map_config(config: &hkask_types::DecayConfig) -> DecayConfig {
     DecayConfig {
         cybernetics_lambda: config.cybernetics_lambda,
         curation_lambda: config.curation_lambda,

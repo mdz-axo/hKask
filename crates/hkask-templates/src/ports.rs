@@ -18,7 +18,7 @@ pub enum TemplateError {
     #[error("Database error: {0}")]
     Database(#[from] hkask_types::InfrastructureError),
     #[error("Inference error: {0}")]
-    Inference(#[from] hkask_ports::InferenceError),
+    Inference(#[from] hkask_types::InferenceError),
     #[error("MCP error: {0}")]
     Mcp(#[source] Box<dyn std::error::Error + Send + Sync>),
 

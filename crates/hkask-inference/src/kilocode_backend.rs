@@ -16,7 +16,7 @@ use crate::config::InferenceConfig;
 use crate::openai_backend::openai_compatible_generate;
 use chrono::Utc;
 use futures_util::StreamExt;
-use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

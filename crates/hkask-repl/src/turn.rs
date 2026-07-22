@@ -727,7 +727,7 @@ mod tests {
     }
 
     fn turn_result(text: &str, tools: Vec<ToolCall>) -> TurnResult {
-        use hkask_ports::StructuredToolCall;
+        use hkask_types::StructuredToolCall;
         TurnResult {
             text: text.to_string(),
             usage: TokenUsage {
@@ -940,8 +940,8 @@ pub struct ToolCall {
     pub args: serde_json::Value,
 }
 
-impl From<hkask_ports::StructuredToolCall> for ToolCall {
-    fn from(stc: hkask_ports::StructuredToolCall) -> Self {
+impl From<hkask_types::StructuredToolCall> for ToolCall {
+    fn from(stc: hkask_types::StructuredToolCall) -> Self {
         Self {
             server: stc.server,
             tool: stc.tool,
@@ -957,7 +957,7 @@ pub struct ParsedResponse {
 
 pub fn extract_tool_calls(
     response_text: &str,
-    structured_tool_calls: Option<&[hkask_ports::StructuredToolCall]>,
+    structured_tool_calls: Option<&[hkask_types::StructuredToolCall]>,
 ) -> ParsedResponse {
     let tool_calls = structured_tool_calls
         .unwrap_or(&[])

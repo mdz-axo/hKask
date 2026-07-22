@@ -4,7 +4,7 @@
 //! Catches regressions where `build.rs` fails to discover manifests, or where
 //! the manifest deserialization structs diverge from the manifest YAML schema.
 
-use hkask_ports::RegistryIndex;
+use hkask_types::RegistryIndex;
 use std::path::Path;
 
 #[test]

@@ -8,7 +8,7 @@
 //! Snapshot strategy: reads files from `cas/`, writes each as a git blob object,
 //! builds a tree from blob OIDs, commits the tree. No index needed.
 
-use hkask_ports::git_cas::{CommitHash, GitCasError, RepoId};
+use hkask_types::git_cas::{CommitHash, GitCasError, RepoId};
 use std::path::{Path, PathBuf};
 use tokio::sync::RwLock;
 

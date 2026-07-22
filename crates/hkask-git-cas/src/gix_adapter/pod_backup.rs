@@ -2,7 +2,7 @@
 
 use super::tree::commit_tree_oid;
 use super::{GixCasAdapter, oid_to_commit_hash, open_or_init_repo, spawn_blocking_io};
-use hkask_ports::git_cas::{CommitHash, GitCasError, LogEntry};
+use hkask_types::git_cas::{CommitHash, GitCasError, LogEntry};
 use hkask_types::NotFound;
 use std::path::Path;
 

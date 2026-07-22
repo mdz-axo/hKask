@@ -20,24 +20,24 @@ use tempfile::tempdir;
 /// A no-op InferencePort for testing SkillServer construction.
 struct NoopInferencePort;
 
-impl hkask_ports::InferencePort for NoopInferencePort {
+impl hkask_types::InferencePort for NoopInferencePort {
     fn generate(
         &self,
         _prompt: &str,
         _parameters: &hkask_types::template::LLMParameters,
-        _tools: Option<&[hkask_ports::ChatToolDefinition]>,
+        _tools: Option<&[hkask_types::ChatToolDefinition]>,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<hkask_ports::InferenceResult, hkask_ports::InferenceError>>
+            dyn Future<Output = Result<hkask_types::InferenceResult, hkask_types::InferenceError>>
                 + Send
                 + '_,
         >,
     > {
         Box::pin(async {
-            Ok(hkask_ports::InferenceResult {
+            Ok(hkask_types::InferenceResult {
                 text: String::new(),
                 model: "noop".into(),
-                usage: hkask_ports::InferenceUsage {
+                usage: hkask_types::InferenceUsage {
                     prompt_tokens: 0,
                     completion_tokens: 0,
                     total_tokens: 0,
@@ -100,7 +100,7 @@ fn skill_server_stores_registry_entries_directly() {
     // Insert a synthetic entry to confirm the field type is HashMap<String, RegistryEntry>.
     server.skills.insert(
         "test.step".to_string(),
-        hkask_ports::RegistryEntry {
+        hkask_types::RegistryEntry {
             id: "test/step".into(),
             template_type: hkask_types::template_type::TemplateType::WordAct,
             name: "step".into(),
@@ -222,7 +222,7 @@ async fn skill_execute_rejects_non_object_context_via_parameters_seam() {
     );
     server.skills.insert(
         "test.step".to_string(),
-        hkask_ports::RegistryEntry {
+        hkask_types::RegistryEntry {
             id: "test/step".into(),
             template_type: hkask_types::template_type::TemplateType::WordAct,
             name: "step".into(),
@@ -261,7 +261,7 @@ async fn skill_execute_internal_error_when_template_missing_via_parameters_seam(
     let missing_path: PathBuf = dir.path().join("does_not_exist.j2");
     server.skills.insert(
         "missing.template".to_string(),
-        hkask_ports::RegistryEntry {
+        hkask_types::RegistryEntry {
             id: "missing/template".into(),
             template_type: hkask_types::template_type::TemplateType::WordAct,
             name: "template".into(),

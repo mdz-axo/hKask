@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use axum::extract::{Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures_util::stream::Stream;
-use hkask_ports::{BackpressureSignal, DepletionSignal, LedgerObserver};
+use hkask_types::{BackpressureSignal, DepletionSignal, LedgerObserver};
 use hkask_types::event::{RegulationRecord, SpanNamespace};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;

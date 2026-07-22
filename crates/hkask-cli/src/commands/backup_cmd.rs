@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use hkask_git_cas::GixCasAdapter;
-use hkask_ports::git_cas::{CommitHash, GitCASPort};
+use hkask_types::git_cas::{CommitHash, GitCASPort};
 
 use crate::cli::BackupAction;
 
@@ -184,7 +184,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             } else if let Some(ref hash_str) = commit {
                 hash_str
                     .parse()
-                    .unwrap_or_else(|e: hkask_ports::git_cas::ParseHashError| {
+                    .unwrap_or_else(|e: hkask_types::git_cas::ParseHashError| {
                         eprintln!("Invalid commit hash '{}': {}", hash_str, e);
                         std::process::exit(1);
                     })
@@ -320,7 +320,7 @@ pub fn run(rt: &tokio::runtime::Runtime, action: BackupAction) {
             let port = resolve_git_cas_port();
 
             println!("Backup integrity report (old CAS repos):");
-            for repo in hkask_ports::git_cas::RepoId::all() {
+            for repo in hkask_types::git_cas::RepoId::all() {
                 let report = block_on!(rt, port.verify(repo), "Verify failed");
 
                 let status = if report.corrupt_hashes.is_empty() {

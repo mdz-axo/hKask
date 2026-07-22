@@ -12,7 +12,7 @@ use crate::embed::Entity;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_memory::SemanticMemory;
 use hkask_memory::salience::{self, EntityTags};
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_services_core::{DomainKind, ErrorKind, HkaskSettings, ServiceError};
 use hkask_services_runtime::TripleExtraction;
 use hkask_types::id::WebID;

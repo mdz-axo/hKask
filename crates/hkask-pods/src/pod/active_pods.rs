@@ -11,7 +11,7 @@ use crate::a2a::A2ARuntime;
 use crate::curation::SemanticIndex;
 use hkask_capability::CapabilityChecker;
 use hkask_mcp::McpRuntime;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_types::WebID;
 use std::collections::HashMap;
 use std::sync::Arc;

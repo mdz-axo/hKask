@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use hkask_capability::{AuthContext, DelegationToken};
 use hkask_memory::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_ports::{ChatToolDefinition, InferencePort, StructuredToolCall};
+use hkask_types::{ChatToolDefinition, InferencePort, StructuredToolCall};
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
 

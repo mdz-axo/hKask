@@ -337,9 +337,9 @@ fn refresh_tool_section(state: &mut super::super::ReplState, rt: &tokio::runtime
     }
     state.tool_definitions = tools
         .iter()
-        .map(|tool| hkask_ports::ChatToolDefinition {
+        .map(|tool| hkask_types::ChatToolDefinition {
             tool_type: "function".to_string(),
-            function: hkask_ports::ChatToolFunction {
+            function: hkask_types::ChatToolFunction {
                 name: format!("{}/{}", tool.server_id, tool.name),
                 description: tool.description.clone(),
                 parameters: tool.input_schema.clone(),

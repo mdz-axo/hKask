@@ -14,7 +14,6 @@ hkask-mcp = { path = "../hkask-mcp" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
-hkask-ports = { path = "../hkask-ports" }
 hkask-regulation = { path = "../hkask-regulation" }
 hkask-ledger = { path = "../hkask-ledger" }
 reqwest.workspace = true

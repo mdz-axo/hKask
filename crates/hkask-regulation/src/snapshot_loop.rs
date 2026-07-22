@@ -16,7 +16,7 @@ use crate::types::loops::{
     ActionType, Deviation, LoopId, RegulationLoop, RegulatoryAction, RegulatoryActionParams,
     Signal, SignalMetric,
 };
-use hkask_ports::git_cas::{
+use hkask_types::git_cas::{
     CasRetentionPolicy, CasRetentionTier, CommitHash, GitCASPort, RepoId, RepoSnapshotPolicy,
 };
 use std::collections::HashMap;

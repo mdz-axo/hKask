@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use hkask_ports::RegistryIndex;
+use hkask_types::RegistryIndex;
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceConfig;
 use hkask_services_onboarding::ResolvedSecrets;
@@ -24,7 +24,7 @@ pub fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, label: &str) -> T 
 /// List templates from an in-memory SqliteRegistry (for REPL host use).
 ///
 /// Returns an empty Vec on registry creation failure (graceful degradation).
-pub fn list_templates_local() -> Vec<hkask_ports::RegistryEntry> {
+pub fn list_templates_local() -> Vec<hkask_types::RegistryEntry> {
     let registry = match SqliteRegistry::new(None) {
         Ok(r) => r,
         Err(e) => {

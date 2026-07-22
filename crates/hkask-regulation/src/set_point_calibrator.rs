@@ -16,7 +16,7 @@
 //! Default: 30 events (configurable via `HKASK_SET_POINT_MIN_OBSERVATIONS`).
 
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_ports::LedgerStoragePort;
+use hkask_types::LedgerStoragePort;
 use hkask_types::InfrastructureError;
 use std::collections::HashMap;
 use std::sync::Arc;

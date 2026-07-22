@@ -72,7 +72,7 @@ pub struct ApiState {
     /// Template-loading adapter — surface-specific
     pub template_adapter: Arc<hkask_templates::TemplateCrateLoader>,
     /// Git CAS port for all CAS operations (hexagonal boundary) — surface-specific
-    pub git_cas_port: Arc<dyn hkask_ports::git_cas::GitCASPort>,
+    pub git_cas_port: Arc<dyn hkask_types::git_cas::GitCASPort>,
     /// GixCasAdapter for admin operations (resolve_ref, diff) — surface-specific
     pub gix_cas: Arc<hkask_git_cas::GixCasAdapter>,
     /// Wallet service for rJoule payments and API key management — surface-specific.

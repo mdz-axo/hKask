@@ -147,7 +147,7 @@ impl KataEngine {
     /// `[P9]` Motivating: Homeostatic Self-Regulation — closes the per-task gas loop.
     /// pre:  result is a valid InferenceResult with usage data
     /// post: task.gas_remaining is decremented by total_tokens; GasEntry appended to audit trail
-    pub(super) fn deduct_task_gas(&self, result: &hkask_ports::InferenceResult, step_label: &str) {
+    pub(super) fn deduct_task_gas(&self, result: &hkask_types::InferenceResult, step_label: &str) {
         let Some(ref accountant) = self.task_gas_accountant else {
             return;
         };

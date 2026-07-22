@@ -16,7 +16,7 @@
 //! Skills anchor the judge's reasoning with hKask's pragmatic methodology.
 
 use crate::config::{AlgoMethod, ConvergenceVerdict, FusionConfig, FusionMode, FusionSkill};
-use hkask_ports::{
+use hkask_types::{
     ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
     StructuredToolCall,
 };
@@ -1133,7 +1133,7 @@ mod tests {
         ConvergenceVerdict, jaccard, merge_json_values, parse_convergence_verdict, vote_json_values,
     };
     use crate::config::{AlgoMethod, FusionConfig, FusionMode};
-    use hkask_ports::{
+    use hkask_types::{
         ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
     };
     use hkask_types::fusion::NonEmptyVec;
@@ -1271,7 +1271,7 @@ mod tests {
         super::PanelResponse {
             model_name: name.into(),
             text: text.into(),
-            usage: hkask_ports::InferenceUsage::default(),
+            usage: hkask_types::InferenceUsage::default(),
             tool_calls: Vec::new(),
             finish_reason: "stop".to_string(),
         }

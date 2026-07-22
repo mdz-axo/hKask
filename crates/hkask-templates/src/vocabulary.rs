@@ -1,4 +1,4 @@
-use hkask_ports::registry::RegistryEntry;
+use hkask_types::registry::RegistryEntry;
 
 /// Known vocabulary terms — bootstrapped from manifest `lexicon_terms` across the skill corpus.
 ///
@@ -523,7 +523,7 @@ mod tests {
 
     #[test]
     fn validate_entry_flags_ill_formed_terms() {
-        use hkask_ports::registry::RegistryEntry;
+        use hkask_types::registry::RegistryEntry;
         use hkask_types::TemplateType;
         let entry = RegistryEntry {
             id: "test/ill-formed".into(),

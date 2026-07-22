@@ -2,7 +2,7 @@
 
 use super::tree::{collect_paths, commit_tree_oid};
 use super::{GixCasAdapter, oid_to_commit_hash, spawn_blocking_io};
-use hkask_ports::git_cas::{CommitHash, DiffKind, FileDiff, GitCasError, RepoId};
+use hkask_types::git_cas::{CommitHash, DiffKind, FileDiff, GitCasError, RepoId};
 
 impl GixCasAdapter {
     /// Resolve a symbolic ref (branch, tag) to a commit SHA.

@@ -181,7 +181,7 @@ pub(crate) async fn get_bundle(
 /// available, or creates a fresh port as fallback.
 fn resolve_api_composition_port(
     state: &ApiState,
-) -> Result<std::sync::Arc<dyn hkask_ports::InferencePort>, ServiceError> {
+) -> Result<std::sync::Arc<dyn hkask_types::InferencePort>, ServiceError> {
     // Prefer the shared port from AgentService
     if let Some(port) = state.agent_service.infra().inference.clone() {
         return Ok(port);

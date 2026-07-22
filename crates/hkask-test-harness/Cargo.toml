@@ -8,7 +8,6 @@ description = "Shared test fixtures and harness for hKask — temp DBs, keystore
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
-hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-regulation = { path = "../hkask-regulation" }

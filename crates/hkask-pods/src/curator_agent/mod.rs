@@ -48,7 +48,7 @@ pub struct CuratorAgent {
     /// Federation link manager — set via `with_federation()`. Handles
     /// InviteToFederation, PauseFederationLink, RevokeFederationMember,
     /// LeaveFederation, and DissolveFederation directives.
-    link_manager: Option<Arc<dyn hkask_ports::federation::FederationDispatch>>,
+    link_manager: Option<Arc<dyn hkask_types::federation::FederationDispatch>>,
 }
 
 impl CuratorAgent {
@@ -186,7 +186,7 @@ impl CuratorAgent {
     /// Attach a FederationLinkManager for federation directive dispatch.
     pub fn with_federation(
         mut self,
-        link_manager: Arc<dyn hkask_ports::federation::FederationDispatch>,
+        link_manager: Arc<dyn hkask_types::federation::FederationDispatch>,
     ) -> Self {
         self.link_manager = Some(link_manager);
         self
@@ -214,10 +214,10 @@ impl CuratorAgent {
     pub async fn handle_federation_directive(
         &self,
         directive: &hkask_types::curator::CuratorDirective,
-    ) -> Result<(), hkask_ports::federation::FederationDispatchError> {
+    ) -> Result<(), hkask_types::federation::FederationDispatchError> {
         use hkask_types::curator::CuratorDirective;
         let lm = self.link_manager.as_ref().ok_or_else(|| {
-            hkask_ports::federation::FederationDispatchError::OperationFailed(
+            hkask_types::federation::FederationDispatchError::OperationFailed(
                 "no federation link manager configured".into(),
             )
         })?;

@@ -21,7 +21,6 @@ tokio.workspace = true
 # Kata-specific
 hkask-regulation = { path = "../hkask-regulation" }
 hkask-templates = { path = "../hkask-templates" }
-hkask-ports = { path = "../hkask-ports" }
 hkask-inference = { path = "../hkask-inference" }
 minijinja.workspace = true
 

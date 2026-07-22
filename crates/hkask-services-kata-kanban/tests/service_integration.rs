@@ -4,7 +4,7 @@
 #[cfg(test)]
 mod tests {
     use hkask_storage::database::sqlite::SqliteDriver;
-    use hkask_ports::{
+    use hkask_types::{
         ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
     };
     use hkask_services_kata_kanban::kanban::{ColumnDef, KanbanService, TaskSpec};

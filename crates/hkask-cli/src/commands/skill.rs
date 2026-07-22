@@ -31,7 +31,7 @@ fn skill_audit(fail_below: f64, json: bool) {
         }
     };
 
-    use hkask_ports::{RegistryIndex, SkillRegistryIndex};
+    use hkask_types::{RegistryIndex, SkillRegistryIndex};
     let registry_ref: &dyn RegistryIndex = &registry;
     let skill_index_ref: &dyn SkillRegistryIndex = &registry;
     let auditor = SkillAuditor::new(registry_ref, skill_index_ref, &root);

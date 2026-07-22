@@ -16,7 +16,7 @@
 //!   └── extract_urls()            — Collect media URLs from display output
 //! ```
 
-use hkask_ports::InferenceError;
+use hkask_types::InferenceError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};

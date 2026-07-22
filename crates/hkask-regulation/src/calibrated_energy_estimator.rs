@@ -22,7 +22,7 @@ use crate::dynamic_gas_table::DynamicGasTable;
 use crate::energy_estimator::EnergyEstimator;
 use crate::gas_report::GasReport;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_ports::LedgerStoragePort;
+use hkask_types::LedgerStoragePort;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span};

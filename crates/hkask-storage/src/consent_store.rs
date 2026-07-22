@@ -148,7 +148,7 @@ impl ConsentStore {
 
 // ── ConsentPort implementation ───────────────────────────────────────
 
-impl hkask_ports::consent_port::ConsentPort for ConsentStore {
+impl hkask_types::consent_port::ConsentPort for ConsentStore {
     fn initialize_schema(&self) -> Result<(), InfrastructureError> {
         // Schema initialized by from_driver() via init_schema().
         Ok(())
@@ -156,7 +156,7 @@ impl hkask_ports::consent_port::ConsentPort for ConsentStore {
 
     fn store(
         &self,
-        record: &hkask_ports::consent_port::StoredConsentRecord,
+        record: &hkask_types::consent_port::StoredConsentRecord,
     ) -> Result<(), InfrastructureError> {
         let local = StoredConsentRecord {
             id: record.id.clone(),
@@ -172,12 +172,12 @@ impl hkask_ports::consent_port::ConsentPort for ConsentStore {
 
     fn list_active(
         &self,
-    ) -> Result<Vec<hkask_ports::consent_port::StoredConsentRecord>, InfrastructureError> {
+    ) -> Result<Vec<hkask_types::consent_port::StoredConsentRecord>, InfrastructureError> {
         self.list_active()
             .map(|records| {
                 records
                     .into_iter()
-                    .map(|r| hkask_ports::consent_port::StoredConsentRecord {
+                    .map(|r| hkask_types::consent_port::StoredConsentRecord {
                         id: r.id,
                         webid: r.webid,
                         granted_categories: r.granted_categories,

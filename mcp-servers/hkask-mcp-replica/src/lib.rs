@@ -1028,8 +1028,8 @@ impl ReplicaServer {
         Parameters(params): Parameters<PipelineRunRequest>,
     ) -> String {
         execute_tool(self, "replica_pipeline_run", async {
-            use hkask_ports::pipeline_manifest::PipelineManifest;
-            use hkask_ports::pipeline_runner::{PipelineRunner, StepExecutor};
+            use hkask_types::pipeline_manifest::PipelineManifest;
+            use hkask_types::pipeline_runner::{PipelineRunner, StepExecutor};
 
             let content = std::fs::read_to_string(&params.manifest_path)
                 .map_err(|e| McpToolError::invalid_argument(format!("Cannot read manifest: {e}")))?;
@@ -1043,14 +1043,14 @@ impl ReplicaServer {
             // All tools (docproc_*, replica_*) require external MCP execution.
             struct ReplicaStepExecutor;
             impl StepExecutor for ReplicaStepExecutor {
-                fn execute(&self, step: &hkask_ports::pipeline_manifest::PipelineStep) -> Result<serde_json::Value, hkask_ports::pipeline_runner::PipelineError> {
+                fn execute(&self, step: &hkask_types::pipeline_manifest::PipelineStep) -> Result<serde_json::Value, hkask_types::pipeline_runner::PipelineError> {
                     if step.params.is_none() {
-                        return Err(hkask_ports::pipeline_runner::PipelineError::StepFailed {
+                        return Err(hkask_types::pipeline_runner::PipelineError::StepFailed {
                             step_id: step.id.clone(),
                             message: format!("Step '{}' requires parameters for tool '{}'", step.id, step.tool),
                         });
                     }
-                    Err(hkask_ports::pipeline_runner::PipelineError::StepFailed {
+                    Err(hkask_types::pipeline_runner::PipelineError::StepFailed {
                         step_id: step.id.clone(),
                         message: format!(
                             "Step '{}' uses tool '{}' — external MCP execution required. Run via kask mcp invoke --server <tool-server> --tool {}.",

@@ -6,7 +6,7 @@
 
 use std::sync::Arc;
 
-use hkask_ports::{InferencePort, InferenceUsage};
+use hkask_types::{InferencePort, InferenceUsage};
 use hkask_services_chat::{ChatService, ChatTurnRequest, MemoryService, PreparedChat};
 use hkask_services_context::AgentService;
 use hkask_services_onboarding::ResolvedSecrets;
@@ -48,7 +48,7 @@ async fn finish_stream(
     let mut full_text = String::new();
     let mut final_usage: Option<InferenceUsage> = None;
     let mut final_finish_reason = String::from("stop");
-    let mut final_tool_calls: Vec<hkask_ports::StructuredToolCall> = vec![];
+    let mut final_tool_calls: Vec<hkask_types::StructuredToolCall> = vec![];
 
     use futures_util::StreamExt;
     let mut stream = Box::pin(stream);

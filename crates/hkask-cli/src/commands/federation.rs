@@ -1,7 +1,7 @@
 //! Federation commands — delegates to FederationService.
 
 use hkask_federation::service::FederationService;
-use hkask_ports::federation::FederationDispatch;
+use hkask_types::federation::FederationDispatch;
 use std::sync::Arc;
 
 use crate::cli::FederationAction;

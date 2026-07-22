@@ -50,8 +50,8 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
-use hkask_ports::federation::{FederationDispatch, FederationSyncPort};
-use hkask_ports::{ConsolidationOutcome, ConsolidationRequest, InferencePort, LedgerStoragePort};
+use hkask_types::federation::{FederationDispatch, FederationSyncPort};
+use hkask_types::{ConsolidationOutcome, ConsolidationRequest, InferencePort, LedgerStoragePort};
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::regulation_store::RegulationArchive;

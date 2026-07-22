@@ -20,7 +20,7 @@ use std::sync::Mutex;
 
 use hkask_mcp::daemon::DaemonHandler;
 use hkask_pods::pod::ActivePods;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_regulation::RegulationLedger;
 use hkask_storage::user_store::UserStore;
 use hkask_types::template::LLMParameters;

@@ -29,7 +29,7 @@ use crate::adapter::provider_cost::{CostModel, ProviderCapability, ProviderInfo}
 use hkask_capability::DelegationToken;
 use hkask_storage::database::value::DbValue;
 use hkask_inference::ProviderId;
-use hkask_ports::InferenceResult;
+use hkask_types::InferenceResult;
 use hkask_types::NotFound;
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;

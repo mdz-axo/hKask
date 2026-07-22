@@ -3,7 +3,7 @@ pub mod archive;
 
 use chrono::{DateTime, Utc};
 use crate::database::value::{DbRow, DbValue};
-use hkask_ports::git_cas::HMemEntry;
+use hkask_types::git_cas::HMemEntry;
 use hkask_types::id::{HMemId, WebID};
 use hkask_types::time::now_rfc3339;
 use hkask_types::visibility::AccessControl;

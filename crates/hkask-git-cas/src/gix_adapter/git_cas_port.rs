@@ -2,7 +2,7 @@
 
 use super::{GixCasAdapter, build_tree, oid_to_commit_hash, open_or_init_repo, spawn_blocking_io};
 use crate::gix_adapter::tree::{commit_tree_oid, list_tree_recursive};
-use hkask_ports::git_cas::{
+use hkask_types::git_cas::{
     CommitHash, ContentHash, GitCASPort, GitCasError, GitCasVerificationReport, LogEntry, RepoId,
     TreeEntry,
 };
@@ -202,7 +202,7 @@ impl GitCASPort for GixCasAdapter {
                     .unwrap_or_default()
                     .to_string_lossy()
                     .parse()
-                    .map_err(|e: hkask_ports::git_cas::ParseHashError| {
+                    .map_err(|e: hkask_types::git_cas::ParseHashError| {
                         GitCasError::PathValidation(format!(
                             "Invalid blob hash filename '{}': {e}",
                             path.display()

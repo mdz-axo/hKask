@@ -41,7 +41,7 @@ impl WalletService {
             })?;
         let budget = hkask_regulation::WalletBackedBudget::new(
             wallet_id,
-            Arc::clone(&self.manager) as Arc<dyn hkask_ports::WalletBudgetPort>,
+            Arc::clone(&self.manager) as Arc<dyn hkask_types::WalletBudgetPort>,
         );
         loop_
             .read()
@@ -80,7 +80,7 @@ impl WalletService {
             })?;
         let budget = hkask_regulation::WalletBackedBudget::new(
             wallet_id,
-            Arc::clone(&self.manager) as Arc<dyn hkask_ports::WalletBudgetPort>,
+            Arc::clone(&self.manager) as Arc<dyn hkask_types::WalletBudgetPort>,
         )
         .with_api_key(key_id, spending_limit_rj);
         loop_

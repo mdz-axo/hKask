@@ -6,7 +6,7 @@
 use crate::bundle::BundleManifest;
 use crate::bundle::BundleRegistryIndex;
 use crate::ports::{Result, TemplateError};
-use hkask_ports::{
+use hkask_types::{
     RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
 };
 use hkask_types::SkillPolarity;
@@ -374,9 +374,9 @@ impl RegistryIndex for SqliteRegistry {
             .collect()
     }
 
-    fn get(&self, id: &str) -> std::result::Result<RegistryEntry, hkask_ports::RegistryError> {
+    fn get(&self, id: &str) -> std::result::Result<RegistryEntry, hkask_types::RegistryError> {
         self.get_entry(id).map_err(|e| {
-            hkask_ports::RegistryError::NotFound(NotFound {
+            hkask_types::RegistryError::NotFound(NotFound {
                 entity_type: "template".to_string(),
                 id: format!("Template '{}': {}", id, e),
             })

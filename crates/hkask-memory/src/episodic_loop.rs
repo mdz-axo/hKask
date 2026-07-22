@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::consolidation::ConsolidationBridge;
 use crate::episodic::EpisodicMemory;
-use hkask_ports::ConsolidationRequest;
+use hkask_types::ConsolidationRequest;
 use hkask_regulation::types::loops::{
     ActionType, Deviation, DeviationDirection, LoopId, RegulationLoop, RegulatoryAction,
     RegulatoryActionParams, Signal, SignalMetric,

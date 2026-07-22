@@ -15,7 +15,7 @@
 //!   Re-export shim removed (ADR-042 migration complete; see ADR-060).
 
 pub use crate::types::audit::{AuditEntry, AuditOutcome};
-pub use hkask_ports::consent_port::ConsentPort;
-pub use hkask_ports::escalation::{
+pub use hkask_types::consent_port::ConsentPort;
+pub use hkask_types::escalation::{
     EscalationBatch, EscalationEntry, EscalationPort, EscalationStatus,
 };

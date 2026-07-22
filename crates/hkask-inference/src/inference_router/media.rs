@@ -1,7 +1,7 @@
 //! Media generation dispatch — vision, image, video, speech, segmentation, transcription.
 
 use super::InferenceRouter;
-use hkask_ports::InferenceError;
+use hkask_types::InferenceError;
 use hkask_types::template::LLMParameters;
 
 impl InferenceRouter {
@@ -23,7 +23,7 @@ impl InferenceRouter {
         images: &[String],
         params: &LLMParameters,
         model_override: Option<&str>,
-    ) -> Result<hkask_ports::InferenceResult, InferenceError> {
+    ) -> Result<hkask_types::InferenceResult, InferenceError> {
         let model_name = model_override
             .map(|s| s.to_string())
             .unwrap_or_else(|| self.config.default_model.clone());

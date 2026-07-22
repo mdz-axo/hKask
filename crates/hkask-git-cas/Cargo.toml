@@ -6,7 +6,6 @@ license.workspace = true
 description = "gix-backed Git content-addressed storage adapter — the backup/gitcas component for registries and artifacts. The only crate that depends on gix."
 
 [dependencies]
-hkask-ports = { path = "../hkask-ports" }
 hkask-types = { path = "../hkask-types" }
 gix = "0.81"
 tokio.workspace = true

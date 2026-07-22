@@ -1,6 +1,6 @@
 //! Git tree helpers — commit_tree_oid, list_tree_recursive, collect_paths.
 
-use hkask_ports::git_cas::{ContentHash, GitCasError, TreeEntry, TreeEntryKind};
+use hkask_types::git_cas::{ContentHash, GitCasError, TreeEntry, TreeEntryKind};
 
 pub(crate) fn commit_tree_oid(
     repo: &gix::Repository,

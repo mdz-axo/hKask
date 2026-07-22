@@ -10,7 +10,7 @@
 use crate::chat_protocol::{stream_chat_completion, vision_infer};
 use crate::config::InferenceConfig;
 use crate::openai_backend::openai_compatible_generate;
-use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

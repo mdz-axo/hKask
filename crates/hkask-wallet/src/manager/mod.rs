@@ -307,7 +307,7 @@ fn hkdf_expand(seed: &[u8], info: &[u8]) -> Result<Vec<u8>, WalletError> {
 /// Implement the hexagonal port so Regulation depends on the trait, not the concrete type.
 /// Per Conant-Ashby: the regulator (Regulation) models the system (wallet) via this
 /// abstract interface, not via direct coupling to `WalletManager`.
-impl hkask_ports::WalletBudgetPort for WalletManager {
+impl hkask_types::WalletBudgetPort for WalletManager {
     fn gas_to_rjoules(&self, gas: u64) -> RJoule {
         WalletManager::gas_to_rjoules(self, gas)
     }
@@ -331,9 +331,9 @@ impl hkask_ports::WalletBudgetPort for WalletManager {
     fn get_balance(
         &self,
         wallet_id: WalletId,
-    ) -> Result<hkask_types::WalletBalance, hkask_ports::WalletBudgetError> {
+    ) -> Result<hkask_types::WalletBalance, hkask_types::WalletBudgetError> {
         WalletManager::get_balance(self, wallet_id)
-            .map_err(|e| hkask_ports::WalletBudgetError::Wallet(e.to_string()))
+            .map_err(|e| hkask_types::WalletBudgetError::Wallet(e.to_string()))
     }
 
     fn gas_per_rjoule(&self) -> u64 {
@@ -348,9 +348,9 @@ impl hkask_ports::WalletBudgetPort for WalletManager {
         &self,
         key_id: ApiKeyId,
         gas_rj: RJoule,
-    ) -> Result<(), hkask_ports::WalletBudgetError> {
+    ) -> Result<(), hkask_types::WalletBudgetError> {
         WalletManager::consume(self, key_id, gas_rj)
-            .map_err(|e| hkask_ports::WalletBudgetError::Wallet(e.to_string()))
+            .map_err(|e| hkask_types::WalletBudgetError::Wallet(e.to_string()))
     }
 
     fn settle_rjoules(
@@ -358,9 +358,9 @@ impl hkask_ports::WalletBudgetPort for WalletManager {
         wallet_id: WalletId,
         reserved_rj: RJoule,
         actual_rj: RJoule,
-    ) -> Result<(), hkask_ports::WalletBudgetError> {
+    ) -> Result<(), hkask_types::WalletBudgetError> {
         WalletManager::settle_rjoules(self, wallet_id, reserved_rj, actual_rj)
-            .map_err(|e| hkask_ports::WalletBudgetError::Wallet(e.to_string()))
+            .map_err(|e| hkask_types::WalletBudgetError::Wallet(e.to_string()))
     }
 }
 

@@ -12,7 +12,6 @@ hkask-inference = { path = "../hkask-inference" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
-hkask-ports = { path = "../hkask-ports" }
 hkask-capability = { path = "../hkask-capability" }
 serde.workspace = true
 serde_json.workspace = true

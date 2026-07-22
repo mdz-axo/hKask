@@ -27,7 +27,7 @@ pub trait ReplHost: Send + Sync {
         &self,
         rt: &tokio::runtime::Handle,
     ) -> Result<OnboardingOutcome, OnboardingError>;
-    fn list_templates_local(&self) -> Vec<hkask_ports::RegistryEntry>;
+    fn list_templates_local(&self) -> Vec<hkask_types::RegistryEntry>;
     #[cfg(feature = "tui")]
     fn open_transcript_viewer(&self, path: &std::path::Path) -> anyhow::Result<()>;
     fn run_sovereignty_status(&self);

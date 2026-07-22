@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use hkask_ports::federation::{FederationDispatch, FederationDispatchError};
+use hkask_types::federation::{FederationDispatch, FederationDispatchError};
 
 /// Service for federation lifecycle operations.
 ///

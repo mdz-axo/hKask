@@ -14,7 +14,7 @@ use crate::ollama_backend::OllamaBackend;
 use crate::openrouter_backend::OpenRouterBackend;
 use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
-use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult};
+use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_regulation::{CyberneticsLoop, GasCost};
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::regulation::RegulationSpan;
@@ -434,7 +434,7 @@ impl InferenceRouter {
         &self,
         text: &str,
         model_override: Option<&str>,
-    ) -> Result<Vec<f32>, hkask_ports::EmbeddingGenerationError> {
+    ) -> Result<Vec<f32>, hkask_types::EmbeddingGenerationError> {
         let model = model_override.unwrap_or(&self.config.default_model);
         self.embedding.embed_sentence(model, text).await
     }

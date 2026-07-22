@@ -7,7 +7,7 @@
 // Used via derive macros (serde/thiserror/async_trait) — invisible to unused_crate_dependencies lint
 #![allow(unused_crate_dependencies)]
 
-pub use hkask_ports::ReplicaId;
+pub use hkask_types::ReplicaId;
 
 pub mod crdt;
 pub mod reg_span;

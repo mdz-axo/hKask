@@ -94,7 +94,7 @@ use hkask_inference::{InferenceConfig, InferenceRouter};
 
 use hkask_mcp::server::{McpToolError, execute_tool};
 use hkask_memory::SemanticMemory;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_storage::HMem;
 use hkask_types::Visibility;
 use hkask_types::template::LLMParameters;

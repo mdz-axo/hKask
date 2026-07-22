@@ -22,7 +22,7 @@
 
 use std::sync::Arc;
 
-use hkask_ports::{InferencePort, SkillRegistryIndex};
+use hkask_types::{InferencePort, SkillRegistryIndex};
 use hkask_templates::BundleManifest;
 use hkask_templates::BundleRegistryIndex;
 use hkask_types::Visibility;
@@ -97,7 +97,7 @@ impl BundleService {
         // Resolve skill metadata from the registry.
         let registry = ctx.storage().registry.clone();
         let registry_guard = registry.lock().await;
-        let skills: Vec<hkask_ports::Skill> = skill_ids
+        let skills: Vec<hkask_types::Skill> = skill_ids
             .iter()
             .filter_map(|id| registry_guard.get_skill(id))
             .collect();
@@ -346,9 +346,9 @@ impl BundleService {
     /// Returns `Vec<Skill>` directly (not `Result`) because the underlying
     /// `tokio::sync::Mutex` cannot poison — the previous `Result` wrapper had a
     /// dead error path (adversarial review F20/C5).
-    pub async fn list_skills(ctx: &AgentService) -> Vec<hkask_ports::Skill> {
+    pub async fn list_skills(ctx: &AgentService) -> Vec<hkask_types::Skill> {
         let registry = ctx.storage().registry.clone();
         let guard = registry.lock().await;
-        hkask_ports::SkillRegistryIndex::list_skills(&*guard)
+        hkask_types::SkillRegistryIndex::list_skills(&*guard)
     }
 }

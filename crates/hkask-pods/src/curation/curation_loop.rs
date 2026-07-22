@@ -17,7 +17,7 @@
 
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
-use hkask_ports::ConsolidationRequest;
+use hkask_types::ConsolidationRequest;
 use hkask_regulation::types::loops::{
     CommunicationEvent, CurationInput, Deviation, LoopId, RegulationLoop, RegulatoryAction, Signal,
     SignalMetric,

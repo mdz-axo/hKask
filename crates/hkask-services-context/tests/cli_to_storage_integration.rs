@@ -243,7 +243,7 @@ async fn consolidate_userpod_memory_consent_checks() {
     let svc = build_test_service().await;
     let agent_name = "test-agent"; // matches ServiceConfig::in_memory()
     let target_webid = hkask_types::WebID::for_userpod_name(agent_name);
-    let request = hkask_ports::ConsolidationRequest::default();
+    let request = hkask_types::ConsolidationRequest::default();
 
     // Part 1: consent denied — no consent granted yet
     let result = svc.consolidate_userpod_memory(agent_name, request.clone());

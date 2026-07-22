@@ -9,7 +9,7 @@
 //! but own their HTTP client, auth, and model listing endpoint independently.
 
 use futures_util::StreamExt;
-use hkask_ports::{
+use hkask_types::{
     ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage,
     StructuredToolCall, TokenProb, TokenProbability,
 };

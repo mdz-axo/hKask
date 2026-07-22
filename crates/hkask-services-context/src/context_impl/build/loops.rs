@@ -5,7 +5,7 @@ use hkask_storage::database::sqlite::SqliteDriver;
 
 use super::foundation::Foundation;
 use crate::reg_store_slo_provider::RegStoreSloProvider;
-use hkask_ports::{LedgerStoragePort, escalation::EscalationPort};
+use hkask_types::{LedgerStoragePort, escalation::EscalationPort};
 use hkask_regulation::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use std::path::PathBuf;
@@ -203,7 +203,7 @@ pub(super) async fn build_loops(
         == Ok("1")
     {
         let local_replica = system_webid.to_string();
-        let transport: Arc<dyn hkask_ports::federation::FederationTransport> =
+        let transport: Arc<dyn hkask_types::federation::FederationTransport> =
             Arc::new(InMemoryFederationTransport::for_replica(
                 &InMemoryFederationTransport::new_shared(),
                 local_replica.clone(),

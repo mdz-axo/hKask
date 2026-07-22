@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use hkask_federation::crdt::ORSet;
 use hkask_federation::sync::transport::InMemoryFederationTransport;
-use hkask_ports::federation::{FederationMessage, FederationTransport};
+use hkask_types::federation::{FederationMessage, FederationTransport};
 
 /// Verify that a h_mem added on replica A becomes visible on replica B
 /// after a sync cycle. This is the fundamental "convergence" property.
@@ -76,7 +76,7 @@ async fn partition_prevents_message_delivery() {
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        hkask_ports::federation::FederationTransportError::PeerPartitioned(_)
+        hkask_types::federation::FederationTransportError::PeerPartitioned(_)
     ));
 
     // Heal partition

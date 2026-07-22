@@ -12,7 +12,7 @@
 
 use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
 use hkask_mcp::McpRuntime;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_capability::ToolPort;
 use hkask_regulation::ExperienceClassification;
 use hkask_types::DataCategory;

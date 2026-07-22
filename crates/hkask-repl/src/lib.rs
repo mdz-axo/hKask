@@ -100,7 +100,7 @@ pub struct ReplState {
     pub resolved_secrets: Option<hkask_services_onboarding::ResolvedSecrets>,
     /// Tool definitions for native function calling. Discovered from McpRuntime
     /// at init and refreshed when servers start/stop.
-    pub tool_definitions: Vec<hkask_ports::ChatToolDefinition>,
+    pub tool_definitions: Vec<hkask_types::ChatToolDefinition>,
     pub manifest_state: ManifestState,
     pub service_context: Arc<AgentService>,
     pub repl_settings: ReplSettings,

@@ -21,7 +21,7 @@ impl ReplHost for CliHost {
         }
     }
 
-    fn list_templates_local(&self) -> Vec<hkask_ports::RegistryEntry> {
+    fn list_templates_local(&self) -> Vec<hkask_types::RegistryEntry> {
         crate::commands::helpers::list_templates_local()
     }
 

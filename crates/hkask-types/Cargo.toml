@@ -17,6 +17,10 @@ thiserror.workspace = true
 dirs = "6"
 zeroize.workspace = true
 hex.workspace = true
+futures-util.workspace = true
+async-trait.workspace = true
+blake3.workspace = true
+sha2.workspace = true
 tracing.workspace = true
 
 rusqlite = { workspace = true, optional = true }

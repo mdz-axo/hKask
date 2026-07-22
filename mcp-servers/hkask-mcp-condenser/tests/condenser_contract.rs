@@ -156,24 +156,24 @@ fn health_check_flags_low_compression_ratio() {
 /// A no-op InferencePort for testing — avoids real API calls.
 struct NoopInferencePort;
 
-impl hkask_ports::InferencePort for NoopInferencePort {
+impl hkask_types::InferencePort for NoopInferencePort {
     fn generate(
         &self,
         _prompt: &str,
         _parameters: &hkask_types::template::LLMParameters,
-        _tools: Option<&[hkask_ports::ChatToolDefinition]>,
+        _tools: Option<&[hkask_types::ChatToolDefinition]>,
     ) -> Pin<
         Box<
-            dyn Future<Output = Result<hkask_ports::InferenceResult, hkask_ports::InferenceError>>
+            dyn Future<Output = Result<hkask_types::InferenceResult, hkask_types::InferenceError>>
                 + Send
                 + '_,
         >,
     > {
         Box::pin(async {
-            Ok(hkask_ports::InferenceResult {
+            Ok(hkask_types::InferenceResult {
                 text: String::new(),
                 model: "noop".into(),
-                usage: hkask_ports::InferenceUsage {
+                usage: hkask_types::InferenceUsage {
                     prompt_tokens: 0,
                     completion_tokens: 0,
                     total_tokens: 0,

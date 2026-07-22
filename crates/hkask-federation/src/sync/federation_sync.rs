@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::reg_span::FederationSpan;
-use hkask_ports::federation::{
+use hkask_types::federation::{
     FederationDelta, FederationMessage, FederationSyncPort, FederationTransport,
 };
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};

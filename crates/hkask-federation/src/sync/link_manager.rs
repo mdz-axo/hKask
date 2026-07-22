@@ -10,7 +10,7 @@ use chrono::Utc;
 use tokio::sync::RwLock;
 
 use crate::reg_span::FederationSpan;
-use hkask_ports::federation::{FederationDispatchError, FederationMessage, FederationTransport};
+use hkask_types::federation::{FederationDispatchError, FederationMessage, FederationTransport};
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 
 use crate::ReplicaId;
@@ -213,7 +213,7 @@ impl FederationLinkManager {
 }
 
 #[async_trait::async_trait]
-impl hkask_ports::federation::FederationDispatch for FederationLinkManager {
+impl hkask_types::federation::FederationDispatch for FederationLinkManager {
     async fn register_peer(
         &self,
         replica: ReplicaId,

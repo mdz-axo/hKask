@@ -12,7 +12,7 @@ use crate::bundle::BundleManifest;
 use crate::bundle::BundleRegistryIndex;
 use crate::ports::{Result, TemplateError};
 use hkask_capability::SYSTEM_MAX_RECURSION;
-use hkask_ports::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
+use hkask_types::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
 use hkask_types::NotFound;
 use hkask_types::Visibility;
 use hkask_types::template_type::TemplateType;
@@ -187,7 +187,7 @@ impl Registry {
     pub fn register(
         &mut self,
         entry: RegistryEntry,
-    ) -> std::result::Result<(), hkask_ports::RegistryError> {
+    ) -> std::result::Result<(), hkask_types::RegistryError> {
         // Validate entry consistency
         let warnings = entry.validate();
         for warning in &warnings {
@@ -199,7 +199,7 @@ impl Registry {
         // `visibilty` should not silently register with a bad tag).
         let vocab_warnings = crate::vocabulary::validate_entry(&entry);
         if !vocab_warnings.is_empty() {
-            return Err(hkask_ports::RegistryError::Other(format!(
+            return Err(hkask_types::RegistryError::Other(format!(
                 "lexicon validation failed: {}",
                 vocab_warnings.join("; ")
             )));
@@ -487,14 +487,14 @@ impl RegistryIndex for Registry {
         }
     }
 
-    fn get(&self, id: &str) -> std::result::Result<RegistryEntry, hkask_ports::RegistryError> {
+    fn get(&self, id: &str) -> std::result::Result<RegistryEntry, hkask_types::RegistryError> {
         // Validate path first (security)
         if let Err(e) = Self::validate_template_path(id) {
-            return Err(hkask_ports::RegistryError::Other(e.to_string()));
+            return Err(hkask_types::RegistryError::Other(e.to_string()));
         }
         // Delegate to inherent `get` (avoids trait method name collision)
         Registry::get(self, id).cloned().ok_or_else(|| {
-            hkask_ports::RegistryError::NotFound(NotFound {
+            hkask_types::RegistryError::NotFound(NotFound {
                 entity_type: "template".to_string(),
                 id: format!("Template '{}' not found", id),
             })
@@ -506,7 +506,7 @@ impl SkillRegistryIndex for Registry {
     fn register_skill(
         &mut self,
         skill: Skill,
-    ) -> std::result::Result<(), hkask_ports::RegistryError> {
+    ) -> std::result::Result<(), hkask_types::RegistryError> {
         Registry::register_skill(self, skill);
         Ok(())
     }
@@ -534,7 +534,7 @@ impl SkillRegistryIndex for Registry {
     fn remove_skill(
         &mut self,
         id: &str,
-    ) -> std::result::Result<Option<Skill>, hkask_ports::RegistryError> {
+    ) -> std::result::Result<Option<Skill>, hkask_types::RegistryError> {
         Ok(Registry::remove_skill(self, id))
     }
 }

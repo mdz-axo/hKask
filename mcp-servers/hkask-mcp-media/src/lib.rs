@@ -31,7 +31,7 @@ use hkask_inference::InferenceRouter;
 use hkask_mcp::DaemonClient;
 use hkask_mcp::server::{McpToolError, execute_tool, validate_tool_url};
 use hkask_pods::VoiceDesign;
-use hkask_ports::InferencePort;
+use hkask_types::InferencePort;
 use hkask_storage::{Database, GalleryMode, GalleryStore, GalleryStoreError};
 
 use hkask_types::{TimedWord, TranscriptBundle, TranscriptSegment};

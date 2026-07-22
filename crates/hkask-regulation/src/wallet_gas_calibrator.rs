@@ -11,8 +11,8 @@
 use crate::gas_report::GasReport;
 use crate::wallet_energy_estimator::WalletEnergyEstimator;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_ports::LedgerStoragePort;
-use hkask_ports::WalletBudgetPort;
+use hkask_types::LedgerStoragePort;
+use hkask_types::WalletBudgetPort;
 use hkask_types::InfrastructureError;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span};

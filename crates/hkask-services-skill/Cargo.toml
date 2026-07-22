@@ -10,7 +10,6 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-services-context = { path = "../hkask-services-context" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-types = { path = "../hkask-types" }
-hkask-ports = { path = "../hkask-ports" }
 tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true

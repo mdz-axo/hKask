@@ -8,7 +8,6 @@ description = "Regulation span history query MCP server — runtime telemetry fo
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
-hkask-ports = { path = "../../crates/hkask-ports" }
 hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-regulation = { path = "../../crates/hkask-regulation" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }

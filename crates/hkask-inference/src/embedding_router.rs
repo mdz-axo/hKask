@@ -4,7 +4,7 @@
 //! the 2-letter provider prefix. Both use OpenAI-compatible `/v1/embeddings`.
 
 use crate::config::{InferenceConfig, ProviderId};
-use hkask_ports::EmbeddingGenerationError;
+use hkask_types::EmbeddingGenerationError;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::{info, warn};

@@ -11,7 +11,7 @@ use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_memory::{
     ConsolidationBridge, EpisodicMemory, EpisodicMemoryError, SemanticMemory, SemanticMemoryError,
 };
-use hkask_ports::ConsolidationRequest;
+use hkask_types::ConsolidationRequest;
 use hkask_storage::{EmbeddingStore, HMem, HMemStore};
 use hkask_types::{Confidence, WebID};
 use std::sync::Arc;

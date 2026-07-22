@@ -13,7 +13,7 @@ use crate::chat_protocol::{
 use crate::config::InferenceConfig;
 use crate::fal_workflow::{self, WorkflowNode, WorkflowResult};
 use crate::openai_backend::openai_compatible_generate;
-use hkask_ports::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use serde_json::Value;
 use std::collections::HashMap;

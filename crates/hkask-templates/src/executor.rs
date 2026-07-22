@@ -45,7 +45,7 @@ use crate::bundle::BundleManifestStep;
 use crate::ports::{Result, TemplateError};
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_guard::{SpotlightMode, Spotlighter};
-use hkask_ports::{InferencePort, InferenceResult};
+use hkask_types::{InferencePort, InferenceResult};
 use hkask_capability::{ToolPort, ToolPortError};
 use hkask_types::NotFound;
 use hkask_types::ToolTaint;

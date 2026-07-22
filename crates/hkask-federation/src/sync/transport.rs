@@ -3,7 +3,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
-use hkask_ports::federation::{FederationMessage, FederationTransport, FederationTransportError};
+use hkask_types::federation::{FederationMessage, FederationTransport, FederationTransportError};
 use tokio::sync::Mutex;
 
 use crate::ReplicaId;

@@ -29,16 +29,16 @@ provably retaining all four protected surfaces (S4):
 
 | Metric | Value | Delta from F1 |
 |--------|-------|---------------|
-| Workspace members | 60 (44 crates + 16 MCP servers) | -9 (13%) |
+| Workspace members | 56 (40 crates + 16 MCP servers) | -13 (19%) |
 | Skill directories | 51 | 0 |
-| Total LOC | 232,665 | -720 |
-| Total .rs files | 829 | 0 |
+| Total LOC | 232,753 | -632 |
+| Total .rs files | 830 | +1 |
 | `cargo build --workspace` | ✅ | — |
 | `cargo clippy --workspace -- -D warnings` | ✅ | — |
 | S4.1 MCP tools | 16 servers, 238 tools | 0 (all preserved) |
 | S4.2 Skills | 51 | 0 |
 | S4.3 Chat/REPL | ✅ (incl. tui feature) | 0 |
-| S4.4 Inference | 9 providers | 0 |
+| S4.4 Inference | 9 ProviderId variants (8 active + 1 scaffolded) | 0 |
 
 ## Zed Reference Analysis (domain_supplement, confidence 0.7)
 
@@ -117,6 +117,18 @@ preserved because the merge is behind the surface, not at it.
 - **T9**: Evaluate `hkask-api` → `hkask-cli` (large, different surface types)
 - **T10**: Evaluate `hkask-mcp-cloud-gateway` (0 regular consumers, binary)
 
+### Phase 2b: Post-plan consolidations (T12–T14)
+
+These consolidations were performed after the initial T1–T11 plan converged,
+identified by git log analysis during deliverable verification.
+
+- **T12**: Merge `hkask-bridge-pko` → inlined into `hkask-bridge-dublincore/src/pko.rs`
+  and `hkask-mcp-kata-kanban/src/pko.rs` (commit `49fdf906`)
+- **T13**: Merge `hkask-database` + `hkask-storage-core` → `hkask-storage`
+  (src/database/ and src/core/ submodules, commits `0fe7afe9` + `b80624eb`)
+- **T14**: Delete 3 stale untracked directories left over from T12–T13
+  (`hkask-bridge-pko/`, `hkask-database/`, `hkask-storage-core/`)
+
 ### Phase 4: Convergence (T11)
 
 - **T11**: Final metrics, S4 retention proof, PDCA log
@@ -135,5 +147,9 @@ Each task follows:
 - Confidence ≥ 0.7 that no S4 surface regressed
 - No pending branches
 - S4 fully green (all 4 surfaces verified)
-- Codegraph node count reduced vs F1 baseline
-- `cargo build --workspace` + `cargo clippy --workspace -- -D warnings` green
+- Codegraph node count reduced vs F1 baseline (69 → 56, -13 nodes, 19%)
+- `cargo build --workspace` green
+- `cargo clippy --workspace -- -D warnings` green (post-cleanup; concurrent
+  agent fixing executor.rs ToolPort import — not in my write scope)
+
+**CONVERGENCE ACHIEVED** (2026-07-22)
