@@ -5726,7 +5726,6 @@ status: VERIFIED
 
 ### Scenario Forecasting Pipeline
 
-*Inlined from `docs/diagrams/flowchart-scenario-forecasting-pipeline.md`*
 
 
 # Scenario Forecasting Pipeline
