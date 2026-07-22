@@ -51,14 +51,8 @@ impl MovingAverageExtrapolator {
         }
     }
 
-    /// Predict the state of a metric after `horizon_ticks` cycles.
-    pub fn predict(
-        &self,
-        metric: SignalMetric,
-        current: f64,
-        set_point: f64,
-        horizon_ticks: u64,
-    ) -> MetricPrediction {
+    /// Predict the state of a metric relative to its set-point.
+    pub fn predict(&self, metric: SignalMetric, current: f64, set_point: f64) -> MetricPrediction {
         let history = self.history.lock().unwrap_or_else(|e| e.into_inner());
         let obs = history.get(&metric);
         let n = obs.map(|v| v.len()).unwrap_or(0);
@@ -123,7 +117,7 @@ mod tests {
         simulator.observe(SignalMetric::ErrorRate, 0.2);
         simulator.observe(SignalMetric::ErrorRate, 0.3);
 
-        let prediction = simulator.predict(SignalMetric::ErrorRate, 0.3, 0.5, 3);
+        let prediction = simulator.predict(SignalMetric::ErrorRate, 0.3, 0.5);
 
         assert!(prediction.reliable);
         assert!(prediction.trend > 0.0);

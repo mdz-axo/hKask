@@ -238,9 +238,13 @@ impl HarnessAdapter for AxolotlHarness {
 /// (parallel to `HKASK_AXOLOTL_CONFIG`). The pod's entrypoint writes it to
 /// `/workspace/model.yaml` and runs `ludwig train --config /workspace/model.yaml`.
 ///
-/// Phase 1 (v0.31.0): SFT (`trainer.type: finetune`) + LoRA/QLoRA. Phase 2
-/// will add DPO/KTO/ORPO/GRPO by extending `LudwigTrainer` and adding
-/// corresponding `.j2` template branches.
+/// All Ludwig trainer types are supported via `trainer.type` in the rendered
+/// YAML: finetune (SFT), dpo, kto, orpo, grpo. The trainer is selected from
+/// `job.params.trl_trainer` (reused for Ludwig since the trainer taxonomy
+/// maps 1:1) or defaults to SFT.
+///
+/// Ludwig is the only harness covering GRPO (reward-model-free RLHF) and
+/// the full advanced-PEFT initializer set (PiSSA, EVA, CorDA, LoftQ).
 ///
 /// References:
 /// - Ludwig docs: https://ludwig.ai/latest/
@@ -276,7 +280,7 @@ impl HarnessAdapter for LudwigHarness {
                 "load_in_4bit".to_string(),
                 serde_json::json!(p.quantization.load_in_4bit),
             ),
-            ("lora_r".to_string(), serde_json::json!(lo.r)),
+            ("lora_r"._string(), serde_json::json!(lo.r)),
             ("lora_alpha".to_string(), serde_json::json!(lo.alpha)),
             ("lora_dropout".to_string(), serde_json::json!(lo.dropout)),
             (
@@ -310,6 +314,21 @@ impl HarnessAdapter for LudwigHarness {
             (
                 "use_dora".to_string(),
                 serde_json::json!(lo.use_dora.to_string()),
+            ),
+            // Ludwig trainer type — derived from trl_trainer (taxonomy maps 1:1).
+            // SFT → finetune, DPO → dpo, KTO → kto, ORPO → orpo, Reward → finetune
+            // (Ludwig doesn't have a separate reward model trainer; use SFT).
+            // GRPO is Ludwig-only — it's set when trl_trainer is None but the
+            // operator declared trainer_preference=grpo (handled by G6 gate).
+            (
+                "trainer_type".to_string(),
+                serde_json::json!(match p.trl_trainer.unwrap_or_default() {
+                    TrlTrainer::Sft => "finetune",
+                    TrlTrainer::Dpo => "dpo",
+                    TrlTrainer::Kto => "kto",
+                    TrlTrainer::Orpo => "orpo",
+                    TrlTrainer::Reward => "finetune", // Ludwig has no reward trainer; use SFT
+                }),
             ),
         ]);
         // Optional fields — always inserted (with empty defaults when None) so

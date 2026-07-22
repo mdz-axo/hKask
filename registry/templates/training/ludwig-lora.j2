@@ -4,8 +4,8 @@
 #
 # Ludwig is a declarative deep-learning framework (Linux Foundation AI & Data,
 # Apache-2.0). This config drives `ludwig train --config model.yaml` on the
-# RunPod pod. Phase 1 (v0.31.0): SFT only (`trainer.type: finetune`).
-# Phase 2 will add DPO/KTO/ORPO/GRPO via trainer.type branches.
+# RunPod pod. All trainer types are supported via `trainer.type`:
+# finetune (SFT), dpo, kto, orpo, grpo.
 #
 # References:
 # - https://ludwig.ai/latest/getting_started/llm_fine_tuning/
@@ -71,7 +71,7 @@ dataset:
 
 # Training
 trainer:
-  type: finetune
+  type: {{ trainer_type | default("finetune") }}
   epochs: {{ num_epochs | default(2) }}
   learning_rate: {{ learning_rate | default(0.0001) }}
   batch_size: {{ micro_batch_size | default(1) }}

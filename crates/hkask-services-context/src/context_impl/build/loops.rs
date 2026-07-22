@@ -25,9 +25,6 @@ pub(super) struct LoopWiring {
     pub curator_context: Arc<hkask_pods::CuratorContext>,
     /// Federation link manager — set when federation is enabled.
     pub federation_link_manager: Option<Arc<dyn FederationDispatch>>,
-    /// System-level sensor registry — tracks all sensors across all loops
-    /// for monitoring, health checks, and dynamic registration.
-    pub sensor_registry: Arc<hkask_regulation::SensorRegistry>,
 }
 
 impl LoopWiring {
@@ -51,7 +48,6 @@ pub(super) async fn build_loops(
     system_webid: WebID,
 ) -> Result<LoopWiring, ServiceError> {
     let loop_system = Arc::new(LoopScheduler::new());
-    let sensor_registry = Arc::new(hkask_regulation::SensorRegistry::new());
 
     let (curator_directive_tx, curator_directive_rx) =
         tokio::sync::mpsc::unbounded_channel::<CuratorDirective>();
@@ -279,7 +275,6 @@ pub(super) async fn build_loops(
         a2a_runtime,
         curator_context: curator_context_for_loops,
         federation_link_manager,
-        sensor_registry,
     })
 }
 

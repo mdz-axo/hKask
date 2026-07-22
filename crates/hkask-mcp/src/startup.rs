@@ -101,7 +101,7 @@ pub struct StartupGateResult {
 pub async fn verify_startup_gates(
     client: &DaemonClient,
     userpod: &str,
-    role: &str,
+    _role: &str,
     required_tools: &[&str],
 ) -> Result<StartupGateResult, McpError> {
     // ── Gate 1: Authentication ──────────────────────────────────────────

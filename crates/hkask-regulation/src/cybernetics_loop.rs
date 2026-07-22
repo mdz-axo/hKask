@@ -33,10 +33,10 @@ use crate::energy_budget_management::GasBudgetManager;
 use crate::seam_watcher::SeamWatcher;
 use crate::set_point_calibrator::SetPointCalibrator;
 
-use crate::runtime::{RegulationLedger, RegulationCycleEntry};
+use crate::runtime::{RegulationCycleEntry, RegulationLedger};
 use crate::sensor_provider::{
-    EnergyBudgetSensor, SensorBus, ToolReliabilitySensor, VarietySensor,
-    WalletBalanceRatioSensor, WalletKeyHealthSensor,
+    EnergyBudgetSensor, SensorBus, ToolReliabilitySensor, VarietySensor, WalletBalanceRatioSensor,
+    WalletKeyHealthSensor,
 };
 use crate::set_points::{InferenceThrottleMode, SetPoints};
 use crate::slo_manager::SloDataProvider;
@@ -53,8 +53,8 @@ use crate::regulation_policy::{
     extract_deficit_threshold,
 };
 use crate::types::loops::{
-    ActionDecision, ActionType, CurationInput, Deviation, RegulationLoop, ImpactReport, RegulatoryAction,
-    RegulatoryActionParams, LoopId, LoopMetrics, Signal, SignalMetric, TriggerOrigin,
+    ActionDecision, ActionType, CurationInput, Deviation, ImpactReport, LoopId, LoopMetrics,
+    RegulationLoop, RegulatoryAction, RegulatoryActionParams, Signal, SignalMetric, TriggerOrigin,
 };
 use crate::types::loops::{BudgetOption, RegulationData};
 use hkask_ports::BackpressureSignal;
@@ -886,12 +886,9 @@ impl RegulationLoop for CyberneticsLoop {
 
         // Predictive regulation: check if any metric is approaching its set-point.
         for dev in deviations {
-            let pred = self.simulator.predict(
-                dev.signal.metric,
-                dev.signal.value,
-                dev.signal.set_point,
-                3,
-            );
+            let pred =
+                self.simulator
+                    .predict(dev.signal.metric, dev.signal.value, dev.signal.set_point);
             if let Some(ticks) = pred.ticks_to_threshold
                 && ticks <= 3
                 && pred.reliable
@@ -1092,12 +1089,13 @@ impl RegulationLoop for CyberneticsLoop {
                 .iter()
                 .filter_map(|a| a.parameters.data.remaining_ratio())
                 .fold(1.0, f64::min);
-            ledger.emit_backpressure(BackpressureSignal {
-                source: LoopId::Cybernetics,
-                reason: "energy_budget_depletion".into(),
-                severity: 1.0 - worst_ratio,
-            })
-            .await;
+            ledger
+                .emit_backpressure(BackpressureSignal {
+                    source: LoopId::Cybernetics,
+                    reason: "energy_budget_depletion".into(),
+                    severity: 1.0 - worst_ratio,
+                })
+                .await;
         }
         if actions.len() > self.max_iterations as usize {
             tracing::warn!(target: "reg.cybernetics", action_count = actions.len(), max_iterations = self.max_iterations, "Cascade detected: action count exceeds max_iterations");
@@ -1451,18 +1449,19 @@ impl RegulationLoop for CyberneticsLoop {
                 .count() as u64;
             let ledger = self.ledger.read().await;
             let cumulative = ledger.regulation_health().await.effectiveness();
-            ledger.record_regulation_cycle(RegulationCycleEntry {
-                timestamp: chrono::Utc::now(),
-                signals: signals.len() as u64,
-                deviations: deviations.len() as u64,
-                actions: actions.len() as u64,
-                verified: impact_reports.len() as u64,
-                accepted,
-                staged,
-                blocked,
-                cumulative_effectiveness: cumulative,
-            })
-            .await;
+            ledger
+                .record_regulation_cycle(RegulationCycleEntry {
+                    timestamp: chrono::Utc::now(),
+                    signals: signals.len() as u64,
+                    deviations: deviations.len() as u64,
+                    actions: actions.len() as u64,
+                    verified: impact_reports.len() as u64,
+                    accepted,
+                    staged,
+                    blocked,
+                    cumulative_effectiveness: cumulative,
+                })
+                .await;
         }
 
         let elapsed_ms = start.elapsed().as_millis() as u64;

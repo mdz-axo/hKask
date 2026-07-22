@@ -3,11 +3,11 @@
 //!
 
 pub mod agent_paths;
-pub mod regulation;
 pub mod corpus;
 pub mod crypto;
 pub mod curation;
 pub mod curator;
+pub mod document;
 pub mod error;
 pub mod event;
 pub mod fusion;
@@ -18,6 +18,7 @@ pub mod keychain_keys;
 pub mod loops;
 pub mod macros;
 pub mod observable_span;
+pub mod regulation;
 pub mod secret;
 pub mod server_config;
 pub mod skill;
@@ -35,12 +36,12 @@ pub mod sql_impls;
 
 // ── Essential re-exports (used by ≥3 downstream crates) ─────────────────
 
-pub use regulation::CircuitState;
 pub use crypto::Ed25519PublicKey;
 pub use curation::{
     BoundaryClassification, DataCategory, DataSovereigntyBoundary, UserSovereigntyState,
 };
 pub use curator::{CurationThresholdConfig, CuratorDirective, CuratorHandle, EscalationSeverity};
+pub use document::{Block, DocStructure, Page};
 pub use error::{CapabilityDenied, InfrastructureError, McpErrorKind, NotFound};
 pub use event::{RegulationRecord, RegulationSink};
 pub use goal::GoalState;
@@ -48,11 +49,12 @@ pub use id::{
     ApiKeyId, BoardId, BotID, ColumnId, CommentId, EmbeddingID, EscalationID, EventID, GoalID,
     HMemId, Id, IdKind, PhaseId, PodID, TaskId, TemplateID, UserID, WalletId, WebID,
 };
+pub use regulation::CircuitState;
 
 pub use loops::{
     ActionDecision, ActionType, BudgetOption, Deviation, DeviationDirection,
-    ExperienceClassification, ImpactReport, RegulatoryAction, RegulatoryActionParams, LoopId, LoopMetrics,
-    RegulationData, Signal, SignalMetric, TriggerOrigin,
+    ExperienceClassification, ImpactReport, LoopId, LoopMetrics, RegulationData, RegulatoryAction,
+    RegulatoryActionParams, Signal, SignalMetric, TriggerOrigin,
 };
 pub use observable_span::ObservableSpan;
 pub use skill::SkillPolarity;

@@ -64,9 +64,6 @@ impl DaemonClient {
         .await
     }
 
-    /// Query whether a userpod is assigned to a specific MCP role.
-    #[must_use = "result must be used"]
-
     /// Query whether a userpod holds a capability token for a tool.
     #[must_use = "result must be used"]
     pub async fn capability_query(

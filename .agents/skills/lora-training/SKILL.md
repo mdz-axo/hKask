@@ -211,7 +211,7 @@ Do not create alternate finding shapes. A recommendation never overwrites
 
 | Template | Type | Purpose |
 |---|---|---|
-| `select-method.j2` | `KnowAct` | Produce an advisory composable recommendation via seven-gate refinement (G0 adapter purpose → G1-G5 method → G6 harness), explicit uncertainty, operator authority, PDCA iteration loop, and runtime enforcement boundaries. |
+| `select-method.j2` | `KnowAct` | Produce an advisory composable recommendation via eight-gate refinement (G0 adapter purpose, G-D0 dataset analysis → G1-G5 method → G6 harness), explicit uncertainty, operator authority, PDCA iteration loop, and runtime enforcement boundaries. |
 | `audit-config.j2` | `KnowAct` | Audit declared artifacts with phase-aware gates, states, evidence kinds, normalized findings, and separate readiness. |
 | `report.j2` | `KnowAct` | Preserve findings losslessly; report readiness and contract gaps; propose only evidence-backed pending regressions. |
 | `convergence-check.j2` | `KnowAct` | Compute normalized current-phase convergence and preflight/runtime/post-training posture from supplied evidence. |
