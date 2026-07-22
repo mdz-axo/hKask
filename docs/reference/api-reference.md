@@ -233,9 +233,9 @@ Semantic and episodic memory pipelines for hKask.
 | `episodic` | Episodic memory pipeline (Loop 2a). Types: `EpisodicMemory`, `EpisodicMemoryError` |
 | `episodic_loop` | Episodic loop wrapper with budget regulation. Type: `EpisodicLoop` |
 | `error` | Memory port error. Type: `MemoryPortError` |
-| `ports` | Port trait re-exports from `hkask_agents::ports` |
+| `ports` | Memory storage port traits (`EpisodicStoragePort`, `SemanticStoragePort`) — see ADR-042 |
 | `ranking` | Memory ranking algorithms |
-| `recall_dedup` | Layer 1 dedup: entity-attribute-value hash-based recall deduplication |
+| `recall_dedup` | EAV hash-based recall deduplication (single-layer; see ADR-060) |
 | `salience` | Salience scoring for memory importance |
 | `semantic` | Semantic memory pipeline (Loop 2b). Types: `SemanticMemory`, `SemanticMemoryError` |
 | `semantic_loop` | Semantic loop wrapper with regulatory triggers. Type: `SemanticLoop` |

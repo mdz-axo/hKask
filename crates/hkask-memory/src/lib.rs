@@ -1,8 +1,10 @@
 //! hKask Memory — Semantic and episodic memory pipelines
 //!
-//! **Two-Layer DRY System:**
-//! - Layer 1: Memory recall dedup (`recall_dedup`) — entity-attribute-value hash
-//! - Layer 2: Prompt assembly dedup (`hkask-templates/src/context_assembly.rs`)
+//! **Recall deduplication** runs at recall time in `recall_dedup` (BLAKE3 hash
+//! over canonical entity-attribute-value content, first-seen-wins). There is
+//! no shared rendering layer: each consuming surface (chat service, MCP server,
+//! HTTP API, TUI) joins and serializes recalled memories in the shape its own
+//! consumer needs. See ADR-060 for the decision and rationale.
 
 pub(crate) mod bayesian; // Loop 2b (semantic confidence combination)
 pub mod consolidation; // Episodic → Semantic bridge

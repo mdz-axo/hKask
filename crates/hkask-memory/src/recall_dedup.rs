@@ -1,11 +1,10 @@
 //! Recall deduplication — entity-attribute-value hash strategy
 //!
 //! Filters duplicate h_mems at recall time by computing a BLAKE3 hash
-//! of the canonical EAV content.
-//!
-//! This is Layer 1 of the three-layer DRY system:
-//! - Layer 1: Memory recall dedup (this module)
-//! - Layer 2: Prompt assembly dedup (hkask-templates/src/context_assembly.rs)
+//! of the canonical EAV content. This is the single dedup layer in hKask;
+//! rendering of recalled memories (prompt strings, JSON payloads, typed
+//! response structs) is each consuming surface's responsibility. See
+//! ADR-060 for the decision and rationale.
 
 use hkask_storage::HMem;
 use std::collections::HashSet;
