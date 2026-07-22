@@ -117,5 +117,5 @@ grep -rn 'CnsSpan::' crates/ --include='*.rs' | grep -v 'reg_span\|reg.rs\|Tool\
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users — v0.31.0*
 *Decisions are the atoms of architecture.*

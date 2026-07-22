@@ -59,12 +59,13 @@ This skill does not train, load, initialize, merge, or evaluate models.
 ### `lora-training/select-method`
 
 1. Read the declared training inputs and preserve explicit operator requirements.
-2. Refine one composable recommendation record through seven gates: adapter
-   purpose (G0), inference constraint (G1), memory evidence (G2), task distance
-   (G3), quality/cost (G4), knowledge preservation (G5), and harness capability
-   (G6). Training approach selection (G0-G5) precedes harness selection (G6).
-   Gates refine compatible fields; they do not overwrite the whole
-   recommendation or silently replace earlier constraints.
+2. Refine one composable recommendation record through eight gates: adapter
+   purpose (G0), dataset analysis (G-D0), inference constraint (G1), memory
+   evidence (G2), task distance (G3), quality/cost (G4), knowledge
+   preservation (G5), and harness capability (G6). Training approach
+   selection (G0-G5) precedes harness selection (G6). Gates refine
+   compatible fields; they do not overwrite the whole recommendation or
+   silently replace earlier constraints.
 3. Emit only derivable values for `adapter_purpose`, `base_mode`, `adapter_form`,
    `scaling`, `initializer`, `preservation`, `rank_range`,
    `target_module_strategy`, `harness`, and `trainer`; otherwise emit

@@ -189,4 +189,4 @@ cargo test --workspace
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — ADR-057 — v0.32.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users — ADR-057*

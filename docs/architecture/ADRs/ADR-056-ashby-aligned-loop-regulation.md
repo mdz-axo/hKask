@@ -199,4 +199,4 @@ Each phase is independently verifiable and can be merged separately.
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — ADR-056 — v0.31.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users — ADR-056 — v0.31.0*

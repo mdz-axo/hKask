@@ -114,4 +114,4 @@ grep -r "is_likely_llm\|is_likely_small\|FRONTIER_FAMILIES" crates/hkask-cli/src
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users — v0.31.0*

@@ -104,4 +104,4 @@ cargo test -p hkask-memory -- recall_dedup
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — ADR-037 — v0.31.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users — ADR-037 — v0.31.0*

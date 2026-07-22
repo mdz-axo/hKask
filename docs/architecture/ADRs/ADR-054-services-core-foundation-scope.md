@@ -136,4 +136,4 @@ cargo check -p hkask-services-core
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users — v0.31.0*

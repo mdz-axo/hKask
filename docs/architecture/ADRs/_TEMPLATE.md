@@ -131,7 +131,7 @@ grep -r "pattern" crates/ | wc -l
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — v0.23.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users*
 
 ## Guidelines
 
@@ -256,5 +256,5 @@ See [`../standards/DOCUMENTATION_STANDARDS.md`](../../specifications/DOCUMENTATI
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — v0.23.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users*
 *Decisions are the atoms of architecture.*

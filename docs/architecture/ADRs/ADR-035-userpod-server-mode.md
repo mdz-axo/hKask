@@ -159,4 +159,4 @@ grep -r "todo!\|unimplemented!" mcp-servers/ crates/hkask-mcp/src/daemon/ --incl
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — ADR-035 — v0.28.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users — ADR-035*
