@@ -16,7 +16,7 @@ INPUT: signal = {{ signal }}
 INPUT: existing_regressions = {{ existing_regressions | default([]) }}
 INPUT: userpod_host = {{ userpod_host }} (P12 — mandatory; if undefined, raise error: userpod_host is required for all runtime scanning)
 
-CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, or runtime telemetry reader):
+CLASSIFY ACTIONS (concrete — must use Regulation observer/subscriber, span history, or runtime telemetry reader):
 1. For each signal source listed in `signal_sources`, observe the span emission
    pattern within the observation window.
 2. For `reg.guard.*` signals: count violations per scanner (input filter,
@@ -73,16 +73,16 @@ CLASSIFY ACTIONS (concrete — must use CNS observer/subscriber, span history, o
     `source_citation` (MITRE CWE reference, OWASP LLM reference, ATLAS reference,
     hkask-guard docs, hkask-cns docs).
 
-CNS SPAN EMISSION (P9 — every classified runtime threat):
+Regulation SPAN EMISSION (P9 — every classified runtime threat):
 - `reg.runtime.classify` per classified threat (target: `"reg.runtime.classify"`,
-  message: `"CNS"`, operation: `"classify_threat"`, threat_type: `...`,
+  message: `"Regulation"`, operation: `"classify_threat"`, threat_type: `...`,
   signal_target: `...`, severity: `...`, userpod_host: `...`, latency_ms: ...).
 - The span namespace is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit unconditionally.
 
 CONSTRAINT — Evidence integrity (P8 — semantic grounding):
 - No synthetic span observations. Every `evidence_snippet` must be verifiable
-  by querying the CNS span history for the cited target and timestamp.
+  by querying the Regulation span history for the cited target and timestamp.
 - No synthetic CVE references. Only reference MITRE CWE taxonomy categories
   (CWE-1357, CWE-829, CWE-200), OWASP LLM 2025 (LLM06, LLM07), MITRE ATLAS
   (AML.TA0010). These are taxonomy mappings, not vulnerability claims.
@@ -114,7 +114,7 @@ MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
   explicitly observed, not ambient); P9 (Homeostatic Regulation — runtime
   threats must be observable via `reg.runtime.*` spans).
 - How: Discover signals → observe → classify → regulate → report → propose
-  regression → emit CNS span → compute convergence.
+  regression → emit Regulation span → compute convergence.
 - If any of these 6 were missing, this skill would violate P5. All 6 present.
 
 OUTPUT FORMAT:

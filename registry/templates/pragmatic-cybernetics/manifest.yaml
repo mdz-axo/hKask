@@ -5,7 +5,7 @@ crate:
   name: pragmatic-cybernetics
   version: "0.30.0"
   description: >
-    Cybernetic reasoning framework for hKask's CNS. VSM mapping,
+    Cybernetic reasoning framework for hKask's Regulation. VSM mapping,
     feedback loop analysis (5 properties), variety engineering (Ashby's Law),
     Good Regulator check, and spec drift as cybernetic signal.
 

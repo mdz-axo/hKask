@@ -11,7 +11,7 @@ manifest:
   description: >
     Convergent consent audit process. Queries the DelegationToken registry
     for all tokens issued within the window, correlates each token with
-    CNS spans showing actual usage, detects anomalous patterns (expired
+    Regulation spans showing actual usage, detects anomalous patterns (expired
     tokens still in registry, tokens issued by deleted agents, unusual
     access patterns), synthesizes a structured audit report with per-token
     status, and iterates until audit coverage is complete.
@@ -89,7 +89,7 @@ steps:
   - ordinal: 2
     action: select
     description: >
-      Correlate each DelegationToken with CNS span data showing actual usage.
+      Correlate each DelegationToken with Regulation span data showing actual usage.
       For each token: was it ever used? How many times? Which operations?
       Does actual usage match the granted scope? Flags tokens that grant
       more access than was ever used (over-provisioned consent).

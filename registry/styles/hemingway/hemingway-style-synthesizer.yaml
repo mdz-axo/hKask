@@ -152,7 +152,7 @@ sources:
 
 # Maximum cosine distance from the style centroid for generated prose.
 # If centroid distance exceeds this threshold, the output fails validation.
-# The CNS receives a span with the measured distance.
+# The Regulation receives a span with the measured distance.
 validation:
   centroid_distance_max: 0.15
 

@@ -31,12 +31,12 @@ templates:
       analogy interpreting the directional effect.
 
   - id: gml/cns-instrument
-    name: "CNS instrumentation macros"
+    name: "Regulation instrumentation macros"
     path: cns-instrument.j2
     type: KnowAct
     lexicon_terms: [instrument, monitor, observe]
     description: >
-      CNS instrumentation macros. Emit span events for monitoring, record
+      Regulation instrumentation macros. Emit span events for monitoring, record
       errors, trigger algedonic alerts on variety deficits, and produce
       audit logs for every GML operation.
 

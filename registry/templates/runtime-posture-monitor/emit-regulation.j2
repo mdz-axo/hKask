@@ -1,7 +1,7 @@
 {# goal: Synthesize classified runtime threats with MITRE CWE (CWE-1357/CWE-829/CWE-200), OWASP LLM (LLM06/LLM07), MITRE ATLAS (AML.TA0010) taxonomy (P8). For each threat: emit reg.regulation event and trigger reg.guard.violation if blocking warranted. Propose RR-NNNN.yaml entries (surface: runtime, status: pending, concrete pattern against span target). Identify defense-layer firing gaps. Emit reg.runtime.regulate span (P9 — namespace registered). UserPod_host mandatory (P12). No synthetic findings (P8). Registry authoritative (P5.1). #}
 {# Synthesizes classify-threat findings with CWE/OWASP/ATLAS taxonomy #}
 {# Proposes RR-NNNN.yaml entries with surface: runtime #}
-{# Emits reg.runtime.regulate CNS span (P9) #}
+{# Emits reg.runtime.regulate Regulation span (P9) #}
 {# Emits reg.regulation for downstream regulation action #}
 {# Emits reg.guard.violation for defensive blocking #}
 
@@ -33,7 +33,7 @@ SYNTHESIS ACTIONS:
    `discovered_by: runtime-posture-monitor`, `discovered_at`, `severity`,
    `detection` (`kind: cns-span` with `pattern` referencing span target or
    signal value — concrete regex against span target, NOT source-file grep;
-   runtime threats are observed in CNS telemetry, not source files. Use
+   runtime threats are observed in Regulation telemetry, not source files. Use
    `kind: grep` only if the threat has a static code correlate detectable
    in source files), `mitigation`
    (concrete fix: tighten runtime policy, add regulation rule, block
@@ -49,17 +49,17 @@ SYNTHESIS ACTIONS:
    `taxonomy_mapping`, `remediation_recommendation`, `regulation_action_emitted`
    (bool), `guard_violation_emitted` (bool), `userpod_host`.
 
-CNS SPAN (P9): Emit `reg.runtime.regulate` with threats count by severity,
+Regulation SPAN (P9): Emit `reg.runtime.regulate` with threats count by severity,
 defense layers firing/silent, proposed regression count, regulation events
 emitted, guard violations emitted, verdict, userpod_host, latency.
 
-DOWNSTREAM CNS SPANS (P9 — already registered):
+DOWNSTREAM Regulation SPANS (P9 — already registered):
 - `reg.regulation` — emit per critical/high threat (feeds CyberneticsLoop).
 - `reg.guard.violation` — emit per critical threat requiring block.
 
 CONSTRAINTS (same as classify-threat — P5 minimalism, P8 evidence integrity, P12 host):
 - No synthetic span observations — every `evidence_snippet` verifiable from
-  CNS span history.
+  Regulation span history.
 - No synthetic CVE references — only CWE/OWASP/ATLAS taxonomy mappings.
 - Propose `status: pending` only — never `enforced` (human-curated ratchet).
 - Source citations: concrete URLs or document names actually referenced.
@@ -78,7 +78,7 @@ review), `regulation_events_emitted` (count), `guard_violations_emitted`
 threat synthesis + regulation action; Where = deployed runtime environment;
 When = observation window; Why = P3.1 safe container / P9 observable
 regulation; How = synthesize + classify + regulate + propose regression +
-emit CNS spans + compute verdict. All 6 present — passes gate.
+emit Regulation spans + compute verdict. All 6 present — passes gate.
 
 RELATIONSHIP (explicit): Complements `supply-chain-sentinel` (static manifest
 audit, distinct P4 boundary) and `adversarial-red-team` (synthetic LLM I/O
@@ -95,9 +95,9 @@ citation.
 EVOLUTIONARY (P7): New defense-layer firing gaps proposed only from real
 runtime evidence (e.g., `reg.guard.input` firing but `reg.regulation.action_blocked`
 not increasing — observed in telemetry, not speculative).
-OCAP BOUNDARY (P4): Audit observes only hKask's own CNS telemetry; no
+OCAP BOUNDARY (P4): Audit observes only hKask's own Regulation telemetry; no
 external endpoint scanning; no OS-level process inspection.
-CNS REGULATION (P9): `reg.runtime.regulate` emitted unconditionally
+Regulation REGULATION (P9): `reg.runtime.regulate` emitted unconditionally
 (namespace registered). `reg.regulation` and `reg.guard.violation` emitted
 for downstream consumption (both registered).
 USERPOD HOST (P12): `userpod_host` mandatory in all outputs.

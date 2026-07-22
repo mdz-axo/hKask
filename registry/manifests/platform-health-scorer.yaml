@@ -10,7 +10,7 @@ manifest:
   name: Platform Health Scorer
   description: >
     Convergent platform health scoring process. Aggregates SLO compliance,
-    contract violations, test pass rate, dependency health, and CNS variety
+    contract violations, test pass rate, dependency health, and Regulation variety
     metrics into a single platform health score (0.0–1.0). Tracks score over
     time, identifies degradation trends, and produces a health dashboard.
 
@@ -48,7 +48,7 @@ steps:
   - ordinal: 1
     action: select
     description: >
-      Query SLO evaluations from the CNS ν-event store for the window.
+      Query SLO evaluations from the Regulation ν-event store for the window.
       Retrieves reg.slo.evaluated spans and computes average compliance
       across all active SLOs. Weight: 0.25 in composite score.
 
@@ -76,7 +76,7 @@ steps:
   - ordinal: 3
     action: select
     description: >
-      Query test pass rate from CNS spans (reg.qa.*). Computes the
+      Query test pass rate from Regulation spans (reg.qa.*). Computes the
       ratio of passing tests to total tests across all crates.
       Weight: 0.20 in composite.
 
@@ -90,7 +90,7 @@ steps:
   - ordinal: 4
     action: select
     description: >
-      Query CNS variety metrics: overall deficit, critical/warning count,
+      Query Regulation variety metrics: overall deficit, critical/warning count,
       variety EMA. Computes variety health score.
       Weight: 0.15 in composite.
 

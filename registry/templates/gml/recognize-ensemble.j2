@@ -10,7 +10,7 @@
 {% set concept = inputs.concept %}
 {% set params = inputs.parameters | default({}) %}
 
-{# CNS span start #}
+{# Regulation span start #}
 {{ start_span('recognize', concept.id | default('unknown')) }}
 
 {# Validate inputs #}

@@ -104,7 +104,7 @@ Every finding must include a concrete `suggestion`. Do not flag what you can't f
 | W1 | Orphan steps | Every step should be reachable from step 1 via branching |
 | W2 | Terminal exists | Script must have at least one terminal state (step with no outgoing branches) |
 | W3 | Gas budget sensible | Gas cap should exceed estimated cost: (steps x 400 u rJ) + (classify_steps x ~30 u rJ) |
-| W4 | CNS namespace valid | `span_namespace` should follow `reg.qa.<script-id>` convention |
+| W4 | Regulation namespace valid | `span_namespace` should follow `reg.qa.<script-id>` convention |
 | W5 | Loop has escape | Every `loop` step should have a `loop_exhausted` branch or a reachable terminal condition |
 | W6 | Classify has all branches | `classify` steps should cover high/medium/low/flake/unparseable or have `default_next` |
 | W7 | Dry-run possible | Script should be testable without LLM (at least some `run_command` steps work standalone) |

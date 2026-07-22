@@ -14,7 +14,7 @@ crate:
     + provenance), pragmatic-cybernetics (feedback loop analysis + Good Regulator
     checks + variety engineering), diagnose, grill-me, and adversarial-red-team
     are embedded as inline prompt instructions in the oracle phase.
-    Emits CNS spans (reg.bughunt.*) for observability (P12). OCAP-gated: requires
+    Emits Regulation spans (reg.bughunt.*) for observability (P12). OCAP-gated: requires
     Tool:test:Execute and Tool:cns:Read.
 
 templates:

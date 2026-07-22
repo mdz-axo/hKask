@@ -43,7 +43,7 @@ rights:
   - execute: contract_check
 
 responsibilities:
-  - monitor: SLO compliance across all CNS span namespaces
+  - monitor: SLO compliance across all Regulation span namespaces
   - perform: SLO evaluation with algedonic escalation
   - perform: Dependency graph audit (cycles, orphans, drift)
   - perform: Consent audit (DelegationToken anomalies)

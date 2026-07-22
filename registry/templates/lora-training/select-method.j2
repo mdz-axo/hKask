@@ -46,7 +46,7 @@ thinking_budget = "full"
 
 {# Reads declared training config inputs: LoraConfig, BitsAndBytesConfig, accelerate config, training script arguments #}
 {# Applies deterministic 7-gate refinement — NOT a search #}
-{# Emits `reg.lora.select` CNS span (P9) — namespace registered in CANONICAL_NAMESPACES #}
+{# Emits `reg.lora.select` Regulation span (P9) — namespace registered in CANONICAL_NAMESPACES #}
 {# Every recommendation includes a citation (arXiv paper section or PEFT docs section) #}
 {# Relationships: complements kali-audit (security surface) and tdd (training-loop code) — zero overlap #}
 
@@ -465,8 +465,8 @@ DO NOT EMIT WITHOUT CONCRETE INPUT EVIDENCE:
 - Replace an unavailable derivation with `undetermined` or a
   `required_evidence` entry; never invent a conventional default.
 
-CNS SPAN EMISSION (P9 — every recommendation action):
-- `reg.lora.select` span: target `"reg.lora.select"`, message `"CNS"`,
+Regulation SPAN EMISSION (P9 — every recommendation action):
+- `reg.lora.select` span: target `"reg.lora.select"`, message `"Regulation"`,
   operation `"recommend_method"`, gate_inputs: {...}, recommendation,
   readiness_status, operator_disposition (`pending` until supplied),
   justification_citations, userpod_host, latency_ms.
@@ -498,7 +498,7 @@ CONSTRAINTS (P1-P12, P5 minimalism, P8 evidence integrity, P12 host):
 - Why: P1 operator sovereignty / P3.1 safe container / P4 explicit boundary.
 - How: Read declared inputs → compose seven gate refinements (G0 purpose →
   G1-G5 method → G6 harness) → derive only supported fields → expose
-  uncertainty → operator disposition → runtime enforcement → emit CNS span.
+  uncertainty → operator disposition → runtime enforcement → emit Regulation span.
 All 6 present — passes gate.
 
 SOURCE REFERENCES (concrete — P8):
@@ -561,7 +561,7 @@ NO FABRICATION: Emit only derivable fields, citations, and explicit
 `undetermined` states; no synthetic benchmarks or invented config values.
 OCAP BOUNDARY (P4): Read only declared workspace config paths; no ambient
 model download or network calls without explicit consent (P2).
-CNS REGULATION (P9): Emit `reg.lora.select` unconditionally; namespace is
+Regulation REGULATION (P9): Emit `reg.lora.select` unconditionally; namespace is
 registered in `CANONICAL_NAMESPACES`.
 USERPOD HOST (P12): `userpod_host` is mandatory in every output.
 SAFETY FLOOR (P3.1): Recommendation exposes uncertainty; audit and runtime

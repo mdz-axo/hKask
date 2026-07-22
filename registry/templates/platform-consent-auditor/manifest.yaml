@@ -5,7 +5,7 @@ crate:
   name: platform-consent-auditor
   version: "0.31.0"
   description: >
-    Consent audit. Queries DelegationToken registry, correlates with CNS span
+    Consent audit. Queries DelegationToken registry, correlates with Regulation span
     usage data, detects anomalous patterns, and produces a structured audit
     report. Operationalizes P2 (Affirmative Consent): every token is traceable.
 
@@ -20,12 +20,12 @@ templates:
       Retrieves token metadata: issuer, recipient, resource, action, timestamps.
 
   - id: platform-consent-auditor/correlate-usage
-    name: "Correlate each DelegationToken with CNS span data showing actual usage"
+    name: "Correlate each DelegationToken with Regulation span data showing actual usage"
     path: correlate-usage.j2
     type: KnowAct
     lexicon_terms: [correlate, match, trace, compare, map]
     description: >
-      Correlate each DelegationToken with CNS span data showing actual usage.
+      Correlate each DelegationToken with Regulation span data showing actual usage.
       Flags over-provisioned consent (tokens granting more access than used).
 
   - id: platform-consent-auditor/detect-anomalies

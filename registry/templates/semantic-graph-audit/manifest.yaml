@@ -6,7 +6,7 @@ crate:
   version: "0.31.0"
   description: >
     Domain-agnostic semantic dependency graph analysis. Accepts any directed graph
-    (code modules, crates, skills, ADRs, CNS spans, decision trees, data flows),
+    (code modules, crates, skills, ADRs, Regulation spans, decision trees, data flows),
     classifies edges by constraint force, detects cycles/redundancies/gaps/orphans,
     and evaluates graph health through pragmatic-semantics, pragmatic-cybernetics,
     essentialist, and grill-me lenses.

@@ -60,7 +60,7 @@ steps:
       Inventory all hKask components from the codebase and registry.
       Categories: crates (53), MCP servers (14), infrastructure (Caddy,
       Conduit, SQLite/SQLCipher), skills (43), and conceptual components
-      (CNS, OCAP, Magna Carta). For each: name, type, dependencies, and
+      (Regulation, OCAP, Magna Carta). For each: name, type, dependencies, and
       current evolutionary position.
 
     renderer: minijinja
@@ -75,7 +75,7 @@ steps:
     description: >
       Classify each component on the Wardley evolution axis:
       - Genesis: novel, uncertain, rapidly changing (e.g., Platform Engineer userpod)
-      - Custom: built for specific need, differentiated (e.g., CNS algedonic pathway)
+      - Custom: built for specific need, differentiated (e.g., Regulation algedonic pathway)
       - Product: stable, well-understood, rentable (e.g., skill FlowDef manifests)
       - Commodity: utility, undifferentiated, should be bought not built (e.g., SQLite, MCP protocol)
 
@@ -100,7 +100,7 @@ steps:
       Example mapping:
       - Infrastructure (bottom): SQLite/SQLCipher → Commodity
       - Protocol (middle): MCP → Product/Commodity
-      - Platform core (middle): CNS, OCAP → Product
+      - Platform core (middle): Regulation, OCAP → Product
       - User-facing (top): REPL, skills → Product/Custom
       - Future (far right): Platform Engineer userpod → Genesis
 

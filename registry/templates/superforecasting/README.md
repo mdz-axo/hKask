@@ -124,9 +124,9 @@ Each stage produces structured JSON output that feeds into subsequent stages:
 }
 ```
 
-## CNS Integration
+## Regulation Integration
 
-The pipeline emits CNS spans for monitoring:
+The pipeline emits Regulation spans for monitoring:
 - `reg.prompt.select` — Pipeline selection
 - `reg.prompt.render` — Template execution at each stage
 - `reg.prompt.outcome` — Forecast recorded
@@ -143,7 +143,7 @@ The pipeline emits CNS spans for monitoring:
 The pipeline requires the following capabilities:
 - Template render permissions for all 8 stages
 - Manifest execution permission
-- CNS emission permission
+- Regulation emission permission
 - Memory storage permission (for forecast recording)
 
 All capabilities are template-scoped and expire after 3600 seconds.
@@ -163,7 +163,7 @@ All pipeline executions are logged with:
 - Input question and parameters
 - Output from each stage
 - Energy costs per stage
-- CNS event references
+- Regulation event references
 - Final forecast record
 
 ## Testing the Pipeline

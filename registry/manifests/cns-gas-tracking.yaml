@@ -1,11 +1,11 @@
-# CNS Energy Tracking Configuration
+# Regulation Energy Tracking Configuration
 # ℏKask v0.21.2
 
 manifest:
   id: cns-gas-tracking
   category: runtime-config
-  name: CNS Gas Tracking
-  description: CNS energy budget and alert configuration
+  name: Regulation Gas Tracking
+  description: Regulation energy budget and alert configuration
   version: 0.21.2
   editor: curator-or-human-admin
   visibility: Public

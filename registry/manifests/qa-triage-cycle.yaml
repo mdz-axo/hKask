@@ -13,7 +13,7 @@
 #   - proptest (already in hkask-test-harness) for property-based testing
 #   - fuzz seed corpora (fuzz.rs) for CLI/JSON input surface testing
 #   - classifier (qa-triage) for LLM-powered failure diagnosis
-#   - CNS spans for observability
+#   - Regulation spans for observability
 #
 # Runner readiness: PARTIAL — run_command + classify steps executable today;
 #   loop steps require runner with classify + loop support.

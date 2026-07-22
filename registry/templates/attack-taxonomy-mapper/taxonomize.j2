@@ -1,7 +1,7 @@
 {# goal: Synthesize taxonomy mappings with OSC&R taxonomy (P8). Propose backward-compatible taxonomy_mapping field additions to existing surface: supply-chain regression entries (status: pending). Produce pattern signatures for detecting similar attack patterns. Emit reg.taxonomy.report span (P9 — namespace registered). UserPod_host mandatory (P12). No synthetic findings or mappings (P8). Registry authoritative (P5.1). #}
 {# Synthesizes map-taxonomy results into OSC&R classification #}
 {# Proposes taxonomy_mapping field additions to regression YAML #}
-{# Emits reg.taxonomy.report CNS span (P9) #}
+{# Emits reg.taxonomy.report Regulation span (P9) #}
 
 INPUT: mappings = {{ mappings }} (structured array from map-taxonomy phase)
 INPUT: existing_taxonomy_mappings = {{ existing_taxonomy_mappings }}
@@ -68,7 +68,7 @@ SYNTHESIS ACTIONS:
    (concrete grep pattern for detecting similar attacks),
    `remediation_recommendation`, `userpod_host`.
 
-CNS SPAN (P9): Emit `reg.taxonomy.report` with mappings count by OSC&R
+Regulation SPAN (P9): Emit `reg.taxonomy.report` with mappings count by OSC&R
    category, proposed taxonomy_mapping field count, pattern signatures
    count, verdict, userpod_host, latency.
 
@@ -103,7 +103,7 @@ What = taxonomy synthesis + pattern signatures; Where = workspace /
 regression library; When = audit cycle / incident investigation; Why =
 P3.1 structured taxonomy / P8 semantic grounding / P9 observable
 taxonomy mapping; How = synthesize + classify + propose taxonomy_mapping
-field + produce pattern signatures + emit CNS span + compute verdict.
+field + produce pattern signatures + emit Regulation span + compute verdict.
 All 6 present — passes gate.
 
 RELATIONSHIP (explicit): Complements `supply-chain-sentinel` (adds
@@ -122,7 +122,7 @@ of similar attack patterns — the taxonomy mapping compounds value over
 time.
 OCAP BOUNDARY (P4): Mapping consumes existing workspace findings only;
 no external taxonomy download; no external package download.
-CNS REGULATION (P9): `reg.taxonomy.report` emitted unconditionally
+Regulation REGULATION (P9): `reg.taxonomy.report` emitted unconditionally
 (namespace registered in `CANONICAL_NAMESPACES`).
 USERPOD HOST (P12): `userpod_host` mandatory in all outputs.
 VISIBILITY (P11): `taxonomy_mapping` proposals `status: pending` —

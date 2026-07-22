@@ -11,7 +11,7 @@
 # Pipeline: disambiguate → enumerate (Semantic Scholar, arXiv, web, YouTube)
 #   → extract content → cache to disk → extract transcripts
 #   → extract concepts (LLM dedup) → infer methods (LLM)
-#   → generate corpus.yaml → Curator gate → CNS feedback
+#   → generate corpus.yaml → Curator gate → Regulation feedback
 
 manifest:
   id: mcp/replica-discovery
@@ -309,15 +309,15 @@ steps:
       decision: string
       approved_works: array
 
-  # ── Phase 12: CNS Feedback ───────────────────────────────────────────────
+  # ── Phase 12: Regulation Feedback ───────────────────────────────────────────────
   - ordinal: 13
     action: feedback
     description: >
-      Emit discovery outcome to CNS. Track variety, source coverage,
+      Emit discovery outcome to Regulation. Track variety, source coverage,
       works discovered, concepts extracted, and methods inferred.
     renderer: null
     template_ref: null
-    mcp: null # CNS is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:

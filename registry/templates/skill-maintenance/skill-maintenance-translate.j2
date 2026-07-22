@@ -58,7 +58,7 @@ You are a skill translator. Convert a classified source skill into a hKask regis
    - Guardrails → Encoded as `visibility`, `energy_cap`, and constraints in `.j2` body.
 3. **State model** — hKask skills are stateless by default. Source state → `.j2` contract input/output.
 4. **Consent model** — hKask uses OCAP. User-confirmation gates → `.j2` contract visibility.
-5. **Observability** — Map to CNS span references in `.j2` body.
+5. **Observability** — Map to Regulation span references in `.j2` body.
 6. **Domain references** — Substitute using the domain substitution table.
 7. **Validation** — template_type MUST be KnowAct/WordAct/FlowDef. visibility MUST be Private/Public/Shared. energy_cap MUST be 2048-8192.
 
@@ -79,9 +79,9 @@ You are a skill translator. Convert a classified source skill into a hKask regis
 | Custom tool dispatch | `hkask-mcp` dynamic tool discovery |
 | Journal / log store | `hkask-storage` |
 | Sentinel / sensor | MCP tool dispatch (`reg.tool.*`) |
-| Baselines / EWMA | CNS variety counters |
+| Baselines / EWMA | Regulation variety counters |
 | Nurse / regulator | Curator Agent |
-| Proprioception | CNS algedonic signals (`reg.cybernetics.*`) |
+| Proprioception | Regulation algedonic signals (`reg.cybernetics.*`) |
 | IDRS / consent gate | OCAP capability delegation |
 
 If no hKask equivalent exists, mark `[unresolved: no hKask equivalent for <source_ref>]`.

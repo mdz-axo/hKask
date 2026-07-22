@@ -36,7 +36,7 @@ steps:
   - ordinal: 1
     action: populate
     description: >
-      Gather system state from bot reports and CNS spans.
+      Gather system state from bot reports and Regulation spans.
       Synthesize variety counters, alert states, and performance metrics.
     renderer: minijinja
     template_ref: curator/system_state_gather.j2
@@ -120,7 +120,7 @@ ocap:
   capability_expiry_seconds: 7200
   template_scoped: true
 
-# CNS Monitoring
+# Regulation Monitoring
 ledger:
   emit_spans: true
   span_namespace: reg.prompt.metacognition

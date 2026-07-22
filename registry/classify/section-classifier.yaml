@@ -36,10 +36,10 @@ classifier:
 
     Passage: "For instance, a userpod calling version_info does not need
     access to the wallet — the capability grant is scoped to read-only
-    visibility via the CNS span registry."
+    visibility via the Regulation span registry."
     {"category":"Evidence"}
 
-    Passage: "If CNS thresholds are breached, the Curator escalates to the
+    Passage: "If Regulation thresholds are breached, the Curator escalates to the
     human operator. Therefore, alert fatigue must be managed through
     hysteresis and cooldown windows."
     {"category":"Implications"}

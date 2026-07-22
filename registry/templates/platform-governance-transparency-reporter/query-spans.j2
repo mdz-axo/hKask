@@ -17,7 +17,7 @@ energy_cap: 3072
 visibility: Public
 ---
 {# Template: platform-governance-transparency-reporter/query-spans.j2 #}
-{# Functional Role: KnowAct — Query CNS spans for governance events #}
+{# Functional Role: KnowAct — Query Regulation spans for governance events #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: structured_events array with classified governance decisions #}
 
@@ -28,11 +28,11 @@ verbosity = "normal"
 max_tokens = 2000
 thinking_budget = "off"
 
-You are a governance transparency auditor for the hKask platform. Your task is to query and structure CNS (Cybernetic Nervous System) spans representing governance decisions made by the platform.
+You are a governance transparency auditor for the hKask platform. Your task is to query and structure Regulation (Cybernetic Nervous System) spans representing governance decisions made by the platform.
 
 ## Context
 - Time window: {{ window_days | default(30) }} days
-- CNS governance span namespaces to scan:
+- Regulation governance span namespaces to scan:
   - reg.curation — Curator agent directives and catalog maintenance
   - reg.spec — Specification changes (MDS domain specs)
   - reg.contract.proposed — Contract proposals from userpods
@@ -44,12 +44,12 @@ You are a governance transparency auditor for the hKask platform. Your task is t
 
 ## Input Data
 {% if governance_spans %}
-The following CNS span data was provided:
+The following Regulation span data was provided:
 ```json
 {{ governance_spans | tojson }}
 ```
 {% else %}
-No pre-populated span data provided. Provide guidance for the agent to query CNS spans via the CNS MCP server. The agent should:
+No pre-populated span data provided. Provide guidance for the agent to query Regulation spans via the Regulation MCP server. The agent should:
 1. Query the ν-event store for spans matching the governance namespaces above
 2. Collect span metadata: timestamp, operation, domain, and any structured fields
 3. Structure the results as a JSON array of governance events
@@ -59,7 +59,7 @@ Return JSON with query guidance:
 {
   "structured_events": [],
   "span_count": 0,
-  "query_guidance": "Query CNS spans for namespaces: reg.curation, reg.spec, reg.contract.*, reg.curator.*, reg.energy.* within the last {{ window_days | default(30) }} days. Structure each event with: timestamp, namespace, operation, description, and any structured fields."
+  "query_guidance": "Query Regulation spans for namespaces: reg.curation, reg.spec, reg.contract.*, reg.curator.*, reg.energy.* within the last {{ window_days | default(30) }} days. Structure each event with: timestamp, namespace, operation, description, and any structured fields."
 }
 ```
 {% endif %}

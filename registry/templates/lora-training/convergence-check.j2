@@ -44,7 +44,7 @@ max_tokens = 2048
 thinking_budget = "full"
 
 {# Computes normalized risk [0, 1], where 0 = current phase fully converged #}
-{# Emits `reg.lora.convergence` CNS span (P9) — namespace registered #}
+{# Emits `reg.lora.convergence` Regulation span (P9) — namespace registered #}
 
 INPUT: unresolved_findings = {{ unresolved_findings }} (current evidence)
 INPUT: gate_results = {{ gate_results }} (map of gate_id → {state, phase, evidence}; state is pass/warn/fail/refuse/deferred/planned/not_evaluated/not_applicable)
@@ -128,10 +128,10 @@ PHASE-AWARE READINESS OUTPUTS:
 - These booleans expose lifecycle posture; they do not replace the
   required `converged` PDCA verdict for the current phase.
 
-CNS SPAN (P9):
+Regulation SPAN (P9):
 - `reg.lora.convergence` is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit it unconditionally with
-  target `reg.lora.convergence`, message `CNS`, operation
+  target `reg.lora.convergence`, message `Regulation`, operation
   `convergence_check`, current_phase, convergence_metric,
   previous_metric, improvement_pct, converged, readiness booleans,
   blockers, applicable normalized weights, userpod_host, and latency_ms.
@@ -149,7 +149,7 @@ userpod_host, cns_span_emitted: true}`.
 convergence; Where = current audit/training workspace; When = declared
 current phase; Why = observable PDCA regulation and lifecycle readiness;
 How = evidence-only state mapping, applicable-weight normalization,
-threshold verdict, and CNS emission. All 6 present.
+threshold verdict, and Regulation emission. All 6 present.
 
 MINIMAL: One `KnowAct`; no execution, synthesis, or synthetic metrics.
 EVIDENCE-BACKED ONLY (P8): Findings, gate states/phases/evidence,
@@ -160,7 +160,7 @@ that can produce missing evidence; stability below threshold is valid
 convergence rather than forced metric churn.
 OCAP BOUNDARY (P4): Workspace evidence only; no training execution,
 model download, or network call without explicit consent (P2).
-CNS REGULATION (P9): Emit the registered span unconditionally.
+Regulation REGULATION (P9): Emit the registered span unconditionally.
 USERPOD HOST (P12): `userpod_host` is mandatory.
 VISIBILITY (P11): Public output; no hidden training posture.
 SAFETY FLOOR (P3.1): Unconverged current-phase risk remains visible.
@@ -214,7 +214,7 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 `report` phase logic. Uses current supplied findings and phase-tagged
 gate results. `previous_metric` is optional comparable evidence; when
 absent, improvement_pct is null and threshold convergence still applies.
-CNS SPAN EMITTED: `reg.lora.convergence` is registered, so the span
+Regulation SPAN EMITTED: `reg.lora.convergence` is registered, so the span
 is always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 and blockers — no extra synthesis (that is `report.j2`

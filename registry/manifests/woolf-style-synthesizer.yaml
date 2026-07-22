@@ -133,7 +133,7 @@ steps:
   - ordinal: 4
     action: feedback
     description: >
-      Emit CNS span for variety tracking.
+      Emit Regulation span for variety tracking.
       Record hypotactic clause ratio, style adherence metrics,
       and centroid distance measurement.
     renderer: null
@@ -193,7 +193,7 @@ ocap:
   capability_expiry_seconds: 3600
   template_scoped: true
 
-# CNS Monitoring
+# Regulation Monitoring
 ledger:
   emit_spans: true
   span_namespace: reg.prompt

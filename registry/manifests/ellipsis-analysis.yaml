@@ -83,12 +83,12 @@ steps:
   - ordinal: 4
     action: feedback
     description: >
-      Emit CNS span for variety tracking.
+      Emit Regulation span for variety tracking.
       Report gap classification distribution, domain coverage, and
       ellipsis-to-leak ratio for variety monitoring.
     renderer: null
     template_ref: null
-    mcp: null # CNS is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
@@ -127,7 +127,7 @@ ocap:
   capability_expiry_seconds: 3600
   template_scoped: true
 
-# CNS Monitoring
+# Regulation Monitoring
 ledger:
   emit_spans: true
   span_namespace: reg.agent_pod

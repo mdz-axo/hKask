@@ -113,7 +113,7 @@ steps:
       Simulate or execute import verification. If verify_import is true
       and a disposable hKask environment is available, attempts to import
       the backup and validate: all records present, no corruption, agent
-      definitions intact, CNS spans preserved, wallet state consistent.
+      definitions intact, Regulation spans preserved, wallet state consistent.
 
       If no disposable environment is available, produces a simulated
       verification report based on the integrity checks from step 2.
@@ -146,7 +146,7 @@ steps:
 
       Output: structured JSON report + human-readable summary.
       Emits reg.sovereignty.portability_verified or
-      reg.sovereignty.portability_failure CNS spans.
+      reg.sovereignty.portability_failure Regulation spans.
 
     renderer: minijinja
     template_ref: platform-portability-verifier/synthesize-report

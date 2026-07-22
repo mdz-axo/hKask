@@ -202,7 +202,7 @@ error_handling:
     - readiness_probe_output
     - cns_span_ref
 
-# CNS Integration
+# Regulation Integration
 ledger:
   emit_bootstrap_spans: true
   span_namespace: reg.bootstrap

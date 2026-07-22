@@ -265,9 +265,9 @@ EVIDENCE AND CITATION INTEGRITY (P8)
   an actual declared artifact. Deferred/planned/not_evaluated checks are not
   regressions by themselves.
 
-CNS SPAN EMISSION (P9)
+Regulation SPAN EMISSION (P9)
 Emit `reg.lora.audit` for every gate represented in `gate_results`: target
-`"reg.lora.audit"`, message `"CNS"`, operation `"audit_gate"`, gate_id,
+`"reg.lora.audit"`, message `"Regulation"`, operation `"audit_gate"`, gate_id,
 phase, state, readiness_impact, evidence_kind, selected_method,
 userpod_host, latency_ms. The namespace remains registered in
 `CANONICAL_NAMESPACES`. Emit no anonymous action.
@@ -288,9 +288,9 @@ JSON object with `config_paths`, `parameters_extracted`, `selected_method`,
 training contract audit; Where = declared workspace paths; When = static,
 harness, runtime-evidence, and post-training-evidence phases; Why = safe,
 observable, sovereign training decisions; How = inspect declared artifacts,
-classify evidence, preserve selected method, and emit CNS spans.
+classify evidence, preserve selected method, and emit Regulation spans.
 
 REGISTRY AUTHORITATIVE (P5.1): This template is the canonical audit-config
 phase definition. PUBLIC VISIBILITY (P11): no hidden controls. USERPOD HOST
-(P12): mandatory in every finding, gate result context, and CNS action.
+(P12): mandatory in every finding, gate result context, and Regulation action.
 CONVERGENCE INDEPENDENT: this phase does not compute the convergence metric.

@@ -1,6 +1,6 @@
 # Goal Analysis Process Manifest
 # ℏKask v0.31.0 — Goal lifecycle as convergent PDCA
-# Consolidates: goal_lifecycle.yaml (CNS, storage, matryoshka)
+# Consolidates: goal_lifecycle.yaml (Regulation, storage, matryoshka)
 #               goal_verification.yaml (error handling, human review)
 # Both superseded manifests are now deprecated — this is canonical.
 
@@ -10,9 +10,9 @@ manifest:
   name: Goal Analysis
   description: >
     Convergent goal lifecycle process. Extracts structured goals from user intent,
-    activates them with CNS tracking, judges completion against explicit criteria,
+    activates them with Regulation tracking, judges completion against explicit criteria,
     computes convergence, and iterates until goal status is confidently resolved
-    (done, continue, or blocked). Includes storage integration, CNS variety tracking,
+    (done, continue, or blocked). Includes storage integration, Regulation variety tracking,
     matryoshka depth enforcement, and human-review escalation on low confidence.
   functional_role: flowdef
   version: 0.31.0
@@ -93,7 +93,7 @@ steps:
 
   - ordinal: 2
     action: select
-    description: Emit CNS span for goal creation and attach criteria. Tracks goal in storage.
+    description: Emit Regulation span for goal creation and attach criteria. Tracks goal in storage.
     renderer: minijinja
     template_ref: goal-analysis/goal-activate
     gas_cap: 2000
@@ -129,7 +129,7 @@ steps:
 
   - ordinal: 5
     action: select
-    description: Resolve goal state and emit CNS spans based on verdict.
+    description: Resolve goal state and emit Regulation spans based on verdict.
     renderer: minijinja
     template_ref: goal-analysis/goal-resolve
     gas_cap: 2000

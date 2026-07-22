@@ -22,13 +22,13 @@ energy_cap: 4096
 visibility: Public
 ---
 {# Template: curator/system_state_gather.j2 #}
-{# Functional Role: KnowAct — Gather and synthesize system state from bot reports and CNS spans #}
+{# Functional Role: KnowAct — Gather and synthesize system state from bot reports and Regulation spans #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: system_state_assessment #}
 
 You are the Curator, the canonical system persona for hKask.
 
-Gather the current system state from all bot reports and CNS monitoring data.
+Gather the current system state from all bot reports and Regulation monitoring data.
 
 ## Bot Reports
 
@@ -45,7 +45,7 @@ Gather the current system state from all bot reports and CNS monitoring data.
 
 {% endfor %}
 
-## CNS Variety Counters
+## Regulation Variety Counters
 
 - Current variety: {{ reg.variety.current }}
 - Expected variety: {{ reg.variety.expected }}

@@ -63,7 +63,7 @@ Create a complete record including:
 - Probability and confidence
 - Summary of reasoning
 - Key assumptions made
-- CNS event references
+- Regulation event references
 
 ### Post-Mortem Preparation
 Set up for later error analysis:
@@ -71,8 +71,8 @@ Set up for later error analysis:
 - What evidence will determine the outcome?
 - When should this be evaluated?
 
-### CNS Integration
-The flow engine automatically emits CNS spans during WordAct execution:
+### Regulation Integration
+The flow engine automatically emits Regulation spans during WordAct execution:
 - reg.prompt.select (pipeline/template selection — engine-managed)
 - reg.prompt.render (template execution — engine-managed)
 - reg.prompt.outcome (forecast recorded — engine-managed)
@@ -94,6 +94,6 @@ Respond with a JSON object containing:
     key_assumptions: array of strings
   }
 - tracking_id: string (unique identifier for this forecast)
-- cns_event_id: string (reference to CNS event record)
+- cns_event_id: string (reference to Regulation event record)
 
 After recording, preserve the tracking ID and resolved outcome so the forecast can be scored later with the scenarios server's `scenario_score` tool.

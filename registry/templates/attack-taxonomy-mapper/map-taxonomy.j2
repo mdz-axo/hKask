@@ -97,9 +97,9 @@ MAP ACTIONS (concrete — must use finding evidence from supply-chain-sentinel o
     (which supply-chain-sentinel defense layer addresses this OSC&R
     technique), `provenance`, `epistemic_mode`, `userpod_host`.
 
-CNS SPAN EMISSION (P9 — every taxonomy mapping):
+Regulation SPAN EMISSION (P9 — every taxonomy mapping):
 - `reg.taxonomy.map` per finding mapped (target: `"reg.taxonomy.map"`,
-  message: `"CNS"`, operation: `"map_taxonomy"`, finding_reference: `...`,
+  message: `"Regulation"`, operation: `"map_taxonomy"`, finding_reference: `...`,
   osc_r_tactic: `...`, osc_r_technique: `...`, mapping_confidence: `...`,
   userpod_host: `...`, latency_ms: ...).
 - The span namespace is registered in `CANONICAL_NAMESPACES`
@@ -143,7 +143,7 @@ MINIMALISM CHECK (P5 — 5W1H gate for this skill's existence):
   for severity and remediation priority); P9 (taxonomy mapping observable
   via `reg.taxonomy.*` spans).
 - How: Discover findings → read evidence → map to OSC&R → taxonomize →
-  propose taxonomy_mapping field → emit CNS span → compute convergence.
+  propose taxonomy_mapping field → emit Regulation span → compute convergence.
 - If any of these 6 were missing, this skill would violate P5. All 6 present.
 
 OUTPUT FORMAT:

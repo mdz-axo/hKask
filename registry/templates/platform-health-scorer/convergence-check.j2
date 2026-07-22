@@ -27,7 +27,7 @@ verbosity = "terse"
 max_tokens = 900
 thinking_budget = "off"
 
-Given a platform health score report, compute convergence where 0 means all dimensions are covered (SLO, contracts, tests, CNS, dependency, loyalty), the score is computed correctly from the weighted formula, and degradation is flagged if applicable.
+Given a platform health score report, compute convergence where 0 means all dimensions are covered (SLO, contracts, tests, Regulation, dependency, loyalty), the score is computed correctly from the weighted formula, and degradation is flagged if applicable.
 
 Input:
 ```json
@@ -38,7 +38,7 @@ You are a convergence evaluator. Measure convergence on [0,1] where 0 means the 
 
 ## Convergence Criteria
 Score 0 when:
-- All six dimensions are covered (SLO compliance, contract health, test pass rate, CNS variety, dependency health, loyalty score)
+- All six dimensions are covered (SLO compliance, contract health, test pass rate, Regulation variety, dependency health, loyalty score)
 - The weighted formula is correctly applied
 - Trend is computed against previous month
 - Degradation (> 0.05 drop) is flagged

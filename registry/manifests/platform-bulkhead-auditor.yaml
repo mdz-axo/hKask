@@ -62,7 +62,7 @@ steps:
   - ordinal: 1
     action: select
     description: >
-      Map failure domains from the crate dependency graph and CNS span data.
+      Map failure domains from the crate dependency graph and Regulation span data.
       Identify each component (crate, MCP server, agent pod, skill) as a
       node in the failure graph. Edges represent dependency: A → B means
       "A depends on B; if B fails, A is affected."

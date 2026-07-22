@@ -56,11 +56,11 @@ steps:
   - ordinal: 3
     action: feedback
     description: >
-      Emit condensation outcome to CNS.
+      Emit condensation outcome to Regulation.
       Track compression efficiency and quality.
     renderer: null
     template_ref: null
-    mcp: null # CNS is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:
@@ -98,7 +98,7 @@ ocap:
   capability_expiry_seconds: 3600
   template_scoped: true
 
-# CNS Monitoring
+# Regulation Monitoring
 ledger:
   emit_spans: true
   span_namespace: reg.prompt.condense

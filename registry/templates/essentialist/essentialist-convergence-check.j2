@@ -27,10 +27,10 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
 - Blockers = specific gate failures (which gate: Exist/Surface/Contract),
   unresolved items (which items survived all 3 gates and why).
 
-CNS SPAN (P9):
+Regulation SPAN (P9):
 - `reg.skill` is registered in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
   Emit span unconditionally:
-  (`target: "reg.skill"`, message: `"CNS"`, operation: `"essentialist_convergence_check"`,
+  (`target: "reg.skill"`, message: `"Regulation"`, operation: `"essentialist_convergence_check"`,
   metric, previous_metric, improvement_pct, blockers: [...], userpod_host, latency_ms).
 
 OUTPUT FORMAT (JSON):
@@ -41,7 +41,7 @@ items_not_removed, userpod_host, cns_span_emitted: true}`.
 5W1H GATE (P5 — minimal): Who = userpod host; What = convergence metric;
 Where = essentialist audit cycle; When = after 3-gate evaluation; Why = P9
 observable self-correction / P7 evolutionary progress; How = compute metric
-+ check improvement + emit CNS span + identify blockers.
++ check improvement + emit Regulation span + identify blockers.
 All 6 present.
 
 MINIMAL: One template (`KnowAct`); no extra computation; uses gate results
@@ -53,7 +53,7 @@ deletion test on item X", "merge public items Y and Z to pass G2 surface
 count") based on real gate results — not speculative.
 OCAP BOUNDARY (P4): Metric computed from essentialist gate results only;
 no external scanning.
-CNS REGULATION (P9): Span emitted unconditionally — namespace registered
+Regulation REGULATION (P9): Span emitted unconditionally — namespace registered
 in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
 USERPOD HOST (P12): `userpod_host` mandatory.
 VISIBILITY (P11): Metric output public; no hidden essentialist posture.
@@ -76,7 +76,7 @@ NO FABRICATION: Metric computed from evidence counts only. Blockers derived
 from actual `gates_failed`, `items_not_removed`. No synthetic gate results.
 CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 `essentialist-flow.j2` logic. Uses gate results from the flow template.
-CNS SPAN EMITTED: `reg.skill` is registered, so the span is always emitted.
+Regulation SPAN EMITTED: `reg.skill` is registered, so the span is always emitted.
 Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.

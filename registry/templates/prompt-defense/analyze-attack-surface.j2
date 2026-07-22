@@ -73,16 +73,16 @@ What data could be exfiltrated through the identified attack vectors?
 
 ### 3. Trust Boundaries
 
-What trust boundaries could the attack cross? Map to hKask CNS spans where applicable.
+What trust boundaries could the attack cross? Map to hKask Regulation spans where applicable.
 - User ↔ Agent boundary
-- Agent ↔ Tool boundary → `reg.tool.audit` (CNS span)
-- Agent ↔ Memory boundary → `reg.memory.crud` (CNS span)
+- Agent ↔ Tool boundary → `reg.tool.audit` (Regulation span)
+- Agent ↔ Memory boundary → `reg.memory.crud` (Regulation span)
 - Agent ↔ External system boundary
 
 ### 4. Persistence Mechanisms
 
 Could the attack establish persistence?
-- Memory contamination across sessions → `reg.memory.crud` (CNS span)
+- Memory contamination across sessions → `reg.memory.crud` (Regulation span)
 - Tool configuration changes
 - Stored instruction injection
 

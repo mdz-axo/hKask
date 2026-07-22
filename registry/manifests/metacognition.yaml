@@ -77,7 +77,7 @@ inputs:
     type: object
     required: false
     description: >
-      Externally provided current state (e.g., CNS health snapshot, bot
+      Externally provided current state (e.g., Regulation health snapshot, bot
       status, variety counters). If provided, the assessment phase uses
       this as ground truth instead of relying solely on session history.
   - name: context_text

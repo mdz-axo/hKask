@@ -23,8 +23,8 @@ visibility: Public
 {# Template: kata-improvement/kata-improvement-convergence-check.j2 #}
 {# goal: Compute normalized convergence metric for kata-improvement cycles. #}
 {#
-  Group: F (Kata & Coaching — CNS-grounded)
-  Convergence method: LLM-assessed PDCA coherence with CNS counter awareness
+  Group: F (Kata & Coaching — Regulation-grounded)
+  Convergence method: LLM-assessed PDCA coherence with Regulation counter awareness
   Measures: Whether the improvement kata's four steps produce a coherent,
     testable experiment. Specifically:
     1. Current condition is grounded in data (not assumption)
@@ -34,11 +34,11 @@ visibility: Public
     5. Feedback timing is defined (Q5: "how quickly can we see?")
   Threshold: {{ _convergence.threshold }} — converged when metric ≤ threshold
   Improvement: (baseline - current) / baseline ≥ {{ _convergence.improvement_target | default(0.10) }}
-  CNS integration: KataEngine captures metric_before/metric_after from CNS counters
+  Regulation integration: KataEngine captures metric_before/metric_after from Regulation counters
     (kata.practices.completed, kata.automaticity.score). These are available
     in the session context but not yet auto-injected into this template.
-    When CNS wiring is complete, this template will compare LLM-judged metric
-    against objective CNS counter deltas for calibration.
+    When Regulation wiring is complete, this template will compare LLM-judged metric
+    against objective Regulation counter deltas for calibration.
 #}
 {# learner_bot: {{ learner_bot }} (default: "unknown") #}
 
@@ -76,16 +76,16 @@ enough to act on and the gap analysis is data-grounded.
    - Current↔Target gap is clearly framed → +0.10 if muddy
    - Experiment directly tests movement toward target → +0.15 if misaligned
    - Feedback timing defined (Q5: "how quickly can we go and see?") → +0.10 if missing
-3. Check CNS grounding (when CNS counters are available in context):
-   - CNS counter data referenced (not purely LLM judgment) → −0.05 bonus
+3. Check Regulation grounding (when Regulation counters are available in context):
+   - Regulation counter data referenced (not purely LLM judgment) → −0.05 bonus
 4. Start at 1.0, subtract for each satisfied check.
 5. Clamp to [0, 1].
 
-## CNS Integration Note
+## Regulation Integration Note
 The KataEngine captures objective metrics (kata.practices.completed, kata.automaticity.score)
-before and after each PDCA cycle. When these CNS counters are wired into this template's
+before and after each PDCA cycle. When these Regulation counters are wired into this template's
 context (planned: v0.31.0), the convergence metric will be cross-calibrated:
-- LLM-judged metric vs. CNS counter delta → calibration signal
+- LLM-judged metric vs. Regulation counter delta → calibration signal
 - Divergence > 0.3 triggers calibration alert
 
 ## Input

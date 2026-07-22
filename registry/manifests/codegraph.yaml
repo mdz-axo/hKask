@@ -56,7 +56,7 @@ inputs:
     description: >
       What the userpod wants to understand. Examples: "impact of changing
       the inference router", "find dead code in hkask-mcp", "understand the
-      CNS loop system".
+      Regulation loop system".
   - name: depth
     type: string
     required: false

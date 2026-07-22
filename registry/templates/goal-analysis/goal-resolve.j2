@@ -20,7 +20,7 @@ energy_cap: 2048
 visibility: Public
 ---
 {# Template: goal-analysis/goal-resolve.j2 #}
-{# goal: Route goal verdict to resolution action and emit appropriate CNS spans. #}
+{# goal: Route goal verdict to resolution action and emit appropriate Regulation spans. #}
 
 [inference]
 temperature = 0.1
@@ -48,7 +48,7 @@ Resolution rules:
 - verdict "blocked" → escalate to human (emit reg.goal.block)
 - Any verdict with confidence &lt; 0.7 → escalate (low confidence may still be wrong)
 
-Emit appropriate CNS spans based on resolution:
+Emit appropriate Regulation spans based on resolution:
 - complete → ["reg.goal.verify", "reg.goal.complete"]
 - continue → ["reg.goal.verify", "reg.goal.transition"]
 - escalate (blocked) → ["reg.goal.verify", "reg.goal.block", "reg.goal.alert.escalate"]

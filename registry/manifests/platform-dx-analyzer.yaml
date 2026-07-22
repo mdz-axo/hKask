@@ -12,7 +12,7 @@ manifest:
     Convergent developer experience analysis. Computes DORA metrics
     (Deployment Frequency, Lead Time, Change Failure Rate, MTTR) and
     SPACE dimensions (Satisfaction, Performance, Activity, Communication,
-    Efficiency) for skill authors from CNS span data. Classifies authors
+    Efficiency) for skill authors from Regulation span data. Classifies authors
     into DORA performance clusters, detects regressions, and generates
     human-readable recommendations.
 
@@ -59,7 +59,7 @@ steps:
   - ordinal: 1
     action: select
     description: >
-      Compute DORA metrics from CNS skill lifecycle spans.
+      Compute DORA metrics from Regulation skill lifecycle spans.
       Queries reg.skill (created/updated) and reg.tool.skill_dispatch
       (success/failure) for the window. For each skill author:
       - Deployment Frequency: skills created/updated per day
@@ -107,7 +107,7 @@ steps:
       - SPACE score drop > 10% in any dimension
       - New authors with low initial scores (onboarding friction)
 
-      Generates alerts for the Curator via CNS.
+      Generates alerts for the Curator via Regulation.
 
     renderer: minijinja
     template_ref: platform-dx-analyzer/detect-regressions

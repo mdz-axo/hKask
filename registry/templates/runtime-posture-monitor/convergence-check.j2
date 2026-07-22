@@ -1,6 +1,6 @@
 {# goal: Compute normalized convergence metric [0,1] from evidence counts only: unresolved runtime threats (0.40), defense-layer runtime coverage verified by firing (0.25), threat-pattern taxonomy coverage (0.15), regression library growth (0.10), residual runtime risk (0.10). Emit reg.runtime.convergence span (P9) — namespace registered in CANONICAL_NAMESPACES (event.rs). UserPod_host mandatory (P12). Minimal: evidence-based computation, no synthetic metrics (P5, P8). #}
 {# Computes normalized metric [0, 1] where 0 = fully converged #}
-{# Emits reg.runtime.convergence CNS span (P9) — namespace registered #}
+{# Emits reg.runtime.convergence Regulation span (P9) — namespace registered #}
 
 INPUT: unresolved_threats = {{ unresolved_threats }} (from previous cycle or current)
 INPUT: defense_layers_firing = {{ defense_layers_firing }} (from emit-regulation/classify-threat)
@@ -49,10 +49,10 @@ CONVERGENCE CHECK (P9 — homeostatic regulation):
   (no new regression proposed despite threat evidence), taxonomy gaps
   (threat types uncovered by findings/proposals).
 
-CNS SPAN (P9):
+Regulation SPAN (P9):
 - `reg.runtime.convergence` is registered in `CANONICAL_NAMESPACES`
   (`crates/hkask-types/src/event.rs`). Emit span unconditionally:
-  (`target: "reg.runtime.convergence"`, message: `"CNS"`,
+  (`target: "reg.runtime.convergence"`, message: `"Regulation"`,
   operation: `"convergence_check"`, metric, previous_metric, improvement_pct,
   blockers: [...], userpod_host, latency_ms).
 
@@ -66,7 +66,7 @@ cns_span_emitted: true}`.
 5W1H GATE (P5 — minimal): Who = userpod host; What = convergence metric;
 Where = deployed runtime environment / observation window; When = monitoring
 cycle; Why = P9 observable self-correction / P7 evolutionary progress;
-How = compute metric + check improvement + emit CNS span + identify blockers.
+How = compute metric + check improvement + emit Regulation span + identify blockers.
 All 6 present.
 
 MINIMAL: One template (`KnowAct`); no extra computation; uses evidence from
@@ -79,9 +79,9 @@ EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g., "add
 runtime policy rule for tool call chain X", "investigate why reg.guard.input
 firing but reg.regulation.action_blocked not increasing") based on real
 runtime evidence — not speculative.
-OCAP BOUNDARY (P4): Metric computed from hKask CNS telemetry only; no
+OCAP BOUNDARY (P4): Metric computed from hKask Regulation telemetry only; no
 external endpoint scanning; no OS-level process inspection.
-CNS REGULATION (P9): Span emitted unconditionally — namespace registered
+Regulation REGULATION (P9): Span emitted unconditionally — namespace registered
 in `CANONICAL_NAMESPACES` (`crates/hkask-types/src/event.rs`).
 USERPOD HOST (P12): `userpod_host` mandatory.
 VISIBILITY (P11): Metric output public; no hidden runtime posture.
@@ -116,7 +116,7 @@ CONVERGENCE INDEPENDENT: Separate `.j2` template; does not duplicate
 from previous monitoring cycle if persistence is enabled by user). If no
 previous cycle, assumes `previous_metric = 1.0` (initial state) — explicit
 assumption, not hidden.
-CNS SPAN EMITTED: `reg.runtime.convergence` is registered, so the span is
+Regulation SPAN EMITTED: `reg.runtime.convergence` is registered, so the span is
 always emitted. Output states `cns_span_emitted: true`.
 MINIMAL ARTIFACT: This template produces exactly the metric, verdict,
 blockers, and span emission — nothing more.

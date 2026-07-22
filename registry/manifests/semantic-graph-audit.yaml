@@ -8,7 +8,7 @@ manifest:
   name: Semantic Graph Audit
   description: >
     Domain-agnostic dependency graph analysis. Accepts any directed graph
-    (code modules, crates, skills, ADRs, CNS spans, decision trees, data flows),
+    (code modules, crates, skills, ADRs, Regulation spans, decision trees, data flows),
     classifies edges by constraint force, detects structural issues (cycles,
     redundancies, gaps, orphans), and evaluates graph health through
     four analytical lenses: pragmatic-cybernetics, essentialist, pragmatic-semantics,

@@ -6,15 +6,15 @@ crate:
   version: "0.31.0"
   description: >
     Platform health scoring. Aggregates SLO compliance, contract violations,
-    test pass rate, and CNS variety into a single health score (0.0-1.0).
+    test pass rate, and Regulation variety into a single health score (0.0-1.0).
 
 templates:
   - id: platform-health-scorer/query-slos
-    name: "Query SLO evaluations from the CNS event store"
+    name: "Query SLO evaluations from the Regulation event store"
     path: query-slos.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
-    description: Query SLO evaluations from the CNS event store. Computes average error budget remaining, burn rate, breach count.
+    description: Query SLO evaluations from the Regulation event store. Computes average error budget remaining, burn rate, breach count.
   - id: platform-health-scorer/query-contracts
     name: "Query contract violations from CI checks"
     path: query-contracts.j2
@@ -22,23 +22,23 @@ templates:
     lexicon_terms: [query, retrieve, compute]
     description: Query contract violations from CI checks. Computes violation density, most-violated contracts, trend.
   - id: platform-health-scorer/query-tests
-    name: "Query test pass rate from CNS spans"
+    name: "Query test pass rate from Regulation spans"
     path: query-tests.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
-    description: Query test pass rate from CNS spans. Computes pass ratio, failing crates, flaky test count.
+    description: Query test pass rate from Regulation spans. Computes pass ratio, failing crates, flaky test count.
   - id: platform-health-scorer/query-cns
-    name: "Query CNS variety metrics: overall deficit, critical/warning count,…"
+    name: "Query Regulation variety metrics: overall deficit, critical/warning count,…"
     path: query-reg.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
-    description: "Query CNS variety metrics: overall deficit, critical/warning count, variety EMA. Computes variety health score."
+    description: "Query Regulation variety metrics: overall deficit, critical/warning count, variety EMA. Computes variety health score."
   - id: platform-health-scorer/compute-score
-    name: "Aggregate SLO, contract, test, and CNS variety metrics into a single…"
+    name: "Aggregate SLO, contract, test, and Regulation variety metrics into a single…"
     path: compute-score.j2
     type: KnowAct
     lexicon_terms: [compute, aggregate, score]
-    description: Aggregate SLO, contract, test, and CNS variety metrics into a single platform health score (0.0-1.0).
+    description: Aggregate SLO, contract, test, and Regulation variety metrics into a single platform health score (0.0-1.0).
   - id: platform-health-scorer/convergence-check
     name: "Compute normalized convergence metric for health score PDCA cycles"
     path: convergence-check.j2

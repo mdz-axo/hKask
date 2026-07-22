@@ -1,13 +1,13 @@
 # Runtime Posture Monitor Process Manifest
 # ℏKask v0.31.0 — Runtime security posture observation
-# Observes CNS telemetry (hkask.* spans, reg.guard.*, reg.regulation events).
+# Observes Regulation telemetry (hkask.* spans, reg.guard.*, reg.regulation events).
 
 manifest:
   id: runtime-posture-monitor
   category: skill
   name: Runtime Posture Monitor
   description: >
-    Runtime security posture monitoring. Observes CNS telemetry for endpoint
+    Runtime security posture monitoring. Observes Regulation telemetry for endpoint
     abuse, bot traffic, LLM usage anomalies, and dependency behavior.
   functional_role: flowdef
   version: 0.31.0

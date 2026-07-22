@@ -194,12 +194,12 @@ steps:
   - ordinal: 5
     action: feedback
     description: >
-      Emit CNS feedback for variety monitoring and prompt injection
+      Emit Regulation feedback for variety monitoring and prompt injection
       diagnostic tracking. Report threat categories detected, defense
-      layers recommended, and critical threats for CNS algedonic monitoring.
+      layers recommended, and critical threats for Regulation algedonic monitoring.
     renderer: null
     template_ref: null
-    mcp: hkask-mcp-memory # CNS feedback now via memory server
+    mcp: hkask-mcp-memory # Regulation feedback now via memory server
     gas_cap: 500
     timeout_seconds: 5
     feedback:
@@ -252,7 +252,7 @@ ocap:
   capability_expiry_seconds: 3600
   template_scoped: true
 
-# CNS Monitoring
+# Regulation Monitoring
 ledger:
   emit_spans: true
   span_namespace: reg.prompt.prompt-injection-diagnostic

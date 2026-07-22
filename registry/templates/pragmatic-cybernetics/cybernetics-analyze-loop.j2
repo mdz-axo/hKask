@@ -55,7 +55,7 @@ You are a cybernetic loop analyst. Analyze a feedback loop on 5 properties to de
 {{ system_context }}
 {% endif %}
 
-## hKask CNS Loop Examples
+## hKask Regulation Loop Examples
 
 - **Communication ↔ Cybernetics queue depth**: Writer increments `Arc<AtomicU64>` (Relaxed), reader checks against `communication_backpressure_threshold` (default: 100). Backpressure when exceeded.
 - **SpecDriftAlert**: `DefaultSpecCurator` emits `LoopPayload::SpecDriftAlert` when spec drift exceeds threshold. Flows through Communication Loop to Curation inbox.
@@ -82,7 +82,7 @@ Respond with a JSON object:
   "closure": "closed|partial|open",
   "fidelity": "high|moderate|low",
   "broken_loop_diagnosis": "If any property is degraded or broken, describe which properties failed, why, and how they interact",
-  "remediation": "Specific, actionable steps to restore the loop to health. Reference hKask CNS spans and mechanisms where applicable."
+  "remediation": "Specific, actionable steps to restore the loop to health. Reference hKask Regulation spans and mechanisms where applicable."
 }
 ```
 
@@ -91,7 +91,7 @@ Respond with a JSON object:
 - Every property assessment must be grounded in evidence from the loop description or system context.
 - A loop with any property rated "broken" or "none" is a broken loop — diagnose it explicitly.
 - Remediation must be specific: name the mechanism, the parameter, the code path.
-- Do not propose adding monitoring stacks (Prometheus, Grafana) — hKask is headless. CNS spans provide observability.
+- Do not propose adding monitoring stacks (Prometheus, Grafana) — hKask is headless. Regulation spans provide observability.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

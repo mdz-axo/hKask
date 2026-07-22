@@ -34,13 +34,13 @@ classifier:
 
     Examples:
 
-    Passage: "The CNS uses algedonic signals to detect variety deficits
+    Passage: "The Regulation uses algedonic signals to detect variety deficits
     and escalate to the Curator when thresholds are breached. Each signal
     carries a severity level and a target agent ID."
-    {"topic":"CNS algedonic signaling for variety deficit detection",
+    {"topic":"Regulation algedonic signaling for variety deficit detection",
     "concepts":["algedonic signals","variety deficit","escalation threshold"],
-    "entities":["CNS","Curator"],
-    "relationships":["CNS produces algedonic signals for variety deficits",
+    "entities":["Regulation","Curator"],
+    "relationships":["Regulation produces algedonic signals for variety deficits",
     "signals escalate to Curator on threshold breach"],
     "primary_dimension":"Gentle",
     "quality_flags":["precise","clear","actionable"]}

@@ -9,7 +9,7 @@ manifest:
   category: infrastructure
   name: Platform Governance Transparency Reporter
   description: >
-    Convergent governance transparency process. Queries CNS spans for all
+    Convergent governance transparency process. Queries Regulation spans for all
     governance decisions (Curator directives, spec changes, energy budget
     adjustments, contract proposals/acceptances/rejections), classifies each
     event by type, explains it in plain language accessible to non-technical
@@ -18,7 +18,7 @@ manifest:
 
     Operationalizes P4 (Clear Boundaries): the platform's decision-making
     is visible and explainable, not opaque. Every governance action is
-    traceable to a CNS span with a human-readable explanation.
+    traceable to a Regulation span with a human-readable explanation.
 
   functional_role: flowdef
   version: 0.31.0
@@ -58,15 +58,15 @@ steps:
   - ordinal: 1
     action: select
     description: >
-      Query CNS spans for governance events within the specified window.
+      Query Regulation spans for governance events within the specified window.
       Collects spans from: reg.curation, reg.spec, reg.contract.proposed,
       reg.contract.accepted, reg.contract.rejected, reg.curator.*, and
-      reg.energy.* (energy budget adjustments). The CNS query tool returns
+      reg.energy.* (energy budget adjustments). The Regulation query tool returns
       structured span data for classification.
 
-      Design note: This step requires CNS MCP server access. In flow-only
+      Design note: This step requires Regulation MCP server access. In flow-only
       execution, governance_spans input should be pre-populated from a
-      CNS query. The template renders classification guidance for the
+      Regulation query. The template renders classification guidance for the
       LLM to apply to the span data.
 
     renderer: minijinja
@@ -81,7 +81,7 @@ steps:
     action: select
     description: >
       Classify each governance event by type and explain it in plain language.
-      For each CNS span: identify the decision type, who made it (Curator,
+      For each Regulation span: identify the decision type, who made it (Curator,
       human admin, userpod), what changed, why (if traceable), and frame
       the explanation for a non-technical audience. Flags decisions that
       require additional context or appear anomalous.
@@ -101,7 +101,7 @@ steps:
       Groups events by category (curation, specification, contracts, energy),
       provides summary statistics per category, identifies patterns (e.g.,
       frequent contract rejections), and renders in the requested output format.
-      Computes a coverage metric: what percentage of CNS governance spans
+      Computes a coverage metric: what percentage of Regulation governance spans
       were successfully classified and explained?
 
       Output schema:
@@ -123,7 +123,7 @@ steps:
     action: select
     description: >
       Compute normalized convergence metric for the transparency report.
-      Checks: are all CNS governance span categories covered? Are
+      Checks: are all Regulation governance span categories covered? Are
       explanations clear and actionable? Is coverage above threshold?
       Outputs convergence_metric in [0,1].
 

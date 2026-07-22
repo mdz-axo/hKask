@@ -41,7 +41,7 @@ You are a provenance tracer. Trace a claim back through hKask's data layers to d
 | **Ontology tier** | Domain anchoring — FIBO (+0.10), CogAT (-0.10), GOLEM/ML-Schema/OMC (±0.00) | Confidence modifier — adjusts claim precision based on ontology adoption and mapping fidelity |
 | **Design** | `docs/architecture/hKask-architecture-master.md`, ERDs, interface specs | High — authoritative for structure |
 | **Implementation** | `crates/*/src/**/*.rs`, `Cargo.toml`, `build.rs` | Direct — what actually runs |
-| **Runtime observation** | CNS spans (`reg.*`), variety counters, algedonic alerts | Empirical — what actually happens |
+| **Runtime observation** | Regulation spans (`reg.*`), variety counters, algedonic alerts | Empirical — what actually happens |
 | **Memory** | `hkask-memory`: episodic (private), semantic (public) | Derived — consolidated from experience |
 | **Inference** | Agent reasoning, template output, Curator conclusions | Lowest — derived, may contain assumptions |
 
@@ -88,7 +88,7 @@ Respond with a JSON object:
     {
       "step": 1,
       "source": "specification|design|implementation|runtime|memory|inference|unknown",
-      "location": "Specific doc path, crate path, CNS span, or memory reference",
+      "location": "Specific doc path, crate path, Regulation span, or memory reference",
       "derivation": "direct_quote|measurement|aggregation|summarization|generalization|inference",
       "transform": "none|summarized|generalized|inferred|unknown",
       "confidence_at_step": 0.0
@@ -114,7 +114,7 @@ Respond with a JSON object:
 
 ## Constraints
 
-- Every provenance step must identify a concrete location (file path, CNS span, memory key, or "unknown").
+- Every provenance step must identify a concrete location (file path, Regulation span, memory key, or "unknown").
 - If a step's source is "unknown", confidence at that step must be ≤ 0.2.
 - Direct quotes from specification carry confidence ≥ 0.9.
 - Inference steps always reduce confidence by at least 0.1.

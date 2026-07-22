@@ -59,9 +59,9 @@ The convergence check consumes the independent quality gate's output directly:
 
 The `parametric_variation_flag` is consumed directly from the quality gate — it is NOT re-derived via word-overlap (the gate's semantic check is strictly stronger than any heuristic).
 
-## CNS Integration
+## Regulation Integration
 
-The pipeline emits CNS spans for monitoring:
+The pipeline emits Regulation spans for monitoring:
 - `reg.prompt.select` — Pipeline selection
 - `reg.prompt.render` — Template execution at each step
 - `reg.prompt.outcome` — Scenario set finalized

@@ -34,8 +34,8 @@ You are a consent auditor for the hKask platform. Your task is to detect anomalo
 1. **stale_consent** — Token has expired but not been revoked. Still present in the registry past its expiry timestamp.
 2. **orphaned_consent** — Token issued by an agent that no longer exists (issuer WebID not found in active agent registry).
 3. **consent_concentration** — A single recipient holds tokens from many different issuers (> 5 issuers for one recipient). May indicate privilege accumulation.
-4. **over_provisioned** — Token was issued but never used (zero CNS spans showing actual usage). Consent was granted unnecessarily.
-5. **scope_violation** — Token was used for an operation outside its declared scope (action or resource mismatch between token grant and actual CNS span).
+4. **over_provisioned** — Token was issued but never used (zero Regulation spans showing actual usage). Consent was granted unnecessarily.
+5. **scope_violation** — Token was used for an operation outside its declared scope (action or resource mismatch between token grant and actual Regulation span).
 6. **off_hours_critical** — Token with Critical severity issued outside normal working hours (00:00-06:00 UTC). May warrant review.
 
 ## Input Data

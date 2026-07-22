@@ -5,18 +5,18 @@ crate:
   name: platform-governance-transparency-reporter
   version: "0.31.0"
   description: >
-    Governance transparency reporting. Queries CNS spans for all governance
+    Governance transparency reporting. Queries Regulation spans for all governance
     decisions and produces human-readable explanations. Operationalizes P4
     (Clear Boundaries): platform decision-making is visible and explainable.
 
 templates:
   - id: platform-governance-transparency-reporter/query-spans
-    name: "Query CNS spans for governance events within a time window"
+    name: "Query Regulation spans for governance events within a time window"
     path: query-spans.j2
     type: KnowAct
     lexicon_terms: [query, classify, extract, observe, retrieve]
     description: >
-      Query CNS spans for governance events within a time window.
+      Query Regulation spans for governance events within a time window.
       Collects spans from curation, spec, contract, and energy namespaces.
 
   - id: platform-governance-transparency-reporter/classify-events

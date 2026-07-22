@@ -57,10 +57,10 @@ steps:
   - ordinal: 3
     action: feedback
     description: >
-      Emit news search outcome to CNS.
+      Emit news search outcome to Regulation.
     renderer: null
     template_ref: null
-    mcp: null # CNS is ambient (CnsRuntime)
+    mcp: null # Regulation is ambient (CnsRuntime)
     gas_cap: 500
     timeout_seconds: 5
     feedback:

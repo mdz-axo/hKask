@@ -75,7 +75,7 @@ Don't include the probe questions in the output. Include the *hardened* scenario
 ## What Makes a Good Scenario
 
 A good scenario:
-- Has a clear testing *angle* (fuzz, contract, flake, alert, CNS, gas, loop, repair)
+- Has a clear testing *angle* (fuzz, contract, flake, alert, Regulation, gas, loop, repair)
 - Names at least one *failure mode* it cares about
 - Suggests a *tool* (cargo bolero, cargo test, cargo mutants, shell command)
 - Hints at *what should happen* on failure (auto-repair? escalate? retry? log?)
@@ -99,7 +99,7 @@ Available classifiers: `qa-triage` (diagnose Rust test failures), `qa-feedback` 
 
 Gas: 100 gas/function, 1 gas = 4 µrJ. CI typical: 3000–7500 gas. Local typical: 15000 gas.
 
-CNS spans: `reg.qa.bolero_failure`, `reg.qa.repair_attempted`, `reg.qa.repair_verified`, `reg.qa.repair_exhausted`, `reg.qa.mutant_survived`.
+Regulation spans: `reg.qa.bolero_failure`, `reg.qa.repair_attempted`, `reg.qa.repair_verified`, `reg.qa.repair_exhausted`, `reg.qa.mutant_survived`.
 
 Alerts: classify steps can escalate to Curator via `escalate_on` + `severity_map` + `domain` + `threshold` + `cooldown_secs`.
 
@@ -129,7 +129,7 @@ Respond with a JSON object:
       "grill_hardened": true
     }
   ],
-  "perspective_summary": "Generated 4 scenarios from SRE persona: obvious (flake detection), shadow (alert fatigue), adjacent (CNS span coverage), inversion (non-failure verification). All scenarios survived grill-me probing."
+  "perspective_summary": "Generated 4 scenarios from SRE persona: obvious (flake detection), shadow (alert fatigue), adjacent (Regulation span coverage), inversion (non-failure verification). All scenarios survived grill-me probing."
 }
 ```
 

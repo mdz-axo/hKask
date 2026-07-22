@@ -53,7 +53,7 @@ templates:
     description: >
       Generate the complete YAML manifest from the designed step topology.
       Include all sections: manifest metadata, gas, steps, error_handling,
-      CNS, and audit. Supports `caveman` mode for ultra-minimal CI-optimized output
+      Regulation, and audit. Supports `caveman` mode for ultra-minimal CI-optimized output
       (strips descriptions, tight gas caps, minimal branching).
 
   - id: qa-script-builder/qa-validate

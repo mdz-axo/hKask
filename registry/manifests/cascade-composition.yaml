@@ -131,7 +131,7 @@ gas:
 #     check_on_each_call: true
 #     cache_validated_duration_ms: 5000
 
-# CNS feedback
+# Regulation feedback
 # cns_feedback: (removed — documentation-only field not parsed by Rust; deny_unknown_fields enforces schema)
 #   # Span emission
 #   spans:

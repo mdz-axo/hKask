@@ -125,7 +125,7 @@ templates:
       Returns convergence_metric plus rationale and blockers.
 
 # FlowDef orchestrator — chains all 8 stages with convergence criteria.
-# CNS spans (reg.prompt.{select,render,outcome}) are emitted automatically
+# Regulation spans (reg.prompt.{select,render,outcome}) are emitted automatically
 # by the flow engine for WordAct populate steps; no explicit cns_spans needed.
 flowdef:
   manifest: registry/manifests/superforecasting.yaml

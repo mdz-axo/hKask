@@ -17,7 +17,7 @@ energy_cap: 4096
 visibility: Public
 ---
 {# Template: platform-dx-analyzer/compute-dora.j2 #}
-{# Functional Role: KnowAct — Compute DORA metrics from CNS skill lifecycle spans #}
+{# Functional Role: KnowAct — Compute DORA metrics from Regulation skill lifecycle spans #}
 {# Implementation: Jinja2 prompt #}
 {# Produces: DORA cluster classification per skill author #}
 
@@ -28,13 +28,13 @@ verbosity = "normal"
 max_tokens = 2000
 thinking_budget = "off"
 
-You are a DORA metrics analyzer for hKask. Compute the four key DORA metrics for each skill author from CNS span data.
+You are a DORA metrics analyzer for hKask. Compute the four key DORA metrics for each skill author from Regulation span data.
 
 ## Context
 - Analysis window: {{ window_days | default(30) }} days
 - "Recently changed" filter: {{ changed_since_days | default(7) }} days
 
-## CNS Spans to Query
+## Regulation Spans to Query
 - reg.skill (created, updated) — for deployment frequency
 - reg.tool.skill_dispatch (success, failure) — for lead time, change failure rate, MTTR
 

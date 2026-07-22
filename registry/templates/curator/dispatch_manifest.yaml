@@ -15,7 +15,7 @@ dispatch:
   - id: metacognition_diagnose
     type: template
     route: curator/metacognition-diagnose
-    description: "Diagnose system anomalies from CNS alerts"
+    description: "Diagnose system anomalies from Regulation alerts"
 
   - id: metacognition_escalate
     type: template
@@ -30,7 +30,7 @@ dispatch:
   - id: system_state_gather
     type: template
     route: curator/system_state_gather
-    description: "Gather system health snapshot from CNS and QA subsystems"
+    description: "Gather system health snapshot from Regulation and QA subsystems"
 
   - id: inference
     type: inference

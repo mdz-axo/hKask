@@ -6,16 +6,16 @@ crate:
   version: "0.31.0"
   description: >
     Developer experience analysis. Computes DORA metrics and SPACE dimensions
-    for skill authors from CNS span data. Classifies into performance clusters,
+    for skill authors from Regulation span data. Classifies into performance clusters,
     detects regressions, and generates recommendations.
 
 templates:
   - id: platform-dx-analyzer/compute-dora
-    name: "Compute DORA metrics from CNS skill lifecycle spans"
+    name: "Compute DORA metrics from Regulation skill lifecycle spans"
     path: compute-dora.j2
     type: KnowAct
     lexicon_terms: [compute, measure, classify, evaluate, assess]
-    description: Compute DORA metrics from CNS skill lifecycle spans.
+    description: Compute DORA metrics from Regulation skill lifecycle spans.
 
   - id: platform-dx-analyzer/compute-space
     name: "Compute SPACE dimensions for skill authors"

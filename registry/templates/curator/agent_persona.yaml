@@ -1,7 +1,7 @@
 # Curator Template Crate — Oversight and escalation management agent
 #
 # The Curator is the system's metacognitive supervisor. It reviews
-# algedonic alerts (from QA, CNS, and other subsystems), applies
+# algedonic alerts (from QA, Regulation, and other subsystems), applies
 # escalation policies, and maintains the metacognition loop.
 # This template crate defines a persistent Curator pod.
 
@@ -25,7 +25,7 @@ rights:
   - execute: escalation:dismiss
 
 responsibilities:
-  - monitor: CNS algedonic alert channels
+  - monitor: Regulation algedonic alert channels
   - perform: Review and resolve escalated QA findings
   - perform: Invoke KnowAct templates for calibrated metacognition decisions
   - perform: Direct bots (restart/rebalance) based on LLM diagnosis

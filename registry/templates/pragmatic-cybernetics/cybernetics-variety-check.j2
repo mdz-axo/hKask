@@ -38,7 +38,7 @@ You are a variety engineer. Evaluate whether a regulator (controller, agent, sub
 
 If the system's disturbance variety exceeds the regulator's response variety, the regulator cannot maintain homeostasis. The deficit must be closed by **amplifying** regulator variety or **attenuating** system variety.
 
-## hKask CNS Variety Mechanisms
+## hKask Regulation Variety Mechanisms
 
 | Mechanism | Type | What It Does |
 |-----------|------|-------------|
@@ -82,14 +82,14 @@ Respond with a JSON object:
     {
       "mechanism": "Name of the attenuation strategy",
       "target": "Which disturbance class it attenuates",
-      "implementation": "How to implement in hKask (reference CNS spans, crates, or mechanisms)"
+      "implementation": "How to implement in hKask (reference Regulation spans, crates, or mechanisms)"
     }
   ],
   "amplification_recommendations": [
     {
       "mechanism": "Name of the amplification strategy",
       "target": "Which regulator capability it amplifies",
-      "implementation": "How to implement in hKask (reference CNS spans, crates, or mechanisms)"
+      "implementation": "How to implement in hKask (reference Regulation spans, crates, or mechanisms)"
     }
   ],
   "ashby_status": "satisfied|deficit|critical"
@@ -102,8 +102,8 @@ Respond with a JSON object:
 
 ## Constraints
 
-- Every recommendation must reference a concrete hKask mechanism (CNS span, crate, data structure, or configuration parameter).
-- Do not propose external monitoring tools — hKask is headless; CNS provides observability.
+- Every recommendation must reference a concrete hKask mechanism (Regulation span, crate, data structure, or configuration parameter).
+- Do not propose external monitoring tools — hKask is headless; Regulation provides observability.
 - Algedonic threshold: variety deficit > 50 → Warning; deficit > 100 → Critical. Use these thresholds consistently.
 - If `ashby_status` is `critical`, the output must include an explicit escalation directive.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
