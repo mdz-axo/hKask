@@ -39,15 +39,20 @@ Simplified from 21 → 15 → 8 across 2026-07-19 cleanups.
 
 Single cloud host: **Runpod**. Three harnesses: **Axolotl** (YAML, SFT),
 **TRL** (Python, SFT + preference optimization), and **Ludwig** (YAML, SFT +
-future GRPO/advanced PEFT).
+preference + GRPO/advanced PEFT).
+
+All three harnesses use the **same generic Docker image**
+(`docker.io/mdzaxo/hkask-training-base:latest`, ~130MB). The harness-specific
+packages are pip-installed at pod startup via a dynamically generated install
+script (`HKASK_INSTALL_SCRIPT`). No per-harness images.
 
 Harness selection is per-job via `TrainingParams.harness` (operator-accepted
 from the lora-training skill's G6 gate), defaulting to Axolotl. The RunPod
-host's `submit()` method renders the harness-native config based on the
-selected harness:
-- Axolotl → `HKASK_AXOLOTL_CONFIG` (YAML via `axolotl-lora.j2`)
-- TRL → `HKASK_TRL_SCRIPT` (Python via `trl-sft.j2` / `trl-preference.j2`)
-- Ludwig → `HKASK_LUDWIG_CONFIG` (YAML via `ludwig-lora.j2`)
+host's `submit()` method calls `generate_install_script()` which:
+1. Renders the harness-native config (YAML or Python)
+2. Generates a bash install script that pip-installs the harness packages,
+   writes the config, runs training, uploads the adapter, and writes the manifest
+3. Passes the script to the pod as `HKASK_INSTALL_SCRIPT`
 
 All trainers are implemented: Axolotl SFT, TRL SFT/DPO/KTO/ORPO/Reward,
 Ludwig SFT/DPO/KTO/ORPO/GRPO.

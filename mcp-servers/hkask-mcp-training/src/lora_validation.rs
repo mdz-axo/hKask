@@ -19,7 +19,7 @@
 //! - G-D2: Eval protocol (advisory in preflight — Vicuna/MMLU not trustworthy)
 //! - G-D3: Lemon-pick analysis (advisory in preflight — report failure cases)
 //! - G-F1: Intruder dimension check (advisory in preflight — requires Python PEFT)
-//! - G-H1: Harness-method compatibility (axolotl=SFT only; trl=SFT in Phase 1)
+//! - G-H1: Harness-method compatibility (axolotl=SFT; trl=SFT/DPO/KTO/ORPO/Reward; ludwig=SFT/DPO/KTO/ORPO/GRPO)
 //!
 //! Gates NOT enforced (require runtime instrumentation in Python/training loop):
 //! - G-Q3: Gradient flow (needs backward pass — A.grad and B.grad must be non-None)
@@ -465,7 +465,7 @@ fn validate_harness_compatibility(params: &TrainingParams, findings: &mut Vec<Va
             }
         }
         Some(TrainingHarnessId::Trl) => {
-            // TRL harness: all trainers are supported (Phase 1-3).
+            // TRL harness: all trainers are supported.
             // G-H1 only checks harness-method compatibility, not dataset format.
             // Dataset format validation is handled by the dataset pipeline's
             // format detection (DatasetFormat::detect) and the trainer's
@@ -481,15 +481,9 @@ fn validate_harness_compatibility(params: &TrainingParams, findings: &mut Vec<Va
             }
         }
         Some(TrainingHarnessId::Ludwig) => {
-            // Ludwig harness (added v0.31.0): declarative YAML framework that
-            // supports SFT, DPO, KTO, ORPO, and GRPO natively. Phase 1 renders
-            // SFT only (`trainer.type: finetune`); Phase 2 will wire Ludwig's
-            // own trainer taxonomy (separate from TRL's).
-            //
-            // If a TRL trainer was specified with harness=ludwig, warn: the
-            // `trl_trainer` field is TRL-specific and Ludwig ignores it. The
-            // operator should not mix taxonomies — Ludwig has its own trainer
-            // selection via `trainer.type` in the rendered YAML.
+            // Ludwig harness: supports SFT, DPO, KTO, ORPO, GRPO via trainer.type.
+            // If a TRL-specific trl_trainer field is set, warn: Ludwig uses its
+            // own trainer.type taxonomy, not TRL's.
             if params.trl_trainer.is_some() {
                 findings.push(ValidationFinding {
                     gate_id: "G-H1",
@@ -869,7 +863,7 @@ mod tests {
 
     #[test]
     fn trl_with_sft_trainer_passes_gh1() {
-        // trl + SFT is the Phase 1 supported combination.
+        // trl + SFT is a supported combination.
         let mut params = default_params();
         params.harness = Some(TrainingHarnessId::Trl);
         params.trl_trainer = Some(TrlTrainer::Sft);
@@ -879,14 +873,14 @@ mod tests {
 
     #[test]
     fn trl_without_trainer_defaults_to_sft_passes_gh1() {
-        // trl with no trainer specified — defaults to SFT (Phase 1).
+        // trl with no trainer specified — defaults to SFT.
         let mut params = default_params();
         params.harness = Some(TrainingHarnessId::Trl);
         let findings = validate_training_params(&params);
         assert!(findings.iter().all(|f| f.gate_id != "G-H1"));
     }
 
-    /// expect: harness=ludwig with no trl_trainer passes G-H1 (Phase 1 SFT).
+    /// expect: harness=ludwig with no trl_trainer passes G-H1.
     /// Ludwig is the third harness; it uses its own trainer taxonomy
     /// (trainer.type in YAML), so no trl_trainer is the canonical Ludwig path.
     #[test]

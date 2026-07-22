@@ -18,12 +18,11 @@
 //! declarations in `hkask-mcp-training/src/lib.rs`, then flowed through
 //! `ServerContext.credentials` → `TrainingHostConfig` → `RunpodHost` fields):
 //! - `RUNPOD_API_KEY` — Runpod API key (required)
-//! - `RUNPOD_TEMPLATE_ID` — GPU pod template ID (optional; defaults to
-//!   `DEFAULT_RUNPOD_TEMPLATE_ID` = `f4wac8wrhz`, the `hkask-axolotl-config-from-env`
-//!   template with axolotl pre-installed)
+//! - `RUNPOD_TEMPLATE_ID` — GPU pod template ID (optional; empty by default —
+//!   the generic `hkask-training-base` image is used directly without a template)
 //! - `RUNPOD_DOCKER_IMAGE` — Docker image name (optional; takes precedence
 //!   over template; defaults to `DEFAULT_RUNPOD_DOCKER_IMAGE` =
-//!   `winglian/axolotl-cloud:main-latest`)
+//!   `docker.io/mdzaxo/hkask-training-base:latest`)
 //! - `RUNPOD_GPU_TYPE_ID` — GPU type ID, e.g. "NVIDIA RTX 4090" or
 //!   "NVIDIA A100-SXM4-80GB" (default: model-size heuristic). Note: the
 //!   variable is `RUNPOD_GPU_TYPE_ID`, not `RUNPOD_GPU_TYPE` — the latter is
@@ -64,8 +63,7 @@ use std::sync::{Arc, Mutex};
 /// by `generate_install_script()` at submit time) pip-installs whatever the
 /// selected harness needs at pod startup.
 ///
-/// This replaces the previous per-harness images (axolotl-lora-trainer,
-/// trl-lora-trainer). One image serves all harnesses.
+/// This replaces the previous per-harness images. One image serves all harnesses.
 const DEFAULT_RUNPOD_DOCKER_IMAGE: &str = "docker.io/mdzaxo/hkask-training-base:latest";
 
 /// Default RunPod template ID.
@@ -615,7 +613,7 @@ fn generate_install_script(
         script.push_str("        echo 'WARNING: Adapter upload failed' >&2\n");
         script.push_str("fi\n");
     }
-    script.push_str("\n");
+    script.push('\n');
 
     // Step 5: Write completion manifest.
     script.push_str(

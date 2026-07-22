@@ -70,9 +70,7 @@ impl TrainingHarnessId {
 /// Each variant maps to a TRL trainer class + config class pair.
 /// Add trainers as concrete needs emerge (P7 — evolutionary architecture).
 ///
-/// Phase 1 (v0.31.0): `Sft`.
-/// Phase 2 (v0.31.0): `Dpo`, `Kto`, `Orpo` — preference optimization.
-/// Phase 3 (v0.31.0): `Reward` — reward model training.
+/// All trainers are implemented: `Sft`, `Dpo`, `Kto`, `Orpo`, `Reward`.
 /// Deferred: online RL trainers (GRPO, RLOO, PPO, OnlineDPO, NashMD, XPO) —
 ///   require vLLM co-location and sandboxed environments; add when a concrete
 ///   RL use case emerges.
