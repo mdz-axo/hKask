@@ -158,29 +158,6 @@ impl TuiSession {
         Ok(())
     }
 
-    /// Display the Kask logo splash screen before entering the main workspace.
-    fn show_splash(&mut self) -> anyhow::Result<()> {
-        let mut splash = SplashScreen::new();
-
-        loop {
-            self.terminal.draw(|f| splash.render(f))?;
-
-            // Check for early dismissal via key press
-            if splash.check_early_dismiss() {
-                break;
-            }
-
-            // Auto-dismiss after duration
-            if splash.should_dismiss() {
-                break;
-            }
-
-            std::thread::sleep(Duration::from_millis(16));
-        }
-
-        Ok(())
-    }
-
     /// Route a key event: global bindings, then focused window.
     fn handle_key(&mut self, key: KeyEvent) {
         // Global keybindings take precedence

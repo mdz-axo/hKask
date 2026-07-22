@@ -6,11 +6,6 @@ use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge
 use crate::window::{Window, WindowId, WindowKind};
 use crate::windows::chat::ChatWindow;
 
-pub fn window_kinds() -> Vec<WindowKind> {
-    // The TUI hosts only the Chat window; all other window kinds were removed.
-    vec![WindowKind::Chat]
-}
-
 pub fn window_kind_from_title(title: &str) -> Option<WindowKind> {
     match title {
         "Chat" => Some(WindowKind::Chat),

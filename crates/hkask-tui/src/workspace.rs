@@ -18,7 +18,7 @@ use crate::bridges::{with_bridges, workspace_bridge_setter};
 use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
-use crate::window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
+use crate::window::{Window, WindowId, WindowKind, WorkspaceAction};
 
 pub enum SplitNode {
     Leaf(Option<Box<dyn Window>>),
@@ -93,86 +93,6 @@ impl SplitNode {
             SplitNode::Vertical { top, bottom, .. } => {
                 top.contains_window(target) || bottom.contains_window(target)
             }
-        }
-    }
-
-    fn find_kind(&self, kind: WindowKind) -> Option<WindowId> {
-        match self {
-            SplitNode::Leaf(Some(window)) if window.kind() == kind => Some(window.id()),
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
-            SplitNode::Horizontal { left, right, .. } => {
-                left.find_kind(kind).or_else(|| right.find_kind(kind))
-            }
-            SplitNode::Vertical { top, bottom, .. } => {
-                top.find_kind(kind).or_else(|| bottom.find_kind(kind))
-            }
-            _ => None,
-        }
-    }
-
-    fn remove(self, target: WindowId) -> (Option<Self>, bool) {
-        match self {
-            SplitNode::Leaf(Some(window)) if window.id() == target => (None, true),
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
-            SplitNode::Horizontal { left, right, ratio } => {
-                let (left, removed) = left.remove(target);
-                if removed {
-                    return match left {
-                        Some(left) => (
-                            Some(SplitNode::Horizontal {
-                                left: Box::new(left),
-                                right,
-                                ratio,
-                            }),
-                            true,
-                        ),
-                        None => (Some(*right), true),
-                    };
-                }
-                let left = left.expect("unchanged branch remains present");
-                let (right, removed) = right.remove(target);
-                match right {
-                    Some(right) => (
-                        Some(SplitNode::Horizontal {
-                            left: Box::new(left),
-                            right: Box::new(right),
-                            ratio,
-                        }),
-                        removed,
-                    ),
-                    None => (Some(left), true),
-                }
-            }
-            SplitNode::Vertical { top, bottom, ratio } => {
-                let (top, removed) = top.remove(target);
-                if removed {
-                    return match top {
-                        Some(top) => (
-                            Some(SplitNode::Vertical {
-                                top: Box::new(top),
-                                bottom,
-                                ratio,
-                            }),
-                            true,
-                        ),
-                        None => (Some(*bottom), true),
-                    };
-                }
-                let top = top.expect("unchanged branch remains present");
-                let (bottom, removed) = bottom.remove(target);
-                match bottom {
-                    Some(bottom) => (
-                        Some(SplitNode::Vertical {
-                            top: Box::new(top),
-                            bottom: Box::new(bottom),
-                            ratio,
-                        }),
-                        removed,
-                    ),
-                    None => (Some(top), true),
-                }
-            }
-            leaf => (Some(leaf), false),
         }
     }
 
@@ -285,60 +205,6 @@ impl SplitNode {
                 top.titles(out);
                 bottom.titles(out);
             }
-        }
-    }
-
-    /// Replace the leaf containing `target` with a split.
-    /// The replacement widget `new_widget` is consumed only if the target is found.
-    fn replace_leaf_with_split(
-        &mut self,
-        target: WindowId,
-        new_widget: Box<dyn Window>,
-        direction: SplitDirection,
-        ratio: f32,
-    ) -> bool {
-        match self {
-            SplitNode::Leaf(window)
-                if window.as_ref().map(|w| w.id() == target).unwrap_or(false) =>
-            {
-                let existing = match window.take() {
-                    Some(w) => w,
-                    None => return false,
-                };
-                *self = match direction {
-                    SplitDirection::Horizontal => SplitNode::Horizontal {
-                        left: Box::new(SplitNode::Leaf(Some(existing))),
-                        right: Box::new(SplitNode::Leaf(Some(new_widget))),
-                        ratio,
-                    },
-                    SplitDirection::Vertical => SplitNode::Vertical {
-                        top: Box::new(SplitNode::Leaf(Some(existing))),
-                        bottom: Box::new(SplitNode::Leaf(Some(new_widget))),
-                        ratio,
-                    },
-                };
-                true
-            }
-            SplitNode::Horizontal { left, right, .. } => {
-                // Only recurse — if target found, widget consumed inside
-                if left.contains_window(target) {
-                    left.replace_leaf_with_split(target, new_widget, direction, ratio)
-                } else if right.contains_window(target) {
-                    right.replace_leaf_with_split(target, new_widget, direction, ratio)
-                } else {
-                    false
-                }
-            }
-            SplitNode::Vertical { top, bottom, .. } => {
-                if top.contains_window(target) {
-                    top.replace_leaf_with_split(target, new_widget, direction, ratio)
-                } else if bottom.contains_window(target) {
-                    bottom.replace_leaf_with_split(target, new_widget, direction, ratio)
-                } else {
-                    false
-                }
-            }
-            _ => false,
         }
     }
 }
