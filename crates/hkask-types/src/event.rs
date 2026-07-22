@@ -230,6 +230,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     // ── Kata / Skill / Keystore ──
     "reg.kata",
     "reg.keystore",
+    // ── MCP ──
+    "reg.mcp",
     // ── MCP Media ──
     "reg.mcp.media.face",
     // ── Media / Memory ──

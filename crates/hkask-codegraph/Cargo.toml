@@ -10,6 +10,7 @@ rusqlite = { workspace = true, features = ["bundled"] }
 sqlite-vec = "0.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
+schemars = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 blake3 = { workspace = true }

@@ -158,6 +158,13 @@ pub async fn bootstrap_mcp_server(
                 error = %e,
                 "Daemon unavailable — falling back to direct mode"
             );
+            tracing::info!(
+                target: "reg.mcp.health",
+                status = "degraded",
+                server = server_name,
+                error = %e,
+                "MCP server degraded — daemon unavailable"
+            );
             None
         }
     };

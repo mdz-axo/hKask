@@ -786,6 +786,7 @@ impl hkask_tui::SystemBridge for TuiReplBridge {
         vec![
             ("reg.tool".into(), alerts < 5),
             ("reg.inference".into(), alerts < 3),
+            ("reg.mcp".into(), true),
             ("reg.mcp.media.face".into(), true),
             ("reg.storage".into(), true),
             ("reg.keystore".into(), true),

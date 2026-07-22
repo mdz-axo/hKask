@@ -91,13 +91,10 @@ fn default_limit() -> u64 {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct TraverseRequest {
     symbol: String,
-    #[serde(default = "default_forward")]
-    direction: String,
+    #[serde(default)]
+    direction: Direction,
     #[serde(default = "default_depth")]
     max_depth: u64,
-}
-fn default_forward() -> String {
-    "forward".into()
 }
 fn default_depth() -> u64 {
     5
@@ -113,16 +110,21 @@ pub struct ImpactRequest {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ContextRequest {
     query: String,
-    #[serde(default = "default_budget")]
-    budget: String,
+    #[serde(default)]
+    budget: ContextBudget,
 }
-fn default_budget() -> String {
-    "standard".into()
+
+/// Analysis type for codegraph_analysis tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalysisKind {
+    DeadCode,
+    Complexity,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AnalysisRequest {
-    kind: String,
+    kind: AnalysisKind,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -206,15 +208,6 @@ impl CodeGraphServer {
     #[tool(description = "Traverse the code graph: forward (dependencies) or reverse (callers)")]
     pub async fn codegraph_traverse(&self, Parameters(req): Parameters<TraverseRequest>) -> String {
         execute_tool(self, "codegraph_traverse", async {
-            let dir = match req.direction.as_str() {
-                "forward" => Direction::Forward,
-                "reverse" => Direction::Reverse,
-                _ => {
-                    return Err(McpToolError::invalid_argument(
-                        "direction must be 'forward' or 'reverse'",
-                    ));
-                }
-            };
             self.ensure_indexed()?;
             let pipeline = self
                 .pipeline
@@ -227,7 +220,7 @@ impl CodeGraphServer {
                     let nodes = traversal::traverse(
                         pipeline.store().conn(),
                         id,
-                        dir,
+                        req.direction,
                         req.max_depth as usize,
                     )
                     .map_err(|e| McpToolError::internal(e.to_string()))?;
@@ -281,20 +274,17 @@ impl CodeGraphServer {
                 .pipeline
                 .lock()
                 .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
-            match req.kind.as_str() {
-                "dead_code" => {
+            match req.kind {
+                AnalysisKind::DeadCode => {
                     let findings = analysis::find_dead_code(pipeline.store().conn())
                         .map_err(|e| McpToolError::internal(e.to_string()))?;
                     Ok(serde_json::json!(findings))
                 }
-                "complexity" => {
+                AnalysisKind::Complexity => {
                     let findings = analysis::find_high_complexity(pipeline.store().conn(), 10, 5)
                         .map_err(|e| McpToolError::internal(e.to_string()))?;
                     Ok(serde_json::json!(findings))
                 }
-                _ => Err(McpToolError::invalid_argument(
-                    "kind must be 'dead_code' or 'complexity'",
-                )),
             }
         })
         .await
@@ -303,24 +293,13 @@ impl CodeGraphServer {
     #[tool(description = "Assemble token-budgeted context for LLM prompts")]
     pub async fn codegraph_context(&self, Parameters(req): Parameters<ContextRequest>) -> String {
         execute_tool(self, "codegraph_context", async {
-            let budget = match req.budget.as_str() {
-                "full" => ContextBudget::Full,
-                "standard" => ContextBudget::Standard,
-                "focused" => ContextBudget::Focused,
-                "minimal" => ContextBudget::Minimal,
-                _ => {
-                    return Err(McpToolError::invalid_argument(
-                        "budget must be minimal/focused/standard/full",
-                    ));
-                }
-            };
             self.ensure_indexed()?;
             let pipeline = self
                 .pipeline
                 .lock()
                 .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
             let assembled =
-                hkask_codegraph::assemble_context(pipeline.store().conn(), &req.query, budget)
+                hkask_codegraph::assemble_context(pipeline.store().conn(), &req.query, req.budget)
                     .map_err(|e| McpToolError::internal(e.to_string()))?;
             Ok(serde_json::json!({
                 "context_id": assembled.context_id.to_string(),

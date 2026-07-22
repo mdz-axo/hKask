@@ -5,6 +5,8 @@
 //! before being sent to the LLM.
 
 use rusqlite::Connection;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::Result;
@@ -14,13 +16,15 @@ use crate::error::Result;
 use crate::types::Symbol;
 
 /// Budget tiers for context assembly.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema, Default)]
+#[serde(rename_all = "snake_case")]
 pub enum ContextBudget {
     /// ~512 tokens: function signatures only.
     Minimal,
     /// ~2048 tokens: signatures + doc comments.
     Focused,
     /// ~4096 tokens: signatures + doc + key implementations.
+    #[default]
     Standard,
     /// ~8192 tokens: everything relevant.
     Full,

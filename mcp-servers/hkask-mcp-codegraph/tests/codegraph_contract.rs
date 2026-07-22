@@ -168,48 +168,50 @@ async fn codegraph_stats_returns_counts_via_parameters_seam() {
     );
 }
 
-// REQ: codegraph_traverse rejects an invalid direction with invalid_argument (P5).
-// expect: a direction other than 'forward' or 'reverse' returns kind=invalid_argument.
+// REQ: codegraph_traverse rejects an invalid direction at the type level (P5).
+// expect: a direction other than 'forward' or 'reverse' is rejected by serde deserialization
+// — the type system makes invalid directions unrepresentable (idiomatic-rust Principle 1).
 #[tokio::test]
 async fn codegraph_traverse_rejects_invalid_direction_via_parameters_seam() {
-    let server = test_server();
-    let req: hkask_mcp_codegraph::TraverseRequest = serde_json::from_value(serde_json::json!({
-        "symbol": "nonexistent",
-        "direction": "sideways",
-        "max_depth": 5
-    }))
-    .expect("deserialize TraverseRequest");
-    let out = server.codegraph_traverse(Parameters(req)).await;
-    let kind = error_kind(&out).expect("expected error kind for invalid direction");
-    assert_eq!(kind, "invalid_argument", "got: {out}");
+    let result: Result<hkask_mcp_codegraph::TraverseRequest, _> =
+        serde_json::from_value(serde_json::json!({
+            "symbol": "nonexistent",
+            "direction": "sideways",
+            "max_depth": 5
+        }));
+    assert!(
+        result.is_err(),
+        "invalid direction 'sideways' must be rejected at deserialization — got: {result:?}"
+    );
 }
 
-// REQ: codegraph_analysis rejects an unknown analysis kind with invalid_argument (P5).
-// expect: a kind other than 'dead_code' or 'complexity' returns kind=invalid_argument.
+// REQ: codegraph_analysis rejects an unknown analysis kind at the type level (P5).
+// expect: a kind other than 'dead_code' or 'complexity' is rejected by serde deserialization
+// — the type system makes invalid kinds unrepresentable (idiomatic-rust Principle 1).
 #[tokio::test]
 async fn codegraph_analysis_rejects_unknown_kind_via_parameters_seam() {
-    let server = test_server();
-    let req: hkask_mcp_codegraph::AnalysisRequest =
-        serde_json::from_value(serde_json::json!({"kind": "nonexistent_analysis"}))
-            .expect("deserialize AnalysisRequest");
-    let out = server.codegraph_analysis(Parameters(req)).await;
-    let kind = error_kind(&out).expect("expected error kind for unknown analysis kind");
-    assert_eq!(kind, "invalid_argument", "got: {out}");
+    let result: Result<hkask_mcp_codegraph::AnalysisRequest, _> =
+        serde_json::from_value(serde_json::json!({"kind": "nonexistent_analysis"}));
+    assert!(
+        result.is_err(),
+        "invalid kind 'nonexistent_analysis' must be rejected at deserialization — got: {result:?}"
+    );
 }
 
-// REQ: codegraph_context rejects an invalid budget with invalid_argument (P5).
-// expect: a budget other than minimal/focused/standard/full returns kind=invalid_argument.
+// REQ: codegraph_context rejects an invalid budget at the type level (P5).
+// expect: a budget other than minimal/focused/standard/full is rejected by serde deserialization
+// — the type system makes invalid budgets unrepresentable (idiomatic-rust Principle 1).
 #[tokio::test]
 async fn codegraph_context_rejects_invalid_budget_via_parameters_seam() {
-    let server = test_server();
-    let req: hkask_mcp_codegraph::ContextRequest = serde_json::from_value(serde_json::json!({
-        "query": "test",
-        "budget": "ultra"
-    }))
-    .expect("deserialize ContextRequest");
-    let out = server.codegraph_context(Parameters(req)).await;
-    let kind = error_kind(&out).expect("expected error kind for invalid budget");
-    assert_eq!(kind, "invalid_argument", "got: {out}");
+    let result: Result<hkask_mcp_codegraph::ContextRequest, _> =
+        serde_json::from_value(serde_json::json!({
+            "query": "test",
+            "budget": "ultra"
+        }));
+    assert!(
+        result.is_err(),
+        "invalid budget 'ultra' must be rejected at deserialization — got: {result:?}"
+    );
 }
 
 // REQ: codegraph_feedback logs symbol usage ratio (P5).

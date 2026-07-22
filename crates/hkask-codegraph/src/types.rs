@@ -3,6 +3,7 @@
 //! D1 fix: Visibility is an enum, not a string (idiomatic-rust Principle 1).
 //! D2 fix: Complexity is a type-state enum (`Option<usize>` → NotComputed | Computed | Unparseable).
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 /// A symbol extracted from source code — a function, struct, trait, etc.
@@ -158,10 +159,11 @@ impl std::fmt::Display for EdgeKind {
 }
 
 /// Direction for graph traversal.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Direction {
     /// Follow edges from source to target (dependencies).
+    #[default]
     Forward,
     /// Follow edges from target to source (callers, dependents).
     Reverse,
