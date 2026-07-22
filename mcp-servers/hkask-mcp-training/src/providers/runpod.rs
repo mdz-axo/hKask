@@ -486,124 +486,167 @@ fn generate_install_script(
         .unwrap_or_default();
 
     // Render the training config using the selected harness.
-    let (config_filename, config_content, pip_packages, train_command, version_info) =
-        match harness {
-            TrainingHarnessId::Axolotl => {
-                let yaml = crate::providers::AxolotlHarness
-                    .render_config(job)
-                    .map_err(|e| ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}")))?;
-                (
-                    "config.yml",
-                    yaml,
-                    "pip install --no-cache-dir axolotl huggingface_hub",
-                    "axolotl train /workspace/config.yml",
-                    "axolotl",
-                )
-            }
-            TrainingHarnessId::Trl => {
-                let script = crate::providers::TrlHarness
-                    .render_config(job)
-                    .map_err(|e| ProviderError::InvalidConfig(format!("Failed to render TRL script: {e}")))?;
-                (
-                    "train.py",
-                    script,
-                    "pip install --no-cache-dir trl==1.8.0 peft==0.19.0 transformers==5.9.0 bitsandbytes accelerate liger-kernel huggingface_hub",
-                    "python /workspace/train.py",
-                    "trl==1.8.0 peft==0.19.0 transformers==5.9.0",
-                )
-            }
-            TrainingHarnessId::Ludwig => {
-                let yaml = crate::providers::LudwigHarness
-                    .render_config(job)
-                    .map_err(|e| ProviderError::InvalidConfig(format!("Failed to render Ludwig YAML: {e}")))?;
-                (
-                    "model.yaml",
-                    yaml,
-                    "pip install --no-cache-dir ludwig huggingface_hub",
-                    "ludwig train --config /workspace/model.yaml",
-                    "ludwig",
-                )
-            }
-        };
+    let (config_filename, config_content, pip_packages, train_command, version_info) = match harness
+    {
+        TrainingHarnessId::Axolotl => {
+            let yaml = crate::providers::AxolotlHarness
+                .render_config(job)
+                .map_err(|e| {
+                    ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}"))
+                })?;
+            (
+                "config.yml",
+                yaml,
+                "pip install --no-cache-dir axolotl huggingface_hub",
+                "axolotl train /workspace/config.yml",
+                "axolotl",
+            )
+        }
+        TrainingHarnessId::Trl => {
+            let script = crate::providers::TrlHarness
+                .render_config(job)
+                .map_err(|e| {
+                    ProviderError::InvalidConfig(format!("Failed to render TRL script: {e}"))
+                })?;
+            (
+                "train.py",
+                script,
+                "pip install --no-cache-dir trl==1.8.0 peft==0.19.0 transformers==5.9.0 bitsandbytes accelerate liger-kernel huggingface_hub",
+                "python /workspace/train.py",
+                "trl==1.8.0 peft==0.19.0 transformers==5.9.0",
+            )
+        }
+        TrainingHarnessId::Ludwig => {
+            let yaml = crate::providers::LudwigHarness
+                .render_config(job)
+                .map_err(|e| {
+                    ProviderError::InvalidConfig(format!("Failed to render Ludwig YAML: {e}"))
+                })?;
+            (
+                "model.yaml",
+                yaml,
+                "pip install --no-cache-dir ludwig huggingface_hub",
+                "ludwig train --config /workspace/model.yaml",
+                "ludwig",
+            )
+        }
+    };
 
-    // Generate the install script as a bash heredoc.
-    // The config content is written via printf to avoid shell interpolation
-    // issues with the rendered YAML/Python content.
-    let script = format!(
-        r"#!/usr/bin/env bash
-set -euo pipefail
-
-# ── Environment ──────────────────────────────────────────────────────────────
-export HF_HOME=${{HF_HOME:-/workspace/.cache/huggingface}}
-export PIP_CACHE_DIR=${{PIP_CACHE_DIR:-/workspace/.cache/pip}}
-export TMPDIR=${{TMPDIR:-/workspace/tmp}}
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
-export HF_HUB_ENABLE_HF_TRANSFER=${{HF_HUB_ENABLE_HF_TRANSFER:-1}}
-mkdir -p "$HF_HOME" "$PIP_CACHE_DIR" "$TMPDIR" /workspace/outputs
-
-# ── Step 1: Install harness packages ───────────────────────────────────────
-echo "=== Installing packages ({pip_packages}) ==="
-{pip_packages}
-
-# ── Step 2: Write the training config ──────────────────────────────────────
-echo "=== Writing config to /workspace/{config_filename} ==="
-printf '%s' '{config_content_escaped}' > /workspace/{config_filename}
-
-# ── Step 3: Run training ─────────────────────────────────────────────────────
-echo "=== Starting training: {train_command} ==="
-TRAINING_START=$(date +%s)
-if {train_command}; then
-    TRAINING_END=$(date +%s)
-    TRAINING_DURATION=$((TRAINING_END - TRAINING_START))
-    echo "=== Training completed in ${{TRAINING_DURATION}}s ==="
-    TRAINING_STATUS="success"
-else
-    TRAINING_END=$(date +%s)
-    TRAINING_DURATION=$((TRAINING_END - TRAINING_START))
-    echo "=== Training FAILED after ${{TRAINING_DURATION}}s ===" >&2
-    TRAINING_STATUS="failed"
-fi
-
-# ── Step 4: Upload adapter ──────────────────────────────────────────────────
-OUTPUT_DIR="{output_dir}"
-if [ "$TRAINING_STATUS" = "success" ] && [ -n "{model_repo}" ]; then
-    echo "=== Uploading adapter to {model_repo} ==="
-    huggingface-cli upload "{model_repo}" "$OUTPUT_DIR" \
-        --commit-message "hKask training: {job_id}" || \
-        echo "WARNING: Adapter upload failed — adapter remains at $OUTPUT_DIR" >&2
-fi
-
-# ── Step 5: Write completion manifest ───────────────────────────────────────
-cat > "{manifest_path}" <<MANIFEST
-{{
-    "job_id": "{job_id}",
-    "base_model": "{base_model}",
-    "harness": "{harness_name}",
-    "status": "${{TRAINING_STATUS}}",
-    "training_duration_secs": ${{TRAINING_DURATION}},
-    "output_dir": "${{OUTPUT_DIR}}",
-    "versions": "{version_info}",
-    "completed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}}
-MANIFEST
-echo "=== Completion manifest written to {manifest_path} ==="
-
-# ── Step 6: Keep pod alive for SSH debugging ────────────────────────────────
-echo "=== Done. Pod staying alive for SSH debugging. ==="
-exec sleep infinity
-",
-        pip_packages = pip_packages,
-        config_content_escaped = config_content.replace('\\', "\\\\").replace("'", "\\'"),
-        config_filename = config_filename,
-        train_command = train_command,
-        output_dir = output_dir,
-        model_repo = model_repo,
-        job_id = job.id,
-        base_model = job.base_model,
-        harness_name = format!("{:?}", harness).to_lowercase(),
-        version_info = version_info,
-        manifest_path = manifest_path,
+    // Generate the install script. We build it with push_str to avoid
+    // format! brace-escaping issues with bash ${VAR} references.
+    // The config content is written via a quoted heredoc to prevent shell
+    // expansion of the rendered YAML/Python content.
+    let mut script = String::with_capacity(4096);
+    script.push_str("#!/usr/bin/env bash\n");
+    script.push_str("set -euo pipefail\n\n");
+    script.push_str(
+        "# ── Environment ───────────────────────────────────────────────────────────────\n",
     );
+    script.push_str("export HF_HOME=${HF_HOME:-/workspace/.cache/huggingface}\n");
+    script.push_str("export PIP_CACHE_DIR=${PIP_CACHE_DIR:-/workspace/.cache/pip}\n");
+    script.push_str("export TMPDIR=${TMPDIR:-/workspace/tmp}\n");
+    script.push_str("export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True\n");
+    script.push_str("export HF_HUB_ENABLE_HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-1}\n");
+    script.push_str("mkdir -p \"$HF_HOME\" \"$PIP_CACHE_DIR\" \"$TMPDIR\" /workspace/outputs\n\n");
+
+    // Step 1: Install harness packages.
+    script.push_str(
+        "# ── Step 1: Install harness packages ───────────────────────────────────────\n",
+    );
+    script.push_str("echo '=== Installing packages ==='\n");
+    script.push_str(pip_packages);
+    script.push_str("\n\n");
+
+    // Step 2: Write the training config via quoted heredoc.
+    script.push_str(
+        "# ── Step 2: Write the training config ──────────────────────────────────────\n",
+    );
+    script.push_str(&format!(
+        "echo '=== Writing config to /workspace/{}'\n",
+        config_filename
+    ));
+    script.push_str(&format!(
+        "cat <<'HKASK_CONFIG' > /workspace/{}\n",
+        config_filename
+    ));
+    script.push_str(&config_content);
+    script.push_str("\nHKASK_CONFIG\n\n");
+
+    // Step 3: Run training.
+    script.push_str(
+        "# ── Step 3: Run training ─────────────────────────────────────────────────────\n",
+    );
+    script.push_str(&format!(
+        "echo '=== Starting training: {}'\n",
+        train_command
+    ));
+    script.push_str("TRAINING_START=$(date +%s)\n");
+    script.push_str(&format!("if {}; then\n", train_command));
+    script.push_str("    TRAINING_END=$(date +%s)\n");
+    script.push_str("    TRAINING_DURATION=$((TRAINING_END - TRAINING_START))\n");
+    script.push_str("    echo \"=== Training completed in ${TRAINING_DURATION}s ===\"\n");
+    script.push_str("    TRAINING_STATUS=\"success\"\n");
+    script.push_str("else\n");
+    script.push_str("    TRAINING_END=$(date +%s)\n");
+    script.push_str("    TRAINING_DURATION=$((TRAINING_END - TRAINING_START))\n");
+    script.push_str("    echo \"=== Training FAILED after ${TRAINING_DURATION}s ===\" >&2\n");
+    script.push_str("    TRAINING_STATUS=\"failed\"\n");
+    script.push_str("fi\n\n");
+
+    // Step 4: Upload adapter.
+    script.push_str(
+        "# ── Step 4: Upload adapter ──────────────────────────────────────────────────\n",
+    );
+    script.push_str(&format!("OUTPUT_DIR=\"{}\"\n", output_dir));
+    if !model_repo.is_empty() {
+        script.push_str("if [ \"$TRAINING_STATUS\" = \"success\" ]; then\n");
+        script.push_str(&format!(
+            "    echo '=== Uploading adapter to {}'\n",
+            model_repo
+        ));
+        script.push_str(&format!(
+            "    huggingface-cli upload \"{}\" \"$OUTPUT_DIR\" \\\n",
+            model_repo
+        ));
+        script.push_str(&format!(
+            "        --commit-message \"hKask training: {}\" || \\\n",
+            job.id
+        ));
+        script.push_str("        echo 'WARNING: Adapter upload failed' >&2\n");
+        script.push_str("fi\n");
+    }
+    script.push_str("\n");
+
+    // Step 5: Write completion manifest.
+    script.push_str(
+        "# ── Step 5: Write completion manifest ───────────────────────────────────────\n",
+    );
+    script.push_str(&format!("cat > \"{}\" <<MANIFEST\n", manifest_path));
+    script.push_str("{\n");
+    script.push_str(&format!("    \"job_id\": \"{}\",\n", job.id));
+    script.push_str(&format!("    \"base_model\": \"{}\",\n", job.base_model));
+    script.push_str(&format!(
+        "    \"harness\": \"{}\",\n",
+        format!("{:?}", harness).to_lowercase()
+    ));
+    script.push_str("    \"status\": \"${TRAINING_STATUS}\",\n");
+    script.push_str("    \"training_duration_secs\": ${TRAINING_DURATION},\n");
+    script.push_str("    \"output_dir\": \"$OUTPUT_DIR\",\n");
+    script.push_str(&format!("    \"versions\": \"{}\",\n", version_info));
+    script.push_str("    \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n");
+    script.push_str("}\n");
+    script.push_str("MANIFEST\n");
+    script.push_str(&format!(
+        "echo '=== Completion manifest written to {}'\n\n",
+        manifest_path
+    ));
+
+    // Step 6: Keep pod alive for SSH debugging.
+    script.push_str(
+        "# ── Step 6: Keep pod alive for SSH debugging ────────────────────────────────\n",
+    );
+    script.push_str("echo '=== Done. Pod staying alive for SSH debugging.'\n");
+    script.push_str("exec sleep infinity\n");
 
     Ok(script)
 }
