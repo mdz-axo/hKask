@@ -7,8 +7,8 @@
 //! `HKASK_AXOLOTL_CONFIG`), and the pod's entrypoint writes it to
 //! `/workspace/train.py` before running `python /workspace/train.py`.
 //!
-//! Phase 1 (v0.31.0): `SFTTrainer` only. Phase 2 will add DPO/KTO/ORPO trainers
-//! by extending `TrlTrainer` and adding corresponding `.j2` templates.
+//! All trainers (SFT, DPO, KTO, ORPO, Reward) are implemented via two templates:
+//! `trl-sft.j2` (SFT) and `trl-preference.j2` (DPO/KTO/ORPO/Reward).
 //!
 //! TRL version pinning: the pod template must install a pinned TRL version
 //! (see `docs/how-to/runpod-lora-training-guide.md` Lesson 12). Version
@@ -27,7 +27,7 @@ use std::path::PathBuf;
 
 /// Renders TRL Python training scripts from canonical `TrainingParams`.
 ///
-/// Phase 1: `SFTTrainer` only. The trainer is selected from
+/// All trainers are implemented. The trainer is selected from
 /// `job.params.trl_trainer` (defaults to `Sft` when `None`).
 pub struct TrlHarness;
 

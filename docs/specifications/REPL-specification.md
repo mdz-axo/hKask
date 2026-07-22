@@ -369,47 +369,64 @@ The turn pipeline is now split between the service layer and the CLI:
 
 ### 6.1 Pipeline Overview
 
+```mermaid
+flowchart TD
+    Start([single_agent_turn called]) --> Reserve[Try reserve gas via GasGovernor]
+    Reserve -->|None| GasExhausted[Gas budget exhausted]
+    GasExhausted --> ReturnExhausted[Return TurnOutcome budget_exhausted=true]
+    Reserve -->|Some guard| BuildInput[Build TurnInput from current_input + tool_results + thread_history]
+    BuildInput --> Execute[rt.block_on executor.execute_turn]
+    Execute -->|Err| InferenceError[Release gas guard]
+    InferenceError --> ReturnError[Return TurnOutcome success=false]
+    Execute -->|Ok response| Settle[Settle gas guard with actual token cost]
+    Settle --> Extract[extract_tool_calls: structured first, text fallback second]
+    Extract --> CheckTools{tool_calls empty?}
+    CheckTools -->|Yes| CheckIter{iteration == 1 and has_tools?}
+    CheckIter -->|Yes| Nudge[Inject tool-availability nudge]
+    CheckIter -->|No| DisplayFinal[Display final response via sink.agent_text]
+    Nudge --> DisplayFinal
+    DisplayFinal --> AppendThread[Append turn to thread history]
+    AppendThread --> MarkSeeded[Mark thread as seeded]
+    MarkSeeded --> CnsUpdate[Run on_reg_update closure]
+    CnsUpdate --> ReturnSuccess[Return TurnOutcome success=true]
+    CheckTools -->|No| DisplayText[Display text portion via sink.agent_text]
+    DisplayText --> InvokeTools[For each tool_call: deps.tools.invoke]
+    InvokeTools --> FormatResults[format_tool_results]
+    FormatResults --> SetInput[current_input = response]
+    SetInput --> CheckMax{iteration > max_loops?}
+    CheckMax -->|Yes| WarnMax[Warn: max iterations reached]
+    WarnMax --> CnsUpdate
+    CheckMax -->|No| LoopBack[Continue loop]
+    LoopBack --> Reserve
 ```
-┌── Service Layer (ChatService::execute_turn) ─────────────────────────┐
-│ 1. Manifest Cascade (optional)                                       │
-│    └─ Execute agent's process_manifest → enrich prompt with step_* ctx│
-│                                                                      │
-│ 2. History Injection (suffix pattern, from episodic storage)          │
-│    └─ Append recent N turns via OCAP-gated recall_recent_turns()      │
-│    └─ Suffix placement preserves KV cache hits for system prompt      │
-│                                                                      │
-│ 3. Inference via ChatService::chat()                                  │
-│    └─ Agent lookup, system prompt, semantic recall, LLM call          │
-│    └─ Returns text + token usage + structured tool calls              │
-│                                                                      │
-│ 4. Persona Filter (strip forbidden patterns)                          │
-│    └─ apply_persona_filter()                                         │
-├──────────────────────────────────────────────────────────────────────┤
-│ CLI Layer (turn::run_turn_loop via TurnSink)                           │
-│                                                                      │
-│ 5. Gas Guard (per-iteration)                                          │
-│    └─ EnergyGuard::try_reserve() → inference → settle(actual)         │
-│    └─ On inference error: release() returns reservation to budget     │
-│                                                                      │
-│ 6. Tool Execution (via GovernedTool + OCAP)                           │
-│    └─ Parse structured tool calls from TurnResult                     │
-│    └─ Execute through GovernedTool membrane                           │
-│    └─ If tool calls found → feed results back to execute_turn()       │
-│    └─ If no tool calls → final response, exit loop                    │
-│                                                                      │
-│ 7. Token Usage Display                                                │
-│    └─ "N tokens (P prompt + C completion) across M iterations"       │
-│                                                                      │
-│ 8. Gas Budget Warning                                                │
-│    └─ If < 20%: yellow warning. If 0: red exhausted warning.          │
-│                                                                      │
-│ 9. Regulation Update (read-only)                                            │
-│    └─ Algedonic alert check, LoopScheduler tick                           │
-│                                                                      │
-│ 10. Episodic Storage (handled by ChatService::chat() automatically)    │
-│    └─ Store (user_input, agent_name, response) as episodic hMem     │
-└──────────────────────────────────────────────────────────────────────┘
-```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REPL-001
+verified_date: 2026-07-20
+verified_against: crates/hkask-repl/src/turn.rs:130-307
+status: VERIFIED
+-->
+
+**Key properties:**
+
+- **Gas regulation:** Every iteration reserves a heuristic estimate, then settles with the actual token cost. On inference error, the reservation is released (no cost incurred). The `EnergyGuard` logs a warning if dropped without settle/release (panic recovery).
+- **Tool call priority:** Structured native function calls (`InferenceResult.tool_calls`) are checked first; `<<tool:...>>` text directives are the fallback. This supports both modern models (native function calling) and legacy models (text directives).
+- **Thread seeding:** The thread is marked seeded only on successful (non-error) turns. Subsequent turns skip thread history injection — episodic recall handles conversation context.
+- **Regulation update:** The `on_reg_update` closure runs after the loop exits, checking algedonic alerts and ticking the LoopScheduler. This is the cybernetic feedback path from the turn back to the regulator.
+- **Max iterations:** When `max_loops` is exceeded, the loop yields the current response (not an error). This prevents infinite tool-call loops from blocking the REPL indefinitely.
+
+**Pipeline stages (text summary):**
+
+1. **Manifest Cascade (optional)** — Execute agent's `process_manifest` → enrich prompt with `step_*` ctx
+2. **History Injection (suffix pattern)** — Append recent N turns via OCAP-gated `recall_recent_turns()`; suffix placement preserves KV cache hits for system prompt
+3. **Inference via `ChatService::chat()`** — Agent lookup, system prompt, semantic recall, LLM call; returns text + token usage + structured tool calls
+4. **Persona Filter** — `apply_persona_filter()` strips forbidden patterns
+5. **Gas Guard (per-iteration)** — `EnergyGuard::try_reserve()` → inference → settle(actual); on inference error, `release()` returns reservation to budget
+6. **Tool Execution (via GovernedTool + OCAP)** — Parse structured tool calls from `TurnResult`; execute through `GovernedTool` membrane; if tool calls found → feed results back to `execute_turn()`; if no tool calls → final response, exit loop
+7. **Token Usage Display** — `N tokens (P prompt + C completion) across M iterations`
+8. **Gas Budget Warning** — If < 20%: yellow warning. If 0: red exhausted warning.
+9. **Regulation Update (read-only)** — Algedonic alert check, `LoopScheduler` tick
+10. **Episodic Storage** — Handled by `ChatService::chat()` automatically; stores `(user_input, agent_name, response)` as episodic hMem
 
 **Note:** Auto-condense (87.5% threshold) is implemented in `ChatService::execute_turn()` via direct condenser library call. When context exceeds 87.5% of the model window, the oldest half of history is condensed and replaced with a summary.
 
@@ -441,6 +458,56 @@ All tool calls route through `GovernedTool`, which provides:
 3. **Regulation Observability:** Tool invocations emit `reg.tool.*` spans
 
 The invocation chain: `ReplToolInvoker::invoke()` → `GovernedTool::invoke_with_secret()` → `RawMcpToolPort` (implements `ToolPort` for `McpRuntime`) → `McpRuntime::call_tool()` → MCP server (JSON-RPC). The `GovernedTool::invoke_with_secret` method mints the `DelegationToken` internally from the A2A secret — the previous `tool_augmented::invoke_tool_call` free function was inlined to collapse the chain.
+
+```mermaid
+sequenceDiagram
+    participant Turn as run_turn_loop
+    participant Extract as extract_tool_calls
+    participant Invoker as ReplToolInvoker
+    participant Gov as GovernedTool
+    participant Runtime as McpRuntime
+    participant Server as MCP Server (child process)
+
+    Turn->>Turn: rt.block_on executor.execute_turn
+    Turn->>Extract: extract_tool_calls(response, structured)
+    Extract-->>Turn: ParsedResponse { text, tool_calls }
+    loop For each tool_call
+        Turn->>Invoker: deps.tools.invoke(call)
+        Invoker->>Gov: invoke_with_secret(server, tool, args, a2a_secret, principal, delegate)
+        Gov->>Gov: DelegationToken::new(Tool, tool, Execute, principal, delegate, signing_key)
+        Gov->>Gov: Verify token signature
+        Gov->>Gov: Verify OCAP authority (exact or domain)
+        Gov->>Gov: Reserve gas via CyberneticsLoop
+        Gov->>Gov: Emit reg.tool.invoke span
+        Gov->>Runtime: call_tool(server, tool, args)
+        Runtime->>Server: JSON-RPC: tools/call
+        Server-->>Runtime: tool result
+        Runtime-->>Gov: serde_json::Value
+        Gov->>Gov: Settle gas (actual vs reserved)
+        Gov->>Gov: Emit reg.tool.result span
+        Gov-->>Invoker: Result<Value>
+        Invoker-->>Turn: Result<Value>
+        Turn->>Turn: sink.tool_log(formatted result)
+    end
+    Turn->>Turn: format_tool_results → feed back to next iteration
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-REPL-003
+verified_date: 2026-07-20
+verified_against: crates/hkask-repl/src/deps.rs:262-293, crates/hkask-regulation/src/governed_tool.rs:199-230, crates/hkask-mcp/src/dispatch.rs:52-107
+status: VERIFIED
+-->
+
+**Security properties:**
+
+- **OCAP Authorization:** `GovernedTool::invoke_with_secret` mints the `DelegationToken` internally from the A2A secret. The token binds the resource (`DelegationResource::Tool`), the tool name, the action (`DelegationAction::Execute`), the principal WebID (user), and the delegate WebID (agent). The token is signed with `derive_signing_key(a2a_secret)`.
+- **A2A Secret Handling:** The secret is stored as `ZeroizingSecret` in `ReplToolInvoker` and passed as `&[u8]` to `invoke_with_secret` — no secret bytes are copied into the token-minting path.
+- **Gas Charging:** `GovernedTool` reserves gas before invocation and settles with the actual cost after. This is separate from the inference gas reservation — tool calls have their own energy accounting.
+- **Regulation Observability:** Every tool invocation emits `reg.tool.invoke` and `reg.tool.result` spans.
+- **Two Parse Paths:** `extract_tool_calls` checks structured native function calls first, then falls back to `<<tool:...>>` text directives.
+
+**What was removed:** The previous invocation chain had 6 Rust-side layers: `ReplToolInvoker` → `tool_augmented::invoke_tool_call` → `GovernedTool::invoke` → `RawMcpToolPort` → `McpRuntime` → MCP server. The `tool_augmented::invoke_tool_call` free function (21 lines of token-minting) was inlined into `GovernedTool::invoke_with_secret`, collapsing the chain to 4 layers. The `RawMcpToolPort` adapter remains (it implements the `ToolPort` trait for `McpRuntime`), but could be eliminated in a future refactor by having `McpRuntime` implement `ToolPort` directly.
 
 ### 6.4 Tool Results → Followup
 

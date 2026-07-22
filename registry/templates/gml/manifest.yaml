@@ -32,7 +32,7 @@ templates:
 
   - id: gml/regulation-instrument
     name: "Regulation instrumentation macros"
-    path: regulation-instrument.j2
+    path: reg-instrument.j2
     type: KnowAct
     lexicon_terms: [instrument, monitor, observe]
     description: >

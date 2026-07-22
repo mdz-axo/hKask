@@ -29,7 +29,7 @@ templates:
     description: Query test pass rate from Regulation spans. Computes pass ratio, failing crates, flaky test count.
   - id: platform-health-scorer/query-regulation
     name: "Query Regulation variety metrics: overall deficit, critical/warning count,…"
-    path: query-reg.j2
+    path: query-regulation.j2
     type: KnowAct
     lexicon_terms: [query, retrieve, compute]
     description: "Query Regulation variety metrics: overall deficit, critical/warning count, variety EMA. Computes variety health score."

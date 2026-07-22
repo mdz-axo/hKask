@@ -98,9 +98,9 @@ The training server supports three harnesses, selected via `TrainingParams.harne
 
 Ludwig (Linux Foundation AI & Data, Apache-2.0) is the only harness covering
 GRPO (reward-model-free RLHF) and the full advanced-PEFT initializer set (PiSSA,
-EVA, CorDA, LoftQ). Phase 1 (v0.31.0): Ludwig SFT only (`trainer.type: finetune`);
-DPO/KTO/ORPO/GRPO are Phase 2. Ludwig currently uses the axolotl Docker image and
-pip-installs at pod startup — a dedicated Ludwig image is future work.
+EVA, CorDA, LoftQ). Ludwig supports SFT (`trainer.type: finetune`), DPO, KTO,
+ORPO, and GRPO via `trainer.type`. Ludwig currently uses the axolotl Docker image
+and pip-installs at pod startup — a dedicated Ludwig image is future work.
 
 ---
 

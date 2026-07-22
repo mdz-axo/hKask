@@ -16,6 +16,65 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tutorials, how-to guides, reference, and explanation — supplemented by architecture, specifications, and the diagram verification registry.
 
+```mermaid
+flowchart TD
+    Root["docs/<br/>Documentation Portal"]
+
+    Root --> HowTo["how-to/<br/>Task-oriented guides"]
+    Root --> Reference["reference/<br/>Neutral, descriptive"]
+    Root --> Explanation["explanation/<br/>Background, reasoning"]
+    Root --> Architecture["architecture/<br/>ADRs + master spec"]
+    Root --> Specifications["specifications/<br/>Standards + specs"]
+    Root --> Status["status/<br/>Point-in-time reports"]
+    Root --> Plans["plans/<br/>Forward-looking designs"]
+    Root --> Research["research/<br/>Source material"]
+    Root --> Generated["generated/<br/>Auto-generated docs"]
+    Root --> CI["ci/<br/>Verification scripts"]
+
+    HowTo --> HowToGS["getting-started.md<br/>End-to-end tutorial"]
+    HowTo --> HowToGuides["7 guides<br/>install, skills, training..."]
+
+    Reference --> RefAPI["api-reference.md<br/>54 crates catalogued"]
+    Reference --> RefCNS["regulation-spans.md<br/>Span registry"]
+    Reference --> RefMC["magna-carta.md<br/>P1-P4 principles"]
+    Reference --> RefMCP["mcp-servers/<br/>16 MCP servers"]
+    Reference --> RefSkills["skills/<br/>Skills registry"]
+
+    Explanation --> ExplArch["architecture-patterns.md<br/>Hexagonal ports, VSM"]
+    Explanation --> ExplCNS["cns-and-loops.md<br/>Homeostatic regulation"]
+    Explanation --> ExplSov["sovereignty-and-ocap.md<br/>OCAP dispatch"]
+    Explanation --> ExplFed["federation-and-transport.md<br/>Federation protocol"]
+    Explanation --> ExplEnergy["energy-and-economy.md<br/>Gas + ledger system"]
+    Explanation --> ExplCog["cognition-and-replica.md<br/>Memory + forecasting"]
+
+    Architecture --> ArchCore["core/<br/>Master spec + MDS + principles"]
+    Architecture --> ArchADRs["ADRs/<br/>24 decision records"]
+    ArchCore --> ArchMaster["hKask-architecture-master.md<br/>Authoritative index"]
+
+    Specifications --> SpecDocs["DOCUMENTATION_STANDARDS.md<br/>This document's rules"]
+    Specifications --> SpecReq["REQUIREMENTS.md<br/>Goal specs"]
+    Specifications --> SpecREPL["REPL-specification.md"]
+    Specifications --> SpecWallet["wallet-specification.md"]
+    Specifications --> SpecSalience["salience-specification.md"]
+
+    Status --> StatusProj["PROJECT_STATUS.md<br/>Build + test health"]
+    Status --> StatusReports["Point-in-time audits<br/>and inventories"]
+
+    Generated --> GenCLI["cli-reference.md<br/>kask --help output"]
+    Generated --> GenOpenAPI["openapi.json<br/>HTTP API spec"]
+
+    CI --> CIVerify["verify-docs.sh<br/>10-step health check"]
+    CI --> CILinks["check-links.sh<br/>Hyperlink integrity"]
+    CI --> CICitations["check-citations.sh<br/>PS-07 compliance"]
+```
+
+<!-- DIAGRAM_ALIGNMENT
+id: DIAG-DOC-001
+verified_date: 2026-07-21
+verified_against: docs/README.md; docs/specifications/DOCUMENTATION_STANDARDS.md; docs/ directory listing (16 MCP servers, 24 ADRs, 7 how-to guides)
+status: VERIFIED
+-->
+
 > **Lifecycle:** Retired documents are removed; git history preserves all versions.
 >
 > **Diagram policy:** Per `DOCUMENTATION_STANDARDS.md` §1, Mermaid diagrams are inline in the documents they describe. The `docs/diagrams/` directory is being consolidated — see [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) for the verification registry.

@@ -17,7 +17,7 @@ Simplified from 21 → 15 → 8 across 2026-07-19 cleanups.
 | `training_status` | Query the status of a training job by its ID. When a job completes, automatically registers the adapter in the persistent store if not already registered |
 | `training_cancel` | Cancel a running or queued training job |
 | `training_evaluate` | Evaluate a trained adapter against a test dataset. Runs inference for each test example and scores accuracy using exact match, substring containment, or semantic comparison |
-| `training_validate_config` | Run the lora-training skill's static math-contract gates (G-M1..G-M4, G-Q1, G-Q2, G-Q4) on training params. Emits `cns.lora.audit` spans. This is the runtime enforcement point for the `.agents/skills/lora-training/` skill's `audit-config` phase |
+| `training_validate_config` | Run the lora-training skill's static math-contract gates (G-M1..G-M4, G-Q1, G-Q2, G-Q4, G-H1) on training params. Also profiles the dataset (G-D0) and validates dataset size (G-D1) if dataset_path is provided. Emits `reg.lora.audit` spans. This is the runtime enforcement point for the `.agents/skills/lora-training/` skill's `audit-config` phase |
 
 ### Deleted tools (2026-07-19, second pass)
 
@@ -49,8 +49,8 @@ selected harness:
 - TRL → `HKASK_TRL_SCRIPT` (Python via `trl-sft.j2` / `trl-preference.j2`)
 - Ludwig → `HKASK_LUDWIG_CONFIG` (YAML via `ludwig-lora.j2`)
 
-Phase 1 (v0.31.0): Axolotl SFT, TRL SFTTrainer, Ludwig SFT (`trainer.type: finetune`).
-Phase 2 will add TRL DPO/KTO/ORPO and Ludwig DPO/KTO/ORPO/GRPO.
+All trainers are implemented: Axolotl SFT, TRL SFT/DPO/KTO/ORPO/Reward,
+Ludwig SFT/DPO/KTO/ORPO/GRPO.
 
 Ludwig (Linux Foundation AI & Data, Apache-2.0) is the only harness in the
 candidate set covering GRPO (reward-model-free RLHF) and the full advanced-PEFT
@@ -75,7 +75,7 @@ Deleted harnesses (2026-07-19): `UnslothHarness` (Python). Re-add when there's a
 [`.agents/skills/lora-training/`](../../.agents/skills/lora-training/SKILL.md)
 skill's `audit-config` phase. The skill reasons over config files and proposes
 regressions; this server enforces the static subset of gates at submit time
-and emits the `cns.lora.*` spans the skill's `convergence-check` phase consumes.
+and emits the `reg.lora.*` spans the skill's `convergence-check` phase consumes.
 
 ## Quick Start
 
