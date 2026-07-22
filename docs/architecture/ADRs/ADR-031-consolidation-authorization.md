@@ -34,7 +34,7 @@ User-facing surfaces additionally verify the submitted passphrase directly again
 | CLI (`kask consolidate --passphrase`) | `--passphrase` when targeting a non-Curator agent | `EpisodicMemory` + `SemanticMemory` for target agent | Manual trigger only | Implemented in `crates/hkask-cli/src/commands/consolidation.rs` |
 | API (`POST /api/consolidate`) | `passphrase` field; caller WebID must equal target agent | `EpisodicMemory` + `SemanticMemory` for target agent | Manual trigger only | Implemented in `crates/hkask-api/src/routes/consolidation.rs` |
 | Chat/REPL (`/consolidate run`) | Single-user session | `EpisodicMemory` + `SemanticMemory` for current agent | Manual trigger only | Implemented in `crates/hkask-cli/src/repl/handlers/consolidation.rs` |
-| Curator daemon (`CurationLoop`) | N/A — daemon-internal | `EpisodicMemory` + `SemanticMemory` for Curator WebID | **Disabled** unless `HKASK_CURATOR_AUTO_CONSOLIDATION=1` | Implemented in `crates/hkask-agents/src/curator/curation_loop.rs` |
+| Curator daemon (`CurationLoop`) | N/A — daemon-internal | `EpisodicMemory` + `SemanticMemory` for Curator WebID | **Disabled** unless `HKASK_CURATOR_AUTO_CONSOLIDATION=1` | Implemented in `crates/hkask-pods/src/curator/curation_loop.rs` |
 | MCP Memory | OCAP GovernedTool membrane | ❌ No consolidation tool | By design | By design |
 
 **Authorization model:**

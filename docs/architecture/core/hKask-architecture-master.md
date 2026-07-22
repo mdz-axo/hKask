@@ -5652,7 +5652,7 @@ not portfolio-scoped — it has no foreign key to `portfolios`. The `revision_of
 column links same-symbol forecast revisions without enforcing referential
 integrity (it is a nullable self-reference, not a declared FK).
 
-See [Companies MCP Server Reference](../../reference/mcp-servers/README.md#companies-mcp-server) for the storage safety boundary, and the [code review](../../status/companies-mcp-code-review-2026-07-15.md#d2-missing-required-erd-for-the-portfolio-sqlite-schema) that identified this missing diagram.
+See [Companies MCP Server Reference](../../reference/mcp-servers/README.md#companies-mcp-server) for the storage safety boundary, and the code review that identified this missing diagram.
 
 ```mermaid
 erDiagram

@@ -22,8 +22,8 @@ errors on every call (e.g., expired API key, revoked endpoint, chronic
 timeout), it is retried on every subsequent `web_search` with no backoff or
 circuit-breaking.
 
-Both the 2026-07-17 review ([`research-mcp-adversarial-review-2026-07-17.md`](../../status/research-mcp-adversarial-review-2026-07-17.md))
-and the 2026-07-20 follow-up ([`research-mcp-adversarial-review-2026-07-20.md`](../../status/research-mcp-adversarial-review-2026-07-20.md))
+Both the 2026-07-17 review (`research-mcp-adversarial-review-2026-07-17.md`)
+and the 2026-07-20 follow-up (`research-mcp-adversarial-review-2026-07-20.md`)
 identified this as a variety deficit per Ashby's Law of Requisite Variety:
 
 > The regulator lacks variety to handle chronic provider failure. A provider
@@ -95,6 +95,6 @@ providers are stateless structs.
 
 ## Cross-links
 
-- [Research MCP Adversarial Review (2026-07-17)](../../status/research-mcp-adversarial-review-2026-07-17.md) — G3 (compound timeout), variety deficit note
-- [Research MCP Adversarial Review (Follow-Up 2026-07-20)](../../status/research-mcp-adversarial-review-2026-07-20.md) — item #7 (this ADR)
+- Research MCP Adversarial Review (2026-07-17) — G3 (compound timeout), variety deficit note
+- Research MCP Adversarial Review (Follow-Up 2026-07-20) — item #7 (this ADR)
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — hexagonal ports, ProviderPool adapter

@@ -52,4 +52,4 @@ calibrate_forecast                     scenario_from_companies
 
 - [Scenario Forecasting Pipeline Diagram](../../reference/mcp-servers/scenarios.md) — tool flow including the companies bridge entry point (DIAG-RF-005, inline)
 - [Superforecasting: Layered Model](../../explanation/forecasting-and-scenarios.md) — shared math engine architecture
-- [Scenarios Adversarial Review](../../status/scenarios-adversarial-review.md) — code review including `convert_companies_output` analysis
+- Scenarios Adversarial Review — code review including `convert_companies_output` analysis

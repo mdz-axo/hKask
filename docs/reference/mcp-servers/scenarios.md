@@ -123,7 +123,7 @@ status: VERIFIED
 ## Cross-links
 
 - [Superforecasting: Layered Model](../../explanation/forecasting-and-scenarios.md) — three-layer model (skill, math, servers)
-- [Scenarios Adversarial Review](../../status/scenarios-adversarial-review.md) — code smell inventory and action items
-- [Scenarios Semantic Graph Audit](../../status/scenarios-semantic-graph-audit.md) — cross-skill/server dependency graph
+- Scenarios Adversarial Review — code smell inventory and action items
+- Scenarios Semantic Graph Audit — cross-skill/server dependency graph
 - [MCP Server Registry](README.md) — built-in server index
 - [Diagram Index](../../DIAGRAMS_INDEX.md) — DIAG-RF-005 registration

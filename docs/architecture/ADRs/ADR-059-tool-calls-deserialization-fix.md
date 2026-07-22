@@ -134,7 +134,7 @@ pub struct StreamDelta {
 
 ## Cross-references
 
-- [REPL Bootstrap Gap Post-Mortem](../../status/repl-bootstrap-gap-2026-07-18.md)
+- REPL Bootstrap Gap Post-Mortem
 - [OpenAI Chat Completions API Spec](https://platform.openai.com/docs/api-reference/chat/create)
 - `crates/hkask-inference/src/chat_protocol.rs` — the fix
 - `crates/hkask-repl/src/turn.rs:148-266` — the turn loop that consumes tool calls

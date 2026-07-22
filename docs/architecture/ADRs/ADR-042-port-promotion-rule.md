@@ -22,9 +22,9 @@ without a clear criterion for when a trait should live in a shared crate versus
 its domain crate.
 
 **Problem Statement:** Three port traits (`EpisodicStoragePort`,
-`SemanticStoragePort`, `MCPRuntimePort`) lived in `hkask-agents/src/ports/`
+`SemanticStoragePort`, `MCPRuntimePort`) lived in `hkask-pods/src/ports/`
 rather than `hkask-ports`, forcing any crate needing memory storage ports to
-depend on the entire `hkask-agents` crate.
+depend on the entire `hkask-pods` crate.
 
 **Stakeholders:** Service layer crates, adapter authors, crate maintainers.
 
@@ -55,23 +55,23 @@ natural domain home closer to both consumers.
 
 | Trait | Consumers | Verdict | Location |
 |-------|-----------|---------|----------|
-| `EpisodicStoragePort` | `hkask-agents` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
-| `SemanticStoragePort` | `hkask-agents` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
-| `MCPRuntimePort` | `hkask-agents` | 1 consumer | Stays in `hkask-agents` |
+| `EpisodicStoragePort` | `hkask-pods` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
+| `SemanticStoragePort` | `hkask-pods` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
+| `MCPRuntimePort` | `hkask-pods` | 1 consumer | Stays in `hkask-pods` |
 | `InferencePort` | `hkask-services-chat` + `hkask-services-runtime` + `hkask-regulation` | 3 consumers, cross-domain | `hkask-ports` |
 | `CnsObserver` | `hkask-regulation` + `hkask-services-runtime` | 2 consumers, cross-domain | `hkask-ports` |
 
 ### New type: `MemoryPortError`
 
 The port traits now use `hkask_memory::MemoryPortError` instead of
-`crate::error::MemoryError` (which lives in `hkask-agents`). This is a minimal
+`crate::error::MemoryError` (which lives in `hkask-pods`). This is a minimal
 error type with two variants: `Storage(String)` and
 `CapabilityDenied { resource, action }`. Conversion impls bridge between
-`MemoryError` (internal to `hkask-agents`) and `MemoryPortError` (port boundary).
+`MemoryError` (internal to `hkask-pods`) and `MemoryPortError` (port boundary).
 
 ### Backward compatibility
 
-`hkask-agents` re-exports the promoted traits from `ports/memory_storage.rs`
+`hkask-pods` re-exports the promoted traits from `ports/memory_storage.rs`
 as a thin re-export shim. Existing `use hkask_agents::EpisodicStoragePort`
 continues to work. New code should import from `hkask_memory::ports`.
 
@@ -82,7 +82,7 @@ continues to work. New code should import from `hkask_memory::ports`.
    already has 13 traits that could benefit from the promotion rule.
 
 2. **Leave everything where it is** — Rejected: `hkask-services-context`
-   depends on `hkask-agents` solely for these two port traits. Evolving the
+   depends on `hkask-pods` solely for these two port traits. Evolving the
    architecture is the principled response.
 
 3. **Define ports in `hkask-types`** — Rejected: Ports are behavioral
@@ -99,7 +99,7 @@ genuinely cross-cutting abstractions.
 
 **Positive:**
 - `hkask-services-context` no longer imports memory port traits from
-  `hkask-agents` (they come from `hkask-memory` which it already depends on)
+  `hkask-pods` (they come from `hkask-memory` which it already depends on)
 - `hkask-ports` has a clear membership criterion — no more accumulation of
   single-consumer traits
 - Port trait location is now governed by an explicit rule rather than
@@ -107,8 +107,8 @@ genuinely cross-cutting abstractions.
 
 **Negative:**
 - `MemoryPortError` is a new error type that must be maintained alongside
-  `MemoryError` in `hkask-agents`
-- Re-export shim in `hkask-agents/src/ports/memory_storage.rs` adds a thin
+  `MemoryError` in `hkask-pods`
+- Re-export shim in `hkask-pods/src/ports/memory_storage.rs` adds a thin
   indirection; should be removed once all consumers migrate
 
 **Risks:**
@@ -120,6 +120,6 @@ genuinely cross-cutting abstractions.
 
 1. ✅ `EpisodicStoragePort`, `SemanticStoragePort` → `hkask-memory/src/ports.rs`
 2. ✅ `MemoryPortError` created in `hkask-memory/src/error.rs`
-3. ✅ `hkask-agents` re-exports for backward compatibility
+3. ✅ `hkask-pods` re-exports for backward compatibility
 4. 🔜 Eventually remove re-export shim when all consumers import from
    `hkask-memory`

@@ -63,11 +63,11 @@ The `invoke()` method (line 200) enforces a strict sequence:
 
 #### Fail-Closed Semantics
 
-Every step in the chain fails closed. Cryptographic verification fails? Denied. OCAP check fails? Denied. Gas budget exhausted? Denied. The `governed_tool.rs` tests at line 505 verify this: `exact_match_denies_wrong_tool`, `domain_capability_denies_different_domain`. The `CapabilityDenied` error is returned before any resource is consumed. In the `sovereignty.rs` module, `SovereigntyChecker::can_access()` adds a second gate: even with a valid capability token, sovereign data requires the requester to BE the owner AND have explicit consent. `DenyAllConsent` is the default at `crates/hkask-agents/src/sovereignty.rs:31` — a misconfigured checker always denies.
+Every step in the chain fails closed. Cryptographic verification fails? Denied. OCAP check fails? Denied. Gas budget exhausted? Denied. The `governed_tool.rs` tests at line 505 verify this: `exact_match_denies_wrong_tool`, `domain_capability_denies_different_domain`. The `CapabilityDenied` error is returned before any resource is consumed. In the `sovereignty.rs` module, `SovereigntyChecker::can_access()` adds a second gate: even with a valid capability token, sovereign data requires the requester to BE the owner AND have explicit consent. `DenyAllConsent` is the default at `crates/hkask-pods/src/sovereignty.rs:31` — a misconfigured checker always denies.
 
 #### PerPodToolBinding — Structural Pod Isolation
 
-At `crates/hkask-agents/src/pod/deployment.rs`, `PodDeployment` holds `tools: PerPodToolBinding`, which wraps `mcp_runtime: Arc<dyn MCPRuntimePort>` and an optional `governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>`. A pod can invoke tools only through its own binding and the configured system/A2A trust roots; cross-pod access requires a valid `DelegationToken`. SQLCipher database encryption is a separate concern and consistently uses the canonical `HKASK_DB_PASSPHRASE` resolver.
+At `crates/hkask-pods/src/pod/deployment.rs`, `PodDeployment` holds `tools: PerPodToolBinding`, which wraps `mcp_runtime: Arc<dyn MCPRuntimePort>` and an optional `governed_tool: Option<Arc<GovernedTool<RawMcpToolPort>>>`. A pod can invoke tools only through its own binding and the configured system/A2A trust roots; cross-pod access requires a valid `DelegationToken`. SQLCipher database encryption is a separate concern and consistently uses the canonical `HKASK_DB_PASSPHRASE` resolver.
 
 This means P4.1 (pod boundary = OCAP perimeter) is enforced by construction: the type system prevents a pod from even addressing another pod's governed tool. The only path is through the proper delegation chain.
 
@@ -344,9 +344,9 @@ status: VERIFIED
 
 ## Description
 
-The `ConsentManager` in `hkask-agents` enforces Magna Carta P1 (User Sovereignty) and P2 (Affirmative Consent) through explicit, scoped, revocable consent grants. Every data access check flows through `has_consent()`, which validates: (1) an active `ConsentRecord` exists for the user's `WebID`, (2) the requested `DataCategory` is in `granted_categories`, and (3) the record is not revoked (`active == true`). On denial, a `reg.consent.denied` ν-event is emitted to the Regulation `RegulationSink` for observability — this is a Prohibition-gate observation, not a regulatory feedback loop. The `SovereigntyConsent` trait implementation translates storage errors into `false` (fail-closed). `grant_consent()` and `revoke_consent()` modify the in-memory cache and persist to the SQLite-backed `ConsentStore`.
+The `ConsentManager` in `hkask-pods` enforces Magna Carta P1 (User Sovereignty) and P2 (Affirmative Consent) through explicit, scoped, revocable consent grants. Every data access check flows through `has_consent()`, which validates: (1) an active `ConsentRecord` exists for the user's `WebID`, (2) the requested `DataCategory` is in `granted_categories`, and (3) the record is not revoked (`active == true`). On denial, a `reg.consent.denied` ν-event is emitted to the Regulation `RegulationSink` for observability — this is a Prohibition-gate observation, not a regulatory feedback loop. The `SovereigntyConsent` trait implementation translates storage errors into `false` (fail-closed). `grant_consent()` and `revoke_consent()` modify the in-memory cache and persist to the SQLite-backed `ConsentStore`.
 
-**Key source:** `crates/hkask-agents/src/consent.rs:136-144` (`ConsentManager` struct), `consent.rs:316-338` (`has_consent`), `consent.rs:243-273` (`grant_consent`), `consent.rs:283-300` (`revoke_consent`), `consent.rs:344-366` (`emit_consent_denied`), `consent.rs:388-395` (`SovereigntyConsent` impl).
+**Key source:** `crates/hkask-pods/src/consent.rs:136-144` (`ConsentManager` struct), `consent.rs:316-338` (`has_consent`), `consent.rs:243-273` (`grant_consent`), `consent.rs:283-300` (`revoke_consent`), `consent.rs:344-366` (`emit_consent_denied`), `consent.rs:388-395` (`SovereigntyConsent` impl).
 
 ```mermaid
 sequenceDiagram
@@ -456,8 +456,8 @@ The `SovereigntyConsent` trait impl translates storage errors into `false`, enfo
 ## Cross-Reference
 
 - [`hKask-architecture-master.md` § Sovereignty & Consent](../architecture/core/hKask-architecture-master.md#sovereignty--consent)
-- [`consent.rs`](crates/hkask-agents/src/consent.rs) — `ConsentManager`, `ConsentRecord`, `has_consent()`, `grant_consent()`, `revoke_consent()`
-- [`sovereignty.rs`](crates/hkask-agents/src/sovereignty.rs) — `SovereigntyConsent` trait
+- [`consent.rs`](crates/hkask-pods/src/consent.rs) — `ConsentManager`, `ConsentRecord`, `has_consent()`, `grant_consent()`, `revoke_consent()`
+- [`sovereignty.rs`](crates/hkask-pods/src/sovereignty.rs) — `SovereigntyConsent` trait
 - [Magna Carta P1 — User Sovereignty](../reference/magna-carta.md#p1-user-sovereignty)
 - [Magna Carta P2 — Affirmative Consent](../reference/magna-carta.md#p2-affirmative-consent)
 

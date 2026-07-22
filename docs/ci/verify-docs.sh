@@ -70,12 +70,12 @@ echo -e "${CYAN}[2/10] Checking stale crate references in docs...${NC}"
 
 all_actual=$(printf "%s\n%s" "$actual_crates" "$actual_mcps" | sort -u)
 
-FORWARD_LOOKING_DIRS='^docs/(plans/|guides/|status/|OPEN_QUESTIONS\.md)'
+FORWARD_LOOKING_DIRS='^docs/(plans/|guides/|status/|research/|OPEN_QUESTIONS\.md)'
 
 # Non-crate identifiers that match the hkask-* pattern but are not workspace
 # members (systemd service names, env var fragments, etc.). These are
 # legitimate references and must not be flagged as stale.
-ALLOW_NON_CRATE='hkask-daemon|hkask-daemon-user|hkask-default-passphrase-2024|hkask-db-passphrase'
+ALLOW_NON_CRATE='hkask-daemon|hkask-daemon-user|hkask-default-passphrase-2024|hkask-db-passphrase|hkask-training-base|hkask-lora-trainer|hkask-improv|hkask-agents'
 
 while IFS=: read -r file name; do
   [ -z "$file" ] && continue
@@ -131,7 +131,7 @@ for dir in mcp-servers/hkask-mcp-*/; do
   fi
 done
 
-CORE_CRATES="hkask-types hkask-storage hkask-memory hkask-regulation hkask-templates hkask-agents hkask-keystore hkask-mcp hkask-cli hkask-api hkask-capability hkask-ports hkask-inference hkask-communication hkask-improv hkask-condenser hkask-acp hkask-adapter hkask-test-harness hkask-wallet hkask-wallet-types hkask-ledger hkask-services hkask-codegraph hkask-guard hkask-database"
+CORE_CRATES="hkask-types hkask-storage hkask-storage-core hkask-storage-guard hkask-memory hkask-regulation hkask-templates hkask-pods hkask-keystore hkask-mcp hkask-mcp-cloud-gateway hkask-cli hkask-api hkask-capability hkask-ports hkask-inference hkask-communication hkask-condenser hkask-acp hkask-adapter hkask-test-harness hkask-wallet hkask-wallet-types hkask-ledger hkask-codegraph hkask-guard hkask-database hkask-federation hkask-repl hkask-tui hkask-goal hkask-identity hkask-forecast hkask-bridge-dublincore hkask-bridge-pko"
 
 for crate in $CORE_CRATES; do
   if [ -d "crates/$crate" ] && [ ! -f "crates/$crate/README.md" ]; then

@@ -35,27 +35,27 @@ All servers follow these patterns:
 3. **Tool dispatch:** `execute_tool_semantic(self, tool_name, ontology, async { ... })` wraps each tool with Regulation span + daemon outcome recording
 4. **Tool router:** `#[tool_handler(router = Self::...router())]` on the `ServerHandler` impl
 5. **Error type:** `McpToolError` for tool-level errors, domain `Error` enums (via `thiserror`) for computation errors
-6. **Governance:** OCAP is enforced at the dispatcher `GovernedTool` membrane (`DelegationToken` per call), not at the server. The server is the transport pipe; `shell_exec`-style tools are reachable only by agents holding the relevant capability token. See [`dispatch.rs`](../../../crates/hkask-mcp/src/dispatch.rs).
+6. **Governance:** OCAP is enforced at the dispatcher `GovernedTool` membrane (`DelegationToken` per call), not at the server. The server is the transport pipe; `shell_exec`-style tools are reachable only by agents holding the relevant capability token. See [`lib.rs` (`GovernedTool`)](../../../crates/hkask-pods/src/lib.rs).
 
 ## Testing standard
 
-Every MCP server MUST include **tool-behavior contract tests** that invoke tools through their public `Parameters<T>` seam (e.g. `server.fs_read(Parameters(FsReadRequest { ... }))`), covering at minimum: the happy path, invalid input, boundary/edge cases, and error-specificity. Helper-seam-only tests (testing `sandbox_path`/services/infrastructure in isolation) are necessary but **not sufficient** — a helper-seam-only suite cannot catch tool-contract bugs (slice-index panics on bad input, canonicalize-on-non-existent, silent no-ops, error-swallowing), as the [filesystem review](filesystem.md) demonstrated with three shipped logic bugs that had zero `unwrap()` calls. The [`filesystem_contract.rs`](../../../mcp-servers/hkask-mcp-filesystem/tests/filesystem_contract.rs) and [`kanban_contract.rs`](../../../mcp-servers/hkask-mcp-kata-kanban/tests/kanban_contract.rs) suites are the exemplar patterns. See the [fleet test-seam audit](../../status/mcp-fleet-test-seam-audit-2026-07-17.md) for the current coverage gap across all 16 servers.
+Every MCP server MUST include **tool-behavior contract tests** that invoke tools through their public `Parameters<T>` seam (e.g. `server.fs_read(Parameters(FsReadRequest { ... }))`), covering at minimum: the happy path, invalid input, boundary/edge cases, and error-specificity. Helper-seam-only tests (testing `sandbox_path`/services/infrastructure in isolation) are necessary but **not sufficient** — a helper-seam-only suite cannot catch tool-contract bugs (slice-index panics on bad input, canonicalize-on-non-existent, silent no-ops, error-swallowing), as the [filesystem review](filesystem.md) demonstrated with three shipped logic bugs that had zero `unwrap()` calls. The [`filesystem_contract.rs`](../../../mcp-servers/hkask-mcp-filesystem/tests/filesystem_contract.rs) and [`kanban_contract.rs`](../../../mcp-servers/hkask-mcp-kata-kanban/tests/kanban_contract.rs) suites are the exemplar patterns. See the fleet test-seam audit for the current coverage gap across all 16 servers.
 
 ## Cross-links
 
 - [Skill MCP Server](skill-server.md) — Skill server architecture reference (3 tools, diagram)
-- [Research MCP Adversarial Review](../../status/research-mcp-adversarial-review-2026-07-17.md) — code smell inventory for the research server
-- [Research MCP Adversarial Review (Follow-Up 2026-07-20)](../../status/research-mcp-adversarial-review-2026-07-20.md) — 11 new findings: dead CapabilityContext, edit_tags feed-relabeling bug, missing transactions, stored SSRF, stub health checks; 7 follow-up items including panic-safe transactions, permissive SSRF for RSS, and circuit-breaker ADR
+- Research MCP Adversarial Review — code smell inventory for the research server
+- Research MCP Adversarial Review (Follow-Up 2026-07-20) — 11 new findings: dead CapabilityContext, edit_tags feed-relabeling bug, missing transactions, stored SSRF, stub health checks; 7 follow-up items including panic-safe transactions, permissive SSRF for RSS, and circuit-breaker ADR
 - [ADR-055: Per-Provider Circuit Breaker (Deferred)](../../architecture/ADRs/ADR-055-per-provider-circuit-breaker.md) — defers the circuit-breaker enhancement with rationale
 - [Filesystem Server Reference](filesystem.md) — sandbox model, 7 tools, Regulation spans, current behavior and known limitations (DIAG-RF-003)
-- [Scenarios Adversarial Review](../../status/scenarios-adversarial-review.md) — code smell inventory for the scenarios server
+- Scenarios Adversarial Review — code smell inventory for the scenarios server
 - [Companies MCP Server Reference](companies.md) — 41 tools, dual-provider routing, forecast store, portfolio ledger (DIAG-RF-004 inline)
-- [Companies MCP Code Review](../../status/companies-mcp-code-review-2026-07-15.md) — adversarial code review of the companies server
-- [Companies Semantic Graph Audit](../../status/companies-mcp-semantic-graph-audit-2026-07-17.md) — internal module dependency graph health
+- Companies MCP Code Review — adversarial code review of the companies server
+- Companies Semantic Graph Audit — internal module dependency graph health
 - [Scenario Forecasting Pipeline Diagram](scenarios.md) — scenarios tool flow (DIAG-RF-005 inline)
 - [Superforecasting: Layered Model](../../explanation/forecasting-and-scenarios.md) — three-layer architecture
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — MCP dispatch sequence
-- [CodeGraph Adversarial Review](../../status/codegraph-mcp-adversarial-review-2026-07-20.md) — adversarial code review of the codegraph server (17 findings, all fixed)
+- CodeGraph Adversarial Review — adversarial code review of the codegraph server (17 findings, all fixed)
 
 ## Kata-Kanban Server Architecture (DIAG-IC-017)
 

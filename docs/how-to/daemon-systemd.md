@@ -103,4 +103,4 @@ kask doctor --bootstrap
 
 - [ADR-035: UserPod Server Mode](../architecture/ADRs/ADR-035-userpod-server-mode.md)
 - [Getting Started](getting-started.md)
-- [REPL Bootstrap Gap Post-Mortem](../status/repl-bootstrap-gap-2026-07-18.md)
+- REPL Bootstrap Gap Post-Mortem

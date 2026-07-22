@@ -55,10 +55,10 @@ it cannot be violated because the type system prevents it.
 | Artefact | Crate/Module | Role |
 |----------|-------------|------|
 | `DataSovereigntyBoundary` | `hkask-types::curation` | Defines sovereign / shared / public category sets |
-| `SovereigntyChecker` | `hkask-agents::sovereignty` | Runtime gate: `can_access(category, requester)` with consent lookup |
-| `SovereigntyConsent` trait | `hkask-agents::sovereignty` | Pluggable consent port; `DenyAllConsent` is the default |
-| `ConsentManager` | `hkask-agents::consent` | Production implementation: SQLite-backed, Regulation-span-emitting |
-| `PodContext::require_sovereignty()` | `hkask-agents::pod::context` | Called before every data access; fail-closed on missing checker |
+| `SovereigntyChecker` | `hkask-pods::sovereignty` | Runtime gate: `can_access(category, requester)` with consent lookup |
+| `SovereigntyConsent` trait | `hkask-pods::sovereignty` | Pluggable consent port; `DenyAllConsent` is the default |
+| `ConsentManager` | `hkask-pods::consent` | Production implementation: SQLite-backed, Regulation-span-emitting |
+| `PodContext::require_sovereignty()` | `hkask-pods::pod::context` | Called before every data access; fail-closed on missing checker |
 | `SovereigntyBoundaryStore` | `hkask-storage::sovereignty` | SQL persistence of user boundaries |
 | `sovereignty_router()` | `hkask-api::routes::sovereignty` | `GET/POST /sovereignty` endpoints |
 | `kask sovereignty` | `hkask-cli::commands::sovereignty` | CLI: `status`, `grant`, `revoke`, `check` |
@@ -111,10 +111,10 @@ kask sovereignty check --category episodic_memory --requester webid://alice
 | Artefact | Crate/Module | Role |
 |----------|-------------|------|
 | `DataSovereigntyBoundary::requires_affirmative_consent` | `hkask-types::curation` | Set to `true` by default (P2 charter) |
-| `ConsentManager::has_consent()` | `hkask-agents::consent` | Fail-closed: `unwrap_or(false)` — storage errors are deny |
-| `SovereigntyConsent::has_consent()` | `hkask-agents::sovereignty` | `DenyAllConsent` impl returns `false` for everything |
-| `DenyAllConsent` | `hkask-agents::sovereignty` | Default port; used until a real `ConsentManager` is wired |
-| `ConsentRecord` | `hkask-agents::consent` | Per-WebID, active/revoked, time-stamped |
+| `ConsentManager::has_consent()` | `hkask-pods::consent` | Fail-closed: `unwrap_or(false)` — storage errors are deny |
+| `SovereigntyConsent::has_consent()` | `hkask-pods::sovereignty` | `DenyAllConsent` impl returns `false` for everything |
+| `DenyAllConsent` | `hkask-pods::sovereignty` | Default port; used until a real `ConsentManager` is wired |
+| `ConsentRecord` | `hkask-pods::consent` | Per-WebID, active/revoked, time-stamped |
 | `SovereigntyBoundaryEntry::requires_affirmative_consent` | `hkask-storage::sovereignty` | Stored as `"required"` / `"open"` in SQL |
 | Regulation spans | `reg.sovereignty` | `consent_granted`, `consent_revoked`, `consent_checked` |
 
@@ -221,7 +221,7 @@ No code path can access resources without going through both gates.
 | `CapabilityChecker` | `hkask-capability::verification::checker` | Verifies signature + trusted-root membership; fail-closed (empty roots reject all) |
 | `GovernedTool<P>` | `hkask-regulation::governed_tool` | Membrane wrapping `ToolPort`: OCAP check → gas reserve → Regulation span → delegate → settle |
 | `GovernedTool::invoke()` | `hkask-regulation::governed_tool` | Step 0: verify token signature; Step 1: exact-match or domain-match capability; Step 2: gas budget; Step 3–5: execute, settle, emit |
-| `PodContext::require_capability()` | `hkask-agents::pod::context` | Verifies token signature + delegated_to match; fail-closed on missing checker |
+| `PodContext::require_capability()` | `hkask-pods::pod::context` | Verifies token signature + delegated_to match; fail-closed on missing checker |
 | `DaemonClient::capability_query()` | `hkask-mcp::daemon` | Server-side capability check at startup (Gate 3) |
 | `verify_startup_gates()` | `hkask-mcp::startup` | Gate 1 (auth) → Gate 2 (assignment) → Gate 3 (capability per tool) |
 
@@ -287,11 +287,11 @@ kask pod status <pod_id> --verbose
 
 | Artefact | Crate/Module | Role |
 |----------|-------------|------|
-| `PerPodToolBinding` | `hkask-agents::pod::deployment` | Scoped MCP runtime + GovernedTool per pod |
-| `PerPodRegulationLedger` | `hkask-agents::pod::deployment` | Per-pod variety counters |
-| `PerPodStorage` | `hkask-agents::pod::deployment` | Dedicated SQLCipher file per pod at `{data_dir}/agents/{sanitized_name}/pod.db` |
-| `PodDeployment` | `hkask-agents::pod::deployment` | Complete pod: identity, storage, Regulation, tools, capability checker |
-| `ActivePods` | `hkask-agents::pod::active_pods` | Registry of all pods; no shared state between entries |
+| `PerPodToolBinding` | `hkask-pods::pod::deployment` | Scoped MCP runtime + GovernedTool per pod |
+| `PerPodRegulationLedger` | `hkask-pods::pod::deployment` | Per-pod variety counters |
+| `PerPodStorage` | `hkask-pods::pod::deployment` | Dedicated SQLCipher file per pod at `{data_dir}/agents/{sanitized_name}/pod.db` |
+| `PodDeployment` | `hkask-pods::pod::deployment` | Complete pod: identity, storage, Regulation, tools, capability checker |
+| `ActivePods` | `hkask-pods::pod::active_pods` | Registry of all pods; no shared state between entries |
 
 ### What Happens When Violated
 

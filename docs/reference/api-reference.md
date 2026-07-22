@@ -381,7 +381,7 @@ Registry, vocabulary, and template execution for hKask.
 
 ---
 
-### hkask-agents
+### hkask-pods
 
 Agent pods, ACP, and bot/userpod management for hKask.
 
@@ -745,24 +745,9 @@ hKask Communication — core Matrix transport, agent registry, and 7R7 listener.
 
 ---
 
-### hkask-improv
+### hkask-improv (removed in v0.31.0)
 
-Improv interaction skill for hKask agents — Plussing, Yes And, Yes But, Freestyling, Riffing.
-
-**Public Modules:**
-
-| Module | Purpose |
-|--------|---------|
-| `modes` | `ImprovMode` enum — the five improv modes |
-| `protocol` | `ImprovResponse`, `Contribution`, `ConversationContext` |
-| `plussing` | Plussing mode: constructive, additive collaboration |
-| `riffing` | Riffing mode: exploratory variation on a theme |
-| `freestyling` | Freestyling mode: unconstrained creative generation |
-| `cascade` | `ImprovCascade` — mode escalation logic |
-
-**Public API (7 items per deep-module discipline):** `ImprovSkill`, `ImprovMode` (enum: `Plussing`, `YesAnd`, `YesBut`, `Freestyling`, `Riffing`), `ImprovCascade`, `ImprovResponse`, `Contribution`, `ConversationContext`, `FreestyleSession`.
-
-**Feature Flags:** None.
+The `hkask-improv` crate was folded into [`hkask-services-chat`](#hkask-services-chat) (`chat/improv.rs`) in v0.31.0. The five improv modes (`Plussing`, `YesAnd`, `YesBut`, `Freestyling`, `Riffing`), `ImprovCascade`, and `MATRYOSHKA_LIMIT` now live there.
 
 ---
 

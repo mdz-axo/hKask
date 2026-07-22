@@ -256,7 +256,7 @@ Magna Carta Verification Report
 ## User Sovereignty (P1)
 
   ✓ P1-001 sovereignty_checker_configured check: pass
-    → SovereigntyChecker found in crate hkask-agents
+    → SovereigntyChecker found in crate hkask-pods
   ✓ P1-002 require_sovereignty_enforced check: pass
     → All pod accesses route through require_sovereignty()
   △ P1-003 data_portability_export check: gap

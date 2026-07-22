@@ -24,7 +24,7 @@ The hexagonal architecture in hKask is not a pattern adopted for aesthetics. It 
 
 In standard hexagonal architecture, the domain core is surrounded by ports (interfaces the core defines) and adapters (implementations that satisfy those interfaces). In Rust, ports are **traits**, and adapters are **structs that implement those traits**. The rule is simple: domain crates define the traits; infrastructure crates provide the implementations.
 
-This design exists because hKask's dependency graph imposes a strict Authority DAG. Domain crates (`hkask-regulation`, `hkask-agents`, `hkask-inference`) must not depend on infrastructure crates (`hkask-storage`, `hkask-mcp`, `hkask-federation`). The port traits in `hkask-ports` are the only shared dependency — every domain crate imports from `hkask-ports`, and every infrastructure crate implements against it. There is no other coupling path.
+This design exists because hKask's dependency graph imposes a strict Authority DAG. Domain crates (`hkask-regulation`, `hkask-pods`, `hkask-inference`) must not depend on infrastructure crates (`hkask-storage`, `hkask-mcp`, `hkask-federation`). The port traits in `hkask-ports` are the only shared dependency — every domain crate imports from `hkask-ports`, and every infrastructure crate implements against it. There is no other coupling path.
 
 As the crate-level documentation in `crates/hkask-ports/src/lib.rs` states: "Port traits that enable crates to depend on abstractions rather than concrete implementations. Per the Authority DAG, domain crates depend on these port traits (not on each other)."
 
@@ -63,7 +63,7 @@ The eight primary infrastructure boundaries are documented in detail below. The 
 flowchart TD
     subgraph "Domain Crates"
         Regulation["hkask-regulation"]
-        AGENTS["hkask-agents"]
+        AGENTS["hkask-pods"]
         INFER["hkask-inference"]
     end
 
@@ -368,7 +368,7 @@ The Viable System Model (VSM), developed by Stafford Beer, is a cybernetic frame
 
 #### S1: Operations — Pods and MCP Servers
 
-System 1 in VSM is the collection of autonomous operational units that do the actual work. In hKask, these are the agent pods — each a `PodDeployment` at `crates/hkask-agents/src/pod/deployment.rs:47` — and their bound MCP servers, held in `PerPodToolBinding`. Each pod is autonomous: it owns its storage (`PerPodStorage` — a dedicated SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`), its Regulation runtime (`PerPodRegulationLedger` — variety counters scoped to the pod), and its tool bindings.
+System 1 in VSM is the collection of autonomous operational units that do the actual work. In hKask, these are the agent pods — each a `PodDeployment` at `crates/hkask-pods/src/pod/deployment.rs:47` — and their bound MCP servers, held in `PerPodToolBinding`. Each pod is autonomous: it owns its storage (`PerPodStorage` — a dedicated SQLCipher file at `{data_dir}/agents/{sanitized_name}/pod.db`), its Regulation runtime (`PerPodRegulationLedger` — variety counters scoped to the pod), and its tool bindings.
 
 MCP servers provide the operational capabilities: web search, condenser, media, memory, wallet, codegraph, and others — 15 tool subsystems tracked in `RegulationSpan::Tool { subsystem }` at `crates/hkask-types/src/regulation.rs:111`. Each pod's variety is measured independently via `PerPodRegulationLedger`, enabling per-pod regulation.
 
@@ -380,7 +380,7 @@ System 2 is the anti-oscillation layer — it prevents autonomous units from con
 
 #### S3: Control — The Curator Agent
 
-System 3 is the internal control function — resource allocation, monitoring, and auditing of the operational units. In hKask, this is the `CuratorAgent` at `crates/hkask-agents/src/curator_agent/mod.rs:44`. It composes the pure regulatory `CurationLoop` with the persona-layer `MetacognitionLoop`.
+System 3 is the internal control function — resource allocation, monitoring, and auditing of the operational units. In hKask, this is the `CuratorAgent` at `crates/hkask-pods/src/curator_agent/mod.rs:44`. It composes the pure regulatory `CurationLoop` with the persona-layer `MetacognitionLoop`.
 
 The Curator's control responsibilities include: issuing `CuratorDirective::OverrideEnergyBudget` to reallocate gas between agents, `CuratorDirective::CalibrateThreshold` to adjust Regulation set points (sent on the direct `mpsc` channel to `CyberneticsLoop`), monitoring regulation effectiveness via `HealthSnapshot.regulation_effectiveness`, and triggering escalations when `MetacognitionLoop::act()` detects that the Regulation cannot self-correct.
 
@@ -403,7 +403,7 @@ S4 is where the system looks outward and feeds strategic intelligence inward. Wi
 System 5 is the identity and purpose layer — the fundamental policies that define what the system IS, not just what it does. In hKask, this is the Magna Carta at `docs/architecture/core/magna-carta.md`. Its four inviolable principles form the policy backbone:
 
 - **P1 (User Sovereignty)**: SOLID-grounded data ownership, atomic consent
-- **P2 (Affirmative Consent)**: Default deny, scoped consent, fail-closed — enforced by `SovereigntyChecker` at `crates/hkask-agents/src/sovereignty.rs:60`
+- **P2 (Affirmative Consent)**: Default deny, scoped consent, fail-closed — enforced by `SovereigntyChecker` at `crates/hkask-pods/src/sovereignty.rs:60`
 - **P3 (Generative Space)**: Settings exposure, user curation, open-source commitment
 - **P4 (Clear Boundaries)**: OCAP enforcement of P1–P3 through `GovernedTool` and `DelegationToken`
 
@@ -411,7 +411,7 @@ The Magna Carta cannot be overridden by any component — not the Curator, not t
 
 #### Algedonic Signals as the VSM Pain/Pleasure Channel
 
-In VSM, algedonic signals are the direct pain/pleasure pathway that bypasses normal hierarchical channels when urgent. In hKask, this is the `AlgedonicManager` at `crates/hkask-regulation/src/algedonic.rs`. When `variety_deficit` exceeds `variety_max_deficit`, or `critical_alerts` count passes the threshold, an `EscalationAlert` is produced by `EscalationPolicy::check_conditions()` at `crates/hkask-agents/src/curator_agent/metacognition/escalation.rs:80`.
+In VSM, algedonic signals are the direct pain/pleasure pathway that bypasses normal hierarchical channels when urgent. In hKask, this is the `AlgedonicManager` at `crates/hkask-regulation/src/algedonic.rs`. When `variety_deficit` exceeds `variety_max_deficit`, or `critical_alerts` count passes the threshold, an `EscalationAlert` is produced by `EscalationPolicy::check_conditions()` at `crates/hkask-pods/src/curator_agent/metacognition/escalation.rs:80`.
 
 Algedonic signals are **unidirectional**: the Regulation signals the Curator via alerts; the Curator regulates the Regulation through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`. This separation mirrors VSM's algedonic channel design: pain signals bypass the normal S2 coordination layer and go straight to S3 (Control) and S5 (Policy) when the system's viability is threatened.
 
@@ -1870,7 +1870,7 @@ When `recursion_depth > matryoshka_limit`, the cascade exits with `maxed_out` / 
 - [`hKask-architecture-master.md` § Template System & Cascade Execution](../architecture/core/hKask-architecture-master.md#template-system--cascade-execution)
 - [`executor.rs`](crates/hkask-templates/src/executor.rs) — `ManifestExecutor`, `execute_manifest()`, PDCA cascade loop
 - [`token_types.rs`](crates/hkask-capability/src/token_types.rs) — `SYSTEM_MAX_RECURSION` = 7
-- [`cascade.rs`](crates/hkask-improv/src/cascade.rs) — `MATRYOSHKA_LIMIT`, improv cascade
+- [`cascade.rs`](crates/hkask-services-chat/src/chat/improv.rs) — `MATRYOSHKA_LIMIT`, improv cascade
 - [Template registry routes](crates/hkask-api/src/routes/templates.rs) — WordAct / FlowDef / KnowAct API
 
 

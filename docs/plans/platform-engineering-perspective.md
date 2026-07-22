@@ -809,7 +809,7 @@ New Regulation spans:
 | `hkask-capability` | — | `token_types.rs` (+TokenRegistry trait, +NoOpTokenRegistry, public Caveat/caveats), `lib.rs` |
 | `hkask-storage` | `token_registry.rs` | `lib.rs` |
 | `hkask-templates` | — | `registry.rs` (bootstrap loads 7 platform manifests) |
-| `hkask-agents` | — | `ports/memory_storage.rs`, `ports/mod.rs` (MemoryPortError re-export fix) |
+| `hkask-pods` | — | `ports/memory_storage.rs`, `ports/mod.rs` (MemoryPortError re-export fix) |
 | `hkask-services-chat` | — | `chat.rs` (test mock fix) |
 | `hkask-mcp-curator` | — | `lib.rs` (+reg_query, +list_tokens tools), `types.rs` (+CnsQueryRequest, +TokenListRequest) |
 

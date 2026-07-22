@@ -32,7 +32,7 @@ OCAP signing is anchored to the system and A2A signing authorities. SQLCipher da
 - Different WebIDs → cryptographically independent sub-keys (HKDF domain separation)
 - No keystore dependency per pod — only the master key needs storage
 
-**See:** `crates/hkask-agents/src/pod/mod.rs::system_ocap_signing_key()`, `crates/hkask-keystore/src/keychain.rs::resolve_db_passphrase_string()`
+**See:** `crates/hkask-pods/src/pod/mod.rs::system_ocap_signing_key()`, `crates/hkask-keystore/src/keychain.rs::resolve_db_passphrase_string()`
 
 ### F3: Memory Pipeline Completeness ✅ RESOLVED
 
@@ -44,7 +44,7 @@ OCAP signing is anchored to the system and A2A signing authorities. SQLCipher da
 
 `AgentPod::new_with_memory()` accepts an optional `MemoryStoragePort`. `ActivePods::create_pod()` wires its `memory_storage` into pod creation. Each lifecycle method calls `record_lifecycle_event()` which stores `{entity: "pod:{id}", attribute: "lifecycle_state", value: state}` as an episodic_triple with private visibility. Persistence failures are non-fatal (logged with `tracing::warn`).
 
-**See:** `crates/hkask-agents/src/pod/mod.rs::record_lifecycle_event()`
+**See:** `crates/hkask-pods/src/pod/mod.rs::record_lifecycle_event()`
 
 ### F4: unwrap() Remediation Priority ✅ RESOLVED
 
@@ -399,14 +399,14 @@ Producing real content for `docs/status/` files. Two new status files have been 
 
 ---
 
-### DA-3: hkask-agents build regression
+### DA-3: hkask-pods build regression
 
 **MDS Category:** Domain, Capability  
 **Status:** Resolved  
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-The `hkask-pods` crate (formerly `hkask-agents`) build regression has been resolved. All 9 code drift items (P2-06-D1 through P2-06-D9) have been resolved via the curation gradient: spec_ahead items received stubs with FocusingAssumptions, divergent items received spec updates or type aliases. See `docs/status/corpus_inventory.yaml`.
+The `hkask-pods` crate (formerly `hkask-pods`) build regression has been resolved. All 9 code drift items (P2-06-D1 through P2-06-D9) have been resolved via the curation gradient: spec_ahead items received stubs with FocusingAssumptions, divergent items received spec updates or type aliases. See `docs/status/corpus_inventory.yaml`.
 
 ---
 
@@ -429,7 +429,7 @@ The `hkask-mcp-docproc` server can be used to capture and curate the specificati
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-Resolved by adding a `calibration` section to the `coherence_metric` block in MDS §5.9 Curation Spec Template. The calibration procedure is now documented: collect ≥10 SpecCurationRecord coherence scores, compute the 25th percentile (nearest-rank), use that as the empirical threshold. Code implementation: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)` in `crates/hkask-agents/src/curator_agent/spec_curator.rs`. This closes the spec-document gap — the spec now states the calibration method, not just the threshold value.
+Resolved by adding a `calibration` section to the `coherence_metric` block in MDS §5.9 Curation Spec Template. The calibration procedure is now documented: collect ≥10 SpecCurationRecord coherence scores, compute the 25th percentile (nearest-rank), use that as the empirical threshold. Code implementation: `DefaultSpecCurator::calibrate_from_history(SqliteCurationRecordStore)` in `crates/hkask-pods/src/curator_agent/spec_curator.rs`. This closes the spec-document gap — the spec now states the calibration method, not just the threshold value.
 
 ---
 

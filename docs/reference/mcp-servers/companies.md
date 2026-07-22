@@ -211,6 +211,6 @@ The suite covers provider-error handling, EODHD normalization, valuation request
 
 - [MCP Server Registry](README.md) — catalog of all 15 built-in servers
 - [Companies User Guide](../../how-to/companies-mcp.md) — task-oriented procedures for valuation, forecasting, and portfolio operations
-- [Companies Semantic Graph Audit](../../status/companies-mcp-semantic-graph-audit-2026-07-17.md) — internal module dependency graph health
-- [Companies MCP Code Review](../../status/companies-mcp-code-review-2026-07-15.md) — adversarial code review of the companies server
+- Companies Semantic Graph Audit — internal module dependency graph health
+- Companies MCP Code Review — adversarial code review of the companies server
 - [Diagram Index](../../DIAGRAMS_INDEX.md) — DIAG-RF-004 registration

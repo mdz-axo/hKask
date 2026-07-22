@@ -130,7 +130,7 @@ grep -r "daemon.sock" crates/ --include="*.rs" | wc -l
 grep -r "try_daemon_flow" mcp-servers/ --include="*.rs" | wc -l
 
 # Verify AgentMode tests
-cargo test -p hkask-agents -- mode
+cargo test -p hkask-pods -- mode
 
 # Verify daemon tests
 cargo test -p hkask-mcp -- daemon

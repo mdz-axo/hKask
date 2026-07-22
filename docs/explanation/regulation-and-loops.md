@@ -114,7 +114,7 @@ The capability hierarchy is deliberate: `AdjustEnergyBudget` and `OverrideEnergy
 - **Critical:** Deviations requiring Curator intervention (energy at 0%, error rate catastrophic, key completely exhausted, seam coverage drops >5pp)
 - **Fatal:** System-level failures requiring human intervention (the Regulation itself is unstable)
 
-The escalation pathway is not just a log line. `Critical` alerts flow through `alerts_tx` (`cybernetics_loop.rs:79`) as `CurationInput` messages to the `CurationLoop`. The Curator's metacognition layer (`crates/hkask-agents/src/curator_agent/metacognition.rs`) receives these as structured problem statements — not raw metrics, but curated alerts with context, options, and fallback behaviors.
+The escalation pathway is not just a log line. `Critical` alerts flow through `alerts_tx` (`cybernetics_loop.rs:79`) as `CurationInput` messages to the `CurationLoop`. The Curator's metacognition layer (`crates/hkask-pods/src/curator_agent/metacognition/mod.rs`) receives these as structured problem statements — not raw metrics, but curated alerts with context, options, and fallback behaviors.
 
 When the Regulation cannot self-correct — when `verify_impact` returns `Block` decisions for repeated actions, or when the `StagnationDetector` (`cybernetics_loop.rs:93`) detects a regulatory plateau — the escalation moves upward: from Cybernetic self-regulation to Curator metacognitive override, and from Curator to human operator if the Curator cannot resolve the issue within its authority bounds.
 
@@ -143,7 +143,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-001
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -265,7 +265,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-002
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -283,7 +283,7 @@ The Curator is hKask's metacognitive layer — "thinking about thinking." Where 
 
 ### Evidence
 
-The `CuratorAgent` at `crates/hkask-agents/src/curator_agent/mod.rs:44` composes three components:
+The `CuratorAgent` at `crates/hkask-pods/src/curator_agent/mod.rs:44` composes three components:
 
 ```text
 CuratorAgent
@@ -296,7 +296,7 @@ The separation between `CurationLoop` (pure regulatory, no persona) and `Metacog
 
 #### The CurationLoop: Sense → Classify → Decide → Act
 
-The Curator's core cycle is the `RegulationLoop` trait implementation on `CurationLoop` at `crates/hkask-agents/src/curator/curation_loop.rs:332`. Its phases:
+The Curator's core cycle is the `RegulationLoop` trait implementation on `CurationLoop` at `crates/hkask-pods/src/curation/curation_loop.rs:332`. Its phases:
 
 1. **Sense**: Reads algedonic-significant `RegulationRecord`s from the persistent store using cursor-based review. `last_review_ms` tracks the cursor position; each `sense()` call advances it. Falls back to live Regulation reads if no RegulationRecord store is configured.
 
@@ -304,7 +304,7 @@ The Curator's core cycle is the `RegulationLoop` trait implementation on `Curati
 
 3. **Act**: Issues directives through `CuratorContext` with DAMPEN filtering — repeated identical directives within `dampen_window_secs` (default 60s) are suppressed, preventing directive storms.
 
-The `MetacognitionLoop::sense()` at `crates/hkask-agents/src/curator_agent/metacognition/hloop_impl.rs:27` reads Regulation health, variety counters, alerts, and regulation effectiveness. It builds a `HealthSnapshot` (defined in `config.rs:21`) with:
+The `MetacognitionLoop::sense()` at `crates/hkask-pods/src/curator_agent/metacognition/hloop_impl.rs:27` reads Regulation health, variety counters, alerts, and regulation effectiveness. It builds a `HealthSnapshot` (defined in `config.rs:21`) with:
 
 - `variety_counters: HashMap<SpanNamespace, u64>` — full variety state per domain
 - `variety_deficit: u64` — total deficit across all domains
@@ -321,7 +321,7 @@ The `CuratorSync` polling loop opens source pods read-only, inserts Public hMems
 
 #### Escalation Handling
 
-When the Regulation cannot self-correct, the Curator steps in. `EscalationPolicy::check_conditions()` at `crates/hkask-agents/src/curator_agent/metacognition/escalation.rs:80` evaluates three triggers:
+When the Regulation cannot self-correct, the Curator steps in. `EscalationPolicy::check_conditions()` at `crates/hkask-pods/src/curator_agent/metacognition/escalation.rs:80` evaluates three triggers:
 
 - **VarietyDeficit**: Critical if deficit > threshold, Warning if > threshold/2
 - **CriticalAlerts**: Critical if alert count ≥ threshold
@@ -339,7 +339,7 @@ The `verify_impact` phase of the `CyberneticsLoop` produces `ImpactReport` with 
 
 #### The CAT Communication Posture
 
-`MetacognitionLoop` evaluates Matrix messages through `cat::evaluate()` at `crates/hkask-agents/src/curator_agent/cat.rs:24` — a pure-function engagement gate based on Communication Accommodation Theory. The `convergence_bias` governs: >0.0 speaks when addressed by name, ≥0.7 speaks to any message, =0.0 remains silent.
+`MetacognitionLoop` evaluates Matrix messages through `cat::evaluate()` at `crates/hkask-pods/src/curator_agent/cat.rs:24` — a pure-function engagement gate based on Communication Accommodation Theory. The `convergence_bias` governs: >0.0 speaks when addressed by name, ≥0.7 speaks to any message, =0.0 remains silent.
 
 Before the CAT gate, `condenser/condenser_score_saliency` scores message relevance via ontology graph proximity: persona (charter-anchored), episodic memory (PKO process domain), or semantic memory (DC+BIBO document domain). The score modulates `convergence_bias` — domain-relevant messages pull the agent toward stronger engagement.
 
@@ -373,7 +373,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-003
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -511,7 +511,7 @@ flowchart LR
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-004
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -668,7 +668,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-005
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -855,7 +855,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-006
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -977,7 +977,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-007
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -997,7 +997,7 @@ status: VERIFIED
 | RegulatoryAction enum | `crates/hkask-types/src/loops/actions.rs` |
 | ImpactReport | `crates/hkask-types/src/loops/core.rs` |
 | Algedonic escalation | `crates/hkask-regulation/src/runtime.rs` |
-| CurationLoop | `crates/hkask-agents/src/curator/curation_loop.rs` |
+| CurationLoop | `crates/hkask-pods/src/curation/curation_loop.rs` |
 | Contract events | `crates/hkask-regulation/src/contract_events.rs` |
 | RegulationArchive | `crates/hkask-storage/src/regulation_store.rs` |
 
@@ -1277,7 +1277,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-008
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1475,7 +1475,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-009
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1495,7 +1495,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-010
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1689,7 +1689,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-011
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1717,7 +1717,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-012
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1835,7 +1835,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-013
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1921,7 +1921,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-Regulation-014
 verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-agents/src/curator_agent/mod.rs
+verified_against: crates/hkask-regulation/src/cybernetics_loop.rs, crates/hkask-pods/src/curator_agent/mod.rs
 status: VERIFIED
 -->
 
@@ -1958,22 +1958,22 @@ Regulation effectiveness (accepted/blocked/staged ratio from `RegulationLedger`)
 
 | Node | Crate | Source File |
 |------|-------|-------------|
-| `MetacognitionLoop` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
-| `RegulationLoop::sense` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
-| `RegulationLoop::compute` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
-| `RegulationLoop::act` | `hkask-agents` | `src/curator_agent/metacognition/hloop_impl.rs` |
-| `compute_with_templates` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
-| `compute_with_thresholds` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
-| `act_on_throttle` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
-| `act_on_escalate` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
-| `act_on_no_action` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
-| `direct_bot` | `hkask-agents` | `src/curator_agent/metacognition/loop_body.rs` |
-| `EscalationPolicy` | `hkask-agents` | `src/curator_agent/metacognition/escalation.rs` |
-| `HealthSnapshot` | `hkask-agents` | `src/curator_agent/metacognition/config.rs` |
-| `MetacognitionConfig` | `hkask-agents` | `src/curator_agent/metacognition/config.rs` |
-| `CAT evaluate` | `hkask-agents` | `src/curator_agent/cat.rs` |
-| `CuratorAgent` (composition) | `hkask-agents` | `src/curator_agent/mod.rs` |
-| `persist_escalation_with_retry` | `hkask-agents` | `src/curator_agent/metacognition/persistence.rs` |
-| `format_health_status` | `hkask-agents` | `src/curator_agent/metacognition/format.rs` |
+| `MetacognitionLoop` | `hkask-pods` | `src/curator_agent/metacognition/loop_body.rs` |
+| `RegulationLoop::sense` | `hkask-pods` | `src/curator_agent/metacognition/hloop_impl.rs` |
+| `RegulationLoop::compute` | `hkask-pods` | `src/curator_agent/metacognition/hloop_impl.rs` |
+| `RegulationLoop::act` | `hkask-pods` | `src/curator_agent/metacognition/hloop_impl.rs` |
+| `compute_with_templates` | `hkask-pods` | `src/curator_agent/metacognition/loop_body.rs` |
+| `compute_with_thresholds` | `hkask-pods` | `src/curator_agent/metacognition/loop_body.rs` |
+| `act_on_throttle` | `hkask-pods` | `src/curator_agent/metacognition/loop_body.rs` |
+| `act_on_escalate` | `hkask-pods` | `src/curator_agent/metacognition/loop_body.rs` |
+| `act_on_no_action` | `hkask-pods` | `src/curator_agent/metacognition/loop_body.rs` |
+| `direct_bot` | `hkask-pods` | `src/curator_agent/metacognition/loop_body.rs` |
+| `EscalationPolicy` | `hkask-pods` | `src/curator_agent/metacognition/escalation.rs` |
+| `HealthSnapshot` | `hkask-pods` | `src/curator_agent/metacognition/config.rs` |
+| `MetacognitionConfig` | `hkask-pods` | `src/curator_agent/metacognition/config.rs` |
+| `CAT evaluate` | `hkask-pods` | `src/curator_agent/cat.rs` |
+| `CuratorAgent` (composition) | `hkask-pods` | `src/curator_agent/mod.rs` |
+| `persist_escalation_with_retry` | `hkask-pods` | `src/curator_agent/metacognition/persistence.rs` |
+| `format_health_status` | `hkask-pods` | `src/curator_agent/metacognition/format.rs` |
 
 

@@ -65,73 +65,76 @@ infrastructure, never userpod data.
 
 ```mermaid
 flowchart TD
-    User["Human user<br/>kask login"]
-    Kask["kask binary<br/>22 subcommands"]
-    Tui["kask tui<br/>REPL + ratatui workspace"]
-    Serve["kask serve<br/>HTTP API + OpenAPI"]
-    Daemon["kask daemon<br/>socket, Regulation monitor"]
+    Group["Group of users<br/>one hKask install"]
+    Install["hKask install<br/>cloud server - K3s/Kubernetes"]
+    Surface["Browser xterm.js / WSS<br/>or local `kask tui`"]
 
-    User --> Kask
-    Kask --> Tui
-    Kask --> Serve
-    Kask --> Daemon
+    Group --> Install
+    Install --> Surface
 
-    subgraph Runtime["Chat runtime"]
-        Skills["Skills<br/>51 PDCA loops"]
-        Manifest["ManifestExecutor<br/>FlowDef cascade"]
+    subgraph Hard["Hard layer - Rust kernel (fixed)"]
+        Tui["kask tui<br/>REPL + ratatui workspace"]
+        Executor["ManifestExecutor<br/>select - populate - execute"]
         Mcp["16 MCP servers<br/>rmcp dispatch"]
         Guard["hkask-guard<br/>LLM boundary scan"]
-        Inference["Inference router<br/>9 providers"]
+        Router["Inference router<br/>9 providers"]
     end
 
-    Tui --> Skills
+    subgraph Soft["Soft layer - YAML + Jinja2 (mutable, the thread)"]
+        Manifests["88 manifests<br/>FlowDef: choice/escalate/abort"]
+        Templates["387 Jinja2 templates<br/>WordAct + KnowAct"]
+        Skills["51 skills<br/>PDCA loops, convergence"]
+    end
+
+    Surface --> Tui
+    Tui --> Executor
+    Skills --> Manifests
+    Manifests --> Templates
+    Templates -->|"LLM renders + selects"| Executor
+    Executor -->|"next step"| Templates
     Tui --> Mcp
-    Skills --> Manifest
-    Manifest --> Inference
     Mcp --> Guard
-    Guard --> Inference
-    Inference --> Providers["LLM + media providers<br/>Cline, DeepInfra, fal.ai, ..."]
+    Guard --> Router
+    Executor --> Router
+    Router --> Providers["9 LLM/media providers<br/>Cline, DeepInfra, fal.ai, ..."]
 
-    subgraph Sovereignty["Sovereignty layer"]
-        Ocap["OCAP capability tokens"]
-        Keystore["Keystore<br/>OS keychain, AES-256-GCM"]
-        Regulation["Regulation<br/>reg.* spans, variety"]
+    subgraph PerUser["Per-userpod sovereignty (one per user)"]
+        Pod["hkask-pods userpod<br/>identity, WebID"]
+        Ocap["OCAP tokens"]
+        Storage["SQLCipher DB<br/>episodic + semantic memory"]
     end
 
-    Tui --> Ocap
-    Tui --> Keystore
-    Manifest --> Regulation
+    Tui --> Pod
+    Pod --> Storage
+    Executor --> Ocap
+    Pod --> Ocap
 
-    subgraph Persistence["Persistence"]
-        Storage["SQLite + SQLCipher"]
-        Memory["Memory<br/>episodic + semantic"]
-        GitCas["Git CAS<br/>BLAKE3 objects"]
+    subgraph CNS["Regulation - cybernetic nervous system"]
+        Regulation["reg.* spans<br/>variety, algedonic escalation"]
     end
 
-    Tui --> Storage
-    Storage --> Memory
-    Storage --> GitCas
+    Executor --> Regulation
+    Router --> Regulation
 
     subgraph Economy["Economy"]
-        Wallet["Wallet + Ledger<br/>rJoule gas"]
+        Wallet["Wallet + Ledger<br/>rJoule gas, 1 rJ = 250k cycles"]
     end
 
-    Inference --> Wallet
+    Router --> Wallet
     Wallet --> Regulation
 
-    subgraph Infra["Install plumbing"]
-        Pods["hkask-pods<br/>one userpod per user"]
-        Federation["Federation + Matrix<br/>cross-install"]
-    end
+    Federation["Federation + Matrix<br/>cross-install, opt-in"]
+    Install -. cross-install .-> Federation
 
-    Tui --> Pods
-    Pods -. cross-install .-> Federation
+    Curator["Curator<br/>cybernetic regulator (VSM S4)"]
+    Regulation -. algedonic signals .-> Curator
+    Curator -. calibrate + escalate to user .-> Regulation
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-README-001
 verified_date: 2026-07-21
-verified_against: Cargo.toml (workspace members); crates/hkask-cli/src/cli/mod.rs (Commands enum); crates/hkask-inference/src/ (9 backends); .agents/skills/ (51); mcp-servers/ (16)
+verified_against: Cargo.toml (workspace members); crates/hkask-cli/src/cli/mod.rs (Commands enum); crates/hkask-inference/src/ (9 backends); registry/templates/ (88 manifests, 387 .j2); .agents/skills/ (51); mcp-servers/ (16)
 status: VERIFIED
 -->
 
@@ -142,7 +145,7 @@ status: VERIFIED
 | # | Anchor | Implementation |
 |---|--------|----------------|
 | 1 | **Human sovereignty** | OCAP capability tokens, SQLCipher-at-rest, OS keychain, private/public gating — Magna Carta P1–P4[^magna-carta] |
-| 2 | **Skills & composition** | 51 PDCA skill loops compose 88 registry manifests + Jinja2 templates into iterative cycles[^skills-model] |
+| 2 | **Skills & composition** | 51 PDCA skill loops compose 88 registry manifests + 387 Jinja2 templates into iterative cycles — the soft layer that offloads selection intelligence to the LLM[^skills-model] |
 | 3 | **Tools** | 16 MCP servers + inference router over 9 LLM/media providers[^mcp] |
 | 4 | **Regulation** | `reg.*` span registry, variety counters, algedonic escalation — the cybernetic nervous system[^regulation] |
 | 5 | **Economy** | rJoule gas accounting (1 rJ = 250 000 gas cycles), double-entry ledger, per-call circuit breakers |
@@ -153,14 +156,18 @@ status: VERIFIED
 
 hKask distinguishes two layers that other systems conflate:
 
-- **Templates** (Jinja2 `.j2`) — one-shot prompt executions. What Claude,
+- **Templates** (387 Jinja2 `.j2`) — one-shot prompt executions. What Claude,
   ChatGPT, and most agent platforms call "skills." In hKask these are raw
-  material: render once, return output, exit.
+  material: render once, return output, exit. Critically, **selection
+  intelligence lives in the templates and the LLM, not in Rust** (P3 Generative
+  Space) — the Rust kernel is a fixed loom; the Jinja2/YAML is the mutable thread
+  that directs platform functions and absorbs complexity that would otherwise
+  bloat the binary.
 - **Skills** (51 PDCA loops) — iterative cycles that compose templates into
-  autonomous search, learning, and implementation loops. A skill has a
-  `manifest.yaml` with `convergence.threshold > 0`, a `gas.cap`, and a `loop`
-  action. It runs until it converges on a quality threshold, exhausts its
-  energy budget, or escalates to the user.
+  search, learning, and implementation loops. A skill has a `manifest.yaml`
+  with `convergence.threshold > 0`, a `gas.cap`, and a `loop` action. It runs
+  until it converges on a quality threshold, exhausts its energy budget, or
+  escalates to the user.
 
 The tripartite template type system mirrors human cognition:[^skills-model]
 
@@ -172,7 +179,7 @@ The tripartite template type system mirrors human cognition:[^skills-model]
 
 | Layer | Format | Count | Behavior |
 |-------|--------|-------|----------|
-| Templates | `*.j2` (Jinja2) | — | One-shot: execute → return output |
+| Templates | `*.j2` (Jinja2) | 387 | One-shot: render → return output. Selection intelligence lives here, not in Rust (P3 Generative Space) |
 | Skill manifests | `manifest.yaml` | 88 | FlowDef contracts, convergence, gas budget |
 | Skills | `.agents/skills/` | 51 | PDCA loops: compose → iterate → converge \| max_out \| escalate |
 
@@ -281,7 +288,9 @@ co-equal artifact.[^skills-model]
 | Core crates | 53 |
 | MCP servers | 16 |
 | Workspace members (excl. fuzz) | 69 |
-| Skills | 51 (88 registry manifests) |
+| Skills | 51 PDCA loops (88 registry manifests, 387 Jinja2 templates) |
+| Jinja2 templates | 387 (WordAct + KnowAct; selection intelligence offloaded to the LLM) |
+| Skill manifests | 88 (FlowDef: select - populate - execute, convergence, gas budget) |
 | CLI subcommands | 22 (`kask tui` is the primary entry point) |
 | Inference providers | 9 (Cline, DeepInfra, fal.ai, KiloCode, Ollama, OpenAI, OpenRouter, Runpod, Together) |
 | Codegraph MCP tools | 11 (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) |
@@ -350,9 +359,9 @@ tutorials, how-to guides, reference, and explanation.[^diataxis] The portal at
 | Layer | Technology | Mutability |
 |-------|------------|------------|
 | Hard (kernel) | Rust | Fixed, stable |
-| Soft (material) | YAML, Jinja2, Markdown | Mutable, evolving |
+| Soft (material) | YAML, Jinja2, Markdown | Mutable, evolving (88 manifests, 387 templates) |
 
-Rust is the loom. YAML/Jinja2 is the thread. The human user is the weaver.
+Rust is the loom. YAML/Jinja2 is the thread. The users direct the weaving; the LLM renders the thread into action.
 
 ---
 
