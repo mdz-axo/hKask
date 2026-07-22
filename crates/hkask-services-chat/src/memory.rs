@@ -103,7 +103,6 @@ impl MemoryService {
             }
             RecallShape::Recent { limit } => episodes
                 .iter()
-                .rev()
                 .take(*limit)
                 .filter_map(|e| ChatTurn::from_value(&e.value))
                 .collect(),
@@ -224,11 +223,10 @@ impl MemoryService {
             &RecallShape::Recent { limit },
         );
         let mut messages: Vec<serde_json::Value> = Vec::new();
-        for ct in &turns {
+        for ct in turns.iter().rev() {
             messages.push(serde_json::json!({"role": "user", "content": ct.user_input}));
             messages.push(serde_json::json!({"role": "assistant", "content": ct.agent_response}));
         }
-        messages.reverse();
         messages
     }
 

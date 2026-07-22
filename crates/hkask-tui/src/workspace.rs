@@ -360,10 +360,6 @@ pub struct Workspace {
     repl_bridge: Arc<dyn ReplBridge>,
     bridges: WorkspaceBridges,
     status_bar: StatusBar,
-    help_visible: bool,
-    pub palette_open: bool,
-    palette_prev_focus: Option<WindowId>,
-    pub(crate) command_palette: crate::command_palette::CommandPalette,
 }
 
 #[derive(Default)]
@@ -444,10 +440,6 @@ impl Workspace {
             repl_bridge: repl,
             bridges,
             status_bar,
-            help_visible: false,
-            palette_open: false,
-            palette_prev_focus: None,
-            command_palette: crate::command_palette::CommandPalette::new(),
         }
     }
 
@@ -495,10 +487,6 @@ impl Workspace {
             repl_bridge: repl,
             bridges,
             status_bar,
-            help_visible: false,
-            palette_open: false,
-            palette_prev_focus: None,
-            command_palette: crate::command_palette::CommandPalette::new(),
         }
     }
 
@@ -557,12 +545,6 @@ impl Workspace {
         let status_area = Rect::new(area.x, y, area.width, status_h);
 
         self.root().render(f, content_area, self.focused_window);
-        if self.help_visible {
-            self.render_help_overlay(f, content_area);
-        }
-        if self.palette_open {
-            self.command_palette.render(f, content_area);
-        }
         self.render_status(f, status_area);
     }
 
@@ -608,89 +590,11 @@ impl Workspace {
     /// Handle global keybindings. Returns true if the event was consumed.
     /// These are keys that work regardless of which window is focused.
     pub fn handle_global_key(&mut self, key: KeyEvent) -> bool {
-        use KeyCode::*;
         use crossterm::event::{KeyCode, KeyModifiers};
 
         match (key.modifiers, key.code) {
-            (KeyModifiers::CONTROL, Char('q')) => {
+            (KeyModifiers::CONTROL, KeyCode::Char('q')) => {
                 self.should_quit = true;
-                true
-            }
-            (KeyModifiers::CONTROL, Char('t')) => {
-                self.new_tab();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('w')) => {
-                self.close_focused_window();
-                true
-            }
-            (modifiers, Char('h'))
-                if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) =>
-            {
-                self.split_focused(SplitDirection::Horizontal);
-                true
-            }
-            (modifiers, Char('j'))
-                if modifiers.contains(KeyModifiers::CONTROL.union(KeyModifiers::SHIFT)) =>
-            {
-                self.split_focused(SplitDirection::Vertical);
-                true
-            }
-            (KeyModifiers::CONTROL, Char('k')) | (KeyModifiers::CONTROL, Up) => {
-                self.focus_prev();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('j')) | (KeyModifiers::CONTROL, Down) => {
-                self.focus_next();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('h')) | (KeyModifiers::CONTROL, Left) => {
-                self.focus_prev();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('l')) | (KeyModifiers::CONTROL, Right) => {
-                self.focus_next();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('=')) => {
-                self.resize_focused(0.05);
-                true
-            }
-            (KeyModifiers::CONTROL, Char('-')) => {
-                self.resize_focused(-0.05);
-                true
-            }
-            (KeyModifiers::CONTROL, Char(d @ '1'..='9')) => {
-                let idx = (d as u8 - b'1') as usize;
-                self.switch_tab(idx);
-                true
-            }
-            (KeyModifiers::CONTROL, Char('p')) => {
-                self.open_command_palette();
-                true
-            }
-
-            // Match both NONE and SHIFT: on a standard keyboard, '?' is Shift+/,
-            // so crossterm reports KeyModifiers::SHIFT for the physical key press.
-            // Matching only NONE would never fire in a real terminal.
-            (KeyModifiers::NONE | KeyModifiers::SHIFT, Char('?')) => {
-                self.toggle_help();
-                true
-            }
-            (KeyModifiers::CONTROL, Char('n')) => {
-                self.new_chat_window();
-                true
-            }
-            (KeyModifiers::NONE, KeyCode::Tab) => {
-                if let Some(focus) = self.focused_window {
-                    let kind = self.root().window_kind(focus);
-                    // Terminal and MCP-tabbed windows use Tab internally;
-                    // determined by WindowKind::uses_internal_tab() from META.
-                    if kind.is_some_and(|k| k.uses_internal_tab()) {
-                        return false; // let focused window handle Tab
-                    }
-                }
-                self.focus_next();
                 true
             }
             _ => false,
@@ -722,6 +626,14 @@ impl Workspace {
         }
     }
 
+    /// Create a window of the given kind without adding it to the tree.
+    fn create_window_of_kind(&self, kind: WindowKind, id: WindowId) -> Box<dyn Window> {
+        let ctx = self
+            .bridges
+            .to_window_bridges(self.system_bridge.clone(), self.repl_bridge.clone());
+        crate::window_catalog::create_window(kind, id, &ctx)
+    }
+
     fn focus_window(&mut self, id: WindowId) {
         if self.focused_window == Some(id) {
             return;
@@ -735,247 +647,6 @@ impl Workspace {
         if let Some(w) = self.root_mut().find_leaf_mut(id) {
             w.on_focus();
         }
-    }
-
-    // ── Split / Resize ───────────────────────────────────────────────
-
-    pub fn split_focused(&mut self, direction: SplitDirection) {
-        let Some(focused) = self.focused_window else {
-            return;
-        };
-        let new_id = WindowId(Uuid::new_v4());
-        let new_kind = match direction {
-            SplitDirection::Horizontal => WindowKind::Chat,
-            SplitDirection::Vertical => WindowKind::Chat,
-        };
-        let new_win = self.create_window_of_kind(new_kind, new_id);
-        // focused is a Copy type, safe to use after root_mut()
-        let ok = self
-            .root_mut()
-            .replace_leaf_with_split(focused, new_win, direction, 0.7);
-        if ok {
-            self.focused_window = Some(new_id);
-        }
-    }
-
-    pub fn resize_focused(&mut self, delta: f32) {
-        let Some(focused) = self.focused_window else {
-            return;
-        };
-        Self::adjust_ratio(self.root_mut(), focused, delta);
-    }
-
-    fn adjust_ratio(node: &mut SplitNode, target: WindowId, delta: f32) -> bool {
-        match node {
-            SplitNode::Horizontal { left, right, ratio } => {
-                if left.contains_window(target) {
-                    *ratio = (*ratio + delta).clamp(0.1, 0.9);
-                    return true;
-                }
-                if right.contains_window(target) {
-                    *ratio = (*ratio - delta).clamp(0.1, 0.9);
-                    return true;
-                }
-                Self::adjust_ratio(left, target, delta) || Self::adjust_ratio(right, target, delta)
-            }
-            SplitNode::Vertical { top, bottom, ratio } => {
-                if top.contains_window(target) {
-                    *ratio = (*ratio + delta).clamp(0.1, 0.9);
-                    return true;
-                }
-                if bottom.contains_window(target) {
-                    *ratio = (*ratio - delta).clamp(0.1, 0.9);
-                    return true;
-                }
-                Self::adjust_ratio(top, target, delta) || Self::adjust_ratio(bottom, target, delta)
-            }
-            _ => false,
-        }
-    }
-
-    // ── Tabs ─────────────────────────────────────────────────────────
-
-    pub fn new_tab(&mut self) {
-        let chat_id = WindowId(Uuid::new_v4());
-        let chat = self.create_window_of_kind(WindowKind::Chat, chat_id);
-        let root = SplitNode::Leaf(Some(chat));
-        let tab = Tab::new(format!("Tab {}", self.tabs.len() + 1), root);
-        self.tabs.push(tab);
-        self.active_tab = self.tabs.len() - 1;
-        self.focus_window(chat_id);
-    }
-
-    pub fn switch_tab(&mut self, idx: usize) {
-        if idx < self.tabs.len() && idx != self.active_tab {
-            self.active_tab = idx;
-            if let Some(&first_id) = self.root().window_ids().first() {
-                self.focus_window(first_id);
-            }
-        }
-    }
-
-    pub fn toggle_help(&mut self) {
-        self.help_visible = !self.help_visible;
-    }
-
-    pub fn close_tab(&mut self) {
-        if self.tabs.len() > 1 {
-            self.tabs.remove(self.active_tab);
-            if self.active_tab >= self.tabs.len() {
-                self.active_tab = self.tabs.len().saturating_sub(1);
-            }
-            if let Some(&first_id) = self.root().window_ids().first() {
-                self.focus_window(first_id);
-            }
-        }
-    }
-
-    pub fn close_focused_window(&mut self) {
-        let Some(target) = self.focused_window else {
-            return;
-        };
-        // Prevent closing the last remaining window in the tab.
-        if self.window_count() <= 1 {
-            return;
-        }
-
-        let root = std::mem::replace(self.root_mut(), SplitNode::Leaf(None));
-        let (root, removed) = root.remove(target);
-        *self.root_mut() = root.expect("closing one of multiple windows preserves a root");
-        if removed {
-            self.focused_window = self.root().window_ids().first().copied();
-        }
-    }
-
-    /// Open a new Chat window as a vertical split from the focused window.
-    pub fn new_chat_window(&mut self) {
-        self.open_window_kind(WindowKind::Chat);
-    }
-
-    pub fn open_command_palette(&mut self) {
-        if self.palette_open {
-            self.palette_open = false;
-            if let Some(prev) = self.palette_prev_focus.take() {
-                self.focus_window(prev);
-            }
-        } else {
-            self.palette_open = true;
-            self.palette_prev_focus = self.focused_window;
-            self.command_palette.reset();
-        }
-    }
-
-    /// Handle a key event while the command palette is open.
-    /// Returns true if the event was consumed.
-    pub fn handle_palette_key(&mut self, key: KeyEvent) -> bool {
-        if !self.palette_open {
-            return false;
-        }
-        use crossterm::event::{KeyCode, KeyModifiers};
-        // Toggle dismiss
-        if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('p') {
-            self.palette_open = false;
-            if let Some(prev) = self.palette_prev_focus.take() {
-                self.focus_window(prev);
-            }
-            return true;
-        }
-        if let Some(action) = self.command_palette.handle_key(key) {
-            match action {
-                crate::command_palette::PaletteAction::Close => {
-                    self.palette_open = false;
-                    if let Some(prev) = self.palette_prev_focus.take() {
-                        self.focus_window(prev);
-                    }
-                    return true;
-                }
-                crate::command_palette::PaletteAction::Open(kind) => {
-                    self.palette_open = false;
-                    self.palette_prev_focus.take();
-                    self.open_window_kind(kind);
-                    return true;
-                }
-            }
-        }
-        // Navigation/typing consumed by palette
-        true
-    }
-    /// Open a window of the given kind at the currently focused split.
-    pub fn open_window_kind(&mut self, kind: WindowKind) {
-        if !kind.allows_multiple() {
-            if let Some((tab_index, window_id)) = self
-                .tabs
-                .iter()
-                .enumerate()
-                .find_map(|(index, tab)| tab.root.find_kind(kind).map(|id| (index, id)))
-            {
-                self.active_tab = tab_index;
-                self.focus_window(window_id);
-                return;
-            }
-        }
-
-        let new_id = WindowId(uuid::Uuid::new_v4());
-        let new_win = self.create_window_of_kind(kind, new_id);
-        let focused = self.focused_window;
-        if self.root_mut().replace_leaf_with_split(
-            focused.unwrap_or(WindowId(uuid::Uuid::nil())),
-            new_win,
-            SplitDirection::Vertical,
-            0.6,
-        ) {
-            self.focused_window = Some(new_id);
-        }
-    }
-
-    /// Create a window of the given kind without adding it to the tree.
-    fn create_window_of_kind(&self, kind: WindowKind, id: WindowId) -> Box<dyn Window> {
-        let ctx = self
-            .bridges
-            .to_window_bridges(self.system_bridge.clone(), self.repl_bridge.clone());
-        crate::window_catalog::create_window(kind, id, &ctx)
-    }
-
-    fn render_help_overlay(&self, f: &mut Frame, area: Rect) {
-        let ow = area.width.min(60);
-        let oh = area.height.min(20);
-        // Guard: zero-size area on tiny terminals.
-        if ow == 0 || oh == 0 {
-            return;
-        }
-        let mut lines: Vec<ratatui::text::Line> = Vec::new();
-        lines.push(headers::section_with_color(
-            "Keybindings (? to close)",
-            Color::Yellow,
-        ));
-        lines.push(ratatui::text::Line::from(""));
-        lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
-            "Global:",
-            Style::default().fg(Color::Cyan),
-        )));
-        for (key, desc) in GLOBAL_BINDINGS {
-            lines.push(ratatui::text::Line::from(format!("  {:20} {}", key, desc)));
-        }
-        lines.push(ratatui::text::Line::from(""));
-        lines.push(ratatui::text::Line::from(ratatui::text::Span::styled(
-            "Chat:",
-            Style::default().fg(Color::Cyan),
-        )));
-        for (key, desc) in CHAT_BINDINGS {
-            lines.push(ratatui::text::Line::from(format!("  {:20} {}", key, desc)));
-        }
-        let overlay = Paragraph::new(lines)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" Help ")
-                    .border_style(Style::default().fg(Color::Yellow)),
-            )
-            .style(Style::default().bg(Color::Rgb(20, 20, 30)));
-        // Center the overlay
-        let ox = area.x + (area.width.saturating_sub(ow)) / 2;
-        let oy = area.y + (area.height.saturating_sub(oh)) / 2;
-        f.render_widget(overlay, Rect::new(ox, oy, ow, oh));
     }
 
     // ── Tick ─────────────────────────────────────────────────────────
@@ -1070,7 +741,13 @@ impl Workspace {
 
     pub fn tick(&mut self) {
         self.root_mut().tick();
-        self.drain_window_actions();
+        // Drain window actions (only Quit now — window management removed).
+        let actions = collect_actions(self.root_mut());
+        for action in actions {
+            match action {
+                WorkspaceAction::Quit => self.should_quit = true,
+            }
+        }
         self.status_bar.gas_remaining = self.system_bridge.gas_remaining();
         self.status_bar.gas_cap = self.system_bridge.gas_cap();
         let alerts = self.system_bridge.reg_alert_count();
@@ -1084,49 +761,26 @@ impl Workspace {
         self.status_bar.context_pressure = self.system_bridge.context_pressure();
         self.status_bar.model = self.system_bridge.model_name().to_string();
     }
+}
 
-    /// Walk the split tree and drain pending `WorkspaceAction`s from all windows.
-    /// Actions are processed in tree order (left-to-right, top-to-bottom).
-    fn drain_window_actions(&mut self) {
-        let actions = Self::collect_actions(self.root_mut());
-        for action in actions {
-            self.apply_action(action);
-        }
-    }
-
-    /// Recursively collect `WorkspaceAction`s from all windows in the tree.
-    fn collect_actions(node: &mut SplitNode) -> Vec<WorkspaceAction> {
-        let mut actions = Vec::new();
-        match node {
-            SplitNode::Leaf(Some(w)) => {
-                if let Some(action) = w.drain_action() {
-                    actions.push(action);
-                }
-            }
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
-            SplitNode::Horizontal { left, right, .. } => {
-                actions.extend(Self::collect_actions(left));
-                actions.extend(Self::collect_actions(right));
-            }
-            SplitNode::Vertical { top, bottom, .. } => {
-                actions.extend(Self::collect_actions(top));
-                actions.extend(Self::collect_actions(bottom));
+/// Recursively collect `WorkspaceAction`s from all windows in the tree.
+fn collect_actions(node: &mut SplitNode) -> Vec<WorkspaceAction> {
+    let mut actions = Vec::new();
+    match node {
+        SplitNode::Leaf(Some(w)) => {
+            if let Some(action) = w.drain_action() {
+                actions.push(action);
             }
         }
-        actions
-    }
-
-    /// Apply a `WorkspaceAction` requested by a window (e.g., via slash commands).
-    fn apply_action(&mut self, action: WorkspaceAction) {
-        match action {
-            WorkspaceAction::OpenWindow(kind) => self.open_window_kind(kind),
-            WorkspaceAction::CloseFocused => self.close_focused_window(),
-            WorkspaceAction::Split(direction) => self.split_focused(direction),
-            WorkspaceAction::FocusNext => self.focus_next(),
-            WorkspaceAction::FocusPrev => self.focus_prev(),
-            WorkspaceAction::NewTab => self.new_tab(),
-            WorkspaceAction::OpenPalette => self.open_command_palette(),
-            WorkspaceAction::Quit => self.should_quit = true,
+        SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+        SplitNode::Horizontal { left, right, .. } => {
+            actions.extend(collect_actions(left));
+            actions.extend(collect_actions(right));
+        }
+        SplitNode::Vertical { top, bottom, .. } => {
+            actions.extend(collect_actions(top));
+            actions.extend(collect_actions(bottom));
         }
     }
+    actions
 }

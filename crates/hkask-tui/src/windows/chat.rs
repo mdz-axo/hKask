@@ -43,7 +43,7 @@ use crate::repl_bridge::{
     InferenceRequestId, InferenceState, ReplBridge, SessionBridge, SettingsBridge,
 };
 use crate::text_cursor;
-use crate::window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
+use crate::window::{Window, WindowId, WindowKind, WorkspaceAction};
 
 /// The interaction mode for the chat window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -271,7 +271,7 @@ impl ChatWindow {
             "help" | "?" => {
                 self.add_message(
                     MessageSender::CnsAlert,
-                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /tui /export /curator /open /close /split /focus /tab /palette".into(),
+                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /curator /export /ask /fusion /thread".into(),
                 );
             }
             "quit" | "exit" => {
@@ -465,107 +465,8 @@ impl ChatWindow {
                     "Curator mode active. Type /repl to switch to userpod chat.".into(),
                 );
             }
-            "tui" => {
-                let sub = parts.get(1).copied().unwrap_or("");
-                match sub {
-                    "theme" => {
-                        self.add_message(
-                            MessageSender::CnsAlert,
-                            "TUI themes: coming in Tier 2.".into(),
-                        );
-                    }
-                    "help" => {
-                        self.add_message(MessageSender::CnsAlert,
-                            "TUI keybindings: ^Q quit, ^T tab, ^W close, ^P palette, ^H/J/K/L navigate, ^=/- resize".into());
-                    }
-                    _ => {
-                        self.add_message(
-                            MessageSender::CnsAlert,
-                            "/tui [theme|help] — TUI configuration commands".into(),
-                        );
-                    }
-                }
-            }
             "export" => {
                 self.export_to_markdown();
-            }
-            // ── Window management slash commands ──────────────────────
-            // These set `pending_action` which is drained by the workspace
-            // during the next tick cycle.
-            "open" => {
-                let kind_str = parts.get(1).copied().unwrap_or("");
-                if kind_str.is_empty() {
-                    let mut listing = String::from("Usage: /open <window-kind>\nAvailable kinds:");
-                    for k in crate::window_catalog::window_kinds() {
-                        listing.push_str(&format!(
-                            "\n  {} — {}",
-                            k.default_title(),
-                            k.description()
-                        ));
-                    }
-                    self.add_message(MessageSender::CnsAlert, listing);
-                } else if let Some(kind) = crate::window_catalog::window_kind_from_title(kind_str) {
-                    self.pending_action = Some(WorkspaceAction::OpenWindow(kind));
-                    self.add_message(
-                        MessageSender::CnsAlert,
-                        format!("Opening {} window...", kind.default_title()),
-                    );
-                } else {
-                    self.add_message(
-                        MessageSender::CnsAlert,
-                        format!(
-                            "Unknown window kind: '{}'. Use /open with no args to list kinds.",
-                            kind_str
-                        ),
-                    );
-                }
-            }
-            "close" => {
-                self.pending_action = Some(WorkspaceAction::CloseFocused);
-                self.add_message(MessageSender::CnsAlert, "Closing focused window...".into());
-            }
-            "split" => {
-                let dir = parts.get(1).copied().unwrap_or("v");
-                match dir {
-                    "h" | "horizontal" => {
-                        self.pending_action =
-                            Some(WorkspaceAction::Split(SplitDirection::Horizontal));
-                        self.add_message(
-                            MessageSender::CnsAlert,
-                            "Splitting horizontally...".into(),
-                        );
-                    }
-                    "v" | "vertical" | "" => {
-                        self.pending_action =
-                            Some(WorkspaceAction::Split(SplitDirection::Vertical));
-                        self.add_message(MessageSender::CnsAlert, "Splitting vertically...".into());
-                    }
-                    _ => {
-                        self.add_message(MessageSender::CnsAlert, "Usage: /split h|v".into());
-                    }
-                }
-            }
-            "focus" => {
-                let dir = parts.get(1).copied().unwrap_or("next");
-                match dir {
-                    "prev" | "p" => {
-                        self.pending_action = Some(WorkspaceAction::FocusPrev);
-                    }
-                    _ => {
-                        self.pending_action = Some(WorkspaceAction::FocusNext);
-                    }
-                }
-                self.add_message(
-                    MessageSender::CnsAlert,
-                    format!("Focusing {} window...", dir),
-                );
-            }
-            "tab" => {
-                self.pending_action = Some(WorkspaceAction::NewTab);
-                self.add_message(MessageSender::CnsAlert, "Creating new tab...".into());
-            }
-            "palette" => {
-                self.pending_action = Some(WorkspaceAction::OpenPalette);
             }
             _ => {
                 // Delegate to the bridge — thin dispatch (Cline pattern).

@@ -41,6 +41,7 @@ use hkask_memory as _;
 
 use commands::handle_slash_command;
 use handlers::ReplSettings;
+#[cfg(feature = "tui")]
 use handlers::repl_settings::DEFAULT_CONTEXT_WINDOW;
 use helper::KaskHelper;
 
@@ -663,7 +664,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                 let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
                 if let Some(ref fusion) = state.service_context.config().inference_config.fusion {
                     hkask_tui::CommandResult {
-                        text: format!("Fusion: {} — {}", fusion.mode, fusion.description()),
+                        text: format!("Fusion: {:?} — {}", fusion.mode, fusion.description()),
                         should_quit: false,
                     }
                 } else {
@@ -709,7 +710,7 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                 let reg = &state.thread_registry;
                 let active = reg
                     .active_thread_id
-                    .map(|id| id.to_string())
+                    .clone()
                     .unwrap_or_else(|| "none".into());
                 hkask_tui::CommandResult {
                     text: format!(

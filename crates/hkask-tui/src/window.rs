@@ -15,23 +15,8 @@ pub struct WindowId(pub Uuid);
 
 /// Actions a window can request from the workspace.
 /// Drained via `Window::drain_action()` after each tick.
-/// Used by ChatWindow's slash commands to manage windows and splits.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorkspaceAction {
-    /// Open a window of the given kind as a split from the focused window.
-    OpenWindow(WindowKind),
-    /// Close the focused window.
-    CloseFocused,
-    /// Split the focused window in the given direction.
-    Split(SplitDirection),
-    /// Cycle focus to the next window.
-    FocusNext,
-    /// Cycle focus to the previous window.
-    FocusPrev,
-    /// Create a new tab.
-    NewTab,
-    /// Open the command palette.
-    OpenPalette,
     /// Quit the TUI.
     Quit,
 }

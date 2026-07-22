@@ -50,7 +50,6 @@ mod render_guards_tests;
 mod test_util;
 
 pub mod bridges;
-pub mod command_palette;
 pub mod layout;
 pub mod mcp_tabbed;
 pub mod widgets;
@@ -69,8 +68,8 @@ use bridges::{
     with_bridges,
 };
 pub use repl_bridge::{
-    InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SessionBridge,
-    SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult,
+    CommandResult, InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge,
+    SessionBridge, SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult,
 };
 pub use splash::SplashScreen;
 pub use window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
@@ -208,14 +207,8 @@ impl TuiSession {
         Ok(())
     }
 
-    /// Route a key event: palette (if open), then global bindings, then focused window.
+    /// Route a key event: global bindings, then focused window.
     fn handle_key(&mut self, key: KeyEvent) {
-        // Command palette interception — palette eats all keys when open
-        if self.workspace.palette_open {
-            self.workspace.handle_palette_key(key);
-            return;
-        }
-
         // Global keybindings take precedence
         if self.workspace.handle_global_key(key) {
             return;
