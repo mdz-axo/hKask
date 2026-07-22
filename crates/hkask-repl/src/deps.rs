@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use hkask_ports::ToolPort;
+use hkask_capability::ToolPort;
 use hkask_services_chat::{ChatService, TurnRequest, TurnResult};
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceError;

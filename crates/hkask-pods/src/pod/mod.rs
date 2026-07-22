@@ -163,8 +163,8 @@ pub enum AgentPodError {
 
 use crate::error::MemoryError;
 
-impl From<hkask_ports::ToolPortError> for AgentPodError {
-    fn from(e: hkask_ports::ToolPortError) -> Self {
+impl From<hkask_capability::ToolPortError> for AgentPodError {
+    fn from(e: hkask_capability::ToolPortError) -> Self {
         AgentPodError::ToolError(Box::new(e))
     }
 }

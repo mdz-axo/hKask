@@ -671,28 +671,28 @@ mod tests {
             self
         }
     }
-    impl hkask_ports::ToolPort for MockTools {
+    impl hkask_capability::ToolPort for MockTools {
         fn invoke<'a>(
             &'a self,
             _server: &'a str,
             tool: &'a str,
             _args: serde_json::Value,
             _token: &'a hkask_capability::DelegationToken,
-        ) -> hkask_ports::ToolFuture<'a, Result<serde_json::Value, hkask_ports::ToolPortError>>
+        ) -> hkask_capability::ToolFuture<'a, Result<serde_json::Value, hkask_capability::ToolPortError>>
         {
             Box::pin(async move {
                 self.results.get(tool).cloned().ok_or_else(|| {
-                    hkask_ports::ToolPortError::InvocationFailed(format!("no mock for {}", tool))
+                    hkask_capability::ToolPortError::InvocationFailed(format!("no mock for {}", tool))
                 })
             })
         }
-        fn discover_tools(&self) -> hkask_ports::ToolFuture<'_, Vec<String>> {
+        fn discover_tools(&self) -> hkask_capability::ToolFuture<'_, Vec<String>> {
             Box::pin(async move { vec![] })
         }
         fn get_tool_info(
             &self,
             _: &str,
-        ) -> hkask_ports::ToolFuture<'_, Option<hkask_ports::ToolInfo>> {
+        ) -> hkask_capability::ToolFuture<'_, Option<hkask_capability::ToolInfo>> {
             Box::pin(async move { None })
         }
     }

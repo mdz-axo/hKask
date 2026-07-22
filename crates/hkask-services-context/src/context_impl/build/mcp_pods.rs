@@ -185,7 +185,7 @@ pub(super) async fn wire_manifest_executor(
     if let Some(inference_port) = loops.inference_port.clone() {
         let executor = Arc::new(hkask_templates::ManifestExecutor::new(
             inference_port,
-            mcp_runtime.clone() as Arc<dyn hkask_ports::ToolPort>,
+            mcp_runtime.clone() as Arc<dyn hkask_capability::ToolPort>,
             hkask_types::LLMParameters::default(),
             config.a2a_secret.clone(),
         ));

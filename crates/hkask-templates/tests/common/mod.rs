@@ -1,5 +1,5 @@
 use hkask_capability::DelegationToken;
-use hkask_ports::{ToolFuture, ToolInfo, ToolPort, ToolPortError};
+use hkask_capability::{ToolFuture, ToolInfo, ToolPort, ToolPortError};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, Default)]

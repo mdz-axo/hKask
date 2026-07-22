@@ -6,7 +6,7 @@ use super::types::DiscoveredWork;
 use super::utils::{extract_search_terms, slugify};
 use crate::embed::EntityConfig;
 use hkask_capability::DelegationToken;
-use hkask_ports::ToolPort;
+use hkask_capability::ToolPort;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use std::path::PathBuf;
 

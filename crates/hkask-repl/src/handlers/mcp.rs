@@ -329,7 +329,7 @@ fn start_selection(
 fn refresh_tool_section(state: &mut super::super::ReplState, rt: &tokio::runtime::Handle) {
     let mcp = state.service_context.infra().mcp.clone();
     let tool_names = rt.block_on(mcp.discover_tools());
-    let mut tools: Vec<hkask_ports::ToolInfo> = Vec::new();
+    let mut tools: Vec<hkask_capability::ToolInfo> = Vec::new();
     for name in &tool_names {
         if let Some(info) = rt.block_on(mcp.get_tool_info(name)) {
             tools.push(info);

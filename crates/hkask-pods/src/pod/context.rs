@@ -13,7 +13,7 @@
 use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
 use hkask_mcp::McpRuntime;
 use hkask_ports::InferencePort;
-use hkask_ports::ToolPort;
+use hkask_capability::ToolPort;
 use hkask_regulation::ExperienceClassification;
 use hkask_types::DataCategory;
 use hkask_types::{Confidence, WebID};
@@ -476,7 +476,7 @@ impl PodContext {
             .map(|info| info.server_id)
             .ok_or_else(|| {
                 AgentPodError::ToolError(
-                    hkask_ports::ToolPortError::NotFound(hkask_types::NotFound {
+                    hkask_capability::ToolPortError::NotFound(hkask_types::NotFound {
                         entity_type: "tool".to_string(),
                         id: tool_name.to_string(),
                     })

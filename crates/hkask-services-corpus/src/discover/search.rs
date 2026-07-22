@@ -3,7 +3,7 @@
 use super::types::{DiscoveredWork, USER_AGENT};
 use super::utils::slugify;
 use hkask_capability::DelegationToken;
-use hkask_ports::ToolPort;
+use hkask_capability::ToolPort;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 
 // ── MCP web_search ─────────────────────────────────────────────────────────
