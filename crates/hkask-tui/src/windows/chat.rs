@@ -120,7 +120,7 @@ pub enum MessageSender {
     /// The Curator daemon (dual-presence)
     Curator,
     /// A Regulation alert (interleaved into the stream)
-    CnsAlert,
+    RegAlert,
     /// Tool execution result
     Tool(String),
 }
@@ -240,7 +240,7 @@ impl ChatWindow {
                     md.push_str(&format!("**{}:** {}\n\n", name, msg.content))
                 }
                 MessageSender::Curator => md.push_str(&format!("**Curator:** {}\n\n", msg.content)),
-                MessageSender::CnsAlert => md.push_str(&format!("> ⚠ *{}*\n\n", msg.content)),
+                MessageSender::RegAlert => md.push_str(&format!("> ⚠ *{}*\n\n", msg.content)),
                 MessageSender::Tool(name) => {
                     md.push_str(&format!("```\n[{}]\n{}\n```\n\n", name, msg.content))
                 }
@@ -249,12 +249,12 @@ impl ChatWindow {
         match std::fs::write(&filename, &md) {
             Ok(_) => {
                 self.add_message(
-                    MessageSender::CnsAlert,
+                    MessageSender::RegAlert,
                     format!("Chat exported to {}", filename),
                 );
             }
             Err(e) => {
-                self.add_message(MessageSender::CnsAlert, format!("Export failed: {}", e));
+                self.add_message(MessageSender::RegAlert, format!("Export failed: {}", e));
             }
         }
     }
@@ -270,13 +270,13 @@ impl ChatWindow {
         match primary {
             "help" | "?" => {
                 self.add_message(
-                    MessageSender::CnsAlert,
+                    MessageSender::RegAlert,
                     "Commands: /help /quit /clear /model /status /repl /mcp /agent /curator /export /ask /fusion /thread".into(),
                 );
             }
             "quit" | "exit" => {
                 self.pending_action = Some(WorkspaceAction::Quit);
-                self.add_message(MessageSender::CnsAlert, "Quitting TUI...".into());
+                self.add_message(MessageSender::RegAlert, "Quitting TUI...".into());
             }
             "clear" => {
                 self.messages.clear();
@@ -288,7 +288,7 @@ impl ChatWindow {
                     "list" => match self.settings_bridge.as_ref() {
                                     Some(b) => match b.list_models() {
                                         Ok(models) if models.is_empty() => self.add_message(
-                                            MessageSender::CnsAlert,
+                                            MessageSender::RegAlert,
                                             "No models found — no providers reachable.".into(),
                                         ),
                                         Ok(models) => {
@@ -306,15 +306,15 @@ impl ChatWindow {
                                                 ));
                                             }
                                             lines.push_str("Use /model <name> to switch.");
-                                            self.add_message(MessageSender::CnsAlert, lines);
+                                            self.add_message(MessageSender::RegAlert, lines);
                                         }
                                         Err(e) => self.add_message(
-                                            MessageSender::CnsAlert,
+                                            MessageSender::RegAlert,
                                             format!("No models found — error listing models: {}", e),
                                         ),
                                     },
                                     None => self.add_message(
-                                        MessageSender::CnsAlert,
+                                        MessageSender::RegAlert,
                                         "Model listing unavailable in this host. Use `kask model list`.".into(),
                                     ),
                                 },
@@ -322,7 +322,7 @@ impl ChatWindow {
                                     // Show current model + real context pressure (not a fake token count).
                                     let pressure = self.bridge.context_pressure();
                                     self.add_message(
-                                        MessageSender::CnsAlert,
+                                        MessageSender::RegAlert,
                                         format!(
                                             "Current model: {} | Context: {:.0}% used",
                                             self.model,
@@ -330,7 +330,7 @@ impl ChatWindow {
                                         ),
                                     );
                                     self.add_message(
-                                        MessageSender::CnsAlert,
+                                        MessageSender::RegAlert,
                                         "Use /model <name> to switch, /model list to browse.".into(),
                                     );
                                 }
@@ -343,10 +343,10 @@ impl ChatWindow {
                                             text.push('\n');
                                             text.push_str(&result.detail);
                                         }
-                                        self.add_message(MessageSender::CnsAlert, text);
+                                        self.add_message(MessageSender::RegAlert, text);
                                     }
                                     None => self.add_message(
-                                        MessageSender::CnsAlert,
+                                        MessageSender::RegAlert,
                                         format!(
                                             "Model switch to '{}' requested. Use `kask chat --model {}` to change models.",
                                             sub,
@@ -363,7 +363,7 @@ impl ChatWindow {
                 let ctx = self.bridge.context_pressure();
                 let (mcp_loaded, mcp_total) = self.bridge.mcp_status();
                 self.add_message(
-                    MessageSender::CnsAlert,
+                    MessageSender::RegAlert,
                     format!(
                         "Agent: {} | Model: {} | Gas: {}/{} ({:.0}%) | Regulation alerts: {} | Context: {:.0}% | MCP: {}/{}",
                         self.userpod_name, self.bridge.model_name(),
@@ -375,7 +375,7 @@ impl ChatWindow {
             "mcp" => {
                 let (loaded, total) = self.bridge.mcp_status();
                 self.add_message(
-                    MessageSender::CnsAlert,
+                    MessageSender::RegAlert,
                     format!(
                         "MCP Servers: {}/{} loaded. Use `kask mcp` CLI for full management.",
                         loaded, total
@@ -387,7 +387,7 @@ impl ChatWindow {
                 match self.settings_bridge.as_ref() {
                     Some(b) => match sub {
                         "" | "show" | "status" => {
-                            self.add_message(MessageSender::CnsAlert, b.settings_display());
+                            self.add_message(MessageSender::RegAlert, b.settings_display());
                         }
                         "set" => {
                             // parts: ["/repl", "set", <key>, <value...>]
@@ -395,26 +395,26 @@ impl ChatWindow {
                             let value = parts[3..].join(" ");
                             if key.is_empty() {
                                 self.add_message(
-                                    MessageSender::CnsAlert,
+                                    MessageSender::RegAlert,
                                     "Usage: /repl set <key> <value>".into(),
                                 );
                             } else {
                                 match b.set_setting(key, &value) {
-                                    Ok(msg) => self.add_message(MessageSender::CnsAlert, msg),
+                                    Ok(msg) => self.add_message(MessageSender::RegAlert, msg),
                                     Err(e) => self.add_message(
-                                        MessageSender::CnsAlert,
+                                        MessageSender::RegAlert,
                                         format!("Error: {}", e),
                                     ),
                                 }
                             }
                         }
                         _ => self.add_message(
-                            MessageSender::CnsAlert,
+                            MessageSender::RegAlert,
                             "REPL settings: /repl show | /repl set <key> <value>".into(),
                         ),
                     },
                     None => self.add_message(
-                        MessageSender::CnsAlert,
+                        MessageSender::RegAlert,
                         "REPL settings unavailable in this host. Use `kask repl` to manage settings.".into(),
                     ),
                 }
@@ -425,18 +425,18 @@ impl ChatWindow {
                     Some(b) => {
                         if sub.is_empty() {
                             self.add_message(
-                                MessageSender::CnsAlert,
+                                MessageSender::RegAlert,
                                 format!("Current agent: {}", b.current_agent()),
                             );
                         } else {
                             self.add_message(
-                                MessageSender::CnsAlert,
+                                MessageSender::RegAlert,
                                 "No switching — one userpod per user.".to_string(),
                             );
                         }
                     }
                     None => self.add_message(
-                        MessageSender::CnsAlert,
+                        MessageSender::RegAlert,
                         format!(
                             "Current agent: {} (agent info unavailable in this host)",
                             self.userpod_name
@@ -445,23 +445,23 @@ impl ChatWindow {
                 }
             }
             "agents" | "ls" => match self.session_bridge.as_ref() {
-                Some(b) => self.add_message(MessageSender::CnsAlert, b.list_agents_display()),
+                Some(b) => self.add_message(MessageSender::RegAlert, b.list_agents_display()),
                 None => self.add_message(
-                    MessageSender::CnsAlert,
+                    MessageSender::RegAlert,
                     "Agent listing unavailable in this host. Use `kask agents`.".into(),
                 ),
             },
             "history" | "hist" => match self.session_bridge.as_ref() {
-                Some(b) => self.add_message(MessageSender::CnsAlert, b.history_display()),
+                Some(b) => self.add_message(MessageSender::RegAlert, b.history_display()),
                 None => self.add_message(
-                    MessageSender::CnsAlert,
+                    MessageSender::RegAlert,
                     "History unavailable in this host. Use `kask history`.".into(),
                 ),
             },
             "curator" => {
                 self.mode = TuiMode::Curator;
                 self.add_message(
-                    MessageSender::CnsAlert,
+                    MessageSender::RegAlert,
                     "Curator mode active. Type /repl to switch to userpod chat.".into(),
                 );
             }
@@ -472,7 +472,7 @@ impl ChatWindow {
                 // Delegate to the bridge — thin dispatch (Cline pattern).
                 // The bridge handles what it can and returns guidance for the rest.
                 let result = self.bridge.handle_command(primary);
-                self.add_message(MessageSender::CnsAlert, result.text);
+                self.add_message(MessageSender::RegAlert, result.text);
                 if result.should_quit {
                     self.pending_action = Some(WorkspaceAction::Quit);
                 }
@@ -505,7 +505,7 @@ impl ChatWindow {
                 "REG"
             );
             self.add_message(
-                MessageSender::CnsAlert,
+                MessageSender::RegAlert,
                 format!("Mode: {:?} → {:?}", old_mode, new_mode),
             );
             return;
@@ -659,7 +659,7 @@ impl Window for ChatWindow {
             InferenceState::Done(result) => {
                 if result.budget_exhausted {
                     self.add_message(
-                        MessageSender::CnsAlert,
+                        MessageSender::RegAlert,
                         "Gas budget exhausted — turn blocked by cybernetic regulator.".into(),
                     );
                 } else {
@@ -727,7 +727,7 @@ impl ChatWindow {
                         .fg(Color::Magenta)
                         .add_modifier(Modifier::BOLD),
                 ),
-                MessageSender::CnsAlert => Span::styled(
+                MessageSender::RegAlert => Span::styled(
                     "── Regulation: ",
                     Style::default()
                         .fg(Color::Rgb(183, 145, 99)) // Richmond Gold

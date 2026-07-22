@@ -58,7 +58,7 @@ fn reg_restores_homeostasis_after_time() {
 
 #[test]
 fn reg_throttles_tool_on_budget_exceeded() {
-    MockRegulationLedger::with_state(MockRegState::perturbed("tool-x"))
+    let ledger = MockRegulationLedger::with_state(MockRegState::perturbed("tool-x"));
 
     assert!(!ledger.is_homeostatic());
     assert_eq!(ledger.tool_state("tool-x"), MockToolState::Throttled);
