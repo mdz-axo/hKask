@@ -12,9 +12,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask - "A Minimal Viable Container for UserPods") v0.31.0
+**Project:** hKask (ℏKask — A Sovereign Chat Client for Human Users with AI Tools) v0.31.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
+
+**Primary user story:** A human user runs `kask chat`, authenticates via `kask login`, and gets a sovereign chat session with skills (`.agents/skills/`), 16 MCP servers, and multi-provider LLM access. Userpods, federation, and Matrix transport are infrastructure that supports this experience — not the headline use case.
 
 ---
 
@@ -160,7 +162,7 @@ Sensor (MCP dispatch, Regulation spans) → Model (VarietyTracker, ν-event stor
 - **7R7 is a dumb pipe by design.** Transport moves messages; agents decide what they mean. Authority resides in agent layer, not transport layer.
 - **R7.3 watches the public seam.** `SeamWatcher` loads the machine-readable public seam inventory (embedded JSON at compile time, file path override for development), registers per-crate coverage as Regulation variety domains (`seam:{crate_name}`), runs periodic drift checks (default: 30 min), and emits algedonic alerts when coverage degrades. Coverage improvements emit positive `Notify` signals. The watcher is non-fatal — if no inventory is available, seam watching is silently disabled.
 
-**Crates:** `hkask-agents` (curator, curator_agent), `hkask-communication` (Matrix transport, agent registry, 7R7 listener, Regulation bridge, response dispatch), `hkask-regulation` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
+**Crates:** `hkask-pods` (curator, curator_agent), `hkask-communication` (Matrix transport, agent registry, 7R7 listener, Regulation bridge, response dispatch), `hkask-regulation` (seam_watcher), `hkask-mcp-cloud-gateway` (cloud transport adapter), `hkask-cli` (token issuance)
 
 **If removed:** System becomes a headless automaton — runs, monitors itself, but nobody reads the monitors. Regulation fires alerts into a void. P12 partially violated.
 
@@ -183,7 +185,7 @@ The Curator is a **daemon**, not a userpod — always running, hosts daemon-leve
 
 ### Pattern D: Agent Creation with Sovereign Memory
 
-**What it is:** The pod lifecycle — how agents come into existence with their own identity, capabilities, memory, and consent boundaries.
+**What it is:** The sovereign container infrastructure — each human user gets a userpod with its own identity, capabilities, memory, and consent boundaries. The userpod is the deployment unit that makes the human's `kask chat` experience sovereign (P1). Agent pods (`hkask-pods`) are the runtime container; the human user is the principal.
 
 ```
 Creation (kask pod create) → Populated → Registered → Activated → Deactivated
@@ -204,7 +206,7 @@ Creation (kask pod create) → Populated → Registered → Activated → Deacti
 - **No cross-agent memory access.** `EpisodicMemory::query_for_deduped` filters by `perspective == Some(agent_webid)`. Semantic memory is public. P11: right to choose public/private extends to agents.
 - **Default is private — sovereignty fails closed.** `Visibility::Private` default. `ConsentManager` requires explicit affirmative consent for visibility transitions.
 
-**Crates:** `hkask-agents` (pod), `hkask-memory`, `hkask-storage`, `hkask-keystore`
+**Crates:** `hkask-pods` (pod), `hkask-memory`, `hkask-storage`, `hkask-keystore`
 
 **If removed:** System becomes a library, not a platform — all infrastructure for agency exists but no agents to inhabit it. P6, P10, P11, P12 violated.
 
@@ -261,7 +263,7 @@ hKask extends the Solid Pod isomorphism into two pod kinds, mapped to cybernetic
 **Data flow:** `store_semantic()` writes locally → Regulation event `reg.semantic.published` → `CuratorSync` polling loop opens source pod read-only → inserts Public hMems into `SemanticIndex` with cursor tracking.
 **Semantic recall:** `PodContext::recall_semantic()` routes through Curator's `SemanticIndex` for merged-lens view when Curator is active; falls back to local storage.
 
-**Backwards compatibility:** The `pod.kind` sidecar file accepts `"userpod"` as an alias for `"userpod"` (see `read_pod_kind()` in `crates/hkask-agents/src/pod/deployment.rs`). Pre-v0.31.0 pods with `kind: userpod` in the sidecar continue to load as `PodKind::UserPod` without migration.
+**Backwards compatibility:** The `pod.kind` sidecar file accepts `"userpod"` as an alias for `"userpod"` (see `read_pod_kind()` in `crates/hkask-pods/src/pod/deployment.rs`). Pre-v0.31.0 pods with `kind: userpod` in the sidecar continue to load as `PodKind::UserPod` without migration.
 
 
 #### PodDeployment — The Canonical Type (v0.30.0)
@@ -284,7 +286,7 @@ pub struct PodDeployment {
 
 **Full analysis:** [`SOLID_POD_ISOMORPHISM.md`](#pattern-d1--agentpod-as-solid-pod-isomorphism) (includes deployment types)
 
-**Crates:** `hkask-agents` (pod, deployment), `hkask-storage`, `hkask-memory`, `hkask-keystore`
+**Crates:** `hkask-pods` (pod, deployment), `hkask-storage`, `hkask-memory`, `hkask-keystore`
 
 **If removed:** The system devolves into a shared multi-tenant service — agents are cache entries, not sovereign deployment units. P6, P11 violated (per-pod boundaries become advisory).
 
@@ -337,7 +339,7 @@ This two-source approach ensures backward compatibility with pre-fix agents
 as the ground-truth canonical store.
 
 **Relevant crates:** `hkask-services-onboarding` (creation), `hkask-cli` (CLI registration),
-`hkask-types::agent_paths` (path resolution), `hkask-agents::yaml_parser` (parsing).
+`hkask-types::agent_paths` (path resolution), `hkask-pods::yaml_parser` (parsing).
 
 
 ### How They Compose
@@ -404,7 +406,7 @@ CLOUD SERVER (single binary, all crates compiled)
   hkask-api - OAuth, WebSocket /terminal, backup endpoints
   hkask-services-runtime - daemon orchestration
   hkask-mcp - MCP server runtime
-  hkask-agents - bot/userpod lifecycle
+  hkask-pods - bot/userpod lifecycle
   hkask-regulation - cybernetic nervous system
   hkask-codegraph - code understanding engine (tree-sitter, FTS5, recursive CTE, context assembly)
   hkask-wallet + hkask-memory - wallet and memory subsystems
@@ -505,10 +507,10 @@ hKask decomposes into six authority loops organized as a **two-layer model** wit
 
 | Loop | Layer | Role | Least Action Role | Key Crates |
 |------|-------|------|-------------------|------------|
-| **Inference (1)** | Domain | Model dispatch, provider selection, rJoule accounting | Varies model to minimize action per task | `hkask-inference`, `hkask-agents` (inference loop) |
+| **Inference (1)** | Domain | Model dispatch, provider selection, rJoule accounting | Varies model to minimize action per task | `hkask-inference`, `hkask-pods` (inference loop) |
 | **Episodic Memory (2a)** | Domain | Private experience encoding, temporal attention, confidence decay | Selects most salient memories (fewest bits for most prediction) | `hkask-memory` |
 | **Semantic Memory (2b)** | Domain | Shared h_mem publishing, triple storage, consolidation from episodic | Public knowledge with entropy-gated recall | `hkask-memory`, `hkask-storage` |
-| **Curation (5)** | Meta | Spec drift detection, memory consolidation, catalog maintenance, metacognition | Observes system, recommends minimal interventions | `hkask-agents` (curator), `hkask-regulation` (curation) |
+| **Curation (5)** | Meta | Spec drift detection, memory consolidation, catalog maintenance, metacognition | Observes system, recommends minimal interventions | `hkask-pods` (curator), `hkask-regulation` (curation) |
 | **Cybernetics (6)** | Meta | Regulation homeostatic control, algedonic escalation, variety engineering, regulation policy | Maintains Ashby-requisite variety with minimal energy | `hkask-regulation`, `hkask-types` |
 | **Snapshot (6b)** | Meta | Scheduled CAS repository snapshots, retention policy enforcement | Periodic state capture for disaster recovery | `hkask-regulation` (snapshot_loop) |
 
@@ -535,11 +537,11 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 | Crate | Loop | Rationale |
 |-------|------|-----------|
 | `hkask-inference` | Inference | Provider dispatch, model selection |
-| `hkask-agents` (inference loop) | Inference | LLM API connectivity, prompt execution |
+| `hkask-pods` (inference loop) | Inference | LLM API connectivity, prompt execution |
 | `hkask-memory` | Memory | Episodic + semantic encoding |
 | `hkask-storage` | Memory | hMem store, queries |
 | `hkask-mcp-memory` | Memory | Memory search/consolidation |
-| `hkask-agents` (curator) | Curation | CuratorAgent, CurationLoop |
+| `hkask-pods` (curator) | Curation | CuratorAgent, CurationLoop |
 | `hkask-condenser` | Curation | Context window condensation |
 | `hkask-regulation` (seam_watcher) | Curation | Spec drift, contract coverage |
 | `hkask-test-harness` | Curation | QA runs, fuzzing infrastructure |
@@ -718,7 +720,7 @@ See `docs/architecture/well-wallet-architecture.md` for full architecture.
 
 ## REPL Architecture
 
-The interactive REPL (`kask chat`) implements four features that govern inference behavior. For browser-based streaming chat without a terminal, the WSS endpoint (`GET /api/v1/chat/ws`) provides the same memory pipeline and MCP tool integration over a persistent WebSocket connection. See `docs/plans/wss-chat-endpoint.md`.
+`kask chat` is the primary user surface. It implements four features that govern inference behavior for the human user. For browser-based streaming chat without a terminal, the WSS endpoint (`GET /api/v1/chat/ws`) provides the same memory pipeline and MCP tool integration over a persistent WebSocket connection. See `docs/plans/wss-chat-endpoint.md`.
 
 ### Context Injection
 
@@ -918,7 +920,7 @@ graph TD
     SVC["service subcrates"]
     CLI --> SVC
     API --> SVC
-    SVC --> AGENTS[hkask-agents]
+    SVC --> AGENTS[hkask-pods]
     SVC --> Regulation[hkask-regulation]
     SVC --> MEM[hkask-memory]
     SVC --> TEMPLATES[hkask-templates]
@@ -1034,7 +1036,7 @@ graph TD
     MCP["hkask-mcp-kata-kanban"] --> SVC
     SVC --> KATA["hkask-services-kata-kanban"]
     SVC --> STORAGE["hkask-storage (hMemStore)"]
-    SVC -.-> AGENTS["hkask-agents (ActivePods)"]
+    SVC -.-> AGENTS["hkask-pods (ActivePods)"]
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-003
@@ -1242,7 +1244,7 @@ See also: `docs/user-guides/lora-adapter-store-guide.md`, `docs/guides/lora-trai
 
 ## Daemon & UserPod Server Mode
 
-**Crates:** `hkask-mcp` (daemon transport), `hkask-services-runtime` (daemon handler), `hkask-agents` (AgentMode)
+**Crates:** `hkask-mcp` (daemon transport), `hkask-services-runtime` (daemon handler), `hkask-pods` (AgentMode)
 
 ### Summary
 
@@ -1377,8 +1379,8 @@ status: VERIFIED
 | Protocol | Direction | Purpose | Implementation |
 |----------|-----------|---------|---------------|
 | **ACP** (Agent Client Protocol) | Bidirectional IDE ↔ Agent | Streaming agent presence in editor: session lifecycle, content streaming, tool progress, permission requests, plan communication | `hkask-acp` (JSON-RPC 2.0 over stdio) |
-| **MCP** (Model Context Protocol) | IDE → Server | Tool invocation: request/response tool calls | `hkask-mcp-*` (10 servers) |
-| **A2A** (Agent-to-Agent) | Agent ↔ Agent | Inter-agent template dispatch, memory artifact routing, capability delegation | `hkask-agents::a2a` (A2ARuntime) |
+| **MCP** (Model Context Protocol) | IDE → Server | Tool invocation: request/response tool calls | `hkask-mcp-*` (16 servers) |
+| **A2A** (Agent-to-Agent) | Agent ↔ Agent | Inter-agent template dispatch, memory artifact routing, capability delegation | `hkask-pods::a2a` (A2ARuntime) |
 
 ### Prompt Turn Lifecycle
 
@@ -1489,7 +1491,7 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 | `hkask-types` | 50 | Regulation span registry (100+ variants), WebID, RDF types | Canonical type crate. Regulation spans alone justify the surface. |
 | `hkask-test-harness` | 42 | Contract verification, proptest strategies | Testing infrastructure. Each strategy is test-only. |
 | `hkask-storage` | 39 | `define_store!` macro, hMemStore, vector store | Persistence orchestration. Each store follows same deep pattern. |
-| `hkask-agents` | 26 | ActivePods, AgentRegistry, capability delegation | Multi-concern crate. Each concern independently testable. |
+| `hkask-pods` | 26 | ActivePods, AgentRegistry, capability delegation | Multi-concern crate. Each concern independently testable. |
 | `hkask-regulation` | 25 | CyberneticsLoop, VarietyTracker, AlgedonicManager | Regulatory surface. Each component is a distinct feedback loop. |
 | `hkask-improv` | 19 | 5 improv modes, kata improv, ensemble coordination | Each mode is a distinct interaction grammar. |
 | `hkask-templates` | 22 | Jinja2 rendering, registry, template types | Template engine. Registry, rendering, classification are distinct concerns. |
@@ -1615,7 +1617,7 @@ docs/architecture/
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — v0.31.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users with AI Tools*
 
 [^ousterhout]: Ousterhout, J. (2018). *A Philosophy of Software Design*. Yaknyam Press.
 [^conway]: Conway, M. E. (1968). "How Do Committees Invent?" Datamation, 14(4), 28-31.
@@ -3744,7 +3746,7 @@ All 12 steps implemented. See `docs/status/gas-budget-system-status.md` for full
 cargo build --workspace                    # 0 errors
 cargo test -p hkask-regulation                    # Regulation tests pass
 cargo test -p hkask-storage -- wallet      # Wallet persistence tests
-cargo test -p hkask-agents -- curator      # Curator wallet creation test
+cargo test -p hkask-pods -- curator      # Curator wallet creation test
 ```
 
 ---
@@ -4206,9 +4208,9 @@ pub struct FederationHealthModel {
 ### 6.1 Dependency Direction
 
 ```
-CLI/API/MCP → hkask-services-core → hkask-agents → hkask-federation
+CLI/API/MCP → hkask-services-core → hkask-pods → hkask-federation
                                    ↓                  ↓
-                              hkask-agents     hkask-ports (traits)
+                              hkask-pods     hkask-ports (traits)
                                    ↓                  ↓
                               hkask-regulation         hkask-types
 ```
@@ -4443,8 +4445,8 @@ kask regulation federation thresholds
 | `crates/hkask-types/src/curation.rs` | `OcapTokenKind` (extend with `Federation`) |
 | `crates/hkask-types/src/regulation.rs` | `RegulationSpan` (extend with 18 federation spans) |
 | `crates/hkask-types/src/loops/mod.rs` | `LoopId` (6 variants) |
-| `crates/hkask-agents/src/curator/semantic_index.rs` | `SemanticIndex` — model for federation index |
-| `crates/hkask-agents/src/curator/semantic_sync.rs` | `CuratorSync` — model for `FederationSync` polling loop |
+| `crates/hkask-pods/src/curator/semantic_index.rs` | `SemanticIndex` — model for federation index |
+| `crates/hkask-pods/src/curator/semantic_sync.rs` | `CuratorSync` — model for `FederationSync` polling loop |
 | `crates/hkask-memory/src/recall_dedup.rs` | `eav_hash()` — EAV content hashing used as CRDT key |
 | `crates/hkask-ports/src/lib.rs` | Hexagonal port traits (extend with federation ports) |
 | `ADDENDUM_MISALIGNMENTS.md` | M1–M8 type/crate fixes |
@@ -4466,7 +4468,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 
 # Storage Schema ERD
 
-Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-agents`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/Regulation** (reg_records, reg_alerts, reg_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
+Plain-English description: This ERD models the full SQLite schema used by `hkask-storage` (and co-located schema init in `hkask-wallet`, `hkask-pods`). The diagram covers 37 tables organized into six logical clusters: **Identity/Users** (human_users, userpod_identities, sessions, invites), **Goals** (goals, criteria, artifacts), **Wallet** (balances, transactions, API keys, encumbrances, deposits), **Gallery** (galleries, images, tags, face registry), **Monitoring/Regulation** (reg_records, reg_alerts, reg_variety_checkpoint, audit_log, escalations), and **Knowledge** (triples, embeddings). Four governance tables (consent_records, sovereignty_boundaries, quarantined_goals, loop_cursors) and five meta/infra tables (specs, spec_curation_records, kata_history, pod_meta) are shown as standalone entities. All FK relationships use Crow's Foot notation (`||--o{` for mandatory-one to optional-many, `||--||` for mandatory one-to-one).
 
 ```mermaid
 erDiagram

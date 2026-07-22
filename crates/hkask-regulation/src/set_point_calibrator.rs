@@ -113,7 +113,7 @@ impl SetPointCalibrator {
 
         let regulation_events: Vec<_> = events
             .iter()
-            .filter(|e| e.span.namespace.short_name() == "regulation")
+            .filter(|e| e.span.namespace.short_name() == "outcome")
             .collect();
 
         if regulation_events.is_empty() {
@@ -335,7 +335,7 @@ mod tests {
     }
 
     fn regulation_event(metric: &str, path: &str) -> RegulationRecord {
-        let ns = SpanNamespace::new("reg.outcome").unwrap();
+        let ns = SpanNamespace::new("reg.outcome").expect("reg.outcome must be canonical");
         let span = Span::new(ns, path);
         RegulationRecord::new(
             WebID::from_persona(b"regulation"),

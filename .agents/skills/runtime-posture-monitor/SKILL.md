@@ -36,7 +36,7 @@ posture convergence metric.
 
 - Monitoring a deployed userpod host for runtime security anomalies.
 - Investigating runtime defense-layer firing patterns (`reg.guard.*`
-  violations increasing? `reg.regulation.action_blocked` not keeping
+  violations increasing? `reg.outcome.action_blocked` not keeping
   pace?).
 - Verifying that static defense layers (checked by `kali-audit`) actually
   fire at runtime.
@@ -101,8 +101,8 @@ posture convergence metric.
    `hkask.*` performative spans, `reg.guard.*` violation spans
    (`reg.guard.input`, `reg.guard.output`, `reg.guard.canary`,
    `reg.guard.runtime_policy`), `reg.regulation` events
-   (`reg.regulation.action_blocked`, `reg.regulation.action_substituted`,
-   `reg.regulation.plateau_detected`), `reg.tool.*` invocations,
+   (`reg.outcome.action_blocked`, `reg.outcome.action_substituted`,
+   `reg.outcome.plateau_detected`), `reg.tool.*` invocations,
    `reg.inference` calls.
 2. If zero signal sources found, return empty `signal_sources` (do NOT
    invent signals) and recommend `signal: guard` or `signal: regulation`
@@ -115,7 +115,7 @@ posture convergence metric.
    (`reg.guard.output` firing), `canary_detection` (`reg.guard.canary`
    firing), `runtime_policy` (`reg.guard.runtime_policy` firing),
    `regulation_loop` (`reg.regulation` events observed),
-   `action_distribution_monitoring` (`reg.regulation.loop_quality`
+   `action_distribution_monitoring` (`reg.outcome.loop_quality`
    observed).
 5. Return JSON: `{signal, signal_sources: [...], signal_types: [...],
    defense_layers: [...], existing_regressions: [...], userpod_host}`.
@@ -129,7 +129,7 @@ posture convergence metric.
    window. Record span target, timestamp, signal value, baseline reference.
 2. For `reg.guard.*` signals: count violations per scanner. Note violation
    frequency vs baseline.
-3. For `reg.regulation.*` signals: count regulation actions. Note whether
+3. For `reg.outcome.*` signals: count regulation actions. Note whether
    actions are increasing (system struggling) or decreasing (stable).
 4. For `reg.tool.*` signals: count tool invocations per tool type. Note
    invocation rate, error rate, unusual tool call chains.
@@ -268,7 +268,7 @@ CONSTRAINT — Evidence integrity (P8):
 | 3 | Canary token detection (runtime firing) | `reg.guard.canary` span emission count | `hkask-guard` pipeline |
 | 4 | Runtime policy enforcement | `reg.guard.runtime_policy` span emission count | `hkask-templates` executor |
 | 5 | Regulation loop active | `reg.regulation` span emission count | `hkask-regulation` cybernetics loop |
-| 6 | Action distribution monitoring | `reg.regulation.loop_quality` span | `hkask-regulation` regulation policy |
+| 6 | Action distribution monitoring | `reg.outcome.loop_quality` span | `hkask-regulation` regulation policy |
 
 New layers can be added as real runtime patterns justify them (P7) — not
 speculatively. This catalog is distinct from `kali-audit`'s 8-layer static
@@ -356,7 +356,7 @@ catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
   catalog and `supply-chain-sentinel`'s 4-layer manifest catalog.
 - Convergence metric must reflect actual runtime coverage, not aspirational:
   defense layers only count as firing when actual `reg.guard.*` or
-  `reg.regulation.*` span emissions confirm them.
+  `reg.outcome.*` span emissions confirm them.
 
 ## Source References and Taxonomy Anchors
 

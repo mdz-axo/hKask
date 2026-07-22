@@ -1,6 +1,6 @@
-# Plan — Replicant→UserPod Consolidation (FINAL, Phase 0 resolved)
+# Plan — Replicant→UserPod Consolidation (COMPLETE)
 
-> **Status:** ADVISORY. No code deleted. Each slice flagged for user accept/reject.
+> **Status:** COMPLETE. Code consolidation done. This plan is retained as a historical record.
 > **Phase 0 — RESOLVED** (user-confirmed):
 > 1. **1:1** — one userpod per user; multi-persona removed (`is_primary`, `list_replicants`, switcher deleted).
 > 2. **A2A transport KEPT** — userpods present as agents (generic "agent" concept preserved); hKask-specific replicant/bot distinction goes.

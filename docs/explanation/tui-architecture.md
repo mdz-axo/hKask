@@ -12,7 +12,7 @@ mds_categories: [composition, lifecycle, trust]
 
 The `hkask-tui` crate is a Ratatui presentation surface. It owns workspace state, rendering, key routing, window-local state, and presentation-facing bridge traits. `hkask-repl` owns the production adapter, `TuiReplBridge`, because it can reach inference, MCP, storage, wallet, and service state without reversing the dependency direction into the UI crate. The CLI owns launch policy and selects either the TUI or line REPL.
 
-For operating instructions, see [Agents and Pods](../how-to/agents-and-pods.md#using-the-terminal-ui). For the public type inventory, see the [API reference](../reference/api-reference.md#tui-window-trait-hierarchy).
+For operating instructions, see [Agents and Pods](../how-to/install-and-configure.md#using-the-terminal-ui). For the public type inventory, see the [API reference](../reference/api-reference.md#tui-window-trait-hierarchy).
 
 ## Runtime boundary
 

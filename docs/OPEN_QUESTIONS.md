@@ -1,7 +1,7 @@
 ---
 title: "hKask Open Questions and Underspecified Aspects"
 audience: [architects, developers, decision-makers]
-last_updated: 2026-07-17
+last_updated: 2026-07-21
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -39,9 +39,9 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 **Status:** **Resolved — Active in v0.31.0**  
 **Resolution Date:** 2026-05-29 | **Revision Date:** 2026-06-30
 
-Federation is now active in v0.31.0. The `hkask-federation` crate exists and `FEDERATION_V2.md` is an active proposal.
+Federation is implemented in v0.31.0 as the `hkask-federation` crate, but is **opt-in infrastructure** post-pivot — not a primary user surface. The primary surface is `kask chat` with skills, MCP servers, and LLM access for human users.
 
-**Rationale:** Federation was initially deferred as exceeding the essential architecture scope. Since then, inter-system agent communication has been implemented: the `hkask-federation` crate provides discovery, resource negotiation, and capability composition across independent hKask instances. See `FEDERATION_V2.md` for the active proposal and forward design.
+**Rationale:** Federation was initially deferred as exceeding the essential architecture scope. The `hkask-federation` crate provides discovery, resource negotiation, and capability composition across independent hKask instances. Post-pivot (v0.31.0), federation supports the human user's experience rather than being the headline use case; the former `FEDERATION_V2.md` proposal has been withdrawn (content folded into `explanation/federation-and-transport.md`).
 
 ---
 
@@ -51,7 +51,7 @@ Federation is now active in v0.31.0. The `hkask-federation` crate exists and `FE
 **Status:** **Resolved — Option 2**  
 **Resolution Date:** 2026-05-29
 
-**Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `do../status/PROJECT_STATUS.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
+**Decision:** Document MCP servers as a catalog with common pattern description and per-crate README for implemented servers. A unified catalog exists at `docs/status/PROJECT_STATUS.md`. Individual README files live in each `mcp-servers/hkask-mcp-*/README.md`.
 
 **Rationale:** Each MCP server having its own specification entry in REQUIREMENTS.md (Option 1) creates 19 × ~2KB = ~38KB of spec overhead — disproportionate. Option 2 keeps the catalog as a single source of truth with per-crate detail for the specific tool surface. Note: The term "arsenal" is not part of the hKask vocabulary — the project has 11 core crates and 21 MCP servers, all in a single workspace.
 
@@ -129,7 +129,7 @@ Federation is now active in v0.31.0. The `hkask-federation` crate exists and `FE
 **Status:** **Resolved** (already confirmed 2026-05-28; reaffirmed 2026-05-29 MCP audit)  
 **Resolution Date:** 2026-05-28
 
-**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-research` (1,044 LOC). No stubs remain. MCP tools inventory confirms completeness (see `do../status/PROJECT_STATUS.md`).
+**Decision:** Both servers are fully implemented: `hkask-mcp-condenser` (1,744 LOC, 7 tools, 51 tests), `hkask-mcp-research` (1,044 LOC). No stubs remain. MCP tools inventory confirms completeness (see `docs/status/PROJECT_STATUS.md`).
 
 ---
 
@@ -137,7 +137,7 @@ Federation is now active in v0.31.0. The `hkask-federation` crate exists and `FE
 
 ## Pod Architecture Resolved Questions (ζ Group — v0.30.0)
 
-> **Incorporated from:** `docs/architecture/core/OPEN_QUESTIONS_POD.md`
+> **Incorporated from:** `docs/architecture/core/OPEN_QUESTIONS_POD.md` (file removed post-merge; content preserved here — see DA-ISSUE-007). **Post-pivot note:** pod architecture is legacy infrastructure retained in-tree; the v0.31.0 primary surface is human-user `kask chat` + skills/MCP/LLM.
 
 <details>
 <summary>5 ζ-group questions — click to expand (resolved during multi-pod architecture design session)</summary>
@@ -627,7 +627,7 @@ Added calibration procedure to MDS §5.9: collect ≥10 SpecCurationRecord coher
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-The corrected MDS establishes that spec-document completeness is orthogonal to code-implementation completeness. The decision rule is now codified: spec completeness and code completeness are orthogonal predicates; drift items are classified by the curation gradient (Merge/Revise/Defer/Discard). Full drift set in `do../status/corpus_inventory.yaml`, curation decisions in `do../status/corpus_inventory.yaml`. The MDS_SCAFFOLD.md §4 now has a two-column completeness predicate reflecting this axiom.
+The corrected MDS establishes that spec-document completeness is orthogonal to code-implementation completeness. The decision rule is now codified: spec completeness and code completeness are orthogonal predicates; drift items are classified by the curation gradient (Merge/Revise/Defer/Discard). Full drift set in `docs/status/corpus_inventory.yaml`, curation decisions in `docs/status/corpus_inventory.yaml`. The MDS_SCAFFOLD.md §4 now has a two-column completeness predicate reflecting this axiom.
 
 ---
 
@@ -648,7 +648,7 @@ Producing real content for `docs/status/` files. Two new status files have been 
 **Opened:** 2026-06-07  
 **Resolved:** 2026-06-08
 
-The `hkask-agents` crate build regression has been resolved. All 9 code drift items (P2-06-D1 through P2-06-D9) have been resolved via the curation gradient: spec_ahead items received stubs with FocusingAssumptions, divergent items received spec updates or type aliases. See `do../status/corpus_inventory.yaml` and `do../status/corpus_inventory.yaml`.
+The `hkask-pods` crate (formerly `hkask-agents`) build regression has been resolved. All 9 code drift items (P2-06-D1 through P2-06-D9) have been resolved via the curation gradient: spec_ahead items received stubs with FocusingAssumptions, divergent items received spec updates or type aliases. See `docs/status/corpus_inventory.yaml`.
 
 ---
 
@@ -1055,7 +1055,7 @@ The confidence difference (0.8 for docproc, 1.0 for training_ingest_qa) is **cor
 
 ## Pod Architecture
 
-> **Incorporated from:** `docs/architecture/core/OPEN_QUESTIONS_POD.md`
+> **Incorporated from:** `docs/architecture/core/OPEN_QUESTIONS_POD.md` (file removed post-merge; content preserved here — see DA-ISSUE-007). **Post-pivot note:** legacy infrastructure; not the v0.31.0 primary user surface.
 
 Questions raised by the Solid Pod isomorphism that require future design work.
 

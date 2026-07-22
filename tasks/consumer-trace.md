@@ -1,8 +1,7 @@
 # Consumer Trace (T2.0) — `ReplicantIdentity` / `AgentKind` / `is_primary` / `list_replicants`
 
-> Read-only trace, repo-wide. Source: `grep` over `**/*.rs`. Drives sub-slicing for the
-> 1:1 simplification and `AgentKind` deletion. Build is currently GREEN via the
-> `ReplicantIdentity = UserPod` strangler-fig alias (T1.1a).
+> Historical trace. The consolidation is complete — zero `replicant`/`Replicant`/`AgentKind` references remain in Rust code.
+> This document is retained as a record of the work done.
 
 ## A. `ReplicantIdentity` / `replicant_name` / `replicant_webid` consumers
 

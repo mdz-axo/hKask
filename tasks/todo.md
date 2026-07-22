@@ -1,6 +1,6 @@
-# todo — Replicant→UserPod Consolidation (FINAL, Phase 0 resolved)
+# todo — Replicant→UserPod Consolidation (COMPLETE)
 
-> Advisory. Each slice flagged for user accept/reject. No autonomous deletion.
+> Complete. Code consolidation done. This todo is retained as a historical record.
 > Order = gpa-evolution iter 3: types-first, principles as own phase.
 
 ## Phase 0 — RESOLVED (no code)

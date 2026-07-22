@@ -17,6 +17,8 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 **Last Updated:** 2026-07-12
 **Decision:** 2026-06-21 — Contract system simplified. REQ tags and contract IDs removed. Contracts use `expect:` + `[P{N}]` annotations directly on functions. Enforcement is through Regulation span observation and property-based testing.
 
+**Primary surface:** `kask chat` — a human user authenticates and gets a sovereign chat session with skills, MCP servers, and LLM access. The domains below are the infrastructure that supports this experience.
+
 > This document maps the complete system to its motivating principles and enumerates functional requirements per domain. Every contract carries a **goal principle** (the explicit user functional expectation the contract enforces) and **constraining principles** (the other principles that constrain how the goal is achieved). See [`TESTING_DISCIPLINE.md`](TESTING_DISCIPLINE.md) for the definitive contract standard — this document defines the *domain-to-contract mapping*, not the contract format itself.
 
 ---
@@ -43,7 +45,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 14 | Template Engine | `templates` | hkask-templates | 53 | System renders skill templates into executable prompts | P3 (Generative Space) |
 | 15 | MCP Servers | `mcp` | mcp-servers/ | 41 | System provides single-responsibility tool servers | P5 (Essentialism) |
 | 16 | Service Layer | `services` | the service layer subcrates | 305+ | System composes a single service layer shared by CLI and API (10 subcrates: core, chat, compose, context, corpus, kata-kanban, onboarding, runtime, skill, wallet) | P5 + P7 (Essentialism + Evolution) |
-| 17 | Agent Runtime | `agents` | hkask-agents | 159 | User's agents operate within sovereignty boundaries | P1 (User Sovereignty) |
+| 17 | Agent Runtime | `agents` | hkask-pods | 159 | User's agents operate within sovereignty boundaries | P1 (User Sovereignty) |
 | 18 | Communication | `comm` | hkask-communication | 25 | Agents communicate through user-owned channels | P1 (User Sovereignty) |
 | 19 | Keystore | `keystore` | hkask-keystore | 5 | User's keys are generated, stored, and rotated securely | P1 (User Sovereignty) |
 | 20 | Type System | `types` | hkask-types | 40 | System types are semantically grounded and provenance-aware | P8 (Semantic Grounding) |
@@ -52,7 +54,7 @@ anchored_on: ["PRINCIPLES.md §0", "P1-P12", "magna-carta.md"]
 | 23 | Web Interface | `web` | hkask-api | 21 | User signs in via OAuth and gets a browser terminal with streaming WSS chat | P1 + P4 (Sovereignty + Boundaries) |
 | 24 | Multi-User | `multi-user` | hkask-api + hkask-storage | 12 | Users share a server with scoped data and admin-managed membership | P1 (User Sovereignty) + P2 (Affirmative Consent) |
 | 25 | Backup & Migration | `backup` | hkask-storage + hkask-api | 14 | User exports and migrates their data as a portable encrypted archive | P1 (User Sovereignty) + P3 (Generative Space) |
-| 26 | Deployment | `deploy` | hkask-cli + hkask-agents | 20 | User deploys pods with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
+| 26 | Deployment | `deploy` | hkask-cli + hkask-pods | 20 | User deploys pods with a single binary and one command | P5 (Essentialism) + P3 (Generative Space) |
 | 27 | Code Understanding | `codegraph` | hkask-codegraph | 10 | Agents query, traverse, and analyze the codebase through a semantic code graph | P3 (Generative Space) + P9 (Homeostatic Self-Regulation) |
 | 28 | Algo / No-Judge Classification | `classify` | hkask-services-runtime | 9 | System classifies text via the algo / no-judge fusion path: the fusion panel runs in parallel and extractions are merged algorithmically — no single model is the sole gate to semantic memory | P3 (Generative Space) + P8 (Semantic Grounding) |
 | 29 | Content Safety Guard | `guard` | hkask-guard | 6 | System enforces mandatory content safety controls — prompt injection, role override, and secret leakage detection are always active and cannot be disabled | P3.1 (Social Generativity) |
@@ -136,7 +138,7 @@ graph TD
     SVC["the service layer subcrates"]
     CLI --> SVC
     API --> SVC
-    SVC --> AGENTS[hkask-agents]
+    SVC --> AGENTS[hkask-pods]
     SVC --> Regulation[hkask-regulation]
     SVC --> MEM[hkask-memory]
     SVC --> TEMPLATES[hkask-templates]
@@ -1195,7 +1197,7 @@ Representative domains:
 - `BackupService`, `BundleService`, `ChatService`, `ComposeService`, `CuratorService`, `DiscoverService`, `EmbedService`, `KataEngine`, `OnboardingService`, `SkillService`, `SovereigntyService`, `VerificationService`
 - Service registration pattern: all services are discovered, not coupled
 
-### 3.8 Agents (`hkask-agents`)
+### 3.8 Agents (`hkask-pods`)
 
 **142 expect:-annotated contracts** — agents span five motivating principles:
 - **P1 (User Sovereignty)** — `AgentPod`, `PodDeployment`, `PodFactory`, `ActivePods`, `PodRegistry`, `SovereigntyChecker`
@@ -1204,7 +1206,7 @@ Representative domains:
 - **P9 (Homeostatic Self-Regulation)** — `CuratorSync`, `SemanticIndex`, Curator, Metacognition, LoopScheduler, BotHealth, prompt classification
 - **P11 (Digital Sphere)** — `PerPodStorage`, `PerPodRegulationLedger`, per-pod SQLCipher files
 
-**Crate:** `hkask-agents` | **Sources:** `src/consent.rs`, `src/sovereignty.rs`, `src/loop_system.rs`, `src/prompt_analysis.rs`, `src/registry_loader.rs`, `src/acp/**/*.rs`, `src/curator/**/*.rs`, `src/curator_agent/**/*.rs`, `src/pod/**/*.rs`, `src/adapters/**/*.rs`, `src/ports/memory_storage.rs`, `tests/agent_pod_integration.rs`
+**Crate:** `hkask-pods` | **Sources:** `src/consent.rs`, `src/sovereignty.rs`, `src/loop_system.rs`, `src/prompt_analysis.rs`, `src/registry_loader.rs`, `src/acp/**/*.rs`, `src/curator/**/*.rs`, `src/curator_agent/**/*.rs`, `src/pod/**/*.rs`, `src/adapters/**/*.rs`, `src/ports/memory_storage.rs`, `tests/agent_pod_integration.rs`
 
 #### Production Contracts
 
@@ -1227,7 +1229,7 @@ Representative domains:
 | Pod Deployment | P1, P4, P11 | PodDeployment (new), PodFactory (deploy), PodKind, PerPodStorage, PerPodRegulationLedger, PerPodToolBinding, PodRegistry (scan, scan-by-kind, find-curator, find-teams), ActivePods (new, context, create-pod, activate-pod, deactivate-pod, status, list-pods, find-by-name, webid, has-role, has-capability, assign-role, set-mode), PodContext (new, store-semantic, recall-semantic, invoke-tool) |
 | Pod Types | P4 | PodLifecycle (can-transition) |
 
-> **Note:** `hkask-agents/src/` contains **142 `expect:`-annotated contracts**.
+> **Note:** `hkask-pods/src/` contains **142 `expect:`-annotated contracts**.
 
 ### 3.2 Storage (`hkask-storage`)
 ### 3.9 Communication (`hkask-communication`)

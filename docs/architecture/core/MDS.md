@@ -28,7 +28,7 @@ The domain ontology is grounded in **Ontology Design Pattern (ODP) methodology**
 |--------|-------|-------------|---------------|
 | `HumanUser` | `hkask-storage` | Human identity with WebID, role (Admin\|Member), OAuth provider link | P1 |
 | `UserPod` | `hkask-types` | Agent identity with persona, voice, wallet link | P6 |
-| `AgentPod` | `hkask-agents` | Runtime container for a userpod (Inactive\|Active\|ServerMode) | P1 |
+| `AgentPod` | `hkask-pods` | Runtime container for a userpod (Inactive\|Active\|ServerMode) | P1 |
 | `Wallet` | `hkask-wallet` | rJoule balance, encumbrance, multi-chain deposits | P9 |
 | `ApiKey` | `hkask-wallet` | Scoped API key with spending limits and expiry | P1 |
 | `hMem` | `hkask-storage` | Entity-Attribute-Value knowledge representation, bitemporal | P3 |
@@ -513,7 +513,7 @@ bash docs/ci/check-links.sh    # Zero broken cross-references
 
 ---
 
-*MDS v0.33.0 — five categories, SpecStore + QA. Five thin service passthroughs removed (contacts, scheduler, goal, pod, spec).*
+*MDS v0.31.0 — five categories, SpecStore + QA. Five thin service passthroughs removed (contacts, scheduler, goal, pod, spec).*
 
 ---
 
@@ -619,7 +619,7 @@ graph TD
     end
     CLI --> SERVICES
     API --> SERVICES
-    SERVICES --> AGENTS[hkask-agents]
+    SERVICES --> AGENTS[hkask-pods]
     SERVICES --> Regulation[hkask-regulation]
     SERVICES --> MEM[hkask-memory]
     SERVICES --> TEMPLATES[hkask-templates]

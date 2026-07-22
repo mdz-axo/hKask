@@ -22,7 +22,7 @@ CLASSIFY ACTIONS (concrete — must use Regulation observer/subscriber, span his
 2. For `reg.guard.*` signals: count violations per scanner (input filter,
    output filter, canary, runtime policy). Note violation frequency vs
    baseline. Record timestamps and violation details.
-3. For `reg.regulation.*` signals: count regulation actions (blocked,
+3. For `reg.outcome.*` signals: count regulation actions (blocked,
    substituted, plateau). Note whether actions are increasing (system
    struggling to regulate) or decreasing (system stable).
 4. For `reg.tool.*` signals: count tool invocations per tool type. Note
@@ -41,7 +41,7 @@ CLASSIFY ACTIONS (concrete — must use Regulation observer/subscriber, span his
      chain (e.g., `filesystem.write` → `web_search.fetch` → `filesystem.read`
      indicating potential data exfiltration pattern).
    - Defense-layer bypass: evidence = `reg.guard.*` violation count
-     increasing while `reg.regulation.action_blocked` count not increasing
+     increasing while `reg.outcome.action_blocked` count not increasing
      proportionally (defense firing but not regulating).
 7. Apply pragmatic-cybernetics (embedded reasoning, like `bug-hunt` oracle phase):
    - IS vs OUGHT: describe what the runtime DOES (observed signal pattern)
@@ -63,7 +63,7 @@ CLASSIFY ACTIONS (concrete — must use Regulation observer/subscriber, span his
    - Canary detection firing (`reg.guard.canary` violations observed)
    - Runtime policy enforcing (`reg.guard.runtime_policy` Log/Block observed)
    - Regulation loop active (`reg.regulation` events observed)
-   - Action distribution monitoring (`reg.regulation.loop_quality` observed)
+   - Action distribution monitoring (`reg.outcome.loop_quality` observed)
 10. For each classified threat, emit structured finding:
     `threat_type`, `signal_target`, `timestamp`, `signal_value`, `baseline_value`,
     `deviation_pct`, `severity` (critical/high/medium/low — justified by evidence),

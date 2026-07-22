@@ -8,7 +8,7 @@ domain: "Application"
 mds_categories: [domain, composition]
 ---
 
-# Passage Salience Specification — hKask v0.28.0
+# Passage Salience Specification — hKask v0.31.0
 
 **MDS Category:** specification/algorithm
 **Status:** Active

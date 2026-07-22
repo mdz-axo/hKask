@@ -170,8 +170,8 @@ Curation: Merge | Revise | Defer | Discard
 - **Criteria:**
   - [x] CLI binary `kask` with 26 subcommand groups
   - [x] HTTP API with 11 route groups
-  - [x] MCP with 10 servers (internal cognition via direct crate calls)
-  - [x] Core operations route through `hkask-agents` domain core
+  - [x] MCP with 16 servers (internal cognition via direct crate calls)
+  - [x] Core operations route through `hkask-pods` domain core
   - [x] Spec lifecycle operations are CLI + API + QA only (MCP excludes spec capture/list/validate/cultivate)
 - **Implementation:** `hkask-cli::main`, `hkask-api::lib::create_router`, `hkask-mcp::runtime`, `hkask-mcp-curator` (spec drift)
 - **Status:** Implemented
@@ -230,7 +230,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `ActivePods` with builder pattern
   - [x] `PodLifecycleState` state machine
   - [x] `ConsentManager` for user authorization
-- **Implementation:** `hkask-agents::pod::AgentPod`, `hkask-agents::pod::ActivePods`, `hkask-agents::consent::ConsentManager`
+- **Implementation:** `hkask-pods::pod::AgentPod`, `hkask-pods::pod::ActivePods`, `hkask-pods::consent::ConsentManager`
 - **Tests:** —
 - **Status:** Implemented
 - **Curation:** Merge
@@ -275,7 +275,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] UUID v5 from persona content
   - [x] Same persona → same WebID across processes
   - [x] Root authority WebID from fixed persona
-- **Implementation:** `hkask-types::id::WebID`, `hkask-agents::pod::AgentIdentity`
+- **Implementation:** `hkask-types::id::WebID`, `hkask-pods::pod::AgentIdentity`
 - **Status:** Implemented
 - **Curation:** Merge
 
@@ -384,7 +384,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] `SpecStore`, `SpecCurator`, `SpecObserver` traits
   - [x] `SqliteSpecStore` implementation
   - [x] `DefaultSpecCurator` implementation
-- **Implementation:** `hkask-storage::spec_types` (domain types), `hkask-storage::spec_store` (persistence), `hkask-agents::curator_agent::spec_curator` (validation)
+- **Implementation:** `hkask-storage::spec_types` (domain types), `hkask-storage::spec_store` (persistence), `hkask-pods::curator_agent::spec_curator` (validation)
 - **Status:** Implemented
 - **Note:** Former `mcp-spec` MCP server (12 tools) and `SpecService` service layer removed v0.31.0. Spec operations now call `SpecStore` directly; validation folded into QA; prose rewriting moved to `hkask-mcp-replica::replica_rewrite`.
 - **Curation:** Merge

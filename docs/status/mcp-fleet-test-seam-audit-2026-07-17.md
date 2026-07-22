@@ -132,5 +132,5 @@ No in-repo consumer breaks. External agent clients read these fields flexibly. R
 ## Cross-links
 
 - [Filesystem Server Reference](../reference/mcp-servers/filesystem.md) — sandbox model, security model notes, DIAG-RF-003
-- [MCP Server Registry](../reference/mcp-servers/README.md) — 15 servers, common patterns, testing standard
+- [MCP Server Registry](../reference/mcp-servers/README.md) — 16 servers, common patterns, testing standard
 - [Regulation Span Registry](../reference/regulation-spans.md) — `RegulationSpan::Tool` and `ToolSubsystem::Filesystem`

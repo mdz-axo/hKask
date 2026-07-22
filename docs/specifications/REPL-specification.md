@@ -2,17 +2,17 @@
 title: "hKask REPL Specification"
 audience: [architects, developers, users]
 last_updated: 2026-07-20
-version: "0.32.0"
+version: "0.31.0"
 status: "Active"
 domain: "Surface"
 mds_categories: [domain, composition, lifecycle, curation]
 ---
 
-# hKask REPL Specification — `kask repl`
+# hKask REPL Specification — `kask chat`
 
 ## 1. Purpose and Scope
 
-This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop). The REPL is accessed through a browser terminal (xterm.js + WebSocket) or optionally via SSH. The hKask server spawns `kask repl --webid <user>` on a PTY per authenticated user session, providing a terminal-based conversational interface to agents, models, tools, and pods — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). The project defers multi-agent ensemble sessions (2026-06-14) as a future mode evolving from the dual-presence pattern.
+This document is the authoritative specification for the hKask interactive REPL (Read-Eval-Print Loop). The REPL is accessed through a browser terminal (xterm.js + WebSocket) or optionally via SSH. The hKask server spawns `kask chat --webid <user>` on a PTY per authenticated user session, providing the human user's primary conversational interface — chat with LLMs, skills, and MCP tools — all governed by the Magna Carta's four principles of User Sovereignty, Affirmative Consent, Generative Space, and Clear Boundaries (OCAP). The project defers multi-agent ensemble sessions (2026-06-14) as a future mode evolving from the dual-presence pattern.
 
 **Audience:** Architects, developers, users, and agents interacting with hKask.
 
@@ -673,9 +673,9 @@ The REPL displays an animated Kask amphora logo on startup:
  \__/           |    |    KASK   |    |
                 |    |           |    |
                  \__/~~~~~~~~~~~\__/
-  shadow           hKask v0.28.0
+  shadow           hKask v0.31.0
 
-     A Minimal Viable Container for UserPods
+     A Sovereign Chat Client for Human Users
 ```
 
 The eyes animate through center → right → center → left gaze positions over ~1.4 seconds.
@@ -865,7 +865,7 @@ Agent writes code → executes → sees error traceback → rewrites → re-exec
 | Constraint | Compliance |
 |-----------|------------|
 | Headless only (P6) | ✓ Terminal-based (browser terminal renders PTY); no GUI, web app, or dashboard |
-| No external MCP deps (P1.2) | ✓ All 10 servers are `hkask-mcp-*` crates |
+| No external MCP deps (P1.2) | ✓ All 16 servers are `hkask-mcp-*` crates |
 | No `todo!()`, `unimplemented!()` (P7) | ✓ No stubs in REPL code |
 | No deprecated code (P7) | ✓ No `#[deprecated]` annotations |
 | No monitoring stacks (P6) | ✓ Regulation provides programmatic observability; no Prometheus/Grafana |

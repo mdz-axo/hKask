@@ -219,7 +219,7 @@ Inside the REPL:
 /msg <room_id> "Hello from hKask"
 ```
 
-See [Agents and Pods](agents-and-pods.md) for the full `/matrix` and `/msg` slash command reference.
+See [Agents and Pods](install-and-configure.md) for the full `/matrix` and `/msg` slash command reference.
 
 ### Step 7: Monitor Message Flow
 
@@ -328,7 +328,7 @@ The Litestream init container (`litestream restore`) in the K8s deployment runs 
 ## Related
 
 - [Install and Configure hKask](install-and-configure.md) — Build and initial setup
-- [Agents and Pods](agents-and-pods.md) — Pod export to K8s manifests
+- [Agents and Pods](install-and-configure.md) — Pod export to K8s manifests
 - [Sovereignty and Observability](sovereignty-and-observability.md) — Regulation monitoring for deployment health
 ---
 

@@ -484,7 +484,7 @@ MCP runtime and dispatch for hKask.
 
 `McpRuntime` / `McpServer` / `McpTool` — Runtime managing MCP server lifecycles.
 
-**BUILTIN_SERVERS (15 servers):**
+**BUILTIN_SERVERS (16 servers):**
 
 | Server ID | Binary Name |
 |-----------|-------------|

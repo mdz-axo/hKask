@@ -553,7 +553,7 @@ cargo clean
 - Start the server: `kask serve`
 - Verify the build: `kask regulation health`
 - Read Regulation alerts: [Sovereignty and Observability](sovereignty-and-observability.md)
-- Manage agent pods: [Agents and Pods](agents-and-pods.md)
+- Manage agent pods: [Agents and Pods](install-and-configure.md)
 ---
 
 ## Inlined Diagrams

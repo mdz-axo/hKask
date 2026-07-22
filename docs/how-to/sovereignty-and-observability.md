@@ -590,4 +590,4 @@ let alerts = rt.alerts().await;   // Vec<RuntimeAlert>
 - [Magna Carta Reference](../reference/magna-carta.md) — Full principle text, enforcement traces, failure modes
 - [Regulation Span Registry](../reference/regulation-spans.md) — Full span taxonomy (100+ entries)
 - [Install and Configure hKask](install-and-configure.md) — Content guard configuration and `reg.guard.*` spans
-- [Agents and Pods](agents-and-pods.md) — Pod status and capability inspection
+- [Agents and Pods](install-and-configure.md) — Pod status and capability inspection

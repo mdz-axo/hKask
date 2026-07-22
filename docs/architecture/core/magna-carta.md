@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # The Magna Carta of hKask
 
-## ℏKask v0.28.0 - A Minimal Viable Container for UserPods
+## ℏKask v0.31.0 — A Sovereign Chat Client for Human Users with AI Tools
 
 **User Sovereignty is Non-Negotiable.**
 
@@ -302,7 +302,7 @@ assertions:
     claim: "Every code path to sovereign data is gated by SovereigntyChecker"
     method: structural_audit  # or behavioral_probe, resource_verification, absence_check
     targets:
-      - crate: hkask-agents
+      - crate: hkask-pods
         module: pod::context
         methods: [store_episodic, recall_episodic, store_semantic, recall_semantic]
         gate: require_sovereignty
@@ -379,14 +379,14 @@ event sink is wired. The agent-pod `SovereigntyChecker` enforces the
 sovereignty policy on every memory access.
 
 ```rust
-// In hkask-agents::curator_agent::DefaultSpecCurator
+// In hkask-pods::curator_agent::DefaultSpecCurator
 impl DefaultSpecCurator {
     /// Record a sovereignty check for a spec evaluation.
     /// Emits a `reg.sovereignty.checked` RegulationRecord (CyclePhase::Compare).
     pub fn check_sovereignty(&self, spec_id: &str, categories: &[String]) { /* ... */ }
 }
 
-// In hkask-agents::pod::PodContext
+// In hkask-pods::pod::PodContext
 impl PodContext {
     /// Enforce the Magna Carta's data-sovereignty policy on access.
     /// Complements `require_capability` (OCAP) with the data-class policy.
@@ -438,7 +438,7 @@ The Magna Carta is not aspirational. It is enforced:
 
 ## Version
 
-ℏKask v0.28.0 - A Minimal Viable Container for UserPods
+ℏKask v0.31.0 — A Sovereign Chat Client for Human Users
 
 *As simple as possible, but no simpler.*
 

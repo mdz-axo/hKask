@@ -21,7 +21,7 @@ COMPUTE METRIC (weighted — evidence-based only, P8, P5):
   runtime_policy, regulation_loop, action_distribution_monitoring) = +0.00
   5 firing = +0.04; 4 = +0.08; 3 = +0.13; 2 = +0.19; 1 = +0.25
   Each layer only counts as firing when actual `reg.guard.*` or
-  `reg.regulation.*` span emissions confirm it (P8 — concrete evidence
+  `reg.outcome.*` span emissions confirm it (P8 — concrete evidence
   only, no aspirational coverage). Distinct from kali-audit's static
   presence check — this measures runtime firing, not code presence.
 - Threat-pattern taxonomy coverage weight: 0.15
@@ -77,7 +77,7 @@ EVIDENCE-BACKED ONLY (P8): Metric dimensions use concrete counts from
 (actual proposal count from current cycle). No fabricated numbers.
 EVOLUTIONARY (P7): Blockers propose concrete next steps (e.g., "add
 runtime policy rule for tool call chain X", "investigate why reg.guard.input
-firing but reg.regulation.action_blocked not increasing") based on real
+firing but reg.outcome.action_blocked not increasing") based on real
 runtime evidence — not speculative.
 OCAP BOUNDARY (P4): Metric computed from hKask Regulation telemetry only; no
 external endpoint scanning; no OS-level process inspection.

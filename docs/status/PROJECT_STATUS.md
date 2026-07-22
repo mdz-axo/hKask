@@ -77,7 +77,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | hkask-storage | 59 |
 | hkask-memory | 16 |
 | hkask-regulation | 42 |
-| hkask-agents | 31 |
+| hkask-pods | 31 |
 | hkask-keystore | 13 |
 | hkask-services-core | 19 |
 | hkask-services-chat | 9 |
@@ -93,7 +93,6 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | _[Note: as of v0.31.0, the old monolithic service crate decomposed into 11 subcrates above]_ | |
 | hkask-templates | 22 |
 | hkask-condenser | 34 |
-| hkask-improv | 37 |
 | hkask-wallet | 13 |
 | hkask-communication | 25 |
 | hkask-mcp | 38 |
@@ -103,7 +102,7 @@ All 69 workspace members (54 crates + 15 MCP servers, excluding fuzz targets).
 | hkask-acp | 4 |
 | hkask-adapter | 51 |
 | hkask-codegraph | 22 |
-| MCP servers (13) | ~770 |
+| MCP servers (16) | ~770 |
 | **Workspace total** | **~1,460** |
 
 ---
@@ -186,9 +185,9 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 | Check | Result |
 |-------|--------|
-| Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-agents::sovereignty`, `hkask-services-core::verification`. No single SovereigntyService — this is correct, not a gap. |
+| Magna Carta P1 (User Sovereignty) | Sovereignty distributed across `hkask-types::sovereignty`, `hkask-pods::sovereignty`, `hkask-services-core::verification`. No single SovereigntyService — this is correct, not a gap. |
 | Magna Carta P2 (Affirmative Consent) | Regulation consent denial events emitted. Prohibition gate — denial is terminal. |
-| Magna Carta P3 (Generative Space) | 15 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
+| Magna Carta P3 (Generative Space) | 16 MCP servers + multi-provider inference. No feature flags, no gated surfaces. |
 | Magna Carta P4 (Clear Boundaries) | OCAP capability membrane. Dual-gate enforcement (require_capability + require_sovereignty) with Ed25519 cryptographic tokens. DenyAllConsent default. Verified across all capability-granting paths. |
 
 ---
@@ -266,7 +265,7 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 
 - Handoff continuation: verified build (246 tests, 0 failures), fixed 3 unicode escape errors in `crates/hkask-services-core/src/bundle.rs` (Rust 2024 `\u{XXXX}` format) [Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates; `bundle.rs` was in the monolithic crate]
 - HIGH #1: Transient AgentService accessor errors — confirmed resolved (no old accessor names in codebase, build clean)
-- HIGH #2: Architecture master sovereignty claim — updated AgentService section to current named-accessor pattern, noted sovereignty distribution across `hkask-types`/`hkask-agents`/`hkask-services-core` [Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates]
+- HIGH #2: Architecture master sovereignty claim — updated AgentService section to current named-accessor pattern, noted sovereignty distribution across `hkask-types`/`hkask-pods`/`hkask-services-core` [Note: as of v0.31.0, the old monolithic service crate has been decomposed into 11 subcrates]
 - LOW #3: Architecture master allosteric/RBarThreshold update — confirmed already resolved (no references in arch master; remaining occurrences are historical docs, GML templates, or deletion-acknowledging code comments)
 - LOW #4: Citation compliance audit (PS-07) — completed; 23 files with footnote citation gaps identified and catalogued
 - MEDIUM: AgentService adapters refactoring — completed; 5 stale comments in `hkask-api/src/routes/` (acp.rs, mcp.rs, templates.rs) updated from old grouped-tuple references to current named accessors. Zero old accessor patterns remain in codebase.
@@ -356,4 +355,4 @@ Fixing these requires domain knowledge to assign appropriate external citations 
 
 ---
 
-*ℏKask — A Minimal Viable Container for UserPods — v0.31.0*
+*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users with AI Skills*

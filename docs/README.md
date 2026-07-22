@@ -1,7 +1,7 @@
 ---
 title: "hKask Documentation Portal"
 audience: [project maintainers, contributors, architects, agents]
-last_updated: 2026-07-17
+last_updated: 2026-07-21
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -10,15 +10,15 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Documentation Portal
 
-**Purpose:** Single entry point indexing every active document in `docs/`, tagged by [MDS](architecture/core/MDS.md) category. hKask v0.31.0.
+**Purpose:** Single entry point indexing every active document in `docs/`, tagged by [MDS](architecture/core/MDS.md) category. hKask v0.31.0 — a sovereign chat client for human users with AI skills, MCP servers, and LLM access.
 
 ### Diataxis Structure
 
 Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tutorials, how-to guides, reference, and explanation — supplemented by architecture, specifications, and the diagram verification registry.
 
-> **Lifecycle:** Retired documents are moved to `docs/archive/`. Git history preserves all versions.
+> **Lifecycle:** Retired documents are removed; git history preserves all versions.
 >
-> **Diagram policy:** Per `DOCUMENTATION_STANDARDS.md` §1, all Mermaid diagrams are inline in the documents they describe. The former `docs/diagrams/` directory has been consolidated — see [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) for the verification registry.
+> **Diagram policy:** Per `DOCUMENTATION_STANDARDS.md` §1, Mermaid diagrams are inline in the documents they describe. The `docs/diagrams/` directory is being consolidated — see [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) for the verification registry.
 
 ---
 
@@ -35,9 +35,8 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | Guide | What You'll Do |
 |-------|----------------|
 | [`install-and-configure.md`](how-to/install-and-configure.md) | Install hKask, configure, and run your first session (includes bootstrap diagram) |
-| [`agents-and-pods.md`](how-to/agents-and-pods.md) | Create and manage agent pods (includes pod lifecycle state diagram) |
-| [`deployment-and-transport.md`](how-to/deployment-and-transport.md) | Deploy on Kubernetes, configure Matrix transport, OAuth/invite flow (includes 6 deployment diagrams) |
 | [`skills-and-composition.md`](how-to/skills-and-composition.md) | Install, invoke, compose skills; run Kata cycles (includes 2 kata/skills diagrams) |
+| [`deployment-and-transport.md`](how-to/deployment-and-transport.md) | Deploy on Kubernetes, configure Matrix transport, OAuth/invite flow (includes 6 deployment diagrams) — opt-in infrastructure |
 | [`training-and-adapters.md`](how-to/training-and-adapters.md) | Train Qwen3.6-27B on RunPod with Unsloth; LoRA adapter training (includes 6 training diagrams + Qwen3.6 hyperparameter reference) |
 | [`sovereignty-and-observability.md`](how-to/sovereignty-and-observability.md) | Audit sovereignty compliance, read Regulation alerts |
 
@@ -50,7 +49,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | [`api-reference.md`](reference/api-reference.md) | API reference for hKask crates (includes 9 inlined CodeGraph + TUI diagrams) |
 | [`regulation-spans.md`](reference/regulation-spans.md) | Regulation span catalog and namespaces |
 | [`magna-carta.md`](reference/magna-carta.md) | Magna Carta — 4 inviolable sovereignty principles |
-| [`mcp-servers/README.md`](reference/mcp-servers/README.md) | MCP server reference — 15 built-in servers (includes Companies MCP server) |
+| [`mcp-servers/README.md`](reference/mcp-servers/README.md) | MCP server reference — 16 built-in servers (see catalog) |
 | [`skills/README.md`](reference/skills/README.md) | Skills registry — manifests and metadata |
 
 ---
@@ -60,7 +59,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | Document | Topic |
 |----------|-------|
 | [`architecture-patterns.md`](explanation/architecture-patterns.md) | Hexagonal ports, service layer, template cascade, MCP dispatch patterns (includes 7 inlined diagrams + template authorship) |
-| [`regulation-and-loops.md`](explanation/regulation-and-loops.md) | Regulation homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
+| [`cns-and-loops.md`](explanation/cns-and-loops.md) | Regulation homeostatic regulation, algedonic escalation, loop action lifecycle (includes 8 inlined diagrams) |
 | [`cognition-and-replica.md`](explanation/cognition-and-replica.md) | Memory pipeline, classification, embedding architecture (includes 4 inlined diagrams) |
 | [`sovereignty-and-ocap.md`](explanation/sovereignty-and-ocap.md) | OCAP attenuation, consent flow, guard pipeline (includes 4 inlined diagrams) |
 | [`federation-and-transport.md`](explanation/federation-and-transport.md) | Federation dispatch model, adapter lifecycle (includes 1 inlined diagram) |
@@ -72,7 +71,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 
 | Document | Description |
 |----------|-------------|
-| [`core/hKask-architecture-master.md`](architecture/core/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, four-loop decomposition, economic layer, pod architecture, Curator persona. Includes merged sections: Database Providers, Matrix Integration, Well Wallet, Scenarios–Companies bridge, Federation V2, and 8 inlined storage/database/scenarios diagrams. |
+| [`core/hKask-architecture-master.md`](architecture/core/hKask-architecture-master.md) | Authoritative architecture index — 4 patterns, four-loop decomposition, economic layer, skills/MCP dispatch, Curator persona. Includes merged sections: Database Providers, Matrix Integration, Well Wallet, Scenarios–Companies bridge, and inlined storage/database/scenarios diagrams. |
 | [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry — all diagrams now inline |
 
 ### Core (`architecture/core/`)
@@ -87,7 +86,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 
 ### ADRs (`architecture/ADRs/`)
 
-17 ADRs covering consolidation authorization, userpod server mode, gix migration, BLAKE3 content addressing, dynamic model discovery, port promotion, database driver, nested runtime panics, ledger-wallet separation, CLI bootstrap, REPL extraction, storage modularization, Regulation type decomposition, ledger database driver compliance, Qwen3.6 chat template and training gap analysis. See directory for full index.
+24 ADRs covering consolidation authorization, server mode, gix migration, BLAKE3 content addressing, dynamic model discovery, port promotion, database driver, nested runtime panics, ledger-wallet separation, CLI bootstrap, REPL extraction, storage modularization, Regulation type decomposition, ledger database driver compliance, ontology-anchored embedding, SQLite vector optimization, per-provider circuit breakers, Ashby-aligned loop regulation, cybernetic naming, and Qwen3.6 chat template / training gap analysis. See directory for full index.
 
 ---
 
@@ -108,8 +107,7 @@ Documentation is organized by [Diataxis](https://diataxis.fr/) quadrants — tut
 | Document | Description |
 |----------|-------------|
 | [`OPEN_QUESTIONS.md`](OPEN_QUESTIONS.md) | Underspecified aspects — open crossroads and future design decisions |
-| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry — all diagrams now inline in parent documents |
-| [`diagrams/flowchart-documentation-structure.md`](diagrams/flowchart-documentation-structure.md) | Diataxis navigation map — quadrant structure of the `docs/` directory |
+| [`DIAGRAMS_INDEX.md`](DIAGRAMS_INDEX.md) | Mermaid diagram verification registry — diagrams inline in parent documents |
 
 ---
 
@@ -120,4 +118,4 @@ bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/verify-docs.sh      # Tier 1 code-anchored claim verification
 ```
 
-ℏKask — A Minimal Viable Container for UserPods — v0.31.0 — Diataxis-structured documentation portal
+ℏKask v0.31.0 — A Sovereign Chat Client for Human Users with AI Skills — Diataxis-structured documentation portal

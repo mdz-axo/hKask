@@ -2,7 +2,7 @@
 title: "Toyota Kata Cybernetic Mapping — hKask Control Planes, Nodes, Edges, and Interaction Loops"
 audience: [architects, developers, agents]
 last_updated: 2026-07-21
-version: "0.32.0"
+version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
 mds_categories: [domain, composition, trust, curation]
@@ -622,4 +622,4 @@ The most important insight from the mapping is the **prediction gap** (§6.1). T
 
 ---
 
-*ℏKask - A Minimal Viable Container for UserPods — Toyota Kata Cybernetic Mapping — v0.32.0*
+*ℏKask v0.31.0 — Toyota Kata Cybernetic Mapping*

@@ -36,7 +36,7 @@
 {% if variety > threshold %}
 {% do reg.emit({
     "event": "algedonic_alert",
-    "alert": "reg.algedonic.variety_deficit",
+    "alert": "reg.alert",
     "counter": counter_name,
     "value": variety,
     "threshold": threshold,

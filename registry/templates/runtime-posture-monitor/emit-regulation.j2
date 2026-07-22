@@ -93,7 +93,7 @@ SEMANTIC GROUNDING (P8): Every claim has span target, timestamp, signal
 value, baseline reference, concrete snippet, taxonomy reference, source
 citation.
 EVOLUTIONARY (P7): New defense-layer firing gaps proposed only from real
-runtime evidence (e.g., `reg.guard.input` firing but `reg.regulation.action_blocked`
+runtime evidence (e.g., `reg.guard.input` firing but `reg.outcome.action_blocked`
 not increasing — observed in telemetry, not speculative).
 OCAP BOUNDARY (P4): Audit observes only hKask's own Regulation telemetry; no
 external endpoint scanning; no OS-level process inspection.
@@ -127,6 +127,6 @@ PUBLIC VISIBILITY: `visibility: public` — no hidden runtime audit controls.
 NO FABRICATION: Only threats with quoted span evidence are reported. Only
 regressions with concrete `pattern` (regex against span target or signal
 value) are proposed. Only defense layers with observed firing (actual
-`reg.guard.*` or `reg.regulation.*` spans) are counted as firing.
+`reg.guard.*` or `reg.outcome.*` spans) are counted as firing.
 CONVERGENCE INDEPENDENT: Convergence-check is a separate phase; this
 emit-regulation phase does not compute metric.

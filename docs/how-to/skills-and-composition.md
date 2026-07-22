@@ -890,7 +890,7 @@ HKASK_MCP_HOST=alice cargo run -p <your-mcp-package>
 
 ## Related
 
-- [Agents and Pods](agents-and-pods.md) — Pod management and REPL/TUI usage
+- [Agents and Pods](install-and-configure.md) — Pod management and REPL/TUI usage
 - [Sovereignty and Observability](sovereignty-and-observability.md) — Regulation spans emitted by skill execution
 - [Magna Carta Reference](../reference/magna-carta.md) — P5.1 registry canonical source rule
 ---
