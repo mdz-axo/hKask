@@ -9,7 +9,7 @@
 //! wrappers around it.
 //!
 //! See `registry/templates/superforecasting/README.md` (Deterministic
-//! Primitives contract) and `docs/explanation/superforecasting-layers.md`
+//! Primitives contract) and `docs/explanation/forecasting-and-scenarios.md`
 //! for the layered architecture.
 
 use crate::scenarios::ScenarioResult;

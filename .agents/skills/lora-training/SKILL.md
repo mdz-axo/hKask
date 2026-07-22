@@ -4,7 +4,7 @@ visibility: public
 description: >
   LoRA/QLoRA training configuration and contract enforcement skill for hKask
   (v0.31.0). Produces an advisory, composable PEFT recommendation through a
-  deterministic 7-gate refinement (adapter purpose → inference constraint →
+  deterministic 8-gate refinement (adapter purpose → dataset analysis →
   memory → task distance → quality/cost → knowledge preservation → harness
   capability); the operator accepts, overrides, or rejects it, and the runtime
   enforces established hard contracts against concrete accepted configuration.

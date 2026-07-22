@@ -53,7 +53,7 @@ Every MCP server MUST include **tool-behavior contract tests** that invoke tools
 - [Companies MCP Code Review](../../status/companies-mcp-code-review-2026-07-15.md) — adversarial code review of the companies server
 - [Companies Semantic Graph Audit](../../status/companies-mcp-semantic-graph-audit-2026-07-17.md) — internal module dependency graph health
 - [Scenario Forecasting Pipeline Diagram](scenarios.md) — scenarios tool flow (DIAG-RF-005 inline)
-- [Superforecasting: Layered Model](../../explanation/superforecasting-layers.md) — three-layer architecture
+- [Superforecasting: Layered Model](../../explanation/forecasting-and-scenarios.md) — three-layer architecture
 - [Architecture Patterns](../../explanation/architecture-patterns.md) — MCP dispatch sequence
 - [CodeGraph Adversarial Review](../../status/codegraph-mcp-adversarial-review-2026-07-20.md) — adversarial code review of the codegraph server (17 findings, all fixed)
 
