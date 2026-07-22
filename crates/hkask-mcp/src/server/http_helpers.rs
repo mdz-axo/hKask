@@ -79,15 +79,6 @@ pub async fn api_get(
     http_req(client, service, "GET", url, None).await
 }
 #[must_use = "result must be used"]
-pub async fn api_post(
-    client: &reqwest::Client,
-    service: &str,
-    url: &str,
-    payload: &Value,
-) -> Result<Value, McpToolError> {
-    http_req(client, service, "POST", url, Some(payload)).await
-}
-#[must_use = "result must be used"]
 pub async fn api_put(
     client: &reqwest::Client,
     service: &str,

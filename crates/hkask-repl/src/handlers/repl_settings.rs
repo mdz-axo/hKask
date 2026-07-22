@@ -579,7 +579,7 @@ mod tests {
             gas_heuristic: 100,
             gas_cap: 5_000,
             auto_condense: false,
-            condense_pressure_threshold: 0.875,
+            condense_pressure_threshold: DEFAULT_CONDENSE_THRESHOLD,
             condense_saliency_window: 5,
             pre_compress: false,
             short_term_memory_life: 60,

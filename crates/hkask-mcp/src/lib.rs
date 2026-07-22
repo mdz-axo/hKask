@@ -90,7 +90,7 @@ where
 
 /// Result of the standard MCP server daemon bootstrap flow.
 ///
-/// All 12 MCP server binaries use this. The userpod identity
+/// All 16 MCP server binaries use this. The userpod identity
 /// and optional daemon client are passed to the server's `run()`.
 #[must_use = "bootstrap result must be passed to the server's run() function"]
 pub struct MCPBootstrap {

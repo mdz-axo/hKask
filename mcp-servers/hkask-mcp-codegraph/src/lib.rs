@@ -35,7 +35,18 @@ hkask_mcp::mcp_server!(
     }
 );
 
+// Helper: convert any displayable error to McpToolError::internal
+fn db_err(e: impl std::fmt::Display) -> McpToolError {
+    McpToolError::internal(e.to_string())
+}
+
 impl CodeGraphServer {
+    fn pipeline_guard(&self) -> Result<std::sync::MutexGuard<IndexPipeline>, McpToolError> {
+        self.pipeline
+            .lock()
+            .map_err(|_| McpToolError::internal("pipeline lock poisoned"))
+    }
+
     fn ensure_indexed(&self) -> Result<(), McpToolError> {
         // Fast path: if we've already indexed, skip the walk entirely.
         // The BLAKE3 hash check inside index_directory still catches changed
@@ -45,10 +56,7 @@ impl CodeGraphServer {
         }
 
         let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        let mut pipeline = self
-            .pipeline
-            .lock()
-            .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+        let mut pipeline = self.pipeline_guard()?;
 
         // OCAP-governed file access (#5): future integration point.
         // When the daemon provides capability verification, filter paths here
@@ -181,13 +189,10 @@ impl CodeGraphServer {
     pub async fn codegraph_query(&self, Parameters(req): Parameters<QueryRequest>) -> String {
         execute_tool(self, "codegraph_query", async {
             self.ensure_indexed()?;
-            let pipeline = self
-                .pipeline
-                .lock()
-                .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+            let pipeline = self.pipeline_guard()?;
             let results =
                 graph::search::search(pipeline.store().conn(), &req.query, req.limit as usize)
-                    .map_err(|e| McpToolError::internal(e.to_string()))?;
+                    .map_err(db_err)?;
             // If name provided, return exact symbol match (replaces codegraph_node).
             // Returns an explicit error when the name is not found, matching
             // codegraph_traverse's contract — never a silent null.
@@ -209,12 +214,9 @@ impl CodeGraphServer {
     pub async fn codegraph_traverse(&self, Parameters(req): Parameters<TraverseRequest>) -> String {
         execute_tool(self, "codegraph_traverse", async {
             self.ensure_indexed()?;
-            let pipeline = self
-                .pipeline
-                .lock()
-                .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+            let pipeline = self.pipeline_guard()?;
             let id = traversal::find_symbol_id(pipeline.store().conn(), &req.symbol)
-                .map_err(|e| McpToolError::internal(e.to_string()))?;
+                .map_err(db_err)?;
             match id {
                 Some(id) => {
                     let nodes = traversal::traverse(
@@ -223,7 +225,7 @@ impl CodeGraphServer {
                         req.direction,
                         req.max_depth as usize,
                     )
-                    .map_err(|e| McpToolError::internal(e.to_string()))?;
+                    .map_err(db_err)?;
                     Ok(serde_json::json!(nodes))
                 }
                 None => {
@@ -238,12 +240,9 @@ impl CodeGraphServer {
     pub async fn codegraph_impact(&self, Parameters(req): Parameters<ImpactRequest>) -> String {
         execute_tool(self, "codegraph_impact", async {
             self.ensure_indexed()?;
-            let pipeline = self
-                .pipeline
-                .lock()
-                .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+            let pipeline = self.pipeline_guard()?;
             let id = traversal::find_symbol_id(pipeline.store().conn(), &req.symbol)
-                .map_err(|e| McpToolError::internal(e.to_string()))?;
+                .map_err(db_err)?;
             match id {
                 Some(id) => {
                     let results = traversal::impact_analysis(
@@ -251,7 +250,7 @@ impl CodeGraphServer {
                         id,
                         req.max_depth as usize,
                     )
-                    .map_err(|e| McpToolError::internal(e.to_string()))?;
+                    .map_err(db_err)?;
                     Ok(serde_json::json!({
                         "symbol": req.symbol,
                         "total_affected": results.len(),
@@ -270,19 +269,16 @@ impl CodeGraphServer {
     pub async fn codegraph_analysis(&self, Parameters(req): Parameters<AnalysisRequest>) -> String {
         execute_tool(self, "codegraph_analysis", async {
             self.ensure_indexed()?;
-            let pipeline = self
-                .pipeline
-                .lock()
-                .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+            let pipeline = self.pipeline_guard()?;
             match req.kind {
                 AnalysisKind::DeadCode => {
                     let findings = analysis::find_dead_code(pipeline.store().conn())
-                        .map_err(|e| McpToolError::internal(e.to_string()))?;
+                        .map_err(db_err)?;
                     Ok(serde_json::json!(findings))
                 }
                 AnalysisKind::Complexity => {
                     let findings = analysis::find_high_complexity(pipeline.store().conn(), 10, 5)
-                        .map_err(|e| McpToolError::internal(e.to_string()))?;
+                        .map_err(db_err)?;
                     Ok(serde_json::json!(findings))
                 }
             }
@@ -294,13 +290,10 @@ impl CodeGraphServer {
     pub async fn codegraph_context(&self, Parameters(req): Parameters<ContextRequest>) -> String {
         execute_tool(self, "codegraph_context", async {
             self.ensure_indexed()?;
-            let pipeline = self
-                .pipeline
-                .lock()
-                .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+            let pipeline = self.pipeline_guard()?;
             let assembled =
                 hkask_codegraph::assemble_context(pipeline.store().conn(), &req.query, req.budget)
-                    .map_err(|e| McpToolError::internal(e.to_string()))?;
+                    .map_err(db_err)?;
             Ok(serde_json::json!({
                 "context_id": assembled.context_id.to_string(),
                 "text": assembled.text,
@@ -318,10 +311,7 @@ impl CodeGraphServer {
     ) -> String {
         execute_tool(self, "codegraph_structure", async {
             self.ensure_indexed()?;
-            let pipeline = self
-                .pipeline
-                .lock()
-                .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+            let pipeline = self.pipeline_guard()?;
             let conn = pipeline.store().conn();
             let limit = req.limit as i64;
             let mut stmt = conn
@@ -330,7 +320,7 @@ impl CodeGraphServer {
                  FROM symbols s JOIN code_files f ON s.file_id = f.id
                  ORDER BY pagerank DESC LIMIT ?1",
                 )
-                .map_err(|e| McpToolError::internal(e.to_string()))?;
+                .map_err(db_err)?;
             let rows: Vec<serde_json::Value> = stmt
                 .query_map(rusqlite::params![limit], |row| {
                     Ok(serde_json::json!({
@@ -342,7 +332,7 @@ impl CodeGraphServer {
                         "pagerank": row.get::<_, f64>(5)?,
                     }))
                 })
-                .map_err(|e| McpToolError::internal(e.to_string()))?
+                .map_err(db_err)?
                 .filter_map(|r| r.ok())
                 .collect();
             Ok(serde_json::json!(rows))
@@ -357,13 +347,10 @@ impl CodeGraphServer {
             // query that should return immediately. On a fresh server with no prior
             // tool call, stats returns zeros. Call codegraph_reindex or any other
             // tool first to populate the index.
-            let pipeline = self
-                .pipeline
-                .lock()
-                .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+            let pipeline = self.pipeline_guard()?;
             let stats = pipeline
                 .stats()
-                .map_err(|e| McpToolError::internal(e.to_string()))?;
+                .map_err(db_err)?;
             let mut output = serde_json::json!({
                 "files": stats.files, "symbols": stats.symbols, "edges": stats.edges,
             });
@@ -389,7 +376,7 @@ impl CodeGraphServer {
                         SUM(CASE WHEN path LIKE '%.md' THEN 1 ELSE 0 END)
                  FROM code_files",
                     )
-                    .map_err(|e| McpToolError::internal(e.to_string()))?;
+                    .map_err(db_err)?;
                 if let Ok(meta) = stmt.query_row([], |row| {
                     Ok(serde_json::json!({
                         "total": row.get::<_, i64>(0)?,
@@ -412,10 +399,9 @@ impl CodeGraphServer {
         execute_tool(self, "codegraph_reindex", async {
             let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
             // Acquire a mutable lock so we can call finalize() (which needs &mut self).
-            let mut pipeline = self.pipeline.lock()
-                .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+            let mut pipeline = self.pipeline_guard()?;
             let results = pipeline.index_directory(&cwd)
-                .map_err(|e| McpToolError::internal(e.to_string()))?;
+                .map_err(db_err)?;
             let total_sym: usize = results.iter().map(|r| r.symbols).sum();
             let total_edg: usize = results.iter().map(|r| r.edges).sum();
             let indexed: usize = results.iter().filter(|r| !r.skipped).count();
@@ -424,7 +410,7 @@ impl CodeGraphServer {
             if let Err(e) = pipeline.finalize() {
                 tracing::warn!(target: "hkask.mcp.codegraph", error = %e, "Finalize failed after reindex");
             }
-            let stats = pipeline.stats().map_err(|e| McpToolError::internal(e.to_string()))?;
+            let stats = pipeline.stats().map_err(db_err)?;
             // Mark as indexed so subsequent read tool calls skip the walk.
             self.indexed_once.store(true, std::sync::atomic::Ordering::Release);
             Ok(serde_json::json!({
@@ -478,8 +464,7 @@ impl CodeGraphServer {
 
             // Phase 1: extract all symbol data from DB (before any .await)
             let rows: Vec<(i64, serde_json::Value)> = {
-                let pipeline = self.pipeline.lock()
-                    .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+                let pipeline = self.pipeline_guard()?;
                 let conn = pipeline.store().conn();
                 let mut stmt = conn.prepare(
                     "SELECT s.id, s.name, s.kind, s.signature, s.doc_comment,
@@ -490,7 +475,7 @@ impl CodeGraphServer {
                          SELECT 1 FROM symbols_vec WHERE rowid = s.id
                      )
                      ORDER BY s.name"
-                ).map_err(|e| McpToolError::internal(e.to_string()))?;
+                ).map_err(db_err)?;
                 stmt.query_map([], |row| {
                     Ok((row.get::<_, i64>(0)?, serde_json::json!({
                         "name": row.get::<_, String>(1)?,
@@ -500,7 +485,7 @@ impl CodeGraphServer {
                         "visibility": row.get::<_, String>(5)?,
                         "file": row.get::<_, String>(6)?,
                     })))
-                }).map_err(|e| McpToolError::internal(e.to_string()))?
+                }).map_err(db_err)?
                 .filter_map(|r| r.ok()).collect()
             };
             // Connection dropped here — safe to .await now
@@ -550,8 +535,7 @@ impl CodeGraphServer {
 
             // Phase 3: insert into DB (re-acquire connection)
             let indexed = {
-                let pipeline = self.pipeline.lock()
-                    .map_err(|_| McpToolError::internal("pipeline lock poisoned"))?;
+                let pipeline = self.pipeline_guard()?;
                 let conn = pipeline.store().conn();
                 let mut count = 0usize;
                 for (id, embedding) in &all_embeddings {
@@ -559,7 +543,7 @@ impl CodeGraphServer {
                     conn.execute(
                         "INSERT OR IGNORE INTO symbols_vec(rowid, embedding) VALUES (?1, ?2)",
                         rusqlite::params![id, blob],
-                    ).map_err(|e| McpToolError::internal(e.to_string()))?;
+                    ).map_err(db_err)?;
                     count += 1;
                 }
                 count
