@@ -68,11 +68,6 @@ pub enum ProviderId {
     /// Env: `CLINE_API_KEY`, `CLINE_BASE_URL` (default `https://api.cline.bot/api`).
     #[serde(rename = "CL")]
     Cline,
-    /// Thinking Machines Tinker (cloud) — prefix `TM/`
-    /// Tinker is a training + inference API that handles distributed GPU compute.
-    /// Env: `TINKER_API_KEY`. OpenAI-compatible inference API.
-    #[serde(rename = "TM")]
-    Tinker,
 }
 
 impl ProviderId {
@@ -151,7 +146,7 @@ impl ProviderId {
     ///
     /// expect: "The system normalizes provider responses for monitoring"
     /// \[P9\] Motivating: Homeostatic Self-Regulation — stable provider code for routing
-    /// post: returns "DI", "FA", "TG", "RP", "OR", "KC", "OM", "CL", or "TM"
+    /// post: returns "DI", "FA", "TG", "RP", "OR", "KC", "OM", or "CL"
     #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -163,7 +158,6 @@ impl ProviderId {
             ProviderId::KiloCode => "KC",
             ProviderId::Ollama => "OM",
             ProviderId::Cline => "CL",
-            ProviderId::Tinker => "TM",
         }
     }
 }

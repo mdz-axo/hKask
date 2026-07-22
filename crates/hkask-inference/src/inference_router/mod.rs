@@ -14,11 +14,11 @@ use crate::ollama_backend::OllamaBackend;
 use crate::openrouter_backend::OpenRouterBackend;
 use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
-use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_regulation::{CyberneticsLoop, GasCost};
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::regulation::RegulationSpan;
 use hkask_types::template::LLMParameters;
+use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::{RegulationSink, WebID};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -324,8 +324,6 @@ impl InferenceRouter {
             ProviderId::Cline => self.cline.as_ref().map(|b| b as &dyn ChatBackend),
             // RunPod is vision/OCR-only — it is not a ChatBackend.
             ProviderId::Runpod => None,
-            // Tinker adapter is scaffolded but not registered as a chat backend.
-            ProviderId::Tinker => None,
         }
     }
 
@@ -342,8 +340,6 @@ impl InferenceRouter {
             ProviderId::Ollama => self.ollama.as_ref().map(|b| b as &dyn VisionBackend),
             ProviderId::Cline => self.cline.as_ref().map(|b| b as &dyn VisionBackend),
             ProviderId::Runpod => self.runpod.as_ref().map(|b| b as &dyn VisionBackend),
-            // Tinker adapter is scaffolded but not registered as a vision backend.
-            ProviderId::Tinker => None,
         }
     }
 

@@ -124,7 +124,6 @@ impl EmbeddingRouter {
             ProviderId::Runpod => false,
             ProviderId::Ollama => self.ollama_client.is_some(),
             ProviderId::Cline => false,
-            ProviderId::Tinker => false,
         };
 
         if !available {
@@ -223,11 +222,6 @@ impl EmbeddingRouter {
             ProviderId::Cline => {
                 return Err(EmbeddingGenerationError::Connection(
                     "Cline is a chat gateway, not an embedding provider".into(),
-                ));
-            }
-            ProviderId::Tinker => {
-                return Err(EmbeddingGenerationError::Connection(
-                    "Tinker is a training/adapter provider, not an embedding provider".into(),
                 ));
             }
         };

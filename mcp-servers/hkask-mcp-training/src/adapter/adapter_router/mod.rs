@@ -8,11 +8,6 @@
 //! Together AI was removed as an adapter inference backend — it is deprecated as a
 //! training/adapter provider. Together remains available as a chat/vision inference
 //! provider via `hkask-inference` (non-adapter inference).
-//! Tinker was removed as an inference backend — it used a fabricated API URL
-//! (api.tinker.ai/v1/openai/ — does not exist) and had no AdapterSource::Tinker
-//! variant to carry the tinker:// checkpoint path. Tinker remains a training
-//! host; inference of Tinker-trained adapters goes through download → HuggingFace
-//! upload → Runpod inference.
 
 mod openai;
 mod runpod;
@@ -27,8 +22,8 @@ use crate::adapter::adapter_store::TrainedLoRAAdapter;
 use crate::adapter::endpoint_lifecycle::{EndpointLifecycle, EndpointPhase};
 use crate::adapter::provider_cost::{CostModel, ProviderCapability, ProviderInfo};
 use hkask_capability::DelegationToken;
-use hkask_storage::database::value::DbValue;
 use hkask_inference::ProviderId;
+use hkask_storage::database::value::DbValue;
 use hkask_types::InferenceResult;
 use hkask_types::NotFound;
 use hkask_types::id::WebID;
