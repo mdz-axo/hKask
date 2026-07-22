@@ -286,7 +286,7 @@ The natural-language criteria map to FMP screener parameters. `company_screener`
 ## Cross-links
 
 - [Companies MCP Server Reference](../reference/mcp-servers/companies.md) — full tool catalog, configuration, and behavioral boundaries
-- [Tool Routing and Dispatch Flow](../diagrams/flowchart-companies-tool-routing.md) — DIAG-RF-004 dispatch diagram
+- [Tool Routing and Dispatch Flow](../reference/mcp-servers/companies.md) — DIAG-RF-004 dispatch diagram (inline)
 - [Install and Configure](install-and-configure.md) — build and profile setup
 - [Sovereignty and Observability](sovereignty-and-observability.md) — capability tokens and Regulation alerts
 - [Superforecasting: Layered Model](../explanation/superforecasting-layers.md) — three-layer forecasting architecture

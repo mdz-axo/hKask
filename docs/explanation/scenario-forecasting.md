@@ -66,7 +66,7 @@ The scenarios server uses a binomial event-tree model (MAIA methodology):
 
 ## Cross-links
 
-- [Scenario Forecasting Pipeline Diagram](../diagrams/flowchart-scenario-forecasting-pipeline.md) — tool flow diagram
+- [Scenario Forecasting Pipeline Diagram](../reference/mcp-servers/scenarios.md) — tool flow diagram (DIAG-RF-005, inline)
 - [Scenarios Adversarial Review](../status/scenarios-adversarial-review.md) — code smell inventory
 - [Scenarios ↔ Companies Bridge](../architecture/core/scenarios-companies-bridge.md) — FIBO to Dublin Core translation
 - [Superforecasting: Layered Model](superforecasting-layers.md) — three-layer architecture (skill, math, servers)
