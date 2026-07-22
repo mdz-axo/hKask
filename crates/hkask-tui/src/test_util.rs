@@ -58,17 +58,6 @@ impl ReplBridge for MockReplBridge {
     fn streaming_text(&self, _request: InferenceRequestId) -> String {
         String::new()
     }
-    fn send_message_blocking(&self, _input: &str) -> TuiTurnResult {
-        TuiTurnResult {
-            text: String::new(),
-            prompt_tokens: 0,
-            completion_tokens: 0,
-            total_tokens: 0,
-            gas_cost: 0,
-            iterations: 0,
-            budget_exhausted: false,
-        }
-    }
     fn send_curator_message(&self, _input: &str) -> String {
         String::new()
     }

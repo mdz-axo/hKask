@@ -268,7 +268,7 @@ impl ChatWindow {
             .unwrap_or("");
 
         match primary {
-            "help" => {
+            "help" | "?" => {
                 self.add_message(
                     MessageSender::CnsAlert,
                     "Commands: /help /quit /clear /model /status /repl /mcp /agent /tui /export /curator /open /close /split /focus /tab /palette".into(),
@@ -568,13 +568,13 @@ impl ChatWindow {
                 self.pending_action = Some(WorkspaceAction::OpenPalette);
             }
             _ => {
-                self.add_message(
-                    MessageSender::CnsAlert,
-                    format!(
-                        "Unknown command: /{}. Type /help for available commands.",
-                        primary
-                    ),
-                );
+                // Delegate to the bridge — thin dispatch (Cline pattern).
+                // The bridge handles what it can and returns guidance for the rest.
+                let result = self.bridge.handle_command(primary);
+                self.add_message(MessageSender::CnsAlert, result.text);
+                if result.should_quit {
+                    self.pending_action = Some(WorkspaceAction::Quit);
+                }
             }
         }
     }

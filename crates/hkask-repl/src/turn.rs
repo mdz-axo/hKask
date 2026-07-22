@@ -325,6 +325,25 @@ fn run_turn_loop(
 
 // ── Public wrappers ──────────────────────────────────────────────────
 
+/// Shared turn execution: run the loop, speak if TTS is on, return the outcome.
+/// All public entry points are thin wrappers around this.
+fn run_turn_generic(
+    input: &str,
+    state: &mut ReplState,
+    rt: &tokio::runtime::Handle,
+    a2a_secret: &[u8],
+    agent_override: Option<&str>,
+    sink: &mut impl TurnSink,
+) -> TurnOutcome {
+    let outcome = run_turn_with_state(input, state, rt, a2a_secret, agent_override, sink);
+    if let Some(ref resp) = outcome.final_response
+        && state.talk_config.mode == TalkMode::On
+    {
+        speak_response(resp, state, rt);
+    }
+    outcome
+}
+
 pub(super) fn single_agent_turn(
     input: &str,
     state: &mut ReplState,
@@ -332,13 +351,14 @@ pub(super) fn single_agent_turn(
     a2a_secret: &[u8],
     agent_override: Option<&str>,
 ) -> bool {
-    let mut sink = StdoutSink;
-    let outcome = run_turn_with_state(input, state, rt, a2a_secret, agent_override, &mut sink);
-    if let Some(ref resp) = outcome.final_response
-        && state.talk_config.mode == TalkMode::On
-    {
-        speak_response(resp, state, rt);
-    }
+    let outcome = run_turn_generic(
+        input,
+        state,
+        rt,
+        a2a_secret,
+        agent_override,
+        &mut StdoutSink,
+    );
     outcome.success
 }
 
@@ -353,20 +373,9 @@ pub struct TurnCapture {
     pub budget_exhausted: bool,
 }
 
+/// Build a TurnCapture from a CaptureSink + TurnOutcome.
 #[cfg(feature = "tui")]
-pub fn single_agent_turn_captured(
-    input: &str,
-    state: &mut ReplState,
-    rt: &tokio::runtime::Handle,
-    a2a_secret: &[u8],
-) -> TurnCapture {
-    let mut sink = CaptureSink::new();
-    let outcome = run_turn_with_state(input, state, rt, a2a_secret, None, &mut sink);
-    if let Some(ref resp) = outcome.final_response
-        && state.talk_config.mode == TalkMode::On
-    {
-        speak_response(resp, state, rt);
-    }
+fn capture_from_outcome(sink: CaptureSink, outcome: TurnOutcome) -> TurnCapture {
     TurnCapture {
         response_text: sink.response_text.trim().to_string(),
         tool_output: sink.tool_output,
@@ -377,6 +386,19 @@ pub fn single_agent_turn_captured(
         budget_exhausted: outcome.budget_exhausted,
     }
 }
+
+#[cfg(feature = "tui")]
+pub fn single_agent_turn_captured(
+    input: &str,
+    state: &mut ReplState,
+    rt: &tokio::runtime::Handle,
+    a2a_secret: &[u8],
+) -> TurnCapture {
+    let mut sink = CaptureSink::new();
+    let outcome = run_turn_generic(input, state, rt, a2a_secret, None, &mut sink);
+    capture_from_outcome(sink, outcome)
+}
+
 /// Like `single_agent_turn_captured` but forces a specific agent (e.g. the
 /// Curator) to handle the turn. Used by the TUI's CuratorWindow so its
 /// messages run through the real inference pipeline instead of a stub.
@@ -389,21 +411,8 @@ pub fn single_agent_turn_captured_with_agent(
     agent: &str,
 ) -> TurnCapture {
     let mut sink = CaptureSink::new();
-    let outcome = run_turn_with_state(input, state, rt, a2a_secret, Some(agent), &mut sink);
-    if let Some(ref resp) = outcome.final_response
-        && state.talk_config.mode == TalkMode::On
-    {
-        speak_response(resp, state, rt);
-    }
-    TurnCapture {
-        response_text: sink.response_text.trim().to_string(),
-        tool_output: sink.tool_output,
-        prompt_tokens: outcome.usage.prompt_tokens,
-        completion_tokens: outcome.usage.completion_tokens,
-        total_tokens: outcome.usage.total_tokens,
-        iterations: outcome.iterations,
-        budget_exhausted: outcome.budget_exhausted,
-    }
+    let outcome = run_turn_generic(input, state, rt, a2a_secret, Some(agent), &mut sink);
+    capture_from_outcome(sink, outcome)
 }
 
 /// Build TurnDeps from ReplState and run the turn loop.

@@ -591,6 +591,26 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
         match operation.receiver.try_recv() {
             Ok(result) => {
                 pending.remove(&request);
+                // Update status bar metrics — previously only in the now-deleted
+                // send_message_blocking (which had zero callers). This is the
+                // actual hot path: the TUI polls on every tick (16ms).
+                self.context_used
+                    .fetch_add(result.total_tokens, std::sync::atomic::Ordering::Relaxed);
+                if result.budget_exhausted {
+                    self.alert_count
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                }
+                // Refresh context window from model metadata.
+                if let Ok(state) = self.state.lock() {
+                    let ctx_len = state
+                        .repl_settings
+                        .model_meta
+                        .as_ref()
+                        .map(|m| m.context_length)
+                        .unwrap_or(DEFAULT_CONTEXT_WINDOW);
+                    self.context_window
+                        .store(ctx_len, std::sync::atomic::Ordering::Relaxed);
+                }
                 hkask_tui::InferenceState::Done(result)
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => hkask_tui::InferenceState::Thinking,
@@ -613,38 +633,6 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
             .unwrap_or_default()
     }
 
-    fn send_message_blocking(&self, input: &str) -> hkask_tui::TuiTurnResult {
-        let (result, context_length) = {
-            let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-            let capture = turn::single_agent_turn_captured(
-                input,
-                &mut state,
-                &self.rt_handle,
-                self.a2a_secret.as_bytes(),
-            );
-            let ctx_len = state
-                .repl_settings
-                .model_meta
-                .as_ref()
-                .map(|m| m.context_length)
-                .unwrap_or(DEFAULT_CONTEXT_WINDOW);
-            (Self::build_result(&capture), ctx_len)
-        };
-        let input_tokens = (input.len() as u32 / 4).max(1);
-        let resp_tokens = result.total_tokens;
-        self.context_used.fetch_add(
-            input_tokens + resp_tokens,
-            std::sync::atomic::Ordering::Relaxed,
-        );
-        if result.budget_exhausted {
-            self.alert_count
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        }
-        self.context_window
-            .store(context_length, std::sync::atomic::Ordering::Relaxed);
-        result
-    }
-
     fn send_curator_message(&self, input: &str) -> String {
         // Run the turn through the real inference pipeline as the Curator
         // agent — NOT a canned stub. The operator's message reaches a live
@@ -663,6 +651,83 @@ impl hkask_tui::ReplBridge for TuiReplBridge {
                 .to_string()
         } else {
             capture.response_text
+        }
+    }
+
+    fn handle_command(&self, cmd: &str) -> hkask_tui::CommandResult {
+        let parts: Vec<&str> = cmd.splitn(3, ' ').collect();
+        let primary = parts.first().copied().unwrap_or("");
+        match primary {
+            // /fusion — show fusion status from inference config
+            "fusion" => {
+                let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                if let Some(ref fusion) = state.service_context.config().inference_config.fusion {
+                    hkask_tui::CommandResult {
+                        text: format!("Fusion: {} — {}", fusion.mode, fusion.description()),
+                        should_quit: false,
+                    }
+                } else {
+                    hkask_tui::CommandResult {
+                        text: "Fusion not configured. Set HKASK_FUSION_MODE + HKASK_FUSION_PANEL_MODELS env vars.".into(),
+                        should_quit: false,
+                    }
+                }
+            }
+            // /ask <agent> <message> — blocking turn with a specific agent
+            "ask" => {
+                let agent = parts.get(1).copied().unwrap_or("");
+                let message = parts.get(2).copied().unwrap_or("");
+                if agent.is_empty() || message.is_empty() {
+                    return hkask_tui::CommandResult {
+                        text: "Usage: /ask <agent> <message>".into(),
+                        should_quit: false,
+                    };
+                }
+                let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                let capture = turn::single_agent_turn_captured_with_agent(
+                    message,
+                    &mut state,
+                    &self.rt_handle,
+                    self.a2a_secret.as_bytes(),
+                    agent,
+                );
+                hkask_tui::CommandResult {
+                    text: if capture.response_text.is_empty() {
+                        format!(
+                            "({} produced no response — check agent registration and provider reachability.)",
+                            agent
+                        )
+                    } else {
+                        capture.response_text
+                    },
+                    should_quit: false,
+                }
+            }
+            // /thread — show thread info from registry
+            "thread" | "th" => {
+                let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+                let reg = &state.thread_registry;
+                let active = reg
+                    .active_thread_id
+                    .map(|id| id.to_string())
+                    .unwrap_or_else(|| "none".into());
+                hkask_tui::CommandResult {
+                    text: format!(
+                        "Active thread: {}\nThreads: {}\nSeeded: {}\nUse `kask thread` CLI for full management.",
+                        active,
+                        reg.threads.len(),
+                        reg.seeded
+                    ),
+                    should_quit: false,
+                }
+            }
+            _ => hkask_tui::CommandResult {
+                text: format!(
+                    "Command /{} not available in TUI. Use `kask {}` in the CLI.",
+                    primary, primary
+                ),
+                should_quit: false,
+            },
         }
     }
 }

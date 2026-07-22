@@ -104,6 +104,53 @@ impl EpisodicStoragePort for MockEpisodicPort {
     }
 }
 
+/// Mock that returns pre-configured episodes (in port order: most-recent-first).
+struct MockEpisodicPortWithEpisodes {
+    episodes: Vec<RecalledEpisode>,
+}
+impl EpisodicStoragePort for MockEpisodicPortWithEpisodes {
+    fn store_episodic(
+        &self,
+        _: StorageRequest,
+        _: &DelegationToken,
+    ) -> Result<String, MemoryPortError> {
+        Ok("id".into())
+    }
+    fn recall_episodic(&self, _: &RecallRequest) -> Result<Vec<RecalledEpisode>, MemoryPortError> {
+        Ok(self.episodes.clone())
+    }
+    fn episodic_storage_usage(&self, _: &WebID) -> Result<usize, MemoryPortError> {
+        Ok(self.episodes.len())
+    }
+    fn episodic_storage_budget(&self) -> usize {
+        10_000
+    }
+    fn store_episodic_classified(
+        &self,
+        r: StorageRequest,
+        _: ExperienceClassification,
+        _: Option<Confidence>,
+        t: &DelegationToken,
+    ) -> Result<String, MemoryPortError> {
+        self.store_episodic(r, t)
+    }
+}
+
+/// Build a chat-turn episode for testing.
+fn chat_episode(id: &str, user: &str, agent: &str, observed_at: &str) -> RecalledEpisode {
+    RecalledEpisode {
+        id: id.into(),
+        entity: "chatted".into(),
+        attribute: "chat_turn".into(),
+        value: serde_json::json!({"user_input": user, "agent_response": agent}),
+        confidence: Confidence::new(0.7),
+        perspective: None,
+        visibility: hkask_types::Visibility::Private,
+        observed_at: observed_at.into(),
+        dimension: None,
+    }
+}
+
 #[test]
 fn recall_semantic_empty_returns_none() {
     let mock: Arc<MockSemanticPort> = Arc::new(MockSemanticPort { h_mems: vec![] });
@@ -201,4 +248,135 @@ fn store_episodic_never_panics() {
     let port: Arc<dyn EpisodicStoragePort> = mock;
     let w = WebID::from_persona(b"t");
     MemoryService::store_episodic(&port, "", "", w, &test_token(w, w), "");
+}
+
+// ── Regression tests for recall ordering bugs ──────────────────────────────
+//
+// These tests verify that `recall_recent_turns` selects the MOST RECENT
+// episodes (not the oldest) and displays them in chronological order, and
+// that `recall_raw_episodes` returns messages with correct role ordering
+// (user before assistant within each turn) in chronological order.
+//
+// The port returns episodes most-recent-first (as `EpisodicMemory::query_for_deduped`
+// sorts by `observed_at` descending). The mock below simulates that order.
+
+fn recent_test_episodes() -> Vec<RecalledEpisode> {
+    // Most recent first (as the port returns):
+    vec![
+        chat_episode("5", "five", "resp5", "2026-07-05T00:00:00Z"),
+        chat_episode("4", "four", "resp4", "2026-07-04T00:00:00Z"),
+        chat_episode("3", "three", "resp3", "2026-07-03T00:00:00Z"),
+        chat_episode("2", "two", "resp2", "2026-07-02T00:00:00Z"),
+        chat_episode("1", "one", "resp1", "2026-07-01T00:00:00Z"),
+    ]
+}
+
+#[test]
+fn recall_recent_turns_returns_most_recent_in_chronological_order() {
+    let mock: Arc<MockEpisodicPortWithEpisodes> = Arc::new(MockEpisodicPortWithEpisodes {
+        episodes: recent_test_episodes(),
+    });
+    let port: Arc<dyn EpisodicStoragePort> = mock;
+    let w = WebID::from_persona(b"a");
+    let result = MemoryService::recall_recent_turns(&port, &w, &test_token(w, w), 3);
+    let history = result.expect("should return some history");
+
+    // Should include the 3 most recent episodes (3, 4, 5) — NOT the oldest (1, 2, 3).
+    assert!(
+        history.contains("three"),
+        "should include episode 3 (third most recent)"
+    );
+    assert!(
+        history.contains("four"),
+        "should include episode 4 (second most recent)"
+    );
+    assert!(
+        history.contains("five"),
+        "should include episode 5 (most recent)"
+    );
+    assert!(
+        !history.contains("one"),
+        "should NOT include episode 1 (oldest, excluded by limit)"
+    );
+    assert!(
+        !history.contains("two"),
+        "should NOT include episode 2 (second oldest, excluded)"
+    );
+
+    // Should be in chronological order: three before four before five.
+    let idx3 = history.find("three").unwrap();
+    let idx4 = history.find("four").unwrap();
+    let idx5 = history.find("five").unwrap();
+    assert!(
+        idx3 < idx4,
+        "episode 3 should appear before episode 4 (chronological)"
+    );
+    assert!(
+        idx4 < idx5,
+        "episode 4 should appear before episode 5 (chronological)"
+    );
+}
+
+#[test]
+fn recall_raw_episodes_returns_most_recent_with_correct_roles() {
+    let mock: Arc<MockEpisodicPortWithEpisodes> = Arc::new(MockEpisodicPortWithEpisodes {
+        episodes: recent_test_episodes(),
+    });
+    let port: Arc<dyn EpisodicStoragePort> = mock;
+    let w = WebID::from_persona(b"a");
+    let messages = MemoryService::recall_raw_episodes(&port, &w, &test_token(w, w), 3);
+
+    // Should return 6 messages: 3 episodes × 2 (user + assistant).
+    assert_eq!(messages.len(), 6, "3 episodes should produce 6 messages");
+
+    // Should include the 3 most recent episodes — NOT the oldest.
+    let contents: Vec<&str> = messages
+        .iter()
+        .filter_map(|m| m.get("content").and_then(|c| c.as_str()))
+        .collect();
+    assert!(
+        contents.contains(&"five"),
+        "should include episode 5 content"
+    );
+    assert!(
+        contents.contains(&"four"),
+        "should include episode 4 content"
+    );
+    assert!(
+        contents.contains(&"three"),
+        "should include episode 3 content"
+    );
+    assert!(
+        !contents.contains(&"one"),
+        "should NOT include episode 1 (oldest)"
+    );
+    assert!(
+        !contents.contains(&"two"),
+        "should NOT include episode 2 (second oldest)"
+    );
+
+    // First message should have role "user" (not "assistant" — role reversal bug).
+    let first_role = messages[0].get("role").and_then(|r| r.as_str());
+    assert_eq!(
+        first_role,
+        Some("user"),
+        "first message should be role=user (not assistant)"
+    );
+
+    // User message should come before assistant message within each turn.
+    let first_content = messages[0].get("content").and_then(|c| c.as_str());
+    let second_content = messages[1].get("content").and_then(|c| c.as_str());
+    let second_role = messages[1].get("role").and_then(|r| r.as_str());
+    assert_eq!(
+        second_role,
+        Some("assistant"),
+        "second message should be role=assistant"
+    );
+
+    // Should be in chronological order: episode 3 first, then 4, then 5.
+    assert_eq!(
+        first_content,
+        Some("three"),
+        "first user message should be episode 3 (oldest of selected)"
+    );
 }

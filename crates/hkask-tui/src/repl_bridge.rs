@@ -149,14 +149,33 @@ pub trait ReplBridge: SystemBridge {
     fn poll_inference(&self, request: InferenceRequestId) -> InferenceState;
     /// Get current streaming text for one inference request.
     fn streaming_text(&self, request: InferenceRequestId) -> String;
-    /// Blocking send (for quick commands, not normal chat).
-    fn send_message_blocking(&self, input: &str) -> TuiTurnResult;
     /// Send a message to the Curator daemon and get a response.
     fn send_curator_message(&self, input: &str) -> String;
+    /// Handle a slash command that the TUI doesn't handle locally.
+    /// Returns the text to display and whether the session should quit.
+    /// Default: returns guidance to use the CLI.
+    fn handle_command(&self, cmd: &str) -> CommandResult {
+        CommandResult {
+            text: format!(
+                "Command /{} not available in TUI. Use `kask {}` in the CLI.",
+                cmd, cmd
+            ),
+            should_quit: false,
+        }
+    }
     /// Start inference scoped to a single MCP server's tools.
     fn start_scoped_inference(&self, input: String, _mcp_server: &str) -> InferenceRequestId {
         self.start_inference(input)
     }
+}
+
+/// Result of a delegated slash command.
+#[derive(Debug, Clone)]
+pub struct CommandResult {
+    /// Text to display in the chat window.
+    pub text: String,
+    /// Whether the session should quit (e.g. /quit).
+    pub should_quit: bool,
 }
 
 /// Session-state surface for the TUI — agent switching, agent listing, and
