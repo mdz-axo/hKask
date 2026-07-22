@@ -9,17 +9,17 @@ use hkask_storage::{DecayConfig, RegulationArchive};
 use std::sync::Arc;
 
 /// SLO data provider backed by the real RegulationArchive.
-pub struct CnsStoreSloProvider {
+pub struct RegStoreSloProvider {
     store: Arc<RegulationArchive>,
 }
 
-impl CnsStoreSloProvider {
+impl RegStoreSloProvider {
     pub fn new(store: Arc<RegulationArchive>) -> Self {
         Self { store }
     }
 }
 
-impl SloDataProvider for CnsStoreSloProvider {
+impl SloDataProvider for RegStoreSloProvider {
     fn query(
         &self,
         span_namespace: &str,

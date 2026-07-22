@@ -34,7 +34,6 @@
 #![allow(clippy::useless_format)]
 #![allow(clippy::needless_borrow)]
 
-mod keybindings;
 mod repl_bridge;
 mod splash;
 mod status_bar;

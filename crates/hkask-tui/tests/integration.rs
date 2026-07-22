@@ -1101,38 +1101,6 @@ fn workspace_has_single_window_initially() {
 }
 
 #[test]
-fn workspace_focus_cycles() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let mut ws = {
-        let (s, r) = bridges();
-        Workspace::new_test(s, r)
-    };
-    let initial = ws.focused_window().unwrap();
-
-    // With 1 window, focus_next should stay on the same window
-    ws.focus_next();
-    assert_eq!(ws.focused_window().unwrap(), initial);
-    ws.focus_prev();
-    assert_eq!(ws.focused_window().unwrap(), initial);
-
-    // Split to create a second window
-    ws.handle_global_key(KeyEvent::new(
-        KeyCode::Char('j'),
-        KeyModifiers::CONTROL | KeyModifiers::SHIFT,
-    ));
-    assert_eq!(ws.window_count(), 2);
-    let after_split = ws.focused_window().unwrap();
-    assert_ne!(
-        after_split, initial,
-        "Focus should move to new window after split"
-    );
-
-    // Cycle back to first window
-    ws.focus_next();
-    assert_eq!(ws.focused_window().unwrap(), initial);
-}
-
-#[test]
 fn workspace_ctrl_q_quits() {
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     let mut ws = {
@@ -1144,21 +1112,6 @@ fn workspace_ctrl_q_quits() {
     let consumed = ws.handle_global_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::CONTROL));
     assert!(consumed);
     assert!(ws.should_quit);
-}
-
-#[test]
-fn workspace_ctrl_t_creates_tab() {
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    let mut ws = {
-        let (s, r) = bridges();
-        Workspace::new_test(s, r)
-    };
-    assert_eq!(ws.tab_count(), 1);
-
-    let consumed = ws.handle_global_key(KeyEvent::new(KeyCode::Char('t'), KeyModifiers::CONTROL));
-    assert!(consumed);
-    assert_eq!(ws.tab_count(), 2);
-    assert_eq!(ws.active_tab_index(), 1, "New tab should be active");
 }
 
 #[test]

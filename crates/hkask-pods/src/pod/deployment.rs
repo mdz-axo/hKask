@@ -110,7 +110,7 @@ pub enum PodDeployError {
     StorageInitFailed { path: PathBuf, reason: String },
 
     #[error("Failed to initialize Regulation runtime: {reason}")]
-    CnsInitFailed { reason: String },
+    RegInitFailed { reason: String },
 
     #[error("Pod lifecycle error: {0}")]
     PodError(#[from] AgentPodError),

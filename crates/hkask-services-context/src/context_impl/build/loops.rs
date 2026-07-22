@@ -4,7 +4,7 @@ use super::super::*;
 use hkask_database::sqlite::SqliteDriver;
 
 use super::foundation::Foundation;
-use crate::reg_store_slo_provider::CnsStoreSloProvider;
+use crate::reg_store_slo_provider::RegStoreSloProvider;
 use hkask_ports::{LedgerStoragePort, escalation::EscalationPort};
 use hkask_regulation::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
@@ -59,7 +59,7 @@ pub(super) async fn build_loops(
             .with_event_sink(Arc::clone(&f.reg_event_sink))
             .with_alerts_channel(f.curation_inbox_tx.clone())
             .with_curator_directive_channel(curator_directive_rx)
-            .with_slo_provider(Arc::new(CnsStoreSloProvider::new(Arc::clone(
+            .with_slo_provider(Arc::new(RegStoreSloProvider::new(Arc::clone(
                 &f.regulation_store,
             ))))
             .with_set_point_calibrator(

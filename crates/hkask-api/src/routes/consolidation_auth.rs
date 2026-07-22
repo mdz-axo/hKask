@@ -1,11 +1,11 @@
-//! Consolidation authentication helpers — passphrase verification and rate limiting.
+//! Consolidation auth — rate limiting and passphrase verification.
 //!
-//! The actual per-agent DB open + consolidation pipeline now lives in
-//! `hkask_services_context::AgentService::consolidate_userpod_memory`, which is
-//! the single OCAP-gated, consent-checked entry point. This module only keeps
-//! the helpers that surfaces (CLI/API) use as additional auth gates.
+//! Moved from `hkask-memory::consolidation_auth` — these are API-layer auth
+//! gates, not memory domain logic. The memory domain crate should not depend
+//! on `hkask-services-core` or `hkask-keystore`; co-locating the auth helpers
+//! with their sole consumer removes those dependency edges.
+//!
 //! # REQ: P2 (Affirmative Consent) — consolidation requires explicit consent.
-//! # expect: "Service operations require explicit, scoped consent"
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -23,10 +23,11 @@ const CONSOLIDATION_MIN_INTERVAL_SECS: u64 = 30;
 /// one global gate, not per-user. For a single-user headless system, this is sufficient.
 static LAST_CONSOLIDATION_EPOCH_SECS: AtomicU64 = AtomicU64::new(0);
 
-/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// Check the rate limit for consolidation requests.
+///
 /// pre:  none (always succeeds or returns rate-limit error)
 /// post: Ok(()) if rate limit not exceeded; Err(RateLimited) with remaining seconds if within 30s window
-pub fn check_rate_limit() -> Result<(), ServiceError> {
+pub(crate) fn check_rate_limit() -> Result<(), ServiceError> {
     let now_secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -45,10 +46,11 @@ pub fn check_rate_limit() -> Result<(), ServiceError> {
     Ok(())
 }
 
-/// \[P5\] Motivating: Essentialism — service-layer orchestration earns its existence; no raw domain logic.
+/// Verify the consolidation passphrase against the keystore.
+///
 /// pre:  passphrase must be non-empty; server passphrase must be configured in keystore
 /// post: returns the expected passphrase string on match; Err(Keystore) if not configured; Err(InvalidPassphrase) if mismatch
-pub fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
+pub(crate) fn verify_passphrase(passphrase: &str) -> Result<String, ServiceError> {
     let expected = hkask_keystore::keychain::resolve_db_passphrase_string().map_err(|_| {
         ServiceError::Domain {
             kind: ErrorKind::BadRequest,

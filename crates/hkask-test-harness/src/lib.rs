@@ -208,17 +208,17 @@ impl TestWebId {
 
 /// Regulation state for mock runtime — controllable in tests.
 #[derive(Debug, Clone)]
-pub struct MockCnsState {
+pub struct MockRegState {
     pub homeostatic: bool,
     pub throttled_tools: Vec<String>,
     pub recent_signals: Vec<MockAlgedonicSignal>,
     pub variety_counters: HashMap<String, u64>,
 }
 
-impl MockCnsState {
+impl MockRegState {
     /// Create a homeostatic (healthy) Regulation state.
     ///
-    /// post: returns MockCnsState with homeostatic=true, no throttled tools, empty signals
+    /// post: returns MockRegState with homeostatic=true, no throttled tools, empty signals
     pub fn homeostatic() -> Self {
         Self {
             homeostatic: true,
@@ -231,7 +231,7 @@ impl MockCnsState {
     /// Create a perturbed Regulation state with a specific tool throttled.
     ///
     /// pre:  throttled_tool is non-empty
-    /// post: returns MockCnsState with homeostatic=false, tool throttled
+    /// post: returns MockRegState with homeostatic=false, tool throttled
     pub fn perturbed(throttled_tool: &str) -> Self {
         let mut state = Self::homeostatic();
         state.homeostatic = false;
@@ -278,7 +278,7 @@ impl MockAlgedonicSignal {
 /// without a full running Regulation daemon.
 #[derive(Clone)]
 pub struct MockRegulationLedger {
-    state: Arc<RwLock<MockCnsState>>,
+    state: Arc<RwLock<MockRegState>>,
 }
 
 impl MockRegulationLedger {
@@ -287,15 +287,15 @@ impl MockRegulationLedger {
     /// post: returns MockRegulationLedger with homeostatic state
     pub fn new() -> Self {
         Self {
-            state: Arc::new(RwLock::new(MockCnsState::homeostatic())),
+            state: Arc::new(RwLock::new(MockRegState::homeostatic())),
         }
     }
 
     /// Create a mock Regulation with a specific initial state.
     ///
-    /// pre:  state is a valid MockCnsState
+    /// pre:  state is a valid MockRegState
     /// post: returns MockRegulationLedger with the given state
-    pub fn with_state(state: MockCnsState) -> Self {
+    pub fn with_state(state: MockRegState) -> Self {
         Self {
             state: Arc::new(RwLock::new(state)),
         }

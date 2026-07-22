@@ -221,7 +221,7 @@ pub struct SetPoints {
 }
 
 /// Configurable thresholds for Curation decisions (spec coherence, drift).
-/// Loaded from YAML via `HKASK_CNS_CONFIG` (same pattern as `SetPointsConfig`).
+/// Loaded from YAML via `HKASK_REG_CONFIG` (same pattern as `SetPointsConfig`).
 ///
 /// Type definition lives in `hkask_types::curator`; YAML loading lives here.
 pub use hkask_types::curator::CurationThresholdConfig;
@@ -464,13 +464,13 @@ impl SetPoints {
 }
 
 /// expect: "The system provides configurable regulation thresholds for the cybernetic control loop"
-/// Load set-points from `HKASK_CNS_CONFIG` env var, falling back to defaults.
+/// Load set-points from `HKASK_REG_CONFIG` env var, falling back to defaults.
 ///
-/// If `HKASK_CNS_CONFIG` is set, reads the YAML file at that path.
+/// If `HKASK_REG_CONFIG` is set, reads the YAML file at that path.
 /// If unset or the file doesn't exist, returns default set-points.
 #[must_use]
 pub fn load_set_points() -> SetPoints {
-    match std::env::var("HKASK_CNS_CONFIG") {
+    match std::env::var("HKASK_REG_CONFIG") {
         Ok(path) => match SetPointsConfig::load_from_file(&path) {
             Ok(config) => {
                 let points = SetPoints::from_config(&config);

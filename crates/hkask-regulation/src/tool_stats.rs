@@ -65,7 +65,7 @@ pub struct ToolReliabilityAlert {
 
 /// Thread-safe statistical learner for all MCP tools.
 ///
-/// Owned by `CnsState`. Called by `GovernedTool` at settle time to record
+/// Owned by `RegState`. Called by `GovernedTool` at settle time to record
 /// outcomes. Queried by `GovernedTool` at reserve time for distribution-based
 /// estimates via `reserve_estimate()`.
 pub struct ToolStats {

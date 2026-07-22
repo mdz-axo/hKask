@@ -7,7 +7,7 @@
 //! - P9 (Homeostatic Self-Regulation): the Regulation must detect perturbations and restore homeostasis
 //! - P8 (Semantic Grounding): every test asserts a stated behavioral property
 
-use hkask_test_harness::{MockCnsState, MockRegulationLedger, MockToolState, test_event};
+use hkask_test_harness::{MockRegState, MockRegulationLedger, MockToolState, test_event};
 use hkask_types::event::{CyclePhase, Span, SpanNamespace};
 
 // The Regulation detects perturbations and restores homeostasis.
@@ -58,7 +58,7 @@ fn reg_restores_homeostasis_after_time() {
 
 #[test]
 fn reg_throttles_tool_on_budget_exceeded() {
-    let ledger = MockRegulationLedger::with_state(MockCnsState::perturbed("tool-x"));
+    MockRegulationLedger::with_state(MockRegState::perturbed("tool-x"))
 
     assert!(!ledger.is_homeostatic());
     assert_eq!(ledger.tool_state("tool-x"), MockToolState::Throttled);

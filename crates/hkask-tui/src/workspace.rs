@@ -20,11 +20,9 @@ use crate::bridges::{
     ScenariosDataBridge, SkillsDataBridge, TrainingDataBridge, WalletDataBridge, with_bridges,
     workspace_bridge_setter,
 };
-use crate::keybindings::{CHAT_BINDINGS, GLOBAL_BINDINGS};
 use crate::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
 use crate::status_bar::StatusBar;
 use crate::tab::Tab;
-use crate::widgets::headers;
 use crate::window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
 
 pub enum SplitNode {

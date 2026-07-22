@@ -248,7 +248,7 @@ impl OcrExecutor for LlmOcrExecutor {
         let confidence = 0.8;
         let word_count = result.text.split_whitespace().count();
 
-        // Direct plausibility check for the CNS low-confidence alert: non-empty
+        // Direct plausibility check for the Regulation low-confidence alert: non-empty
         // but near-empty output is likely a hallucination or garbage. Replaces
         // the former `ocr_quality_heuristic < 0.3` trigger.
         if !result.text.trim().is_empty() && word_count < 5 {

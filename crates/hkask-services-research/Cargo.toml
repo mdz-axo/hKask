@@ -6,9 +6,9 @@ license.workspace = true
 description = "hKask research service — web search, extraction, browsing, RSS feed management"
 
 [dependencies]
-hkask-memory = { path = "../hkask-memory" }
 hkask-types = { path = "../hkask-types" }
 hkask-mcp = { path = "../hkask-mcp" }
+chrono.workspace = true
 reqwest.workspace = true
 tokio.workspace = true
 serde.workspace = true

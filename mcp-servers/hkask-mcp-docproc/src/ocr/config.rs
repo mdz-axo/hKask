@@ -146,7 +146,7 @@ pub enum TriageReason {
 }
 
 impl TriageReason {
-    /// Kebab-case string used in CNS spans and tool output.
+    Kebab-case string used in Regulation spans and tool output.
     pub fn as_str(&self) -> &'static str {
         match self {
             TriageReason::Scanned => "scanned",
@@ -181,7 +181,7 @@ pub struct TriageVerdict {
 /// at all.
 ///
 /// Like `ThresholdConfig`, `tuneable` gates Regulation calibration: drift may
-/// be *suggested* (CNS alert, ≥100 samples, >95% agreement) but **never
+/// be *suggested* (Regulation alert, ≥100 samples, >95% agreement) but **never
 /// auto-applied** — P4 affirmative consent requires human approval.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TriageConfig {

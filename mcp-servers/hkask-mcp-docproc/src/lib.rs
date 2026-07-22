@@ -593,7 +593,7 @@ enum ExtractOutcome {
     /// `native_text` is the text of the text-native pages only (OCR-needing
     /// pages are omitted, to be filled in by the caller's selective OCR pass).
     /// `ocr_pages` are 0-based page indices that must go through the OCR
-    /// pipeline. `verdicts` is the full per-page triage for reporting/CNS.
+    /// pipeline. `verdicts` is the full per-page triage for reporting/Regulation.
     ///
     /// This outcome replaces the former silent-loss path where a mixed PDF
     /// with ≥100 whole-doc words returned `Success` and dropped per-page

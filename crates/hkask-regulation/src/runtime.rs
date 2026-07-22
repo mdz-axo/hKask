@@ -302,7 +302,7 @@ pub struct RegulationCycleEntry {
 }
 
 /// Regulation state shared between threads
-struct CnsState {
+struct RegState {
     algedonic: Arc<ParkingRwLock<AlgedonicManager>>,
     tracker: VarietyMonitor,
     outcome: HashMap<String, OutcomeTracker>,
@@ -313,7 +313,7 @@ struct CnsState {
     tool_stats: Arc<ToolStats>,
 }
 
-impl CnsState {
+impl RegState {
     fn new(threshold: u64) -> Self {
         let algedonic = Arc::new(ParkingRwLock::new(AlgedonicManager::new(
             threshold,
@@ -346,7 +346,7 @@ impl CnsState {
 /// algedonic manager, subscribers).
 #[derive(Clone)]
 pub struct RegulationLedger {
-    state: Arc<RwLock<CnsState>>,
+    state: Arc<RwLock<RegState>>,
     subscribers: Arc<RwLock<Vec<Arc<dyn LedgerObserver>>>>,
     /// Optional heal callback: (error_string, operation_name).
     heal_error_cb: Option<HealCallback>,
@@ -362,7 +362,7 @@ impl RegulationLedger {
     /// post: returns RegulationLedger with configured threshold
     pub fn with_threshold(threshold: u64) -> Self {
         Self {
-            state: Arc::new(RwLock::new(CnsState::new(threshold))),
+            state: Arc::new(RwLock::new(RegState::new(threshold))),
             subscribers: Arc::new(RwLock::new(Vec::new())),
             heal_error_cb: None,
         }

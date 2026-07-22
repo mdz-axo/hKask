@@ -1,7 +1,7 @@
 //! Consolidation API — user-triggered episodic→semantic consolidation + semantic cleanup
 
+use crate::routes::consolidation_auth;
 use axum::{Extension, Json, extract::State};
-use hkask_memory::consolidation_auth;
 use hkask_ports::ConsolidationRequest;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_types::WebID;

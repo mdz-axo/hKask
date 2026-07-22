@@ -293,7 +293,7 @@ co-equal artifact.[^skills-model]
 | Jinja2 templates | 387 (WordAct + KnowAct + RenderAct; selection intelligence offloaded to the LLM) |
 | Skill manifests | 88 (FlowDef: select - populate - execute, convergence, gas budget) |
 | CLI subcommands | 22 (`kask tui` is the primary entry point) |
-| Inference providers | 9 (Cline, DeepInfra, fal.ai, KiloCode, Ollama, OpenAI, OpenRouter, Runpod, Together) |
+| Inference providers | 8 (Cline, DeepInfra, fal.ai, KiloCode, Ollama, OpenRouter, Runpod, Together) |
 | Codegraph MCP tools | 11 (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) |
 | QA pipeline | Fuzz triage, mutation analysis, autonomous script runner |
 | Build / clippy / fmt / test / unused-deps | All passing |

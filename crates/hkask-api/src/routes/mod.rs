@@ -8,6 +8,7 @@ pub(crate) mod bundles;
 pub(crate) mod chat;
 pub(crate) mod chat_ws;
 pub(crate) mod consolidation;
+pub(crate) mod consolidation_auth;
 pub(crate) mod curator;
 pub(crate) mod episodic;
 pub(crate) mod export;

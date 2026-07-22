@@ -38,8 +38,9 @@ pub const MAX_JSON_SCHEMA_BYTES: usize = 32_768;
 // ── Re-exports ──
 
 pub use freshness::{Freshness, freshness_brave, freshness_serpapi, normalize_freshness};
-pub use hkask_memory::ranking::parse_age_to_days;
-pub use ranking::{apply_rerank, dedup_results, normalize_date_bucket, rrf_score};
+pub use ranking::{
+    apply_rerank, dedup_results, normalize_date_bucket, parse_age_to_days, rrf_score,
+};
 pub use rate_limiter::RateLimiter;
 pub use validation::{
     COMPOUND_PROVIDER_TIMEOUT_SECS, sanitize_health_error, validate_browse_request,
