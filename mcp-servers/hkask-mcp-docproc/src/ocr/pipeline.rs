@@ -148,7 +148,6 @@ async fn run_pipeline_sequential(
     let mut cross_validations: Vec<CrossValidation> = Vec::new();
     let mut backend_counts: std::collections::HashMap<OcrBackend, usize> =
         std::collections::HashMap::new();
-    let mut total_estimated_words: usize = 0;
 
     for (page_index, image) in pages.into_iter().enumerate() {
         let (result, cv, err, used_backend) = process_single_page(
@@ -163,11 +162,6 @@ async fn run_pipeline_sequential(
             *backend_counts
                 .entry(used_backend.unwrap_or(r.backend.clone()))
                 .or_insert(0) += 1;
-            total_estimated_words += crate::ocr::verification::estimate_word_count(
-                image.width(),
-                image.height(),
-                score_page_complexity(&image, thresholds).value,
-            );
             results.push(r);
         }
         if let Some(cv) = cv {
@@ -197,7 +191,6 @@ async fn run_pipeline_sequential(
         cross_validations,
         errors,
         expected_pages,
-        total_estimated_words,
         start,
         embedding_router,
     )
@@ -240,18 +233,6 @@ async fn run_pipeline_parallel(
         });
         let _ = route_page(score, &mut state, None, llm_model);
     }
-
-    let total_estimated_words: usize = tasks
-        .iter()
-        .map(|t| {
-            let score = score_page_complexity(&t.image, thresholds);
-            crate::ocr::verification::estimate_word_count(
-                t.image.width(),
-                t.image.height(),
-                score.value,
-            )
-        })
-        .sum();
 
     // Spawn concurrent tasks
     let mut join_set = tokio::task::JoinSet::new();
@@ -362,7 +343,6 @@ async fn run_pipeline_parallel(
         cross_validations,
         errors,
         expected_pages,
-        total_estimated_words,
         start,
     )
 }
@@ -594,7 +574,6 @@ async fn finalize_outcome(
     cross_validations: Vec<CrossValidation>,
     errors: Vec<PipelineError>,
     expected_pages: usize,
-    total_estimated_words: usize,
     start: Instant,
     embedding_router: Option<(&hkask_inference::EmbeddingRouter, &str)>,
 ) -> PipelineOutcome {
@@ -607,7 +586,6 @@ async fn finalize_outcome(
         cross_validations,
         errors,
         expected_pages,
-        total_estimated_words,
         start,
     )
 }
@@ -618,12 +596,11 @@ fn finalize_outcome_inner(
     cross_validations: Vec<CrossValidation>,
     errors: Vec<PipelineError>,
     expected_pages: usize,
-    total_estimated_words: usize,
     start: Instant,
 ) -> PipelineOutcome {
     let duration_ms = start.elapsed().as_millis() as u64;
 
-    let report = verify_output(expected_pages, &results, total_estimated_words, &errors);
+    let report = verify_output(expected_pages, &results, &errors);
 
     let backend_counts: std::collections::HashMap<String, usize> =
         results

@@ -18,7 +18,6 @@ use crate::ocr::{OcrResult, PageVerificationDetail, PipelineError, VerificationR
 pub(crate) fn verify_output(
     expected_pages: usize,
     results: &[OcrResult],
-    estimated_word_count: usize,
     errors: &[PipelineError],
 ) -> VerificationReport {
     let actual_pages = results.len();
@@ -27,14 +26,11 @@ pub(crate) fn verify_output(
     // Detect empty pages and collect per-page details from results
     let mut empty_pages: Vec<usize> = Vec::new();
     let mut page_details: Vec<PageVerificationDetail> = Vec::new();
-    let mut total_words: usize = 0;
 
     for (idx, result) in results.iter().enumerate().take(actual_pages) {
         let text = &result.text;
         let word_count = text.split_whitespace().count();
         let is_empty = text.trim().is_empty();
-
-        total_words += word_count;
 
         if is_empty {
             empty_pages.push(idx);
@@ -50,13 +46,10 @@ pub(crate) fn verify_output(
         });
     }
 
-    // Use caller-supplied estimated word count (computed incrementally during pipeline)
-    let word_count_delta_pct = if estimated_word_count > 0 {
-        ((total_words as f32 - estimated_word_count as f32) / estimated_word_count as f32) * 100.0
-    } else {
-        0.0
-    };
-
+    // word_count_delta_pct is no longer computed: the former pixel-based estimate
+    // was a crude heuristic that produced false failures on low-word pages. Kept as
+    // 0.0 for serialized-shape compatibility.
+    let word_count_delta_pct = 0.0;
     let error_count = errors.len();
 
     VerificationReport::new(
@@ -66,20 +59,6 @@ pub(crate) fn verify_output(
         error_count,
         page_details,
     )
-}
-
-/// Crude word-count estimation from pixel density and edge complexity.
-///
-/// Not a precision metric — coarse guardrail only.
-/// Base: ~2000 pixels per word at 300 DPI. Multiplied by complexity
-/// factor: low edge density (blank pages) → fewer expected words;
-/// high edge density (dense text) → more expected words.
-pub(crate) fn estimate_word_count(width: u32, height: u32, edge_density: f32) -> usize {
-    let pixels = (width as u64) * (height as u64);
-    let base = (pixels / 2000).max(1) as f32;
-    // Complexity factor: edge_density × 10, clamped to [0.1, 3.0]
-    let factor = (edge_density * 10.0).clamp(0.1, 3.0);
-    (base * factor).max(1.0) as usize
 }
 
 #[cfg(test)]
@@ -109,8 +88,7 @@ mod tests {
             },
         ];
 
-        // 2 pages × (140×140 pixels / 2000 ≈ 10 words each) = 20 estimated words
-        let report = verify_output(2, &results, 20, &[]);
+        let report = verify_output(2, &results, &[]);
         assert!(report.page_count_match, "page count should match");
         assert!(report.empty_pages.is_empty(), "no empty pages");
         assert!(report.passed, "clean document should pass: {:#?}", report);
@@ -134,8 +112,7 @@ mod tests {
             duration_ms: 50,
             was_fallback: false,
         }];
-        // 1 result, 2 expected → mismatch. Estimated words: arbitrary for this test.
-        let report = verify_output(2, &results, 5, &[]);
+        let report = verify_output(2, &results, &[]);
         assert!(
             !report.page_count_match,
             "page count mismatch should be detected"
@@ -165,7 +142,7 @@ mod tests {
                 was_fallback: true,
             },
         ];
-        let report = verify_output(2, &results, 10, &[]);
+        let report = verify_output(2, &results, &[]);
         assert!(
             !report.empty_pages.is_empty(),
             "empty page should be flagged"
@@ -178,33 +155,4 @@ mod tests {
         assert!(!report.passed, "empty page should cause failure");
     }
 
-    #[test]
-    fn garbled_text_flags_word_anomaly() {
-        use crate::ocr::OcrBackend;
-
-        // Lots of words on a tiny image — should be a word count anomaly
-        let mut text = String::new();
-        for i in 0..500 {
-            text.push_str(&format!("word{} ", i));
-        }
-
-        let results = vec![OcrResult {
-            page_index: 0,
-            backend: OcrBackend::Tesseract,
-            text,
-            confidence: 0.5,
-            duration_ms: 50,
-            was_fallback: false,
-        }];
-
-        // 500 words vs 1 estimated → huge delta
-        let report = verify_output(1, &results, 1, &[]);
-        // 500 words actual vs ~0.05 words estimated → huge delta
-        assert!(
-            report.word_count_delta_pct > 50.0,
-            "word count anomaly should be large, got {:.1}%",
-            report.word_count_delta_pct
-        );
-        assert!(!report.passed, "word anomaly should cause failure");
-    }
 }

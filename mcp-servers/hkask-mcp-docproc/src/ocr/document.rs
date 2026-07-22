@@ -113,13 +113,12 @@ pub struct VerificationReport {
 impl VerificationReport {
     /// Compute `passed` from constituent checks.
     ///
-    /// A report passes when: page count matches, no empty pages,
-    /// zero errors, and word count delta is within ±50%.
+    /// A report passes when: page count matches, no empty pages, and zero
+    /// errors. (The word-count-delta check was removed — see verification.rs.)
     pub fn compute_passed(&mut self) {
         self.passed = self.page_count_match
             && self.empty_pages.is_empty()
-            && self.error_count == 0
-            && self.word_count_delta_pct.abs() <= 50.0;
+            && self.error_count == 0;
     }
 
     /// Create a report and compute `passed` inline.
