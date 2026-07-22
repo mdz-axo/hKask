@@ -19,10 +19,10 @@ chat session in the TUI, invoked an MCP tool, and inspected Regulation health.
 At least one inference-provider API key (e.g. DeepInfra, OpenRouter, or a
 local Ollama instance).
 
-**Orientation:** hKask is a **sovereign chat client for a single human user**.
-The unit of concern is you, at the keyboard, running `kask` against your own
-keys. Userpods, federation, and Matrix transport exist as opt-in
-infrastructure — this tutorial covers the local primary path only.
+**Orientation:** hKask is a **minimal viable container for users and AI tools**.
+A single install serves a group of users; each user gets exactly one userpod
+(their sovereign identity, memory, and consent boundary within the install).
+This tutorial walks one user through the local `kask tui` path end-to-end.
 
 ---
 

@@ -10,7 +10,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 # hKask Documentation Portal
 
-**Purpose:** Single entry point indexing every active document in `docs/`, tagged by [MDS](architecture/core/MDS.md) category. hKask v0.31.0 — a sovereign chat client for human users with AI skills, MCP servers, and LLM access.
+**Purpose:** Single entry point indexing every active document in `docs/`, tagged by [MDS](architecture/core/MDS.md) category. hKask v0.31.0 - a minimal viable container for users and AI tools: one install serves a group of users, each with a sovereign userpod, AI skills, MCP servers, and LLM access.
 
 ### Diataxis Structure
 
@@ -177,4 +177,4 @@ bash docs/ci/check-links.sh      # link integrity — zero broken links
 bash docs/ci/verify-docs.sh      # Tier 1 code-anchored claim verification
 ```
 
-ℏKask v0.31.0 — A Sovereign Chat Client for Human Users with AI Skills — Diataxis-structured documentation portal
+ℏKask v0.31.0 - A Minimal Viable Container for Users and AI Tools - Diataxis-structured documentation portal

@@ -2,24 +2,31 @@
   <img src="assets/kask-logo.svg" alt="Kask Logo" width="120"/>
 </p>
 
-# ℏKask — A Sovereign Chat Client for Human Users
+# ℏKask - A Minimal Viable Container for Users and AI Tools
 
-**Binary:** `kask` · **Crate prefix:** `hkask-` · **Version:** v0.31.0 · **License:** MIT
+**Binary:** `kask` - **Crate prefix:** `hkask-` - **Version:** v0.31.0 - **License:** MIT
 
-> A human user runs `kask tui`, authenticates, and gets a sovereign chat session
-> with AI skills, 16 MCP servers, and multi-provider LLM access — all under their
-> own keys, their own memory, and their own governance. Userpods, federation, and
-> Matrix transport exist as opt-in infrastructure that supports this experience,
-> not as the headline.[^arch-master]
+> A single hKask install deploys on a cloud server (Kubernetes / K3s) and
+> serves a group of users. Each user gets exactly one userpod - a sovereign
+> container with their own identity, memory, capabilities, and consent
+> boundary - plus AI skills, 16 MCP servers, and multi-provider LLM access.
+> Userpods, federation, and Matrix transport are the container's plumbing,
+> not the point.[^arch-master]
 
 ---
 
 ## What hKask Is
 
-hKask is a **sovereign chat client for a single human user**. It is not an agent
-platform, an agent framework, or a multi-tenant SaaS. The unit of concern is the
-person at the keyboard, running `kask` on their own machine against their own
-secrets.
+hKask is a **minimal viable container for users and AI tools**. A single install
+deploys on a cloud server (Kubernetes / K3s) and serves a group of users - each
+one gets exactly **one userpod**: their own sovereign identity, encrypted memory,
+capabilities, and consent boundary within the shared install. The deployment
+unit is the install; the sovereignty unit is the userpod (1:1 per user).
+
+It is not an agent platform or an agent framework. There is no autonomous
+agent loop by default; the human is in the loop and skills escalate *to the
+user*, not away from them. The Curator is the system's cybernetic regulator,
+not an autonomous agent.
 
 Three things sit between the user and a model:
 
@@ -34,18 +41,23 @@ Three things sit between the user and a model:
    fal.ai, KiloCode, Ollama, OpenAI, OpenRouter, Runpod, Together), with
    fusion, circuit breakers, and per-call gas accounting.
 
-Everything else in the codebase — pods, federation, Matrix, wallet, ledger,
-regulation, keystore — exists to keep that chat session **sovereign**: the
-user's keys, the user's data, the user's consent, and the user's budget.
+Everything else in the codebase - pods, federation, Matrix, wallet, ledger,
+regulation, keystore - exists to keep each user's session **sovereign** within
+the shared install: per-userpod SQLCipher, OCAP dual gate, visibility gating.
+An install has two roles, **Admin** and **Member** (invite flow, `hkask-identity`),
+but sovereignty is enforced below the role layer - the group install shares
+infrastructure, never userpod data.
 
 ### What hKask Is Not
 
 - Not an agent framework. There is no autonomous agent loop by default; the
   human is in the loop and skills escalate *to the user*, not away from them.
-- Not multi-tenant. `hkask-identity` models one human user and their OAuth
-  providers; pods are a local identity construct, not a hosting surface.
-- Not a hosted product. Deployment (`kask deploy`, Matrix sidecar, K3s) is
-  opt-in infrastructure for users who want it, not the primary mode.
+- Not a public multi-tenant SaaS. An install serves a defined group (an
+  organization, a team, a household) via OAuth + invite, not arbitrary public
+  sign-up. Per-userpod sovereignty is structural, not row-level.
+- Not a single-user local-only tool. Local `kask tui` is supported, but the
+  reference deployment is a cloud server accessed via browser (xterm.js + WSS)
+  or Matrix. Federation links installs.
 
 ---
 
@@ -107,13 +119,13 @@ flowchart TD
     Inference --> Wallet
     Wallet --> Regulation
 
-    subgraph Infra["Opt-in infrastructure"]
-        Pods["hkask-pods<br/>WebID identity"]
-        Federation["Federation + Matrix"]
+    subgraph Infra["Install plumbing"]
+        Pods["hkask-pods<br/>one userpod per user"]
+        Federation["Federation + Matrix<br/>cross-install"]
     end
 
-    Tui -. opt-in .-> Pods
-    Pods -. opt-in .-> Federation
+    Tui --> Pods
+    Pods -. cross-install .-> Federation
 ```
 
 <!-- DIAGRAM_ALIGNMENT
@@ -372,5 +384,5 @@ no gradients/effects. Full design principles →
 
 ---
 
-*ℏKask — A Sovereign Chat Client for Human Users — v0.31.0*
-*Rust is the loom. YAML/Jinja2 is the thread. The human is the weaver.*
+*ℏKask - A Minimal Viable Container for Users and AI Tools - v0.31.0*
+*Rust is the loom. YAML/Jinja2 is the thread. The userpod is the container.*

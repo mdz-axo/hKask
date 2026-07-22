@@ -12,13 +12,15 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Purpose:** Index to the authoritative architecture documents and the four essential architectural patterns that constitute hKask's irreducible core.
 
-**Project:** hKask (ℏKask — A Sovereign Chat Client for Human Users) v0.31.0
+**Project:** hKask (ℏKask - A Minimal Viable Container for Users and AI Tools) v0.31.0
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
-**Primary user story:** A human user runs `kask tui`. On first run, onboarding creates the user's single userpod (sovereign identity, passphrase, provider key, model). Subsequent runs drop straight into a sovereign chat session with skills (`.agents/skills/`), 16 MCP servers, and multi-provider LLM access — all under the user's own keys, memory, and governance. Userpods, federation, and Matrix transport are **opt-in infrastructure** that supports this experience — not the headline use case.
+**What it is:** A single hKask install deploys on a cloud server (Kubernetes / K3s) and serves a group of users. Each user gets exactly one userpod - a sovereign container with their own identity, encrypted memory, capabilities, and consent boundary within the shared install - plus AI skills (`.agents/skills/`), 16 MCP servers, and multi-provider LLM access. The deployment unit is the install; the sovereignty unit is the userpod (1:1 per user). Per-userpod SQLCipher, OCAP dual gate, and visibility gating keep each user's data structurally isolated even within a shared install.
 
-**What hKask is not:** an agent platform, an agent framework, or a multi-tenant SaaS. There is no autonomous agent loop by default; the human is in the loop and skills escalate *to the user*, not away from them. The Curator is the system's cybernetic regulator (VSM S4), not an autonomous agent. Pods, federation, Matrix, wallet, and ledger exist to keep the chat session sovereign — they are means, not ends.
+**Primary user story:** A user runs `kask tui` (locally, or via the cloud server's xterm.js/WSS surface). On first run, onboarding creates their single userpod (identity, passphrase, provider key, model). Subsequent runs drop straight into a chat session with skills, MCP tools, and multi-provider inference - under their own userpod's authority and consent.
+
+**What hKask is not:** an agent platform, an agent framework, or a public multi-tenant SaaS. There is no autonomous agent loop by default; the human is in the loop and skills escalate *to the user*, not away from them. The Curator is the system's cybernetic regulator (VSM S4), not an autonomous agent. An install serves a defined group via OAuth + invite - not arbitrary public sign-up. Pods, federation, Matrix, wallet, and ledger are the container's plumbing, not the point.
 
 ---
 
@@ -396,11 +398,11 @@ status: VERIFIED
 
 ## Deployment Model
 
-**Primary mode (local):** A human user runs `kask tui` on their own machine against their own keys and their own SQLCipher database. This is the default and the headline use case — no server required.
+**Reference deployment (cloud server):** hKask deploys as a single cloud server on Kubernetes / K3s and serves a group of users. There is no separate client binary. Users access hKask through a browser: OAuth sign-in (GitHub/Google), then an xterm.js terminal connected via WebSocket. The server spawns `kask tui` on a PTY and pipes I/O. This is the reference architecture - the install is the unit of deployment, and it serves the whole group.
 
-**Optional mode (cloud server):** For users who want browser-based or multi-device access, hKask can deploy as a single cloud server. There is no separate client binary. Users access hKask through a browser: OAuth sign-in (GitHub/Google), then an xterm.js terminal connected via WebSocket. The server spawns `kask tui` on a PTY and pipes I/O. This is **opt-in infrastructure**, not the primary mode.
+**Local mode:** A single user may also run `kask tui` directly on their own machine against their own SQLCipher database (useful for development and single-user installs). The same binary, the same userpod model - just no server in front.
 
-**Decision (2026-06-17):** the cloud-server topology below documents the optional deployment; the local `kask tui` flow is covered in [`docs/how-to/getting-started.md`](../../how-to/getting-started.md).
+**Decision (2026-06-17):** the cloud-server topology below is the reference deployment; the local `kask tui` flow is covered in [`docs/how-to/getting-started.md`](../../how-to/getting-started.md).
 
 ### Topology
 
@@ -1499,7 +1501,6 @@ This audit applies **John Ousterhout's deep-module discipline**[^ousterhout]: ev
 | `hkask-storage` | 39 | `define_store!` macro, hMemStore, vector store | Persistence orchestration. Each store follows same deep pattern. |
 | `hkask-pods` | 26 | ActivePods, AgentRegistry, capability delegation | Multi-concern crate. Each concern independently testable. |
 | `hkask-regulation` | 25 | CyberneticsLoop, VarietyTracker, AlgedonicManager | Regulatory surface. Each component is a distinct feedback loop. |
-| `hkask-improv` | 19 | 5 improv modes, kata improv, ensemble coordination | Each mode is a distinct interaction grammar. |
 | `hkask-templates` | 22 | Jinja2 rendering, registry, template types | Template engine. Registry, rendering, classification are distinct concerns. |
 | `hkask-wallet` | 22 | WalletManager, rJoule, multi-chain bridges | Domain boundary. Keys, balances, deposits are distinct operations. |
 | `hkask-inference` | 18 | InferenceRouter, provider backends, budget tracking | Provider abstraction. Each backend scales with provider support. |
@@ -1623,7 +1624,7 @@ docs/architecture/
 
 ---
 
-*ℏKask v0.31.0 — A Sovereign Chat Client for Human Users with AI Tools*
+*ℏKask v0.31.0 - A Minimal Viable Container for Users and AI Tools*
 
 [^ousterhout]: Ousterhout, J. (2018). *A Philosophy of Software Design*. Yaknyam Press.
 [^conway]: Conway, M. E. (1968). "How Do Committees Invent?" Datamation, 14(4), 28-31.
