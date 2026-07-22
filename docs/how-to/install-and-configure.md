@@ -642,12 +642,12 @@ flowchart TD
         CuratorCtx --> CurationLp[Register CurationLoop]
         CurationLp --> FedCheck{Federation enabled?}
         FedCheck -->|Yes| FedSync[Spawn FederationSync]
-        FedCheck -->|No| PhaseC
-        FedSync --> PhaseC
+        FedCheck -->|No| McpRt
+        FedSync --> McpRt
     end
 
     subgraph PhaseC["Phase C: MCP + Pods"]
-        PhaseC[McpRuntime::new] --> GovTool[GovernedTool membrane]
+        McpRt[McpRuntime::new] --> GovTool[GovernedTool membrane]
         GovTool --> McpDisp[McpDispatcher]
         McpDisp --> ManExec[Wire ManifestExecutor]
         ManExec --> CapChk[Build CapabilityChecker]
