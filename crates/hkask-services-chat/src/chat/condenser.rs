@@ -33,27 +33,31 @@ impl ChatService {
     /// to uncondensed context).
     pub(super) async fn condense_history(
         ctx: &AgentService,
-        req: &TurnRequest,
-        token: &DelegationToken,
-        base_input: &str,
-    ) -> Option<String> {
-        // [NORMATIVE] Sovereignty gate (H3/P2): condensing reads episodic
-        // (sovereign) history — only proceed when the owner has granted consent.
-        if !MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory)
-        {
-            return None;
-        }
-        let episodes = MemoryService::recall_raw_episodes(
-            &req.episodic_storage,
-            &req.agent_webid,
-            token,
-            (req.condense_saliency_window * 4).max(8),
-        );
-        if episodes.len() < 4 {
-            return None;
-        }
+        : &TurnRequest,
+                token: &DelegationToken,
+                base_input: &str,
+            ) -> Option<String> {
+                // Constants for condensation behavior (previously per-request fields).
+                const SALIENCY_WINDOW: usize = 5;
+                const PRE_COMPRESS: bool = true;
 
-        let keep_count = (req.condense_saliency_window * 2).min(episodes.len().saturating_sub(2));
+                // [NORMATIVE] Sovereignty gate (H3/P2): condensing reads episodic
+                // (sovereign) history — only proceed when the owner has granted consent.
+                if !MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory)
+                {
+                    return None;
+                }
+                let episodes = MemoryService::recall_raw_episodes(
+                    &req.episodic_storage,
+                    &req.agent_webid,
+                    token,
+                    (SALIENCY_WINDOW * 4).max(8),
+                );
+                if episodes.len() < 4 {
+                    return None;
+                }
+
+                let keep_count = (SALIENCY_WINDOW * 2).min(episodes.len().saturating_sub(2));
         let old_half = &episodes[..episodes.len() - keep_count];
         let recent_half = &episodes[episodes.len() - keep_count..];
 
@@ -64,7 +68,7 @@ impl ChatService {
         // CondenserEngine before feeding to the LLM summarizer. This reduces
         // token count and inference cost. If compression produces empty output,
         // fall back to the raw old_text (graceful degradation).
-        let old_text_for_llm = if req.pre_compress {
+        let old_text_for_llm = if PRE_COMPRESS {
             let mut engine = hkask_condenser::engine::CondenserEngine::new();
             engine.set_profile(hkask_condenser::types::Profile::Heavy);
             let compressed = engine.compress(
@@ -96,7 +100,7 @@ impl ChatService {
 
         let full_prompt = format!("{SUMMARY_SYSTEM_PROMPT}\n\nUser: {summary_prompt}");
 
-        let condenser_model = req.condenser_model.as_deref().unwrap_or(&req.model);
+        let condenser_model = &req.model;
         let params = LLMParameters {
             temperature: 0.3,
             top_p: 0.9,
@@ -134,7 +138,7 @@ impl ChatService {
             old_msgs = old_half.len(),
             recent_msgs = recent_half.len(),
             summary_len = summary.len(),
-            pre_compressed = req.pre_compress,
+            pre_compressed = PRE_COMPRESS,
             "History condensed"
         );
 

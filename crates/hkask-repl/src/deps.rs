@@ -157,15 +157,6 @@ impl TurnExecutor for ReplTurnExecutor {
             iteration: input.iteration,
             auto_condense: settings.auto_condense,
             context_window: settings.model_meta.as_ref().map(|m| m.context_length),
-            condenser_model: Some(
-                self.current_model
-                    .strip_prefix("OM/")
-                    .unwrap_or(&self.current_model)
-                    .to_string(),
-            ),
-            condense_pressure_threshold: settings.condense_pressure_threshold,
-            condense_saliency_window: settings.condense_saliency_window,
-            pre_compress: settings.pre_compress,
             thread_messages: input.thread_messages.clone(),
             improv_mode: self.improv_mode.clone(),
             tool_section: String::new(),

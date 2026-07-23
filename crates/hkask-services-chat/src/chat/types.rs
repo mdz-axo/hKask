@@ -98,8 +98,13 @@ pub struct ChatTurnRequest {
     /// history, assistant responses, and tool results with proper roles.
     /// None for the first iteration (prepare_chat builds the initial array).
     pub prebuilt_messages: Option<Vec<hkask_types::ChatMessage>>,
+    /// Active improv mode — when set, prepends mode-specific instructions
+    /// to the system prompt so the model adopts the interaction posture.
+    /// None means no improv posture (default agent behavior).
+    pub improv_mode: Option<super::improv::ImprovMode>,
 }
 
+    /// Prepared chat context
 /// Prepared chat context — the result of prompt composition before inference.
 ///
 /// Returned by `ChatService::prepare_chat()` so that CLI/API surfaces can

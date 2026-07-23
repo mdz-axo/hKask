@@ -147,6 +147,12 @@ impl ChatService {
             system_prompt.push_str(spec);
         }
 
+        // Prepend improv mode instructions to the system prompt.
+        if let Some(ref mode) = req.improv_mode {
+            let improv_instruction = improv_system_prompt(mode);
+            system_prompt = format!("{}\n\n{}", improv_instruction, system_prompt);
+        }
+
         // Agent kind taxonomy removed (consolidation); capability routing no longer keyed on kind.
         // Model flows from request override → config default.
         // Agent kind no longer hardcodes model selection — use session/userpod settings.
@@ -729,6 +735,7 @@ impl ChatService {
                 tools: req.tools.clone(),
                 thread_messages: None,
                 prebuilt_messages: req.prebuilt_messages.clone(),
+            improv_mode: None,
             };
             let chat_response = Self::chat(ctx, chat_req).await?;
             return Ok(TurnResult {
@@ -781,14 +788,6 @@ impl ChatService {
             base_input
         };
 
-        // 3. Inject improv mode instructions (iteration 1 only).
-        let effective_input = if let Some(ref mode) = req.improv_mode {
-            let improv_instruction = improv_system_prompt(mode);
-            format!("{}\n\n{}", improv_instruction, effective_input)
-        } else {
-            effective_input
-        };
-
         let chat_req = ChatTurnRequest {
             input: effective_input,
             userpod_name: Some(req.userpod_name.clone()),
@@ -798,7 +797,6 @@ impl ChatService {
             } else {
                 Some(req.tool_section.clone())
             },
-            api_spec: req.api_spec.clone(),
             inference_port_override: Some(req.inference_port.clone()),
             episodic_storage_override: Some(req.episodic_storage.clone()),
             semantic_storage_override: Some(req.semantic_storage.clone()),
@@ -807,6 +805,7 @@ impl ChatService {
             tools: req.tools.clone(),
             thread_messages: req.thread_messages.clone(),
             prebuilt_messages: None,
+            improv_mode: req.improv_mode.clone(),
         };
         let chat_response = Self::chat(ctx, chat_req).await?;
 
