@@ -65,76 +65,151 @@ infrastructure, never userpod data.
 
 ```mermaid
 flowchart TD
-    Group["Group of users<br/>one hKask install"]
-    Install["hKask install<br/>cloud server - K3s/Kubernetes"]
-    Surface["Browser xterm.js / WSS<br/>or local `kask tui`"]
+    %% ─── Outer install container ───────────────────────────────────
+    subgraph Install["hKask install · K3s/Kubernetes · one per group of users"]
+        direction TB
 
-    Group --> Install
-    Install --> Surface
+        Surface["Surface · kask tui (ratatui REPL) · xterm.js/WSS"]
 
-    subgraph Hard["Hard layer - Rust kernel (fixed)"]
-        Tui["kask tui<br/>REPL + ratatui workspace"]
-        Executor["ManifestExecutor<br/>select - populate - execute"]
-        Mcp["16 MCP servers<br/>rmcp dispatch"]
-        Guard["hkask-guard<br/>LLM boundary scan"]
-        Router["Inference router<br/>8 providers + fusion"]
+        %% ─── Pods in the center — the sovereignty units ───────────
+        subgraph Pods[" Pods — Solid Pod isomorphism · the sovereignty units "]
+            direction LR
+
+            subgraph UserPod[" UserPod · 1:1 per human · VSM S1 Implementation "]
+                direction TB
+                Human(["Human user — the principal"])
+                UserMem["Per-pod SQLCipher<br/>episodic private + semantic public"]
+                UserOcap["OCAP dual-gate tokens"]
+                Human --> UserMem
+                Human --> UserOcap
+            end
+
+            subgraph CuratorPod[" CuratorPod · singleton, system-owned · VSM S4 Intelligence "]
+                direction TB
+                Curator(["Curator — cybernetic regulator<br/>NOT autonomous · escalates to user"])
+                SemIdx["SemanticIndex<br/>aggregated public hMems"]
+                Curator --> SemIdx
+            end
+
+            UserPod -. "semantic publish · reg.semantic.published" .-> CuratorPod
+            CuratorPod -. "calibrate directives" .-> UserPod
+        end
+
+        %% ─── Soft layer — the mutable thread · skills live here ──
+        subgraph Soft[" Soft layer — the thread (mutable) · 52 skills live here "]
+            direction TB
+            Registry[("Skill registry · registry/templates/&lt;name&gt;/<br/>manifest.yaml (FlowDef) + *.j2 (WordAct/KnowAct/RenderAct)<br/>THE skill source of truth · 89 manifests · 391 templates")]
+            SKILLmd["SKILL.md · .agents/skills/<br/>derived companion for Zed agent · NOT runtime"]
+            Registry -. "derived via skill-translator" .-> SKILLmd
+        end
+
+        %% ─── Hard layer — Rust kernel (fixed) ────────────────────
+        subgraph Hard[" Hard layer — Rust kernel (fixed) "]
+            direction TB
+            Turn["REPL turn · hkask-repl/turn<br/>memory recall + inference + tool dispatch<br/>+ gas reservation per turn"]
+            Executor["ManifestExecutor<br/>select → populate → execute cascade<br/>matryoshka-bounded (7)"]
+            Mcp["16 MCP servers · rmcp dispatch<br/>GovernedTool · OCAP-gated"]
+            Guard["hkask-guard · ContentGuard<br/>scan_input / scan_output · reg.guard.*<br/>CALLER-SIDE — not yet universal (refactor target)"]
+            Router["InferenceRouter · InferencePort<br/>8 providers · fusion · circuit breakers"]
+        end
+
+        %% ─── Regulation — the autonomic nervous system ───────────
+        subgraph Reg[" Regulation — cybernetic self-regulation (VSM S1–S5) "]
+            direction TB
+            Sensors["SensorBus · pluggable sensors<br/>Variety · EnergyBudget · WalletKey<br/>WalletBalance · ToolReliability"]
+            Cyber["CyberneticsLoop<br/>sense → compare → compute → act → verify"]
+            Variety["SetPoints · AlgedonicManager<br/>VarietyTracker · Ashby's Law"]
+            Sensors -->|"sense"| Cyber
+            Cyber --> Variety
+            Variety -. "algedonic signals" .-> Cyber
+        end
+
+        subgraph Econ[" Economy "]
+            Wallet["Wallet + Ledger · rJoule gas<br/>1 rJ = 250,000 cycles"]
+        end
+
+        %% ─── Wiring: surface → REPL turn → pod authority ─────────
+        Surface --> Turn
+        Turn --> UserPod
+
+        %% ─── Executor drives the soft layer: loads skill manifests,
+        %%      renders their template_ref via inference, dispatches execute ──
+        Executor -->|"loads BundleManifest"| Registry
+        Executor -->|"select/populate via InferencePort (UNGUARDED — refactor)"| Router
+        Executor -->|"execute step → ToolPort"| Mcp
+
+        %% ─── Everything runs under pod authority (OCAP governs every execute) ──
+        UserOcap -->|"govern every execute"| Executor
+        Curator -->|"KnowAct via execute_knowact()"| Executor
+
+        %% ─── Guard is CALLER-SIDE, not in the router. Currently only
+        %%      classify/extract/QA services invoke it; the Executor's
+        %%      select/populate and the REPL chat turn bypass it. ──
+        Turn -->|"chat turn inference (UNGUARDED — refactor)"| Router
+        Classify["Classify / extract / QA services<br/>scan_input → generate → scan_output"]
+        Classify -->|"scan_input"| Guard
+        Guard -->|"scanned input"| Router
+        Router -. "model output" .-> Guard
+        Guard -. "scan_output" .-> Classify
+        Router --> Providers["8 LLM/media providers<br/>Cline · DeepInfra · fal.ai · KiloCode<br/>Ollama · OpenRouter · Runpod · Together"]
+
+        %% ─── PDCA skill loop: Executor iterates until convergence ──
+        Executor -. "PDCA: iterate until convergence ≤ threshold" .-> Executor
+
+        %% ─── Spans → RegulationLedger → sensors → CyberneticsLoop ──
+        Executor -->|"reg.skill.* / reg.guard.*"| Sensors
+        Mcp -->|"reg.* spans"| Sensors
+        Router -->|"reg.inference.*"| Sensors
+        Guard -->|"reg.guard.*"| Sensors
+
+        %% ─── Wallet: Router debits rJoules; sensors read wallet health ──
+        Router -->|"debit rJoules"| Wallet
+        Wallet -. "wallet health sensed" .-> Sensors
+
+        %% ─── Curator metacognition loop + human-in-the-loop ──────
+        Cyber -. "algedonic alerts" .-> Curator
+        Curator -->|"CuratorDirective::CalibrateThreshold"| Cyber
+        Curator -. "observe → diagnose → calibrate / escalate" .-> Curator
+        Curator -. "escalate to user" .-> Human
+        Human -. "response / consent" .-> Curator
     end
 
-    subgraph Soft["Soft layer - YAML + Jinja2 (mutable, the thread)"]
-        Manifests["89 manifests<br/>FlowDef: choice/escalate/abort"]
-        Templates["391 Jinja2 templates<br/>WordAct + KnowAct + RenderAct"]
-        Skills["52 skills<br/>PDCA loops, convergence"]
-    end
-
-    Surface --> Tui
-    Tui --> Executor
-    Skills --> Manifests
-    Manifests --> Templates
-    Templates -->|"LLM renders + selects"| Executor
-    Executor -->|"next step"| Templates
-    Tui --> Mcp
-    Mcp --> Guard
-    Guard --> Router
-    Executor --> Router
-    Router --> Providers["8 LLM/media providers<br/>Cline, DeepInfra, fal.ai, KiloCode,<br/>Ollama, OpenRouter, Runpod, Together"]
-
-    subgraph PerUser["Per-userpod sovereignty (one per user)"]
-        Pod["hkask-pods userpod<br/>identity, WebID"]
-        Ocap["OCAP tokens"]
-        Storage["SQLCipher DB<br/>episodic + semantic memory"]
-    end
-
-    Tui --> Pod
-    Pod --> Storage
-    Executor --> Ocap
-    Pod --> Ocap
-
-    subgraph RegSys["Regulation system"]
-        Regulation["reg.* spans<br/>variety, algedonic escalation"]
-    end
-
-    Executor --> Regulation
-    Router --> Regulation
-
-    subgraph Economy["Economy"]
-        Wallet["Wallet + Ledger<br/>rJoule gas, 1 rJ = 250k cycles"]
-    end
-
-    Router --> Wallet
-    Wallet --> Regulation
-
-    Federation["Federation + Matrix<br/>cross-install, opt-in"]
-    Install -. cross-install .-> Federation
-
-    Curator["Curator<br/>cybernetic regulator (VSM S4)"]
-    Regulation -. algedonic signals .-> Curator
-    Curator -. calibrate + escalate to user .-> Regulation
+    Federation["Federation + Matrix · cross-install · opt-in<br/>7R7 listener · Matrix standing session"]
+    Install -. "cross-install" .-> Federation
 ```
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-README-001
 verified_date: 2026-07-23
-verified_against: Cargo.toml (workspace members: 39 crates + 16 MCP = 55); crates/hkask-cli/src/cli/mod.rs (Commands enum: 21 subcommands); crates/hkask-inference/src/config.rs (ProviderId: 8 backends); registry/templates/ (89 manifests, 391 .j2); .agents/skills/ (52); mcp-servers/ (16)
+verified_against:
+  - Cargo.toml (workspace members: 39 crates + 16 MCP = 55)
+  - crates/hkask-cli/src/cli/mod.rs (Commands enum: 21 subcommands)
+  - crates/hkask-inference/src/config.rs (ProviderId: 8 backends)
+  - registry/templates/ (89 manifests, 391 .j2)
+  - .agents/skills/ (52)
+  - mcp-servers/ (16)
+  - crates/hkask-templates/src/executor.rs (ManifestExecutor: InferencePort + ToolPort, execute_manifest / execute_knowact, matryoshka limit 7, PDCA convergence)
+  - crates/hkask-templates/src/manifest_loader.rs (resolve_manifest reads BundleManifest from BundleRegistryIndex — skill manifests, not bare templates)
+  - crates/hkask-pods/src/pod/deployment.rs (PodDeployment: PodKind::Curator + PodKind::UserPod two-pod architecture, Curator singleton)
+  - docs/architecture/core/hKask-architecture-master.md (Pattern A skills=manifests+templates with SKILL.md derived; Pattern B CyberneticsLoop sense→compare→compute→act→verify; Pattern C Curator VSM S4 escalates to user; Pattern D UserPod = sovereignty unit, human is principal)
+  - crates/hkask-guard/src/pipeline.rs (scan_input / scan_output at LLM I/O boundaries)
+corrections_from_prior_diagram:
+  - Pods moved to center; Human + Curator shown INSIDE their pods (UserPod VSM S1, CuratorPod VSM S4) — prior diagram had PerUser as a side subgraph fed by Tui
+  - Skills no longer a separate side node: soft layer IS the skill registry (manifest.yaml + *.j2 = source of truth); SKILL.md shown as derived companion only
+  - ManifestExecutor now loads BundleManifest from the skill registry and renders template_ref via InferencePort — prior diagram showed Templates→Executor with Skills→Manifests→Templates as a separate chain
+  - InferenceRouter shown as cross-cutting (Executor + Curator both invoke it) — prior diagram had it only at the end of an Mcp→Guard→Router chain
+  - hkask-guard moved to CALLER-SIDE (invoked by classify/extract/QA services, NOT by the router) and labeled 'not yet universal' — verified InferenceRouter has zero ContentGuard refs; Executor select/populate and REPL chat turn bypass it (refactor signal: GuardedInferencePort decorator)
+  - Wallet edges fixed: Router debits rJoules, SensorBus senses wallet health (WalletKeyHealthSensor/WalletBalanceRatioSensor in CyberneticsLoop::build) — prior diagram had Cyber→Wallet (reversed)
+  - SensorBus added as the sense mediation layer — spans land in RegulationLedger, sensors read from ledger/budget manager, CyberneticsLoop walks SensorBus (EnergyBudgetSensor, VarietySensor, WalletKeyHealthSensor, WalletBalanceRatioSensor, ToolReliabilitySensor)
+  - REPL turn layer (hkask-repl/turn.rs) added between Surface and UserPod — prior diagram jumped Surface→UserPod, hiding the chat turn orchestration
+  - Loops now visible: PDCA cascade self-loop on Executor; CyberneticsLoop↔VarietyTracker; Curator metacognition self-loop; Curator↔Human escalation/consent loop — prior diagram had no loops at all
+  - Curator elevated to peer pod (CuratorPod, VSM S4) issuing CuratorDirective::CalibrateThreshold — prior diagram had it dangling at the bottom fed only by algedonic signals
+  - OCAP shown governing every execute step from the UserPod — prior diagram had a static Executor→Ocap edge
+  - Federation node now notes 7R7 listener + Matrix standing session (Pattern C communication layer)
+inquiry_method: sequential-inquiry + grill-me (verified each edge against source)
+refactor_signals:
+  - STRONG: ContentGuard not universal — introduce GuardedInferencePort decorator at InferencePort seam; remove scattered scan_input/scan_output from classify_impl.rs and docproc (6 call sites)
+  - LOW: REPL turn orchestration in hkask-repl/src/turn.rs could extract to hkask-services-turn to match hkask-services-* pattern and host the guarded port cleanly
 status: VERIFIED
 -->
 
