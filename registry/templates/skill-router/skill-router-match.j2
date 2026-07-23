@@ -106,13 +106,14 @@ If coverage is partial or none, identify specific capabilities the task requires
     "capability": "What the task needs that no skill provides",
     "task_pattern": "The task pattern that exposes this gap",
     "closest_skill": "name of the highest-fit skill, or null",
-    "gap_type": "coverage|feature"
+    "gap_type": "coverage|feature|epistemic"
   }
 ]
 ```
 
 - Use `coverage` when no skill addresses the capability at all.
 - Use `feature` when a skill partially addresses it but lacks the specific capability.
+- Use `epistemic` when the uncovered capability is a certainty-finding method (not a missing fact — that is `knowledge`).
 
 ## Output Requirements
 
@@ -141,7 +142,7 @@ Respond with a JSON object:
       "capability": "What is missing",
       "task_pattern": "The task pattern",
       "closest_skill": "closest-skill-name",
-      "gap_type": "coverage|feature"
+      "gap_type": "coverage|feature|epistemic"
     }
   ]
 }

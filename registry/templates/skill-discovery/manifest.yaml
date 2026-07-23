@@ -23,9 +23,11 @@ templates:
     description: >
       Detect capability gaps in the registry corpus. Analyze task patterns against
       existing registry crate descriptions and template_type coverage. Classify gaps
-      (coverage, feature, automation, knowledge, governance, quality) and
+      (coverage, feature, automation, knowledge, governance, quality, epistemic) and
       prioritize by impact. Recommends actions including route_to_skill_router
-      for feature gaps where an existing skill was not previously routed.
+      for feature gaps where an existing skill was not previously routed. Epistemic
+      gaps are distinct from knowledge gaps: epistemic means missing certainty-finding
+      methods, knowledge means missing facts.
     generates_spans:
       - reg.skill.discovery.gap_detected
 

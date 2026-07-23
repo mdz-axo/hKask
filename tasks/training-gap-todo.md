@@ -1,117 +1,147 @@
-# Training Gap Closure TODO
+# Training Gap Closure TODO — REVISED
 
-> **Derived from**: `tasks/training-gap-plan.md`
+> **Derived from**: `tasks/training-gap-plan.md` (revised)
 > **Date**: 2026-07-22
+> **Priority**: Phase 0 is CRITICAL — training has never worked because
+>   completion detection is broken. Fix this first.
 
-## Phase 1: Checkpoint Resume (Focus Obstacle)
+## Phase 0: Fix Completion Detection (CRITICAL)
 
-### T1: Verify RunPod `/workspace` persistence
-- [ ] Launch RunPod H100 pod (Secure Cloud, ~$0.50 for 30 min)
-- [ ] Write test file to `/workspace/persistence-test.txt`
-- [ ] Stop pod (not terminate)
-- [ ] Restart pod
-- [ ] Check if `/workspace/persistence-test.txt` survives
-- [ ] Document result in `docs/research/runpod-workspace-persistence.md`
-- [ ] **Checkpoint**: persistence verified or refuted
-
-### T2: Add `resume_from_checkpoint` to `TrainingParams`
-- [ ] Add `resume_from_checkpoint: Option<String>` to `TrainingParams` in `types.rs`
-- [ ] Add serde serialize/deserialize (derive or impl)
-- [ ] Write unit test for JSON round-trip
-- [ ] `cargo test -p hkask-mcp-training` — pass
-- [ ] `cargo clippy -p hkask-mcp-training -- -D warnings` — clean
-
-### T3: Wire through Axolotl config template
-- [ ] Update `AxolotlHarness::render_config` to include `resume_from_checkpoint` when set
-- [ ] Update `LudwigHarness::render_config` similarly
-- [ ] Update TRL script rendering if applicable
-- [ ] Write unit test: field present when set, absent when None
+### T0a: Fix install script manifest write + upload
+- [ ] Change manifest write path to `/workspace/completion.json` (guaranteed local)
+- [ ] Add `huggingface-cli upload` command for the manifest to HuggingFace
+  - Upload to `jobs/{job_id}/completion-manifest.json` in the model repo
+  - Must happen AFTER training completes, BEFORE `exec sleep infinity`
+- [ ] Ensure manifest JSON fields match `CompletionManifest` struct
+  (`job_id`, `status`, `dataset_sha256`, `adapter`, `finished_at`)
+- [ ] Unit test: verify install script content includes manifest upload command
 - [ ] `cargo test -p hkask-mcp-training` — pass
 
-### T4: Detect pod restart + emit resume span
-- [ ] Add restart detection logic to `training_status` (status transition tracking)
-- [ ] Emit `reg.training.checkpoint.resume` tracing span on detected restart
-- [ ] Write unit test with mock status sequence (running → stopped → running)
-- [ ] `cargo test -p hkask-mcp-training` — pass
-- [ ] `cargo clippy -p hkask-mcp-training -- -D warnings` — clean
-- [ ] **Phase 1 checkpoint**: pod restart no longer loses training state
-
-## Phase 2: Eval Harness Expansion
-
-### T5: Add perplexity evaluation
-- [ ] Check if inference API returns logprobs (resolve Q7)
-- [ ] Add `method: "perplexity"` option to `training_evaluate`
-- [ ] Implement perplexity computation from logprobs (or estimate)
-- [ ] Add `perplexity` field to eval result JSON
-- [ ] Write unit test with mock inference response
+### T0b: Fix `status()` to detect completion via HuggingFace manifest
+- [ ] Add HuggingFace manifest fetch to `RunpodHost::status()`
+  - If pod desiredStatus is `RUNNING`, try fetching manifest from HuggingFace
+  - If manifest found + status="success" → return `Completed`
+  - If manifest found + status="failed" → return `Failed`
+  - If manifest not found (404) → return `Running` (still in progress)
+- [ ] Distinguish 404 (not found, training in progress) from other HF API errors (retry)
+- [ ] Unit test: mock HF response with manifest (success)
+- [ ] Unit test: mock HF response with manifest (failure)
+- [ ] Unit test: mock HF response with 404 (not found)
+- [ ] Unit test: mock HF response with error (retry needed)
 - [ ] `cargo test -p hkask-mcp-training` — pass
 
-### T6: Add benchmark eval scaffold (MMLU-style)
-- [ ] Add `benchmark: Option<String>` to `TrainEvaluateRequest`
+### T0c: Implement `completion_metadata()` to parse fetched manifest
+- [ ] Change `completion_metadata()` from `Ok(None)` to fetch + parse manifest
+- [ ] Map manifest fields to `CompletionMetadata` struct
+- [ ] Handle missing/optional fields gracefully (loss may not be in manifest)
+- [ ] Unit test: mock manifest JSON → CompletionMetadata
+- [ ] `cargo test -p hkask-mcp-training` — pass
+
+### T0d: Fix `adapter_weight_path()` to return HuggingFace adapter path
+- [ ] Return the model repository path from job artifacts
+- [ ] The adapter is already uploaded by the install script to HuggingFace
+- [ ] Unit test: verifies path is returned
+- [ ] `cargo test -p hkask-mcp-training` — pass
+
+### T0e: End-to-end smoke test
+- [ ] Submit minimal training job: Qwen3-0.5B, 10 samples, 1 epoch, RTX 4090
+- [ ] Poll `training_status` every 60s
+- [ ] **VERIFY**: status transitions from Queued → Running → **Completed** (not Running forever)
+- [ ] Verify adapter is auto-registered in adapter store
+- [ ] Verify `completion_metadata` returns loss and duration
+- [ ] Document results in `docs/research/training-e2e-smoke-test.md`
+- [ ] **Phase 0 checkpoint**: FIRST EVER successful end-to-end training detection
+
+## Phase 1: Template Wiring + Config Pass-Through
+
+### T1a: Wire optimization fields to Axolotl template
+- [ ] Add `bf16` to template context from `p.advanced.bf16`
+- [ ] Add `gradient_checkpointing` from `p.advanced.gradient_checkpointing`
+- [ ] Add `flash_attention` derived from `p.advanced.attn_implementation`
+- [ ] Add `sample_packing` from `p.sequence.sample_packing`
+- [ ] Update `axolotl-lora.j2`: use variables instead of hardcoded values
+- [ ] Unit test: all 4 fields appear in rendered YAML when set
+- [ ] Unit test: defaults when unset (bf16=true, gc=true, fa=false, sp=false)
+- [ ] `cargo test -p hkask-mcp-training` — pass
+
+### T1b: Wire to TRL and Ludwig templates
+- [ ] Wire applicable fields to TRL script rendering
+- [ ] Wire applicable fields to Ludwig YAML rendering
+- [ ] Unit tests for both
+- [ ] `cargo test -p hkask-mcp-training` — pass
+- [ ] **Phase 1 checkpoint**: operators can control optimization settings
+
+## Phase 2: Checkpoint Resume
+
+### T2a: Add resume config to Axolotl template
+- [ ] Add `auto_resume_from_checkpoints: true` to template (default)
+- [ ] Add optional `resume_from_checkpoint` to `TrainingParams` (if not present)
+- [ ] Unit test: resume config in rendered YAML
+- [ ] `cargo test -p hkask-mcp-training` — pass
+
+### T2b: Detect pod restart + emit span
+- [ ] Track pod uptime seconds across status polls
+- [ ] Detect uptime reset (pod restarted)
+- [ ] Emit `reg.training.checkpoint.resume` span
+- [ ] Unit test: mock uptime sequence (100s → 5s = restart detected)
+- [ ] `cargo test -p hkask-mcp-training` — pass
+- [ ] **Phase 2 checkpoint**: pod restarts auto-resume training
+
+## Phase 3: Harness Matrix Update
+
+### T3a: Update stale matrix
+- [ ] Update `docs/reference/lora-training-catalog.md`:
+  - Axolotl: SFT ✅, DPO ✅, KTO ✅, ORPO ✅, GRPO ✅, Reward ✅, Full FT ✅
+  - Remove "SFT only" label
+- [ ] Update `lora-training` SKILL.md G6 description
+- [ ] Update `lora_validation.rs` G-H1 gate: Axolotl supports all methods
+- [ ] `cargo test -p hkask-mcp-training` — pass
+- [ ] **Phase 3 checkpoint**: matrix reflects current Axolotl capabilities
+
+## Phase 4: Eval Harness
+
+### T4a: Add benchmark eval (MMLU-style)
+- [ ] Add `benchmark: Option<String>` to eval request
 - [ ] Implement MMLU-style multiple-choice prompt formatting
 - [ ] Implement scoring (exact match on answer letter)
 - [ ] Return per-category + aggregate accuracy
-- [ ] Write unit test with 5-sample mock benchmark
+- [ ] Unit test with 5-sample mock
 - [ ] `cargo test -p hkask-mcp-training` — pass
-- [ ] **Phase 2 checkpoint**: 5 eval methods supported
+- [ ] **Phase 4 checkpoint**: benchmark eval available
 
-## Phase 3: Config Pass-Through
+## Phase 5: Platform Validation (after training works)
 
-### T7: Expose optimization fields in `TrainingParams`
-- [ ] Add `flash_attention: Option<bool>` to `TrainingParams`
-- [ ] Add `gradient_checkpointing: Option<bool>`
-- [ ] Add `bf16: Option<bool>`
-- [ ] Add `sample_packing: Option<bool>`
-- [ ] Add `deepspeed_config: Option<String>`
-- [ ] Wire all 5 through `AxolotlHarness::render_config`
-- [ ] Wire all 5 through `LudwigHarness::render_config`
-- [ ] Wire applicable fields through `TrlHarness::render_config`
-- [ ] Write 15 unit tests (5 fields × 3 harnesses)
-- [ ] `cargo test -p hkask-mcp-training` — pass
-- [ ] `cargo clippy -p hkask-mcp-training -- -D warnings` — clean
-- [ ] **Phase 3 checkpoint**: optimization params exposed as first-class fields
+### T5a: RunPod validation (5 runs)
+- [ ] Submit 5x Qwen3-0.5B LoRA (100 samples, 3 epochs) on RunPod Secure Cloud
+- [ ] Record: provisioning time, completion detection time, cost, adapter quality
+- [ ] All 5 detected as Completed by `training_status`
+- [ ] Document in `docs/research/runpod-validation.md`
 
-## Phase 4: Harness Matrix & Skill Update
-
-### T8: Update stale harness capability matrix
-- [ ] Update `docs/reference/lora-training-catalog.md`: Axolotl >SFT
-- [ ] Update: TRL GRPO no longer "deferred"
-- [ ] Add Unsloth as 4th harness in matrix
-- [ ] Update `lora-training` SKILL.md G6 description
-- [ ] Update `lora_validation.rs` G-H1 if matrix changed
-- [ ] `cargo test -p hkask-mcp-training` — pass
-
-### T9: Add sample-level log scraping + spans
-- [ ] Add log line parser (loss, lr, step, epoch regex)
-- [ ] Integrate into `training_status` poll loop
-- [ ] Emit `reg.training.sample.{loss,lr,step,epoch}` spans
-- [ ] Write unit test with mock Axolotl log lines
-- [ ] `cargo test -p hkask-mcp-training` — pass
-- [ ] **Phase 4 checkpoint**: matrix current + sample observability
-
-## Phase 5: Platform Validation
-
-### T10: RunPod vs Nebius discriminating test
-- [ ] Prepare test config: Qwen3-0.5B, 100 samples, 3 epochs, LoRA r=16
-- [ ] Run 5× on RunPod Secure Cloud H100
-- [ ] Run 5× on Nebius on-demand H100
-- [ ] Record: provisioning time, completion rate, cost/success, checkpoint integrity
-- [ ] Document in `docs/research/platform-discriminating-test.md`
-- [ ] Falsification verdict: ≥80% RunPod completion → stay; <60% → migrate
+### T5b: Nebius comparison (5 runs)
+- [ ] Run same 5 jobs on Nebius H100
+- [ ] Record same metrics
+- [ ] Compare: completion rate, cost, time
+- [ ] Falsification verdict in `docs/research/platform-comparison.md`
 - [ ] **Phase 5 checkpoint**: platform decision evidence-based
 
 ## Phase 6: OxiCUDA PoC (Research Track)
 
-### T11: Build OxiCUDA proof-of-concept
-- [ ] Create `crates/hkask-training/` with `Cargo.toml`
+### T6a: Verify OxiCUDA repo
+- [ ] Clone/inspect github.com/cool-japan/oxicuda
+- [ ] Verify oxicuda-lm has load_llama_block()
+- [ ] Verify oxicuda-peft has LoraLinear
+- [ ] Verify oxicuda-train has GpuAdamW
+- [ ] Document in `docs/research/oxicuda-verification.md`
+- [ ] **If repo doesn't exist or claims are false: STOP. Document and exit.**
+
+### T6b: Build PoC (only if T6a passes)
+- [ ] Create `crates/hkask-training/`
 - [ ] Add OxiCUDA as git dependency
-- [ ] Implement Qwen3 weight loader (~100 lines, based on LLaMA loader)
-- [ ] Load Qwen3-0.5B on GPU via `oxicuda-driver`
-- [ ] Run GEMM via `oxicuda-blas` — verify CUDA on H100
-- [ ] Wrap Linear with `oxicuda-peft::LoraLinear`
-- [ ] Run 1 training step via `oxicuda-train::GpuAdamW`
-- [ ] Save adapter via `oxicuda-peft::io::AdapterPayload`
+- [ ] Implement Qwen3 weight loader
+- [ ] Load Qwen3-0.5B on GPU
+- [ ] Run GEMM → verify CUDA
+- [ ] Wrap with LoRA
+- [ ] Run 1 training step
+- [ ] Save adapter
 - [ ] Document in `docs/research/oxicuda-poc-results.md`
-- [ ] `cargo build -p hkask-training` — pass
-- [ ] `cargo clippy -p hkask-training -- -D warnings` — clean
 - [ ] **Phase 6 checkpoint**: Rust-native training validated or falsified

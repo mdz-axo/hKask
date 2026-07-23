@@ -1,272 +1,335 @@
-# Training Gap Closure Plan — PDCA-Anchored
+# Training Gap Closure Plan — REVISED (Post Root-Cause Analysis)
 
-> **Derived from**: `tasks/training-gap-analysis.md`
-> **Date**: 2026-07-22
+> **Derived from**: `tasks/training-gap-analysis.md` + `tasks/training-gap-open-questions.md`
+> **Date**: 2026-07-22 (revised after root cause discovery)
 > **Convergence metric target**: ≤ 0.15
 > **PKO anchors**: Process axis tags (PLAN → DO → CHECK → ACT) per task
 
 ---
 
-## Overview
+## CRITICAL CONTEXT
 
-Close the highest-priority gaps between hKask's training surface and
-the three exemplar harnesses (Ludwig, Unsloth-Zoo, Axolotl), while
-honoring the Rust-first constraint. The plan is ordered by dependency:
-checkpoint resume (focus obstacle) first, then eval harness, then
-config pass-through, then platform validation, then OxiCUDA PoC.
+Training has never worked end-to-end. The root cause is NOT platform
+failure or training-loop failure — it is a **completion detection bug**
+in hKask's code. The `map_pod_status` function cannot return `Completed`,
+the completion manifest is never fetched, and the auto-registration code
+is dead code. Training may have succeeded on pods multiple times without
+hKask ever knowing.
 
-## Architecture Decisions
+See `tasks/training-gap-open-questions.md` for the full root cause
+analysis.
 
-1. **Stay on RunPod Secure Cloud** as primary platform (MCDA score
-   6.90, highest). Add Nebius as secondary for the discriminating test
-   (§7.7 of analysis). Migration is NOT recommended until the
-   discriminating test falsifies the current platform.
+## Architecture Decisions (Revised)
 
-2. **Expose harness config parameters** through `TrainingParams` rather
-   than building Rust-native implementations. The gap is shallow
-   (struct fields + template passthrough), not deep (OxiCUDA
-   dependency). Rust-native training is a separate research track
-   (OxiCUDA PoC).
+1. **Fix completion detection FIRST** (P0). No other work matters until
+   hKask can detect that training finished. This is a code bug, not a
+   platform issue.
 
-3. **Checkpoint resume is the focus obstacle** — highest cost-avoidance
-   ROI based on post-mortem evidence ($600 leak root cause class).
+2. **Stay on RunPod** for now. The completion bug would exist on any
+   platform. Fix the code, verify training works, THEN evaluate
+   platforms. RunPod and Nebius are tied in the revised MCDA (6.90 each).
 
-4. **Eval harness expansion is Rust-side** — perplexity and benchmark
-   eval can be computed from the inference API without Python. This is
-   a pure Rust task.
+3. **Template wiring is the second fix** (P1). The `TrainingParams`
+   struct already has `bf16`, `gradient_checkpointing`,
+   `attn_implementation`, `sample_packing` — they're just not passed
+   to the template context. This is a 5-line fix in `render_config`.
 
-5. **Harness matrix update is a documentation task** — the stale
-   entries (Axolotl >SFT, TRL GRPO, add Unsloth) are in
-   `docs/reference/lora-training-catalog.md` and the skill's G6 gate
-   description.
+4. **Manifest path must be fixed** (P1). The install script treats a
+   HuggingFace repo path as a local filesystem path, which may cause
+   the script to fail AFTER training succeeds.
 
-## Phased Tasks
+5. **Harness matrix is stale** (P2). Axolotl now supports DPO, KTO,
+   ORPO, GRPO, reward modelling, and full fine-tuning — not just SFT.
+   The G-H1 gate and catalog must be updated.
 
-### Phase 1: Checkpoint Resume (Focus Obstacle)
+6. **Cerebrium eliminated** as a platform candidate — it's an inference
+   platform, not a training platform.
 
-#### T1: Verify RunPod `/workspace` persistence
-- **Slice ID**: T1-checkpoint-persistence
-- **PKO**: PLAN → DO → CHECK
+## Phased Tasks (Revised Priority Order)
+
+### Phase 0: Fix Completion Detection (CRITICAL — nothing works without this)
+
+#### T0a: Fix install script to write + upload completion manifest
+- **Slice ID**: T0a-manifest-upload
+- **PKO**: DO → CHECK
 - **Acceptance criteria**:
-  1. Launch RunPod H100 pod, write file to `/workspace`, stop pod, restart, verify file survives
-  2. Document result in `docs/research/runpod-workspace-persistence.md`
-- **Verification**: File exists after restart → persistent; file missing → ephemeral
+  1. Install script writes manifest to `/workspace/completion.json` (guaranteed local path)
+  2. Install script uploads manifest to HuggingFace at `jobs/{job_id}/completion-manifest.json`
+  3. Upload happens AFTER training completes (success or failure), BEFORE `exec sleep infinity`
+  4. Unit test verifies the script content includes the upload command
+- **Verification**: Unit test on generated install script content
 - **Dependencies**: None
-- **Files likely touched**: `docs/research/runpod-workspace-persistence.md` (new)
-- **Scope**: S (1 RunPod pod, ~$0.50, 30 minutes)
-- **Skills**: `diagnose`, `falsifiability`
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/runpod.rs` (generate_install_script)
+- **Scope**: S (fix manifest path + add upload command)
+- **Skills**: `coding-guidelines`, `diagnose`
 
-#### T2: Add `resume_from_checkpoint` to `TrainingParams`
-- **Slice ID**: T2-resume-param
-- **PKO**: DO → CHECK
-- **Acceptance criteria**:
-  1. `TrainingParams` has `resume_from_checkpoint: Option<String>` field
-  2. Field serializes/deserializes correctly in JSON
-  3. `cargo test -p hkask-mcp-training` passes
-  4. `cargo clippy -p hkask-mcp-training -- -D warnings` clean
-- **Verification**: Unit test for serialization round-trip
-- **Dependencies**: T1 (need to know if persistence works before wiring resume)
-- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/types.rs`, `mcp-servers/hkask-mcp-training/src/types.rs`
-- **Scope**: S (1 struct field + tests)
-- **Skills**: `coding-guidelines`, `tdd`
-
-#### T3: Wire `resume_from_checkpoint` through Axolotl config template
-- **Slice ID**: T3-resume-axolotl-template
-- **PKO**: DO → CHECK
-- **Acceptance criteria**:
-  1. `AxolotlHarness::render_config` includes `resume_from_checkpoint` in YAML when set
-  2. Rendered YAML is valid Axolotl config (verified against Axolotl schema docs)
-  3. Unit test verifies the field appears when set and is absent when None
-- **Verification**: Unit test on rendered config output
-- **Dependencies**: T2
-- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/harness.rs`, `registry/templates/training/axolotl-lora.j2` (if template-based)
-- **Scope**: S (template change + test)
-- **Skills**: `coding-guidelines`, `tdd`
-
-#### T4: Detect pod restart in `training_status` and emit resume span
-- **Slice ID**: T4-restart-detection
+#### T0b: Fix `status()` to detect completion via HuggingFace manifest
+- **Slice ID**: T0b-completion-detection
 - **PKO**: DO → CHECK → ACT
 - **Acceptance criteria**:
-  1. `training_status` detects pod status transition (running → stopped → running)
-  2. Emits `reg.training.checkpoint.resume` span on restart detection
-  3. Unit test simulates restart transition and verifies span emission
-- **Verification**: Unit test with mock status transitions
-- **Dependencies**: T2, T3
-- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/lib.rs` (training_status function), `mcp-servers/hkask-mcp-training/src/providers/runpod.rs`
-- **Scope**: M (status polling logic + span emission + tests)
+  1. `RunpodHost::status()` queries RunPod for pod desiredStatus (as before)
+  2. If pod is `RUNNING`, also attempts to fetch completion manifest from HuggingFace
+  3. If manifest exists and `status == "success"`, returns `TrainingJobStatus::Completed`
+  4. If manifest exists and `status == "failed"`, returns `TrainingJobStatus::Failed`
+  5. If manifest doesn't exist (404), returns `Running` (still in progress)
+  6. `map_pod_status` updated: `STOPPED`/`TERMINATED` → `Failed` (keep), but completion is detected via manifest, not pod status
+  7. Unit test with mock HuggingFace response (manifest found, manifest not found, manifest with success, manifest with failure)
+- **Verification**: Unit tests for all 4 manifest scenarios
+- **Dependencies**: T0a (manifest must be uploaded for status to detect it)
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/runpod.rs` (status, completion_metadata)
+- **Scope**: M (HuggingFace API call + manifest parsing + status logic + tests)
+- **Skills**: `coding-guidelines`, `tdd`, `diagnose`
+
+#### T0c: Fix `completion_metadata()` to parse the fetched manifest
+- **Slice ID**: T0c-completion-metadata
+- **PKO**: DO → CHECK
+- **Acceptance criteria**:
+  1. `completion_metadata()` fetches and parses the manifest from HuggingFace
+  2. Returns `CompletionMetadata` with `base_model`, `output_name`, `loss`, `training_duration_secs`, `tokens_processed`
+  3. The install script's manifest format must match `CompletionManifest` struct fields
+  4. Unit test verifies manifest parsing
+- **Verification**: Unit test with mock manifest JSON
+- **Dependencies**: T0b
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/runpod.rs`, `mcp-servers/hkask-mcp-training/src/huggingface.rs`
+- **Scope**: S (implement parsing + connect to existing `fetch_completion_manifest`)
+- **Skills**: `coding-guidelines`, `tdd`
+
+#### T0d: Fix `adapter_weight_path()` to return HuggingFace adapter path
+- **Slice ID**: T0d-adapter-path
+- **PKO**: DO → CHECK
+- **Acceptance criteria**:
+  1. `adapter_weight_path()` returns the HuggingFace model repository path for the adapter
+  2. The auto-registration code in `training_status` can use this to record the adapter location
+  3. Unit test verifies the path is returned correctly
+- **Verification**: Unit test
+- **Dependencies**: T0c
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/runpod.rs`
+- **Scope**: S (return artifact path from job artifacts)
+- **Skills**: `coding-guidelines`, `tdd`
+
+#### T0e: End-to-end smoke test — verify training completion is detectable
+- **Slice ID**: T0e-e2e-smoke-test
+- **PKO**: PLAN → DO → CHECK → ACT
+- **Acceptance criteria**:
+  1. Submit a minimal training job (Qwen3-0.5B, 10 samples, 1 epoch, RTX 4090)
+  2. Poll `training_status` until it returns `Completed` (not `Running` forever)
+  3. Verify adapter is auto-registered in the adapter store
+  4. Verify `completion_metadata` returns loss and duration
+  5. Document results in `docs/research/training-e2e-smoke-test.md`
+- **Verification**: `training_status` returns `Completed` with adapter registered
+- **Dependencies**: T0a, T0b, T0c, T0d
+- **Files likely touched**: `docs/research/training-e2e-smoke-test.md` (new)
+- **Scope**: M (1 GPU run, ~$1-2, 30-60 minutes)
+- **Skills**: `diagnose`, `falsifiability`
+
+**Phase 0 checkpoint**: Training completion is detectable. The
+auto-registration code is no longer dead code. The user can see
+"Completed" status for the first time.
+
+---
+
+### Phase 1: Template Wiring + Config Pass-Through
+
+#### T1a: Wire `TrainingParams` optimization fields to Axolotl template context
+- **Slice ID**: T1a-template-wiring
+- **PKO**: DO → CHECK
+- **Acceptance criteria**:
+  1. `AxolotlHarness::render_config` inserts `bf16`, `gradient_checkpointing`, `flash_attention`, `sample_packing` into template context
+  2. Template uses these values instead of hardcoded `true`/`false`
+  3. `flash_attention` derived from `attn_implementation` (flash_attention_2 → true, else false)
+  4. Unit test verifies all 4 fields appear in rendered YAML when set
+  5. Unit test verifies defaults when unset (bf16=true, gradient_checkpointing=true, flash_attention=false, sample_packing=false)
+- **Verification**: Unit tests on rendered config
+- **Dependencies**: None (independent of Phase 0)
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/harness.rs`, `registry/templates/training/axolotl-lora.j2`
+- **Scope**: S (5 context insertions + template changes + tests)
+- **Skills**: `coding-guidelines`, `tdd`
+
+#### T1b: Wire the same fields to TRL and Ludwig templates
+- **Slice ID**: T1b-trl-ludwig-wiring
+- **PKO**: DO → CHECK
+- **Acceptance criteria**:
+  1. TRL script rendering includes applicable optimization fields
+  2. Ludwig YAML rendering includes applicable optimization fields
+  3. Unit tests for both harnesses
+- **Verification**: Unit tests
+- **Dependencies**: T1a
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/trl_harness.rs`, `mcp-servers/hkask-mcp-training/src/providers/harness.rs` (Ludwig)
+- **Scope**: S
+- **Skills**: `coding-guidelines`, `tdd`
+
+**Phase 1 checkpoint**: Operators can control flash attention, gradient
+checkpointing, bf16, and sample packing via `TrainingParams`.
+
+---
+
+### Phase 2: Checkpoint Resume
+
+#### T2a: Add `resume_from_checkpoint` + `auto_resume_from_checkpoints` to template
+- **Slice ID**: T2a-checkpoint-resume-config
+- **PKO**: DO → CHECK
+- **Acceptance criteria**:
+  1. Axolotl template includes `auto_resume_from_checkpoints: true` by default
+  2. `TrainingParams` has optional `resume_from_checkpoint: Option<String>` field (if not already)
+  3. When set, template includes `resume_from_checkpoint: <path>`
+  4. Unit test verifies resume config appears in rendered YAML
+- **Verification**: Unit test
+- **Dependencies**: None
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/types.rs`, `mcp-servers/hkask-mcp-training/src/providers/harness.rs`, `registry/templates/training/axolotl-lora.j2`
+- **Scope**: S
+- **Skills**: `coding-guidelines`, `tdd`
+
+#### T2b: Detect pod restart in `training_status` and emit span
+- **Slice ID**: T2b-restart-detection
+- **PKO**: DO → CHECK
+- **Acceptance criteria**:
+  1. `training_status` tracks pod uptime seconds (from RunPod API `runtime.uptimeInSeconds`)
+  2. If uptime resets (decreases between polls), detects pod restart
+  3. Emits `reg.training.checkpoint.resume` span
+  4. Unit test simulates uptime reset
+- **Verification**: Unit test with mock uptime sequence
+- **Dependencies**: T0b (status function must be working)
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/runpod.rs`
+- **Scope**: M
 - **Skills**: `coding-guidelines`, `tdd`, `pragmatic-cybernetics`
 
-**Phase 1 checkpoint**: Pod restart no longer loses training state.
-Resume from last checkpoint within 60 seconds.
+**Phase 2 checkpoint**: Pod restarts no longer lose training progress.
+Axolotl auto-resumes from the last checkpoint.
 
 ---
 
-### Phase 2: Eval Harness Expansion
+### Phase 3: Harness Matrix + Skill Update
 
-#### T5: Add perplexity evaluation to `training_evaluate`
-- **Slice ID**: T5-perplexity-eval
-- **PKO**: PLAN → DO → CHECK
-- **Acceptance criteria**:
-  1. `training_evaluate` supports `method: "perplexity"` option
-  2. Perplexity computed from inference API logprobs (if available) or estimated from token likelihood
-  3. Result includes `perplexity` field alongside existing `accuracy`
-  4. Unit test with mock inference response
-- **Verification**: Unit test verifies perplexity computation
-- **Dependencies**: None (independent of Phase 1)
-- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/lib.rs` (training_evaluate function)
-- **Scope**: M (new eval method + logprob handling + tests)
-- **Skills**: `coding-guidelines`, `tdd`
-- **Open question**: Q7 — does the inference API return logprobs?
-
-#### T6: Add benchmark eval scaffold (MMLU-style)
-- **Slice ID**: T6-benchmark-eval
-- **PKO**: PLAN → DO → CHECK
-- **Acceptance criteria**:
-  1. New MCP tool `training_evaluate_benchmark` or extended `training_evaluate` with `benchmark: "mmlu"` option
-  2. Loads benchmark dataset from HuggingFace (via `hf-hub` crate)
-  3. Formats multiple-choice prompts, calls inference, scores
-  4. Returns per-category accuracy + aggregate score
-- **Verification**: Unit test with mock benchmark dataset (5 samples)
-- **Dependencies**: T5 (shares eval infrastructure)
-- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/lib.rs`, `mcp-servers/hkask-mcp-training/src/dataset.rs`
-- **Scope**: M (new eval path + benchmark loading + scoring + tests)
-- **Skills**: `coding-guidelines`, `tdd`, `deep-module`
-
-**Phase 2 checkpoint**: Eval harness supports exact_match, contains,
-semantic, perplexity, and benchmark (MMLU-style) evaluation.
-
----
-
-### Phase 3: Config Pass-Through
-
-#### T7: Expose `TrainingParams` optimization fields
-- **Slice ID**: T7-optimization-params
+#### T3a: Update stale harness capability matrix
+- **Slice ID**: T3a-matrix-update
 - **PKO**: DO → CHECK
 - **Acceptance criteria**:
-  1. `TrainingParams` includes: `flash_attention: Option<bool>`, `gradient_checkpointing: Option<bool>`, `bf16: Option<bool>`, `sample_packing: Option<bool>`, `deepspeed_config: Option<String>`
-  2. All fields pass through to Axolotl, TRL, and Ludwig config templates
-  3. Each field has a unit test verifying it appears in rendered config when set
-  4. `cargo test -p hkask-mcp-training` passes
-- **Verification**: Unit tests on rendered configs for all 3 harnesses
-- **Dependencies**: None (independent)
-- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/providers/types.rs`, `mcp-servers/hkask-mcp-training/src/providers/harness.rs`, `mcp-servers/hkask-mcp-training/src/providers/trl_harness.rs`
-- **Scope**: M (5 struct fields + 3 template updates + 15 tests)
-- **Skills**: `coding-guidelines`, `tdd`, `idiomatic-rust`
-
-**Phase 3 checkpoint**: hKask exposes flash attention, gradient
-checkpointing, mixed precision, sample packing, and DeepSpeed config
-as first-class `TrainingParams` fields.
-
----
-
-### Phase 4: Harness Matrix & Skill Update
-
-#### T8: Update stale harness capability matrix
-- **Slice ID**: T8-harness-matrix-update
-- **PKO**: DO → CHECK
-- **Acceptance criteria**:
-  1. `docs/reference/lora-training-catalog.md` harness matrix updated: Axolotl supports RLHF + full FT (not "SFT only"), TRL GRPO no longer "deferred", Unsloth added as 4th harness
-  2. `lora-training` skill G6 description updated to reflect current Axolotl/TRL capabilities
-  3. `lora_validation.rs` G-H1 gate updated if harness-trainer matrix changed
-- **Verification**: Document review + `cargo test -p hkask-mcp-training` passes
-- **Dependencies**: None (documentation + validation update)
+  1. `docs/reference/lora-training-catalog.md`: Axolotl supports DPO, IPO, KTO, ORPO, GRPO, GDPO, RM, PRM, full FT (not "SFT only")
+  2. Axolotl GRPO changes from ❌ to ✅
+  3. `lora-training` SKILL.md G6 description updated
+  4. `lora_validation.rs` G-H1 gate updated to allow Axolotl for all methods
+  5. `cargo test -p hkask-mcp-training` passes
+- **Verification**: Doc review + test pass
+- **Dependencies**: None
 - **Files likely touched**: `docs/reference/lora-training-catalog.md`, `.agents/skills/lora-training/SKILL.md`, `mcp-servers/hkask-mcp-training/src/lora_validation.rs`
-- **Scope**: S (doc update + validation matrix update)
+- **Scope**: S
 - **Skills**: `pragmatic-semantics`, `skill-maintenance`
 
-#### T9: Add sample-level log scraping + Regulation spans
-- **Slice ID**: T9-sample-logging
+**Phase 3 checkpoint**: Harness matrix reflects current Axolotl
+capabilities. G-H1 gate no longer incorrectly blocks Axolotl for
+preference tuning.
+
+---
+
+### Phase 4: Eval Harness Expansion
+
+#### T4a: Add benchmark eval (MMLU-style) — no logprobs needed
+- **Slice ID**: T4a-benchmark-eval
+- **PKO**: PLAN → DO → CHECK
+- **Acceptance criteria**:
+  1. `training_evaluate` supports `benchmark: "mmlu"` option
+  2. Loads benchmark dataset from HuggingFace
+  3. Formats multiple-choice prompts, calls inference, scores by answer letter
+  4. Returns per-category + aggregate accuracy
+  5. Unit test with mock benchmark (5 samples)
+- **Verification**: Unit test
+- **Dependencies**: None
+- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/lib.rs`
+- **Scope**: M
+- **Skills**: `coding-guidelines`, `tdd`
+
+**Note:** Perplexity eval via logprobs is NOT possible (Q7 resolved: no
+logprobs in inference API). Benchmark eval (MMLU-style) doesn't need
+logprobs and is the higher-value eval method.
+
+**Phase 4 checkpoint**: Eval harness supports benchmark evaluation.
+
+---
+
+### Phase 5: Platform Validation (after training works)
+
+#### T5a: Run end-to-end training on RunPod Secure Cloud (5 runs)
+- **Slice ID**: T5a-runpod-validation
 - **PKO**: DO → CHECK
 - **Acceptance criteria**:
-  1. `training_status` scrapes pod stdout/stderr for training log lines
-  2. Parses loss, learning rate, step, epoch from log lines
-  3. Emits `reg.training.sample.{loss,lr,step,epoch}` spans
-  4. Unit test with mock log lines
-- **Verification**: Unit test verifies span emission from parsed logs
-- **Dependencies**: None (independent)
-- **Files likely touched**: `mcp-servers/hkask-mcp-training/src/lib.rs`, `mcp-servers/hkask-mcp-training/src/providers/runpod.rs`
-- **Scope**: M (log parsing + span emission + tests)
-- **Skills**: `coding-guidelines`, `tdd`, `pragmatic-cybernetics`
+  1. 5x Qwen3-0.5B LoRA training (100 samples, 3 epochs)
+  2. Record: provisioning time, completion detection time, cost, adapter quality
+  3. All 5 runs detected as Completed by `training_status`
+  4. Document in `docs/research/runpod-validation.md`
+- **Verification**: ≥4/5 runs complete and detected
+- **Dependencies**: Phase 0 complete (completion detection must work)
+- **Files likely touched**: `docs/research/runpod-validation.md` (new)
+- **Scope**: M (5 GPU runs, ~$5-10, 2-3 hours)
+- **Skills**: `diagnose`, `falsifiability`
 
-**Phase 4 checkpoint**: Harness matrix is current; sample-level
-training observability via Regulation spans.
-
----
-
-### Phase 5: Platform Validation
-
-#### T10: Run RunPod vs Nebius discriminating test
-- **Slice ID**: T10-platform-discriminating-test
-- **PKO**: PLAN → DO → CHECK → ACT
+#### T5b: Run same jobs on Nebius (5 runs) for comparison
+- **Slice ID**: T5b-nebius-comparison
+- **PKO**: DO → CHECK → ACT
 - **Acceptance criteria**:
-  1. Run 5x Qwen3-0.5B LoRA training jobs on RunPod Secure Cloud H100
-  2. Run 5x same jobs on Nebius on-demand H100
-  3. Record: provisioning time, completion rate, cost per successful run, checkpoint integrity
-  4. Document results in `docs/research/platform-discriminating-test.md`
-  5. Falsification verdict: if RunPod ≥80% completion at ≤120% Nebius cost → stay; if <60% → migrate
-- **Verification**: Quantitative comparison with raw data
-- **Dependencies**: T4 (checkpoint resume helps completion rate)
-- **Files likely touched**: `docs/research/platform-discriminating-test.md` (new)
-- **Scope**: M (10 GPU runs, ~$20-50 total, 1 day)
+  1. Same 5 jobs on Nebius H100
+  2. Record same metrics
+  3. Compare RunPod vs Nebius: completion rate, cost, time
+  4. Falsification verdict: if both ≥80% → stay on RunPod; if Nebius >> RunPod → consider migration
+- **Verification**: Quantitative comparison
+- **Dependencies**: T5a
+- **Files likely touched**: `docs/research/platform-comparison.md` (new)
+- **Scope**: M (5 GPU runs, ~$10-20, 2-3 hours)
 - **Skills**: `diagnose`, `falsifiability`, `mcda`
 
-**Phase 5 checkpoint**: Platform decision is evidence-based, not
-vibes-based. Falsification verdict recorded.
+**Phase 5 checkpoint:** Platform decision is evidence-based.
 
 ---
 
-### Phase 6: OxiCUDA PoC (Research Track)
+### Phase 6: OxiCUDA PoC (Research Track — lowest priority)
 
-#### T11: Build OxiCUDA proof-of-concept
-- **Slice ID**: T11-oxicuda-poc
-- **PKO**: PLAN → DO → CHECK → ACT
+#### T6a: Verify OxiCUDA repo exists and inspect LM crate
+- **Slice ID**: T6a-oxicuda-verify
+- **PKO**: PLAN → CHECK
 - **Acceptance criteria**:
-  1. New Rust binary crate `hkask-lora-trainer` (or `crates/hkask-training`)
-  2. OxiCUDA added as git dependency
-  3. Load Qwen3-0.5B on GPU via `oxicuda-driver`
-  4. Run simple GEMM via `oxicuda-blas` to verify CUDA works on H100
-  5. Wrap a Linear layer with `oxicuda-peft::LoraLinear`
-  6. Run 1 training step using `oxicuda-train::GpuAdamW`
-  7. Save adapter via `oxicuda-peft::io::AdapterPayload`
-  8. Document results in `docs/research/oxicuda-poc-results.md`
-- **Verification**: PoC runs end-to-end on H100; adapter saved successfully
-- **Dependencies**: T10 (use validated platform for PoC)
-- **Files likely touched**: `crates/hkask-training/` (new), `Cargo.toml` (workspace member), `docs/research/oxicuda-poc-results.md` (new)
-- **Scope**: L (new crate, git dependency, GPU code, ~2-4 weeks)
-- **Skills**: `coding-guidelines`, `idiomatic-rust`, `diagnose`, `falsifiability`
-- **Risk**: OxiCUDA PTX kernels untested on H100 (SM 9.0) — per research doc
+  1. Clone/inspect github.com/cool-japan/oxicuda
+  2. Verify `oxicuda-lm` crate has `load_llama_block()` as claimed
+  3. Verify `oxicuda-peft` has `LoraLinear` as claimed
+  4. Verify `oxicuda-train` has `GpuAdamW` as claimed
+  5. Document findings (exists? claims verified? version?)
+- **Verification**: Direct repo inspection
+- **Dependencies**: None
+- **Files likely touched**: `docs/research/oxicuda-verification.md` (new)
+- **Scope**: S (repo inspection, no GPU needed)
+- **Skills**: `falsifiability`, `diagnose`
 
-**Phase 6 checkpoint**: Rust-native training path validated or
-falsified. If validated, plan full `hkask-lora-trainer` binary. If
-falsified, continue with Python harness rendering.
+#### T6b: Build OxiCUDA PoC (only if T6a verifies the repo)
+- **Slice ID**: T6b-oxicuda-poc
+- **PKO**: PLAN → DO → CHECK → ACT
+- **Acceptance criteria**: (same as original T11)
+- **Dependencies**: T6a, T5a (use validated platform)
+- **Scope**: L (2-4 weeks, new crate, GPU code)
+- **Skills**: `coding-guidelines`, `idiomatic-rust`, `diagnose`
+
+**Phase 6 checkpoint:** Rust-native training path validated or
+falsified.
 
 ---
 
-## Risks
+## Risks (Revised)
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| RunPod `/workspace` not persistent | Low | High (blocks checkpoint resume) | T1 verifies before T2-T4; fallback: Nebius or RunPod volume mount |
-| OxiCUDA fails on H100 | Medium | High (blocks Rust-native training) | T11 is a research track; Python harnesses remain the fallback |
-| Inference API doesn't return logprobs | Medium | Medium (blocks perplexity eval) | T5 checks API capability; fallback: estimate from token sampling |
-| Nebius doesn't support training workloads | Low | Medium (blocks discriminating test) | T10 can use DeepInfra as alternative ($1.79/hr H100) |
-| Axolotl config schema changes | Low | Low (template update) | Pin Axolotl version in pod template |
+| HuggingFace manifest upload fails silently | Medium | High (completion still undetectable) | Install script logs upload errors; status function retries manifest fetch |
+| `fetch_completion_manifest` API errors are treated as "not found" | Medium | Medium (false negative on completion) | Distinguish 404 (not found) from other errors (retry) |
+| Axolotl `auto_resume_from_checkpoints` behavior unexpected | Low | Medium | Test with a controlled pod restart |
+| OxiCUDA repo doesn't exist or claims are fabricated | Medium | High (research track blocked) | T6a verifies before T6b starts |
+| Template changes break existing config rendering | Low | Medium | Unit tests on rendered YAML for all harnesses |
 
-## Open Questions (from analysis, unresolved)
+## Convergence Check (Revised)
 
-See `tasks/training-gap-analysis.md` §10 for the full register (Q1-Q15).
-Each task above references the open questions it depends on.
-
-## Convergence Check
-
-| Criterion | Weight | Score (0=good, 1=bad) | Notes |
+| Criterion | Weight | Score | Notes |
 |---|---|---|---|
-| Sizing (≤ M per slice) | 0.25 | 0.05 | 9×S, 4×M, 1×L (L is explicitly research track) |
-| Vertical slice (end-to-end) | 0.20 | 0.10 | Each slice has acceptance criteria + verification |
-| AC specificity (≤3, testable) | 0.20 | 0.05 | All ACs are testable with clear pass/fail |
-| Dependency ordering | 0.15 | 0.05 | Phase 1 → 2 → 3 → 4 → 5 → 6; within-phase deps marked |
-| Checkpoints | 0.10 | 0.05 | 6 phase checkpoints defined |
-| Red-flag absence | 0.10 | 0.05 | No horizontal slicing; no stubs; no untested state-mutating tools |
-| **Weighted total** | | **0.06** | ≤ 0.15 threshold ✅ |
+| Sizing (≤ M per slice) | 0.25 | 0.05 | 7×S, 4×M, 1×L (L is gated on T6a) |
+| Vertical slice (end-to-end) | 0.20 | 0.08 | Phase 0 is fully end-to-end (the critical path) |
+| AC specificity (≤3, testable) | 0.20 | 0.05 | All ACs testable with clear pass/fail |
+| Dependency ordering | 0.15 | 0.05 | Phase 0 → 1 → 2 → 3 → 4 → 5 → 6 |
+| Checkpoints | 0.10 | 0.05 | 7 phase checkpoints |
+| Red-flag absence | 0.10 | 0.05 | No horizontal slicing; P0 is the critical path |
+| **Weighted total** | | **0.05** | ≤ 0.15 ✅ |
 
-**Converged: YES** (metric 0.06 ≤ 0.15, no criterion > 0.30).
+**Converged: YES** (metric 0.05 ≤ 0.15, no criterion > 0.30).

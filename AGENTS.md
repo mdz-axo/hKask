@@ -85,6 +85,7 @@ Only #1 partially CI-gated; #2–#4 enforced by review.
 |---|---|---|
 | Before writing/reviewing code | `coding-guidelines` | `bug-hunt` or `tdd` |
 | Hard bug / regression | `diagnose` | `codegraph` (if unknown structure) |
+| Low confidence / high uncertainty | `metacognition` (assess + calibrate) | `improv` (riffing) or `zoom-out` (if context-loss) or `falsifiability` (if hypothesis-conflict) |
 | Module design / simplification | `essentialist` (3 gates) | `deep-module` |
 | Security audit | `kali-audit` | `supply-chain-sentinel` (manifests) |
 | LoRA/QLoRA training config audit | `lora-training` | `tdd` (training-loop code) |
@@ -94,6 +95,23 @@ Only #1 partially CI-gated; #2–#4 enforced by review.
 | Capability gap detection | `skill-discovery` | `skill-router` (after new skill installed) |
 | Multi-agent coaching | `kata-coaching` | `improv` (interaction grammar) |
 | Session handoff | `handoff` | — |
+
+---
+
+## Uncertainty Management Stack
+
+When an agent or LLM enters a low-confidence regime (confidence < 0.5), the system routes through a layered stack of certainty-finding strategies:
+
+| Layer | Strategy | Skills |
+|-------|----------|--------|
+| **Epistemic classification** | Classify certainty level, trace provenance, resolve conflicts | `pragmatic-semantics` |
+| **Standard PDCA** | Decompose, assess, calibrate strategy, experiment | `metacognition` (obstacle type `uncertainty`), `sequential-inquiry`, `falsifiability` |
+| **Non-standard paths** | Find certainty through perspective-shift, not more data | `metacognition` (Falstaffian rotation, ellipsis detection), `improv` (Riffing for divergent exploration) |
+| **Context expansion** | Raise confidence by broadening scope, not adding detail | `zoom-out`, `codegraph` |
+| **Runtime enforcement** | Prune low-confidence memory, escalate low-confidence output | `Confidence` type, consolidation `confidence_floor`, Curator escalation queue (Pattern C) |
+| **Curation gap-fill** | Detect missing certainty-finding methods, acquire new skills | `skill-router` (`epistemic_state` boost), `skill-discovery` (`epistemic` gap category) |
+
+The `skill-router` accepts an optional `epistemic_state` input (`confidence` + `uncertainty_type`) that boosts trigger-alignment for certainty-finding skills when confidence < 0.5. The `skill-discovery` detect-gap phase classifies `epistemic` gaps distinctly from `knowledge` gaps (epistemic = missing certainty-finding methods; knowledge = missing facts).
 
 ---
 

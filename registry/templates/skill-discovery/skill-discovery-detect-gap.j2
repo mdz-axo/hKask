@@ -58,6 +58,9 @@ Every gap must be classified into exactly one of these categories:
 | **Knowledge** | Domain knowledge not captured in any skill | No skill covers inference model selection heuristics |
 | **Governance** | No skill enforces a required policy | No skill validates Magna Carta P3 compliance |
 | **Quality** | Skill exists but quality is degraded | Skill references deleted crate paths |
+| **Epistemic** | No certainty-finding method for an uncertainty type | No skill for perspective_blind uncertainty when agent confidence < 0.5 |
+
+**Epistemic vs. Knowledge distinction:** `knowledge` means missing facts or domain information. `epistemic` means missing certainty-finding methods or perspective-rotation tools. An epistemic gap is flagged when an agent reports low confidence and no installed skill addresses the uncertainty type (perspective_blind, context_loss, conflict, knowledge_gap).
 
 ## Analysis Rules
 
@@ -76,7 +79,7 @@ Respond with a JSON object:
   "gap_list": [
     {
       "gap_id": "GAP-001",
-      "gap_category": "coverage|feature|automation|knowledge|governance|quality",
+      "gap_category": "coverage|feature|automation|knowledge|governance|quality|epistemic",
       "task_pattern": "The task pattern that exposes this gap",
       "description": "What is missing and why it matters",
       "impact": "critical|high|medium|low",

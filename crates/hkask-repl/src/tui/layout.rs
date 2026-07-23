@@ -179,4 +179,53 @@ mod tests {
         };
         assert!(!layout.is_valid());
     }
+
+    #[test]
+    fn validates_layout_with_new_window_kinds() {
+        let layout = SavedLayout {
+            version: 1,
+            tabs: vec![SavedTab {
+                name: "Multi".into(),
+                root: SavedSplit::Vertical {
+                    top: Box::new(SavedSplit::Leaf(SavedLeaf {
+                        kind: "Chat".into(),
+                    })),
+                    bottom: Box::new(SavedSplit::Horizontal {
+                        left: Box::new(SavedSplit::Leaf(SavedLeaf {
+                            kind: "Kanban".into(),
+                        })),
+                        right: Box::new(SavedSplit::Leaf(SavedLeaf {
+                            kind: "Companies".into(),
+                        })),
+                        ratio: 0.5,
+                    }),
+                    ratio: 0.6,
+                },
+            }],
+            active_tab: 0,
+        };
+        assert!(layout.is_valid());
+    }
+
+    #[test]
+    fn validates_layout_with_scenarios_kind() {
+        let layout = SavedLayout {
+            version: 1,
+            tabs: vec![SavedTab {
+                name: "Scenarios".into(),
+                root: SavedSplit::Leaf(SavedLeaf {
+                    kind: "Scenarios".into(),
+                }),
+            }],
+            active_tab: 0,
+        };
+        assert!(layout.is_valid());
+    }
+
+    #[test]
+    fn string_to_kind_falls_back_to_chat() {
+        assert_eq!(string_to_kind("nonexistent"), WindowKind::Chat);
+        assert_eq!(string_to_kind("Kanban"), WindowKind::Kanban);
+        assert_eq!(string_to_kind("companies"), WindowKind::Companies);
+    }
 }

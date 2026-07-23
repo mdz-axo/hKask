@@ -32,6 +32,7 @@ Acquire NEW skills for hKask. Full lifecycle: detect capability gaps in the skil
 9. Ensure each gap references exactly one category, even if it spans multiple task patterns.
 10. Justify impact scoring using task pattern frequency and consequence.
 11. Do not recommend `ignore` for any gap with `critical` or `high` impact.
+12. Classify `epistemic` gaps distinctly from `knowledge` gaps: `knowledge` means missing facts or information; `epistemic` means missing certainty-finding methods or perspective-rotation tools. An `epistemic` gap is flagged when an agent reports low confidence and no installed skill addresses the uncertainty type (perspective_blind, context_loss, conflict).
 
 ### skill-discovery-search
 
@@ -108,7 +109,7 @@ flowchart LR
 
 ## Constraints
 
-- `skill-discovery-detect-gap.j2`: Public. Gap categories: coverage, feature, automation, knowledge, governance, quality (6 categories). Input `skill_catalog` is the same array passed to skill-discovery-search and skill-router-match (standardized naming across the routing/discovery ecosystem).
+- `skill-discovery-detect-gap.j2`: Public. Gap categories: coverage, feature, automation, knowledge, governance, quality, epistemic (7 categories). Input `skill_catalog` is the same array passed to skill-discovery-search and skill-router-match (standardized naming across the routing/discovery ecosystem). `epistemic` gaps are distinct from `knowledge` gaps: epistemic = missing certainty-finding methods; knowledge = missing facts.
 - `skill-discovery-search.j2`: Public. Scores all catalog entries; returns candidates with fit_score ≥ 0.20.
 - `skill-discovery-evaluate.j2`: Public. 11 checks scored 0–2; max score 22; min installable 16; safety 0 → reject.
 - `skill-discovery-convergence-check.j2`: Public. Metric in [0,1]; threshold 0.15; max 3 iterations.
