@@ -217,40 +217,9 @@ impl ThreadRegistry {
         }
     }
 
-    /// Get the active thread's conversation history formatted as context text.
-    /// Returns the last `max_turns` exchanges (None = all). Returns None if
-    /// no active thread or thread has no turns.
-    pub fn thread_history(&self, max_turns: Option<usize>) -> Option<String> {
-        let thread_id = self.active_thread_id.as_ref()?;
-        let thread = self.threads.get(thread_id)?;
-        if thread.turns.is_empty() {
-            return None;
-        }
-        let turns: Vec<&TurnEntry> = if let Some(max) = max_turns {
-            let start = thread.turns.len().saturating_sub(max * 2);
-            thread.turns[start..].iter().collect()
-        } else {
-            thread.turns.iter().collect()
-        };
-        let formatted: Vec<String> = turns
-            .iter()
-            .map(|t| format!("{}: {}", capitalize_first(&t.role), t.content))
-            .collect();
-        Some(format!(
-            "[Thread: {}]\n{}\n[/Thread]\n",
-            thread.title,
-            formatted.join("\n")
-        ))
-    }
-
     /// Get the active thread's conversation history as typed `ChatMessage`s.
-    ///
-    /// This is the multi-turn inference path: each turn's `role` ("user" or
-    /// "assistant") is preserved as a `ChatMessage` with the correct role tag,
-    /// so the provider sees `[user, assistant, user, assistant, ...]` — not a
-    /// single flattened string. This eliminates the "you responding to
-    /// yourself" defect.
-    ///
+    /// Each turn's `role` ("user" or "assistant") is preserved, so the provider
+    /// sees `[user, assistant, user, assistant, ...]` — not a flattened string.
     /// Returns the last `max_turns` exchanges (None = all). Returns None if
     /// no active thread or thread has no turns.
     pub fn thread_history_messages(
@@ -404,14 +373,6 @@ fn thread_title_from_message(msg: &str) -> String {
     }
 }
 
-fn capitalize_first(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
-}
-
 // ── Tests ───────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -439,10 +400,11 @@ mod tests {
         reg.append_turn("test-agent", "What is 2+2?", "It's 4.");
         reg.append_turn("test-agent", "Thanks!", "You're welcome!");
 
-        let history = reg.thread_history(None).unwrap();
-        assert!(history.contains("What is 2+2?"));
-        assert!(history.contains("It's 4."));
-        assert!(history.contains("Thanks!"));
+        let history = reg.thread_history_messages(None).unwrap();
+        let texts: Vec<&str> = history.iter().map(|m| m.content.as_str()).collect();
+        assert!(texts.iter().any(|t| t.contains("What is 2+2?")));
+        assert!(texts.iter().any(|t| t.contains("It's 4.")));
+        assert!(texts.iter().any(|t| t.contains("Thanks!")));
     }
 
     #[test]
@@ -461,15 +423,17 @@ mod tests {
         reg.append_turn("test-agent", "T2 message", "T2 response");
 
         // Thread 2 is active — should see T2 history.
-        let history = reg.thread_history(None).unwrap();
-        assert!(history.contains("T2 message"));
-        assert!(!history.contains("T1 message"));
+        let history = reg.thread_history_messages(None).unwrap();
+        let texts: Vec<&str> = history.iter().map(|m| m.content.as_str()).collect();
+        assert!(texts.iter().any(|t| t.contains("T2 message")));
+        assert!(!texts.iter().any(|t| t.contains("T1 message")));
 
         // Switch to thread 1 — should see T1 history.
         reg.switch_to(&t1, "test-agent");
-        let history = reg.thread_history(None).unwrap();
-        assert!(history.contains("T1 message"));
-        assert!(!history.contains("T2 message"));
+        let history = reg.thread_history_messages(None).unwrap();
+        let texts: Vec<&str> = history.iter().map(|m| m.content.as_str()).collect();
+        assert!(texts.iter().any(|t| t.contains("T1 message")));
+        assert!(!texts.iter().any(|t| t.contains("T2 message")));
     }
 
     #[test]
@@ -505,10 +469,14 @@ mod tests {
         // With compaction, each overflow removes 3 turns and inserts 1
         // compaction entry. After 110 compactions (210 exchanges - 100 at
         // cap), msg110 is removed; oldest preserved is resp110/msg111.
-        let history = reg.thread_history(None).unwrap();
-        assert!(!history.contains("msg0"), "msg0 should be compacted away");
+        let history = reg.thread_history_messages(None).unwrap();
+        let texts: Vec<&str> = history.iter().map(|m| m.content.as_str()).collect();
         assert!(
-            !history.contains("msg110"),
+            !texts.iter().any(|t| t.contains("msg0")),
+            "msg0 should be compacted away"
+        );
+        assert!(
+            !texts.iter().any(|t| t.contains("msg110")),
             "msg110 should be compacted away"
         );
         assert!(history.contains("msg111"), "msg111 should be preserved");

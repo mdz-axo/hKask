@@ -227,22 +227,10 @@ impl ChatService {
             (None, None) => None,
         };
 
-        // Compose full prompt with merged memory context
-        let full_prompt = match memory_context {
-            Some(ref ctx_text) => {
-                format!(
-                    "{}\n\n## Relevant Memory\n{}\n\nUser: {}",
-                    system_prompt, ctx_text, req.input
-                )
-            }
-            None => format!("{}\n\nUser: {}", system_prompt, req.input),
-        };
-
-        // Build typed message array for multi-turn inference (preserves role
-        // tags so the provider sees proper [system, user, assistant, ...]
-        // conversation structure). The system message carries the same system
-        // prompt + memory context as `full_prompt`; thread history (when
-        // present) is inserted between system and the current user turn.
+        // Build typed message array for multi-turn inference. The system message
+        // carries the system prompt + memory context; thread history (when
+        // present) is inserted between system and the current user turn with
+        // proper role tags.
         let system_with_memory = match memory_context {
             Some(ref ctx_text) => {
                 format!("{}\n\n## Relevant Memory\n{}", system_prompt, ctx_text)
@@ -264,7 +252,6 @@ impl ChatService {
         };
 
         Ok(PreparedChat {
-            prompt: full_prompt,
             messages,
             model,
             agent_webid,
@@ -331,7 +318,6 @@ impl ChatService {
                 .clone()
                 .unwrap_or_else(|| ctx.infra().episodic.clone());
             PreparedChat {
-                prompt: String::new(),
                 messages,
                 model,
                 agent_webid,
@@ -381,7 +367,7 @@ impl ChatService {
             serde_json::json!({
                 "agent": &prepared.userpod_name,
                 "model": &prepared.model,
-                "prompt_len": prepared.prompt.len(),
+                "prompt_len": prepared.messages.len(),
             }),
             0,
         );
@@ -772,58 +758,32 @@ impl ChatService {
             req.input.clone()
         };
 
-        // 2. Add the active thread's short-term history. Semantic and episodic
-        // memory are recalled once by `prepare_chat`, after all turn context is
-        // assembled, so the recall query matches the actual inference input.
+        // 2. Auto-condense if context pressure exceeds threshold.
         let history_token = req.capability_checker.grant_registry(
             DelegationAction::Read,
             req.system_webid,
             req.agent_webid,
         );
-        let mut input_with_context = match &req.thread_history {
-            Some(thread_history) => format!("{}\n\n{}", base_input, thread_history),
-            None => base_input.clone(),
-        };
-
-        // 2b. Auto-condense: if enabled and context exceeds the configured
-        // pressure threshold (default 87.5%), condense older messages to
-        // free context space. The most recent `saliency_window` exchanges
-        // are preserved verbatim; older messages are summarized.
-        if req.auto_condense
+        let effective_input = if req.auto_condense
             && let Some(window) = req.context_window
         {
             let threshold = (window as f64 * req.condense_pressure_threshold as f64) as usize;
-            if hkask_condenser::inference::approx_token_count(&input_with_context) > threshold
+            if hkask_condenser::inference::approx_token_count(&base_input) > threshold
                 && let Some(condensed) =
                     Self::condense_history(ctx, req, &history_token, &base_input).await
             {
-                input_with_context = condensed;
+                condensed
+            } else {
+                base_input.clone()
             }
-            // Graceful degradation: on failure, use uncondensed context.
-        }
-
-        // 3. Apply tool results from previous iterations (if any).
-        let effective_input = if let Some(ref tool_results) = req.tool_results {
-            format!(
-                "{}\n\nThe following tool calls were executed:\n\n{}\n\nBased on these results, provide your response.",
-                input_with_context.trim(),
-                tool_results
-            )
         } else {
-            input_with_context
+            base_input
         };
 
-        // 4. Execute inference. `chat` owns the sole memory recall, prompt
-        // assembly, inference, and episodic-storage path for this turn.
-        // 4a. Inject improv mode instructions into the system prompt.
+        // 3. Inject improv mode instructions (iteration 1 only).
         let effective_input = if let Some(ref mode) = req.improv_mode {
             let improv_instruction = improv_system_prompt(mode);
-            format!(
-                "{}
-
-{}",
-                improv_instruction, effective_input
-            )
+            format!("{}\n\n{}", improv_instruction, effective_input)
         } else {
             effective_input
         };

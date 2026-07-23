@@ -436,7 +436,6 @@ fn run_turn_with_state(
         gas_heuristic: state.repl_settings.gas_heuristic,
         saliency_window: state.repl_settings.condense_saliency_window,
         default_agent: state.current_agent.clone(),
-        has_tools: !state.tool_definitions.is_empty(),
         a2a_secret: hkask_types::secret::ZeroizingSecret::new(a2a_secret.to_vec()),
         principal_webid: state.host.resolve_user_webid(),
         agent_webid: state.agent_webid,
@@ -727,9 +726,6 @@ mod tests {
         fn is_seeded(&self) -> bool {
             self.seeded
         }
-        fn thread_history(&self, _: usize) -> Option<String> {
-            None
-        }
         fn thread_history_messages(&self, _: usize) -> Option<Vec<hkask_types::ChatMessage>> {
             None
         }
@@ -774,7 +770,6 @@ mod tests {
             gas_heuristic: 500,
             saliency_window: 5,
             default_agent: "TestAgent".into(),
-            has_tools: false,
             a2a_secret: hkask_types::secret::ZeroizingSecret::new(vec![]),
             principal_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "userpod"),
             agent_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "userpod"),

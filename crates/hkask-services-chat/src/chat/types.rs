@@ -106,13 +106,7 @@ pub struct ChatTurnRequest {
 /// stream inference output incrementally while still using the service layer
 /// for agent lookup, prompt composition, and semantic recall.
 pub struct PreparedChat {
-    /// The full prompt ready for inference (system + semantic context + user input).
-    /// Retained for backward-compatible callers; `messages` is preferred for
-    /// multi-turn backends that speak the OpenAI message format.
-    pub prompt: String,
     /// Typed message array for inference (system + thread history + user).
-    /// Built alongside `prompt` so backends that accept message arrays can
-    /// preserve role tags across turns.
     pub messages: Vec<hkask_types::ChatMessage>,
     /// The resolved model name.
     pub model: String,
@@ -157,8 +151,6 @@ pub struct TurnRequest {
     pub system_webid: WebID,
     /// Iteration counter (0 = first iteration, incremented by caller for continuations)
     pub iteration: usize,
-    /// Tool execution results from the previous iteration (None on first iteration)
-    pub tool_results: Option<String>,
     /// Whether to auto-condense conversation history when approaching context limits.
     /// When true and context exceeds 87.5% of `context_window`, the oldest half
     /// of messages are condensed via `InferencePort::generate_with_model()`.
@@ -180,15 +172,8 @@ pub struct TurnRequest {
     /// compressed text is fed to the LLM summarizer. Reduces token count
     /// and inference cost. Default: true.
     pub pre_compress: bool,
-    /// Pre-formatted conversation history from the active short-term thread.
-    /// When set, prepended to context before episodic memory recall. This is
-    /// the thread's own stream — switching threads changes this context.
-    /// None if no active thread or thread has no turns.
-    pub thread_history: Option<String>,
-    /// Typed message array from thread history — when present, used instead of
-    /// `thread_history` string to build multi-turn `[system, user, assistant, ...]`
-    /// message arrays for inference. This preserves role tags so the provider
-    /// sees proper conversation structure.
+    /// Typed message array from thread history. When present, used to build
+    /// multi-turn `[system, user, assistant, ...]` message arrays for inference.
     pub thread_messages: Option<Vec<hkask_types::ChatMessage>>,
     /// Active improv mode — when set, prepends mode-specific instructions
     /// to the system prompt so the model adopts the interaction posture.

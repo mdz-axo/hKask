@@ -47,10 +47,6 @@ pub struct TurnConfig {
     pub gas_heuristic: u64,
     pub saliency_window: usize,
     pub default_agent: String,
-    /// Whether MCP tools are available to the agent. When true and the model
-    /// emits a response with no tool calls on iteration 1, the loop injects a
-    /// nudge reminding the model that tools are available.
-    pub has_tools: bool,
     /// A2A secret for minting tool delegation tokens.
     pub a2a_secret: hkask_types::secret::ZeroizingSecret,
     /// Principal (user) WebID — the authorizing identity.
@@ -85,12 +81,12 @@ pub trait GasReservation: Send {
 
 /// Thread memory: short-term conversation stream.
 pub trait ThreadMemory: Send {
-    fn is_seeded(&self) -> bool;
-    fn thread_history(&self, window: usize) -> Option<String>;
-    fn thread_history_messages(&self, window: usize) -> Option<Vec<hkask_types::ChatMessage>>;
-    fn append_turn(&mut self, agent: &str, input: &str, response: &str);
-    fn mark_seeded(&mut self);
-}
+    : Send {
+        fn is_seeded(&self) -> bool;
+        fn thread_history_messages(&self, window: usize) -> Option<Vec<hkask_types::ChatMessage>>;
+        fn append_turn(&mut self, agent: &str, input: &str, response: &str);
+        fn mark_seeded(&mut self);
+    }
 
 // ── TurnDeps: bundled dependencies ───────────────────────────────────
 
@@ -160,7 +156,6 @@ impl TurnExecutor for ReplTurnExecutor {
             capability_checker: self.ctx.governance().checker.clone(),
             system_webid: *self.ctx.webid(),
             iteration: input.iteration,
-            tool_results: None,
             auto_condense: settings.auto_condense,
             context_window: settings.model_meta.as_ref().map(|m| m.context_length),
             condenser_model: Some(
@@ -172,7 +167,6 @@ impl TurnExecutor for ReplTurnExecutor {
             condense_pressure_threshold: settings.condense_pressure_threshold,
             condense_saliency_window: settings.condense_saliency_window,
             pre_compress: settings.pre_compress,
-            thread_history: None,
             thread_messages: input.thread_messages.clone(),
             improv_mode: self.improv_mode.clone(),
             tool_section: String::new(),
@@ -272,10 +266,10 @@ impl<'a> ThreadMemory for ReplThreadMemory<'a> {
     fn is_seeded(&self) -> bool {
         self.registry.seeded
     }
-    fn thread_history(&self, window: usize) -> Option<String> {
-        self.registry.thread_history(Some(window))
-    }
-    fn thread_history_messages(&self, window: usize) -> Option<Vec<hkask_types::ChatMessage>> {
+    fn thread_history_messages(
+        &self,
+        window: usize,
+    ) -> Option<Vec<hkask_types::ChatMessage>> {
         self.registry.thread_history_messages(Some(window))
     }
     fn append_turn(&mut self, agent: &str, input: &str, response: &str) {
