@@ -32,13 +32,16 @@ use std::sync::Arc;
 /// to every consumer (executor, chat service, REPL turn, condenser).
 pub struct GuardedInferencePort {
     inner: Arc<dyn InferencePort>,
-    guard: ContentGuard,
+    guard: Arc<ContentGuard>,
 }
 
 impl GuardedInferencePort {
     /// Wrap an inference port with a content guard.
     pub fn new(inner: Arc<dyn InferencePort>, guard: ContentGuard) -> Self {
-        Self { inner, guard }
+        Self {
+            inner,
+            guard: Arc::new(guard),
+        }
     }
 }
 
