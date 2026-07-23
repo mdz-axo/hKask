@@ -815,7 +815,11 @@ impl ChatWindow {
             ));
         } else {
             final_spans.push(Span::styled(
-                self.mode.prompt_prefix(),
+                if self.mode == TuiMode::Chat {
+                    format!("{}>> ", crate::display::model_abbrev(self.bridge.model_name()))
+                } else {
+                    self.mode.prompt_prefix().to_string()
+                },
                 Style::default()
                     .fg(self.mode.prompt_color())
                     .add_modifier(Modifier::BOLD),

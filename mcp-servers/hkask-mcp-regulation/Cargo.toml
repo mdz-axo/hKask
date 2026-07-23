@@ -9,15 +9,15 @@ description = "Regulation span history query MCP server — runtime telemetry fo
 hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-storage = { path = "../../crates/hkask-storage" }
-hkask-regulation = { path = "../../crates/hkask-regulation" }
+
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-anyhow = { workspace = true }
+
+
 chrono = { workspace = true }
 
 [lib]
@@ -30,4 +30,4 @@ path = "src/main.rs"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
-tempfile.workspace = true
+

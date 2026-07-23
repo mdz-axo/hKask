@@ -23,7 +23,6 @@ base64.workspace = true
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
 wiremock = "0.6"
-hkask-test-harness = { path = "../hkask-test-harness" }
 
 [[test]]
 name = "inference_routing_integration"

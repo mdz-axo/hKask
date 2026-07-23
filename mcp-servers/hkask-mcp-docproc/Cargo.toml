@@ -15,7 +15,7 @@ hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
 
 # OCR pipeline (from markitdown)
 hkask-inference = { path = "../../crates/hkask-inference" }
-hkask-templates = { path = "../../crates/hkask-templates" }
+
 
 image.workspace = true
 imageproc.workspace = true
@@ -36,17 +36,17 @@ hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-guard = { path = "../../crates/hkask-guard" }
 
 # Protocol + utilities
-uuid.workspace = true
+
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 schemars.workspace = true
 tracing.workspace = true
-anyhow.workspace = true
+
 thiserror.workspace = true
 async-trait.workspace = true
-chrono.workspace = true
+
 dotenvy.workspace = true
 tempfile.workspace = true
 dirs = "6"

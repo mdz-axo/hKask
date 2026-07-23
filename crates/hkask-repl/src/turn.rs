@@ -136,7 +136,7 @@ fn run_turn_loop(
     sink: &mut impl TurnSink,
     agent_override: Option<&str>,
 ) -> TurnOutcome {
-    let display_name = agent_override.unwrap_or(&config.default_agent).to_string();
+    let display_name = crate::display::model_abbrev(&config.model_name);
     let mut iteration: usize = 0;
     let mut total_usage: Option<TokenUsage> = None;
     let mut final_response: Option<String> = None;
@@ -436,6 +436,7 @@ fn run_turn_with_state(
         gas_heuristic: state.repl_settings.gas_heuristic,
         saliency_window: state.repl_settings.condense_saliency_window,
         default_agent: state.current_agent.clone(),
+        model_name: state.current_model.clone(),
         a2a_secret: hkask_types::secret::ZeroizingSecret::new(a2a_secret.to_vec()),
         principal_webid: state.host.resolve_user_webid(),
         agent_webid: state.agent_webid,
@@ -770,6 +771,7 @@ mod tests {
             gas_heuristic: 500,
             saliency_window: 5,
             default_agent: "TestAgent".into(),
+            model_name: "test-model".into(),
             a2a_secret: hkask_types::secret::ZeroizingSecret::new(vec![]),
             principal_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "userpod"),
             agent_webid: hkask_types::WebID::from_persona_with_namespace(b"test", "userpod"),

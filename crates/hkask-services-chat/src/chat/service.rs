@@ -735,7 +735,7 @@ impl ChatService {
                 tools: req.tools.clone(),
                 thread_messages: None,
                 prebuilt_messages: req.prebuilt_messages.clone(),
-            improv_mode: None,
+                improv_mode: None,
             };
             let chat_response = Self::chat(ctx, chat_req).await?;
             return Ok(TurnResult {
@@ -797,6 +797,7 @@ impl ChatService {
             } else {
                 Some(req.tool_section.clone())
             },
+            api_spec: req.api_spec.clone(),
             inference_port_override: Some(req.inference_port.clone()),
             episodic_storage_override: Some(req.episodic_storage.clone()),
             semantic_storage_override: Some(req.semantic_storage.clone()),

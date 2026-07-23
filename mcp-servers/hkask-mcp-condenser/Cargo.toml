@@ -19,8 +19,8 @@ serde_json.workspace = true
 schemars.workspace = true
 tracing.workspace = true
 anyhow.workspace = true
-chrono.workspace = true
-dotenvy.workspace = true
+
+
 
 [lib]
 name = "hkask_mcp_condenser"
@@ -31,6 +31,6 @@ name = "hkask-mcp-condenser"
 path = "src/main.rs"
 
 [dev-dependencies]
-hkask-test-harness = { path = "../../crates/hkask-test-harness" }
-proptest = "1"
+
+
 tokio = { workspace = true, features = ["macros", "rt"] }

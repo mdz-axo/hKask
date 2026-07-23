@@ -18,4 +18,3 @@ uuid.workspace = true
 dirs = "6"
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt"] }

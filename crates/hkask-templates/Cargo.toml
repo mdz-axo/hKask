@@ -25,7 +25,6 @@ r2d2_sqlite.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
-hkask-test-harness = { path = "../hkask-test-harness" }
 proptest = "1"
 walkdir.workspace = true
 

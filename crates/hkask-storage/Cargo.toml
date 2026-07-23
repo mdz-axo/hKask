@@ -38,7 +38,6 @@ utoipa.workspace = true
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
 hkask-test-harness = { path = "../hkask-test-harness" }
-proptest = "1"
 
 [[test]]
 name = "services_storage_contract"

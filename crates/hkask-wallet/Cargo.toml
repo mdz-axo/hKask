@@ -12,7 +12,6 @@ hkask-storage = { path = "../hkask-storage" }
 ed25519-dalek.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 chrono.workspace = true
 async-trait.workspace = true
@@ -38,6 +37,5 @@ hedera = ["dep:hiero-sdk-proto", "dep:tonic", "dep:prost"]
 [dev-dependencies]
 hkask-storage = { path = "../hkask-storage" }
 proptest = "1"
-hkask-test-harness = { path = "../hkask-test-harness" }
 tokio = { workspace = true, features = ["macros", "rt"] }
 wiremock = "0.6"

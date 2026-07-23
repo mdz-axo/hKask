@@ -3683,7 +3683,6 @@ version = "0.31.0"
 dependencies = [
  "anyhow",
  "chrono",
- "dotenvy",
  "futures-util",
  "hkask-capability",
  "hkask-inference",
@@ -3779,7 +3778,6 @@ dependencies = [
  "futures-util",
  "hex",
  "hkask-api",
- "hkask-capability",
  "hkask-git-cas",
  "hkask-identity",
  "hkask-inference",
@@ -3788,33 +3786,21 @@ dependencies = [
  "hkask-mcp-server",
  "hkask-memory",
  "hkask-pods",
- "hkask-regulation",
  "hkask-repl",
  "hkask-services-chat",
- "hkask-services-compose",
  "hkask-services-context",
  "hkask-services-core",
- "hkask-services-corpus",
- "hkask-services-inference",
- "hkask-services-kata-kanban",
  "hkask-services-onboarding",
  "hkask-services-skill",
  "hkask-services-wallet",
  "hkask-storage",
  "hkask-templates",
- "hkask-test-harness",
  "hkask-types",
  "hkask-wallet",
- "minijinja",
- "proptest",
- "r2d2",
- "r2d2_sqlite",
  "rand 0.9.4",
  "ratatui",
  "reqwest 0.12.28",
- "rmcp",
  "rpassword",
- "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml_neo",
@@ -3850,7 +3836,6 @@ version = "0.31.0"
 dependencies = [
  "criterion",
  "hkask-bridge-dublincore",
- "hkask-test-harness",
  "proptest",
  "schemars",
  "serde",
@@ -3920,7 +3905,6 @@ dependencies = [
  "futures-util",
  "hkask-keystore",
  "hkask-regulation",
- "hkask-test-harness",
  "hkask-types",
  "reqwest 0.12.28",
  "serde",
@@ -3957,10 +3941,8 @@ version = "0.31.0"
 dependencies = [
  "chrono",
  "hkask-storage",
- "hkask-test-harness",
  "serde",
  "serde_json",
- "tempfile",
  "thiserror 2.0.18",
  "tracing",
  "uuid",
@@ -3975,7 +3957,6 @@ dependencies = [
  "hkask-mcp-cloud-gateway",
  "hkask-mcp-server",
  "hkask-regulation",
- "hkask-test-harness",
  "hkask-types",
  "jsonschema",
  "proptest",
@@ -3995,7 +3976,6 @@ dependencies = [
 name = "hkask-mcp-cloud-gateway"
 version = "0.31.0"
 dependencies = [
- "dotenvy",
  "hkask-capability",
  "hkask-mcp-server",
  "hkask-types",
@@ -4014,9 +3994,7 @@ dependencies = [
 name = "hkask-mcp-codegraph"
 version = "0.31.0"
 dependencies = [
- "anyhow",
  "blake3",
- "dotenvy",
  "hkask-mcp-server",
  "hkask-types",
  "rmcp",
@@ -4025,11 +4003,9 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlite-vec",
- "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "tree-sitter",
  "tree-sitter-rust",
  "uuid",
@@ -4040,20 +4016,15 @@ dependencies = [
 name = "hkask-mcp-communication"
 version = "0.31.0"
 dependencies = [
- "anyhow",
  "base64",
- "dotenvy",
  "hkask-communication",
  "hkask-mcp-server",
- "hkask-test-harness",
  "hkask-types",
- "proptest",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
  "tokio",
- "tracing",
  "uuid",
 ]
 
@@ -4065,7 +4036,6 @@ dependencies = [
  "base64",
  "chrono",
  "dirs",
- "dotenvy",
  "hkask-forecast",
  "hkask-ledger",
  "hkask-mcp-server",
@@ -4091,16 +4061,12 @@ name = "hkask-mcp-condenser"
 version = "0.31.0"
 dependencies = [
  "anyhow",
- "chrono",
- "dotenvy",
  "hkask-condenser",
  "hkask-inference",
  "hkask-mcp-server",
  "hkask-memory",
  "hkask-storage",
- "hkask-test-harness",
  "hkask-types",
- "proptest",
  "rmcp",
  "schemars",
  "serde",
@@ -4132,11 +4098,9 @@ dependencies = [
 name = "hkask-mcp-docproc"
 version = "0.31.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "base64",
  "calamine",
- "chrono",
  "dirs",
  "docx-rs",
  "dotenvy",
@@ -4147,7 +4111,6 @@ dependencies = [
  "hkask-memory",
  "hkask-services-core",
  "hkask-storage",
- "hkask-templates",
  "hkask-types",
  "image",
  "imageproc",
@@ -4164,18 +4127,14 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "uuid",
 ]
 
 [[package]]
 name = "hkask-mcp-filesystem"
 version = "0.31.0"
 dependencies = [
- "anyhow",
  "chrono",
- "dotenvy",
  "hkask-mcp-server",
- "hkask-test-harness",
  "hkask-types",
  "regex",
  "rmcp",
@@ -4193,22 +4152,16 @@ name = "hkask-mcp-kata-kanban"
 version = "0.31.0"
 dependencies = [
  "anyhow",
- "chrono",
- "dotenvy",
  "hkask-mcp-server",
  "hkask-services-kata-kanban",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
  "proptest",
- "r2d2",
- "r2d2_sqlite",
  "rmcp",
- "rusqlite",
  "schemars",
  "serde",
  "serde_json",
- "tempfile",
  "tokio",
  "tracing",
 ]
@@ -4220,21 +4173,17 @@ dependencies = [
  "ab_glyph",
  "anyhow",
  "base64",
- "chrono",
  "dotenvy",
- "hkask-bridge-dublincore",
  "hkask-inference",
  "hkask-mcp-server",
  "hkask-pods",
  "hkask-storage",
- "hkask-templates",
  "hkask-types",
  "image",
  "imageproc",
  "minijinja",
  "nom-exif",
  "rmcp",
- "rusqlite",
  "schemars",
  "serde",
  "serde_json",
@@ -4253,15 +4202,11 @@ name = "hkask-mcp-memory"
 version = "0.31.0"
 dependencies = [
  "anyhow",
- "chrono",
- "dotenvy",
- "hkask-bridge-dublincore",
  "hkask-mcp-server",
  "hkask-memory",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
- "proptest",
  "r2d2",
  "r2d2_sqlite",
  "rmcp",
@@ -4278,30 +4223,22 @@ dependencies = [
 name = "hkask-mcp-regulation"
 version = "0.31.0"
 dependencies = [
- "anyhow",
  "chrono",
  "hkask-mcp-server",
- "hkask-regulation",
  "hkask-storage",
  "hkask-types",
  "rmcp",
  "schemars",
  "serde",
  "serde_json",
- "tempfile",
  "tokio",
  "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
 name = "hkask-mcp-replica"
 version = "0.31.0"
 dependencies = [
- "anyhow",
- "chrono",
- "dotenvy",
- "hkask-bridge-dublincore",
  "hkask-inference",
  "hkask-keystore",
  "hkask-mcp-server",
@@ -4337,7 +4274,6 @@ dependencies = [
  "feed-rs",
  "futures-util",
  "hkask-mcp-server",
- "hkask-storage",
  "hkask-types",
  "r2d2",
  "r2d2_sqlite",
@@ -4398,11 +4334,9 @@ name = "hkask-mcp-skill"
 version = "0.31.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "hkask-inference",
  "hkask-mcp-server",
  "hkask-templates",
- "hkask-test-harness",
  "hkask-types",
  "minijinja",
  "rmcp",
@@ -4420,11 +4354,9 @@ version = "0.31.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64",
  "blake3",
  "chrono",
  "hf-hub",
- "hkask-bridge-dublincore",
  "hkask-capability",
  "hkask-inference",
  "hkask-mcp-server",
@@ -4445,7 +4377,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "uuid",
 ]
 
@@ -4460,7 +4391,6 @@ dependencies = [
  "hkask-capability",
  "hkask-regulation",
  "hkask-storage",
- "hkask-test-harness",
  "hkask-types",
  "proptest",
  "serde",
@@ -4483,14 +4413,12 @@ dependencies = [
  "hkask-regulation",
  "hkask-storage",
  "hkask-templates",
- "hkask-test-harness",
  "hkask-types",
  "r2d2_sqlite",
  "rusqlite",
  "serde",
  "serde_json",
  "sqlx",
- "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -4506,7 +4434,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "hkask-capability",
  "hkask-storage",
  "hkask-test-harness",
  "hkask-types",
@@ -4629,10 +4556,7 @@ dependencies = [
  "hkask-types",
  "hkask-wallet",
  "parking_lot",
- "rusqlite",
- "serde",
  "serde_json",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
  "uuid",
@@ -4650,7 +4574,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
- "tokio",
  "tracing",
  "uuid",
 ]
@@ -4675,7 +4598,6 @@ dependencies = [
  "serde_json",
  "serde_yaml_neo",
  "tempfile",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
  "uuid",
@@ -4696,7 +4618,6 @@ dependencies = [
 name = "hkask-services-kata-kanban"
 version = "0.31.0"
 dependencies = [
- "async-trait",
  "chrono",
  "hkask-inference",
  "hkask-pods",
@@ -4706,7 +4627,6 @@ dependencies = [
  "hkask-templates",
  "hkask-types",
  "minijinja",
- "rusqlite",
  "serde",
  "serde_json",
  "serde_yaml_neo",
@@ -4719,21 +4639,12 @@ dependencies = [
 name = "hkask-services-onboarding"
 version = "0.31.0"
 dependencies = [
- "chrono",
- "hex",
  "hkask-keystore",
  "hkask-pods",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -4800,16 +4711,13 @@ name = "hkask-services-wallet"
 version = "0.31.0"
 dependencies = [
  "async-trait",
- "chrono",
  "hkask-pods",
  "hkask-regulation",
  "hkask-services-core",
  "hkask-storage",
  "hkask-types",
  "hkask-wallet",
- "serde",
  "serde_json",
- "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]
@@ -4831,7 +4739,6 @@ dependencies = [
  "hkask-keystore",
  "hkask-test-harness",
  "hkask-types",
- "proptest",
  "r2d2",
  "r2d2_sqlite",
  "rand 0.9.4",
@@ -4857,7 +4764,6 @@ dependencies = [
  "hkask-forecast",
  "hkask-guard",
  "hkask-regulation",
- "hkask-test-harness",
  "hkask-types",
  "minijinja",
  "proptest",
@@ -4938,7 +4844,6 @@ dependencies = [
  "hiero-sdk-proto",
  "hkask-keystore",
  "hkask-storage",
- "hkask-test-harness",
  "hkask-types",
  "hmac",
  "proptest",
@@ -4948,7 +4853,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
- "thiserror 2.0.18",
  "tokio",
  "tonic",
  "tracing",

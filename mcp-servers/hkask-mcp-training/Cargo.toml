@@ -34,10 +34,10 @@ chrono.workspace = true
 uuid.workspace = true
 thiserror.workspace = true
 async-trait.workspace = true
-hkask-bridge-dublincore = { path = "../../crates/hkask-bridge-dublincore" }
+
 blake3.workspace = true
 reqwest = { workspace = true, features = ["multipart"] }
-base64.workspace = true
+
 sha2.workspace = true
 hf-hub = "1.0.0"
 minijinja.workspace = true
@@ -46,4 +46,4 @@ minijinja.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
 async-trait.workspace = true
-tracing-subscriber.workspace = true
+

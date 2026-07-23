@@ -1,7 +1,25 @@
 use super::commands::{find_command, fuzzy_match_command};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
-
+/// Derive a short display abbreviation from a model name.
+///
+/// Strips the provider prefix (e.g., `DI/`, `OR/`, `OM/`), capitalizes the
+/// first letter, and removes common variant suffixes (`-flash`, `-instruct`,
+/// `-chat`, `-turbo`) for brevity. Used as the REPL/TUI prompt prefix so the
+/// user sees which LLM they are interacting with.
+pub fn model_abbrev(model: &str) -> String {
+    let name = model.rsplit("/").next().unwrap_or(model);
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
+    }
+    .trim_end_matches("-flash")
+    .trim_end_matches("-instruct")
+    .trim_end_matches("-chat")
+    .trim_end_matches("-turbo")
+    .to_string()
+}
 /// Banner shown during onboarding (simpler than the main banner)
 pub fn print_onboarding_banner() {
     let body = "\x1b[1;36m";

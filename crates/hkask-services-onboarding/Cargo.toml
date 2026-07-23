@@ -11,15 +11,8 @@ hkask-pods = { path = "../hkask-pods" }
 hkask-keystore = { path = "../hkask-keystore" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
-hex.workspace = true
+
 tracing.workspace = true
-serde.workspace = true
-serde_json.workspace = true
-chrono.workspace = true
-thiserror.workspace = true
-tokio.workspace = true
-reqwest.workspace = true
-uuid.workspace = true
 
 [dev-dependencies]
-tempfile.workspace = true
+

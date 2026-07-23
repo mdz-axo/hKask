@@ -20,5 +20,4 @@ tracing.workspace = true
 blake3.workspace = true
 
 [dev-dependencies]
-hkask-test-harness = { path = "../hkask-test-harness" }
 proptest = "1"

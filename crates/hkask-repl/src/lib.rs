@@ -245,14 +245,10 @@ fn run_with_state(
     );
 
     loop {
-        let prompt = if let Some(ref session) = state.active_session {
-            format!("\x1b[1mℏKask\x1b[0m [\x1b[33m{}\x1b[0m]> ", session)
-        } else {
-            format!(
-                "\x1b[1mℏKask\x1b[0m [\x1b[36m{}\x1b[0m]> ",
-                state.current_agent
-            )
-        };
+        let prompt = format!(
+            "[1m{}[0m>> ",
+            display::model_abbrev(&state.current_model)
+        );
         match rl.readline(&prompt) {
             Ok(line) => {
                 let input = line.trim();

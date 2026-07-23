@@ -16,17 +16,14 @@ api = ["hkask-api", "axum"]
 
 [dependencies]
 hkask-types = { path = "../hkask-types" }
-hkask-capability = { path = "../hkask-capability" }
 hkask-pods = { path = "../hkask-pods" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-mcp = { path = "../hkask-mcp" }
 hkask-mcp-server = { path = "../hkask-mcp-server" }
 hkask-git-cas = { path = "../hkask-git-cas" }
-hkask-regulation = { path = "../hkask-regulation" }
 hkask-api = { path = "../hkask-api", optional = true }
 hkask-inference = { path = "../hkask-inference" }
-hkask-test-harness = { path = "../hkask-test-harness" }
 hkask-repl = { path = "../hkask-repl" }
 hkask-wallet = { path = "../hkask-wallet" }
 hkask-memory = { path = "../hkask-memory" }
@@ -34,15 +31,12 @@ hkask-keystore = { path = "../hkask-keystore" }
 hkask-services-context = { path = "../hkask-services-context" }
 hkask-services-chat = { path = "../hkask-services-chat" }
 hkask-services-onboarding = { path = "../hkask-services-onboarding" }
-hkask-services-corpus = { path = "../hkask-services-corpus" }
-hkask-services-compose = { path = "../hkask-services-compose" }
+
 hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-services-core = { path = "../hkask-services-core" }
-hkask-services-inference = { path = "../hkask-services-inference" }
 hkask-identity = { path = "../hkask-identity" }
 hkask-services-skill = { path = "../hkask-services-skill" }
-hkask-services-kata-kanban = { path = "../hkask-services-kata-kanban" }
-rmcp.workspace = true
+
 axum = { workspace = true, optional = true }
 clap.workspace = true
 chrono.workspace = true
@@ -55,11 +49,7 @@ tracing-subscriber.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 base64.workspace = true
-minijinja.workspace = true
 reqwest.workspace = true
-rusqlite.workspace = true
-r2d2.workspace = true
-r2d2_sqlite.workspace = true
 zeroize.workspace = true
 rand.workspace = true
 hex.workspace = true
@@ -72,4 +62,3 @@ rpassword = "7"
 
 [dev-dependencies]
 tempfile.workspace = true
-proptest = "1"

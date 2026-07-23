@@ -47,6 +47,8 @@ pub struct TurnConfig {
     pub gas_heuristic: u64,
     pub saliency_window: usize,
     pub default_agent: String,
+    /// Model name (used for display abbreviation in prompt/response).
+    pub model_name: String,
     /// A2A secret for minting tool delegation tokens.
     pub a2a_secret: hkask_types::secret::ZeroizingSecret,
     /// Principal (user) WebID — the authorizing identity.

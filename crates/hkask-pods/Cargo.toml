@@ -34,5 +34,4 @@ sql = []  # Gates SQL-related error conversions for hkask-memory integration
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt"] }
-hkask-test-harness = { path = "../hkask-test-harness" }
-tempfile = "3"
+

@@ -23,19 +23,16 @@ hkask-templates = { path = "../hkask-templates" }
 hkask-types = { path = "../hkask-types" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-wallet = { path = "../hkask-wallet" }
-serde.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
 parking_lot = "0.12"
 tokio.workspace = true
 tracing.workspace = true
-thiserror.workspace = true
 anyhow.workspace = true
 chrono.workspace = true
 hkask-communication = { path = "../hkask-communication" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
-rusqlite.workspace = true
 
 [dev-dependencies]
 uuid.workspace = true

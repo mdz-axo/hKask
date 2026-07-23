@@ -32,11 +32,11 @@ impl ChatService {
     /// Returns `None` on any failure (graceful degradation — caller falls back
     /// to uncondensed context).
     pub(super) async fn condense_history(
-        : &AgentService,
-                req: &TurnRequest,
-                token: &DelegationToken,
-                base_input: &str,
-            ) -> Option<String> {
+        ctx: &AgentService,
+        req: &TurnRequest,
+        token: &DelegationToken,
+        base_input: &str,
+    ) -> Option<String> {
         // Constants for condensation behavior (previously per-request fields).
         const SALIENCY_WINDOW: usize = 5;
         const PRE_COMPRESS: bool = true;
