@@ -15,9 +15,9 @@ use std::sync::Arc;
 use crate::bayesian::combine_confidences;
 use crate::episodic::EpisodicMemory;
 use crate::semantic::SemanticMemory;
-use hkask_types::{ConsolidationOutcome, ConsolidationRequest};
 use hkask_storage::{HMem, HMemId};
 use hkask_types::WebID;
+use hkask_types::{ConsolidationOutcome, ConsolidationRequest};
 
 /// Consolidation Bridge — Episodic → Semantic
 ///

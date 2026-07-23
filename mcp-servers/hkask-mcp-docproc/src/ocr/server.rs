@@ -122,7 +122,9 @@ impl DocProcServer {
                     .store_experience(&userpod, "ocr_pipeline", "verification", &data, Some(0.85))
                     .await
                 {
-                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse {
+                        stored: true, ..
+                    }) => {
                         tracing::debug!(target: "hkask.mcp.docproc.reg", "Pipeline outcome persisted to daemon");
                     }
                     Ok(other) => {

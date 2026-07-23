@@ -3,15 +3,15 @@
 
 #[cfg(test)]
 mod tests {
-    use hkask_storage::database::sqlite::SqliteDriver;
-    use hkask_types::{
-        ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
-    };
     use hkask_services_kata_kanban::kanban::{ColumnDef, KanbanService, TaskSpec};
     use hkask_services_kata_kanban::{KataEngine, KataManifest, TaskGasAccountantFn};
     use hkask_storage::HMemStore;
+    use hkask_storage::database::sqlite::SqliteDriver;
     use hkask_templates::SqliteRegistry;
     use hkask_types::template::LLMParameters;
+    use hkask_types::{
+        ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
+    };
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Arc;

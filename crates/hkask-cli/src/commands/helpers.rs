@@ -2,11 +2,11 @@
 
 use std::path::{Path, PathBuf};
 
-use hkask_types::RegistryIndex;
 use hkask_services_context::AgentService;
 use hkask_services_core::ServiceConfig;
 use hkask_services_onboarding::ResolvedSecrets;
 use hkask_templates::SqliteRegistry;
+use hkask_types::RegistryIndex;
 
 use crate::error::CliError;
 

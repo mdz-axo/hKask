@@ -13,8 +13,8 @@ use hkask_pods::InferenceLoop;
 use hkask_regulation::{GasBudget, GasCost};
 
 use super::{TalkConfig, TalkMode};
-use hkask_mcp::McpRuntime;
 use hkask_capability::ToolInfo;
+use hkask_mcp::McpRuntime;
 use hkask_types::WebID;
 
 use super::ReplState;
@@ -439,9 +439,11 @@ pub(super) fn init_repl_state(
         // BUILTIN_SERVERS is a runtime constant slice; a true const_assert would
         // require const fn on the slice.
         debug_assert!(
-            CORE_EXCLUDED
-                .iter()
-                .all(|ex| { hkask_mcp_server::BUILTIN_SERVERS.iter().any(|(id, _)| id == ex) }),
+            CORE_EXCLUDED.iter().all(|ex| {
+                hkask_mcp_server::BUILTIN_SERVERS
+                    .iter()
+                    .any(|(id, _)| id == ex)
+            }),
             "CORE_EXCLUDED references a server not in BUILTIN_SERVERS"
         );
         if started > 0 {

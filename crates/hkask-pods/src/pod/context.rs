@@ -10,12 +10,12 @@
 //! - `episodic_storage` — private, agent-scoped memory (EpisodicStoragePort)
 //! - `semantic_storage` — shared, public knowledge (SemanticStoragePort)
 
+use hkask_capability::ToolPort;
 use hkask_capability::{CapabilityChecker, DelegationAction, DelegationResource, DelegationToken};
 use hkask_mcp::McpRuntime;
-use hkask_types::InferencePort;
-use hkask_capability::ToolPort;
 use hkask_regulation::ExperienceClassification;
 use hkask_types::DataCategory;
+use hkask_types::InferencePort;
 use hkask_types::{Confidence, WebID};
 use std::sync::Arc;
 

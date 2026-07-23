@@ -17,11 +17,11 @@
 
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
-use hkask_types::ConsolidationRequest;
 use hkask_regulation::types::loops::{
     CommunicationEvent, CurationInput, Deviation, LoopId, RegulationLoop, RegulatoryAction, Signal,
     SignalMetric,
 };
+use hkask_types::ConsolidationRequest;
 use hkask_types::DataCategory;
 use hkask_types::curator::{CuratorDirective, CuratorHandle};
 use hkask_types::{BotID, TemplateID};

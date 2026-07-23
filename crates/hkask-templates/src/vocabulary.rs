@@ -523,8 +523,8 @@ mod tests {
 
     #[test]
     fn validate_entry_flags_ill_formed_terms() {
-        use hkask_types::registry::RegistryEntry;
         use hkask_types::TemplateType;
+        use hkask_types::registry::RegistryEntry;
         let entry = RegistryEntry {
             id: "test/ill-formed".into(),
             template_type: TemplateType::KnowAct,

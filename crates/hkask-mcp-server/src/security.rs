@@ -63,7 +63,10 @@ impl UrlValidationConfig {
 /// - Rejects URLs with embedded credentials (user:pass@host)
 /// - Rejects private IPs unless explicitly permitted
 /// - Rejects loopback addresses unless explicitly permitted
-pub(crate) fn validate_url(raw_url: &str, config: &UrlValidationConfig) -> Result<(), SecurityError> {
+pub(crate) fn validate_url(
+    raw_url: &str,
+    config: &UrlValidationConfig,
+) -> Result<(), SecurityError> {
     let scheme_end = raw_url
         .find("://")
         .ok_or_else(|| SecurityError::InvalidUrl("No scheme separator '://' found".to_string()))?;

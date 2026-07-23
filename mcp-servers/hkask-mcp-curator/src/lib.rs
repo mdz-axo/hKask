@@ -11,10 +11,10 @@ pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_mcp_server::daemon::DaemonResponse;
 use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_services_context::governance;
+use hkask_storage::database::sqlite::SqliteDriver;
 
 use hkask_types::WebID;
 use hkask_types::event::RegulationSink;
@@ -527,7 +527,8 @@ fn open_curator_stores(
             return (None, None, None, None, None);
         }
     };
-    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
+        Arc::new(SqliteDriver::new(pool));
     let h_mem_store = hkask_storage::HMemStore::from_driver(Arc::clone(&driver));
     let h_mem_store2 = hkask_storage::HMemStore::from_driver(Arc::clone(&driver));
     let embedding_store = hkask_storage::EmbeddingStore::from_driver(Arc::clone(&driver), 1024);

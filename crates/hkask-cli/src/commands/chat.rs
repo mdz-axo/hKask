@@ -6,11 +6,11 @@
 
 use std::sync::Arc;
 
-use hkask_types::{InferencePort, InferenceUsage};
 use hkask_services_chat::{ChatService, ChatTurnRequest, MemoryService, PreparedChat};
 use hkask_services_context::AgentService;
 use hkask_services_onboarding::ResolvedSecrets;
 use hkask_types::template::LLMParameters;
+use hkask_types::{InferencePort, InferenceUsage};
 
 /// Response from a chat inference call.
 pub use hkask_services_chat::ChatTurnResponse;

@@ -6,10 +6,10 @@ use hkask_communication::matrix::MatrixTransport;
 use hkask_mcp::McpRuntime;
 use hkask_memory::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_pods::pod::ActivePods;
-use hkask_types::InferencePort;
 use hkask_regulation::{SeamSummary, SeamWatcher, WalletGasCalibrator};
 use hkask_services_runtime::ServiceDaemonHandler;
 use hkask_services_wallet::WalletService;
+use hkask_types::InferencePort;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 

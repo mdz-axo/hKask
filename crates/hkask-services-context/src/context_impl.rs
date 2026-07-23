@@ -25,7 +25,6 @@
 use std::sync::Arc;
 
 use hkask_capability::CapabilityChecker;
-use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_memory::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_pods::CuratorContext;
 use hkask_pods::InferenceLoop;
@@ -40,12 +39,12 @@ use hkask_regulation::{
     CalibratedEnergyEstimator, CyberneticsLoop, EnergyEstimator, RegulationLedger, SeamSummary,
     SeamWatcher, load_set_points,
 };
+use hkask_storage::database::sqlite::SqliteDriver;
 
 use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
-use hkask_types::{ConsolidationOutcome, ConsolidationRequest, InferencePort, LedgerStoragePort};
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
 use hkask_storage::regulation_store::RegulationArchive;
@@ -58,6 +57,7 @@ use hkask_types::DataCategory;
 use hkask_types::WebID;
 use hkask_types::event::RegulationSink;
 use hkask_types::id::WalletId;
+use hkask_types::{ConsolidationOutcome, ConsolidationRequest, InferencePort, LedgerStoragePort};
 
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
 

@@ -11,9 +11,9 @@
 
 use crate::ports::ConsentPort;
 use crate::sovereignty::SovereigntyConsent;
-use hkask_types::consent_port::StoredConsentRecord as PortStoredConsentRecord;
 use hkask_types::DataCategory;
 use hkask_types::WebID;
+use hkask_types::consent_port::StoredConsentRecord as PortStoredConsentRecord;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use std::collections::HashSet;
 use std::sync::{Arc, RwLock};

@@ -4,8 +4,8 @@
 
 use super::InferenceRouter;
 use crate::config::ProviderId;
-use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
+use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
 use std::pin::Pin;
 
 impl InferenceRouter {

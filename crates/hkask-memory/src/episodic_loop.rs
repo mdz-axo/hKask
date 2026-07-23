@@ -8,11 +8,11 @@ use std::sync::Arc;
 
 use crate::consolidation::ConsolidationBridge;
 use crate::episodic::EpisodicMemory;
-use hkask_types::ConsolidationRequest;
 use hkask_regulation::types::loops::{
     ActionType, Deviation, DeviationDirection, LoopId, RegulationLoop, RegulatoryAction,
     RegulatoryActionParams, Signal, SignalMetric,
 };
+use hkask_types::ConsolidationRequest;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::regulation::RegulationSpan;

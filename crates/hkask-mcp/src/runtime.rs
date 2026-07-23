@@ -476,10 +476,12 @@ impl hkask_capability::ToolPort for McpRuntime {
                 let estimated = hkask_regulation::GasCost(est.estimate_cost(server, tool, &args));
                 let cyber_lock = cyber.read().await;
                 if !cyber_lock.can_proceed(&agent, estimated).await {
-                    return Err(hkask_capability::ToolPortError::EnergyBudgetExceeded(format!(
-                        "gas budget exceeded for {:?}, tool {}, cost {}",
-                        agent, tool, estimated.0
-                    )));
+                    return Err(hkask_capability::ToolPortError::EnergyBudgetExceeded(
+                        format!(
+                            "gas budget exceeded for {:?}, tool {}, cost {}",
+                            agent, tool, estimated.0
+                        ),
+                    ));
                 }
                 cyber_lock.reserve_gas(&agent, estimated).await.ok();
                 drop(cyber_lock);

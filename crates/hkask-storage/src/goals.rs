@@ -1,10 +1,10 @@
 //! Goal storage — transient coordination substrates.
 //! Long-term retention lives in agent memory (episodic/semantic).
+use crate::database::value::DbValue;
+use crate::impl_from_db_error;
 use crate::now_rfc3339;
 use chrono::Utc;
-use crate::database::value::DbValue;
 use hkask_goal::{Goal, GoalArtifact, GoalCriterion};
-use crate::impl_from_db_error;
 use hkask_types::GoalID;
 use hkask_types::GoalState;
 use hkask_types::InfrastructureError;
@@ -54,7 +54,9 @@ pub struct SqliteGoalRepository {
 
 impl SqliteGoalRepository {
     /// Create a new goal repository backed by the given driver.
-    pub fn from_driver(driver: std::sync::Arc<dyn crate::database::driver::DatabaseDriver>) -> Self {
+    pub fn from_driver(
+        driver: std::sync::Arc<dyn crate::database::driver::DatabaseDriver>,
+    ) -> Self {
         Self {
             driver,
             telemetry: None,

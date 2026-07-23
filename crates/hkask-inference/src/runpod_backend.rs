@@ -6,8 +6,8 @@
 use crate::RouterModelEntry;
 use crate::chat_protocol::{build_vision_request, chat_response_to_result, validate_prompt};
 use crate::config::InferenceConfig;
-use hkask_types::{InferenceError, InferenceResult};
 use hkask_types::template::LLMParameters;
+use hkask_types::{InferenceError, InferenceResult};
 use std::sync::Arc;
 use tracing::info;
 

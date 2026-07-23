@@ -1,8 +1,8 @@
 use super::inference_types::{
     ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage, StructuredToolCall,
 };
-use futures_util::Stream;
 use crate::template::LLMParameters;
+use futures_util::Stream;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;

@@ -6,12 +6,12 @@
 use crate::bundle::BundleManifest;
 use crate::bundle::BundleRegistryIndex;
 use crate::ports::{Result, TemplateError};
-use hkask_types::{
-    RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
-};
 use hkask_types::SkillPolarity;
 use hkask_types::template_type::TemplateType;
 use hkask_types::{InfrastructureError, NotFound, Visibility};
+use hkask_types::{
+    RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,
+};
 use rusqlite::{Connection, params};
 use tracing;
 

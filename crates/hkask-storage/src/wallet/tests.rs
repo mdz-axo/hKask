@@ -1,10 +1,10 @@
-use crate::wallet::WalletStore;
 use crate::database::sqlite::SqliteDriver;
-use hkask_types::{ApiKeyId, Ed25519PublicKey, WalletId};
+use crate::wallet::WalletStore;
 use hkask_types::{
     ApiKeyCapability, ChainId, DepositReference, PrivacyMode, RJoule, TransactionType, WalletError,
     WalletTransaction,
 };
+use hkask_types::{ApiKeyId, Ed25519PublicKey, WalletId};
 use std::sync::Arc;
 
 fn make_store() -> WalletStore {

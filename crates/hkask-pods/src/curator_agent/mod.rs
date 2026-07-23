@@ -176,7 +176,6 @@ impl CuratorAgent {
         &self.context
     }
 
-
     /// Set communication posture for the metacognition loop (CAT framework).
     ///
     /// Creates a new `MetacognitionLoop` with the given persona name and

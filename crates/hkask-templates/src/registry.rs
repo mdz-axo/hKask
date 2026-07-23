@@ -12,10 +12,10 @@ use crate::bundle::BundleManifest;
 use crate::bundle::BundleRegistryIndex;
 use crate::ports::{Result, TemplateError};
 use hkask_capability::SYSTEM_MAX_RECURSION;
-use hkask_types::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
 use hkask_types::NotFound;
 use hkask_types::Visibility;
 use hkask_types::template_type::TemplateType;
+use hkask_types::{RegistryEntry, RegistryIndex, Skill, SkillRegistryIndex};
 use serde::Deserialize;
 use std::collections::HashMap;
 

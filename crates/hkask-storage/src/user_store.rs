@@ -1,12 +1,12 @@
 //! UserStore — Human user identity, Argon2id auth, encrypted PII, session management.
 use crate::Database;
-use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
-use base64::Engine;
 use crate::database::SqliteDriver;
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
-use hkask_identity::{HumanUser, Invite, InviteStatus, RegistrationRequest, UserPod, UserSession};
 use crate::{define_driver_store, impl_from_db_error};
+use argon2::{PasswordHasher, PasswordVerifier, password_hash::PasswordHash};
+use base64::Engine;
+use hkask_identity::{HumanUser, Invite, InviteStatus, RegistrationRequest, UserPod, UserSession};
 use hkask_types::id::{WalletId, WebID};
 use hkask_types::identity::Role;
 use hkask_types::{InfrastructureError, NotFound, UserID};

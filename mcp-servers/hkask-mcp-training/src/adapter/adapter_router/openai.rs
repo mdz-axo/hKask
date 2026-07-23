@@ -4,8 +4,8 @@
 //! HTTP request/response pattern for OpenAI-compatible chat completions.
 
 use crate::adapter::adapter_port::AdapterError;
-use hkask_types::{InferenceResult, InferenceUsage};
 use hkask_types::template::LLMParameters;
+use hkask_types::{InferenceResult, InferenceUsage};
 
 pub(super) async fn openai_compatible_infer(
     client: &reqwest::Client,

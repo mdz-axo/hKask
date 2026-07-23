@@ -195,7 +195,6 @@ pub enum TokenAction {
     },
 }
 
-
 /// UserPod identity actions
 #[derive(Debug, Subcommand)]
 pub enum UserPodAction {

@@ -779,8 +779,7 @@ impl CyberneticsLoop {
             } => {
                 tracing::info!(target: "reg.cybernetics", context = %context, channel = %channel, confidence = %confidence, "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)")
             }
-            _ => {
-            }
+            _ => {}
         }
     }
 

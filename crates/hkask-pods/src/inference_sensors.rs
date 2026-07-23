@@ -8,9 +8,9 @@
 //! flows through `Sensor` implementations registered with the
 //! `SensorRegistry`, enabling centralized monitoring and management.
 
-use hkask_types::CircuitBreakerPort;
 use hkask_regulation::sensor_provider::Sensor;
 use hkask_regulation::types::loops::{LoopId, Signal, SignalMetric};
+use hkask_types::CircuitBreakerPort;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 

@@ -21,13 +21,13 @@ pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::EmbeddingRouter;
 use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_services_compose::cosine_distance;
 use hkask_services_core::HkaskSettings;
 use hkask_services_corpus::{EmbedProgress, EmbedService};
 use hkask_services_inference::InferenceContext;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_storage::{Database, EmbeddingStore};
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};

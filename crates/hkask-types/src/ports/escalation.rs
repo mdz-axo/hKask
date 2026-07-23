@@ -3,8 +3,8 @@
 //! Lives in hkask-ports because both hkask-agents (consumer) and
 //! hkask-storage-escalation (implementor) depend on hkask-ports.
 
-use chrono::Utc;
 use crate::{BotID, EscalationID, InfrastructureError, TemplateID};
+use chrono::Utc;
 
 /// An entry in the escalation queue awaiting human review.
 ///

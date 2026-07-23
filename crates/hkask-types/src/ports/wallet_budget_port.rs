@@ -52,10 +52,7 @@ pub trait WalletBudgetPort: Send + Sync {
     fn get_api_key(&self, key_id: ApiKeyId) -> Option<ApiKeyCapability>;
 
     /// Get the current wallet balance.
-    fn get_balance(
-        &self,
-        wallet_id: WalletId,
-    ) -> Result<crate::WalletBalance, WalletBudgetError>;
+    fn get_balance(&self, wallet_id: WalletId) -> Result<crate::WalletBalance, WalletBudgetError>;
 
     /// Get the current gas→rJoule conversion rate.
     fn gas_per_rjoule(&self) -> u64;

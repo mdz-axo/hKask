@@ -1,9 +1,9 @@
 //! RegulationArchive — Persistent storage for Regulation regulation records
 
-use crate::now_rfc3339;
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
 use crate::define_driver_store;
+use crate::now_rfc3339;
 use hkask_types::event::{CyclePhase, Span, SpanCategory, SpanNamespace};
 use hkask_types::id::{EventID, WebID};
 use hkask_types::{InfrastructureError, RegulationRecord, RegulationSink};
@@ -658,9 +658,9 @@ mod tests {
 
     #[test]
     fn replay_weighted_clamps_future_timestamps() {
-        use crate::{DecayConfig, RegulationArchive};
         use crate::database::driver::DatabaseDriver;
         use crate::database::sqlite::SqliteDriver;
+        use crate::{DecayConfig, RegulationArchive};
         use std::sync::Arc;
 
         let pool = SqliteDriver::in_memory_pool().expect("in-memory SQLite pool");

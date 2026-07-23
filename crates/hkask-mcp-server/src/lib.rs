@@ -45,7 +45,7 @@ pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, Dae
 pub use server::{
     CapabilityTier, CredentialRequirement, ExperienceCallback, McpError, ServerContext,
     ToolContext, api_get, api_put, execute_tool, load_dotenv, record_via_daemon,
-    run_stdio_server, run_stdio_server_with_preloaded, resolve_credential, tool_internal_error,
+    resolve_credential, run_stdio_server, run_stdio_server_with_preloaded, tool_internal_error,
     validate_identifier, validate_path, validate_tool_url, validate_tool_url_permissive,
 };
 pub use startup::{StartupGateResult, verify_startup_gates};

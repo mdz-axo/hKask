@@ -1,11 +1,11 @@
 //! REPL handler for `/kanban` slash commands.
 
 use crate::ReplState;
-use hkask_storage::database::driver::DatabaseDriver;
 use hkask_services_kata_kanban::{
     ColumnDef, KanbanService, SpawnSpec, TaskFilter, TaskSpec, TaskStatus, socratic,
 };
 use hkask_storage::HMemStore;
+use hkask_storage::database::driver::DatabaseDriver;
 use hkask_types::WebID;
 use std::sync::Arc;
 
@@ -1055,8 +1055,8 @@ fn kanban_service(state: &mut ReplState) -> KanbanService {
     state
         .kanban_service
         .get_or_insert_with(|| {
-            let pool =
-                hkask_storage::database::sqlite::SqliteDriver::in_memory_pool().expect("in-memory pool");
+            let pool = hkask_storage::database::sqlite::SqliteDriver::in_memory_pool()
+                .expect("in-memory pool");
             let driver = Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(pool));
             driver
                 .execute_batch(

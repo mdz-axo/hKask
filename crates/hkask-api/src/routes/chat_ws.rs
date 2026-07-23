@@ -24,9 +24,9 @@ use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 
 use crate::ApiState;
-use hkask_types::{ChatToolDefinition, ChatToolFunction};
 use hkask_capability::ToolInfo;
 use hkask_services_chat::{ChatService, ChatStreamEvent, ChatTurnRequest};
+use hkask_types::{ChatToolDefinition, ChatToolFunction};
 
 // ── Protocol message types ──────────────────────────────────────────────
 

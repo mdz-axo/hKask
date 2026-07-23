@@ -79,7 +79,9 @@ impl ResearchServer {
                     .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
-                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse {
+                        stored: true, ..
+                    }) => {
                         tracing::debug!(
                             target: "hkask.mcp.research.memory",
                             tool = %tool_name,
@@ -854,7 +856,9 @@ pub async fn run(
             let rss_client = Client::builder()
                 .user_agent(format!("hkask-mcp-research/{}", SERVER_VERSION))
                 .build()
-                .map_err(|e| hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string())))?;
+                .map_err(|e| {
+                    hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string()))
+                })?;
 
             Ok(ResearchServer::new(
                 ctx.webid,

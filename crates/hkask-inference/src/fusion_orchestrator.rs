@@ -16,11 +16,11 @@
 //! Skills anchor the judge's reasoning with hKask's pragmatic methodology.
 
 use crate::config::{AlgoMethod, ConvergenceVerdict, FusionConfig, FusionMode, FusionSkill};
+use hkask_types::template::LLMParameters;
 use hkask_types::{
     ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
     StructuredToolCall,
 };
-use hkask_types::template::LLMParameters;
 use tracing::info;
 
 // ── Skill Anchor Prompts ─────────────────────────────────────────────────────
@@ -1133,11 +1133,11 @@ mod tests {
         ConvergenceVerdict, jaccard, merge_json_values, parse_convergence_verdict, vote_json_values,
     };
     use crate::config::{AlgoMethod, FusionConfig, FusionMode};
+    use hkask_types::fusion::NonEmptyVec;
+    use hkask_types::template::LLMParameters;
     use hkask_types::{
         ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceUsage,
     };
-    use hkask_types::fusion::NonEmptyVec;
-    use hkask_types::template::LLMParameters;
     use serde_json::json;
 
     /// A2: primitive arrays dedup by value — [1,1,1] collapses to [1].

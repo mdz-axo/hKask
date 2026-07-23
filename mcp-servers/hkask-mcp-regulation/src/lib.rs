@@ -17,11 +17,11 @@
 
 #![allow(unused_crate_dependencies)]
 
-use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_mcp_server::DaemonClient;
 use hkask_mcp_server::run_server;
 use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_storage::RegulationArchive;
+use hkask_storage::database::sqlite::SqliteDriver;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -189,7 +189,9 @@ fn strip_reg_prefix(namespace: &str) -> &str {
 /// regulation pod database path) and `HKASK_DB_PASSPHRASE` from credentials/env.
 /// Returns `None` (graceful degradation) when the database cannot be opened —
 /// the tools then return `permission_denied` so callers see a clear message.
-fn open_regulation_store(ctx: &hkask_mcp_server::server::ServerContext) -> Option<Arc<RegulationArchive>> {
+fn open_regulation_store(
+    ctx: &hkask_mcp_server::server::ServerContext,
+) -> Option<Arc<RegulationArchive>> {
     let db_path = ctx
         .credentials
         .get("HKASK_DB_PATH")
@@ -243,7 +245,8 @@ fn open_regulation_store(ctx: &hkask_mcp_server::server::ServerContext) -> Optio
             return None;
         }
     };
-    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
+        Arc::new(SqliteDriver::new(pool));
     Some(Arc::new(RegulationArchive::from_driver(driver)))
 }
 

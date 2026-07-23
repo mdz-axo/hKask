@@ -248,7 +248,8 @@ impl Workspace {
         let chat_id = WindowId(Uuid::new_v4());
         let bridges = WorkspaceBridges::default();
         let factory_ctx = bridges.to_window_bridges(system.clone(), repl.clone());
-        let chat = crate::tui::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
+        let chat =
+            crate::tui::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
 
         // Default layout: single Chat window filling the workspace.
         // The Chat window defaults to Curator mode (P12.1 dual-presence),
@@ -286,7 +287,8 @@ impl Workspace {
         let chat_id = WindowId(Uuid::new_v4());
         let bridges = WorkspaceBridges::default();
         let factory_ctx = bridges.to_window_bridges(system.clone(), repl.clone());
-        let chat = crate::tui::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
+        let chat =
+            crate::tui::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
         let root = SplitNode::Leaf(Some(chat));
         let tab = Tab::new("Test".to_string(), root);
 
@@ -495,16 +497,20 @@ impl Workspace {
                 })
             }
             SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
-            SplitNode::Horizontal { left, right, ratio } => crate::tui::layout::SavedSplit::Horizontal {
-                left: Box::new(Self::extract_split(left)),
-                right: Box::new(Self::extract_split(right)),
-                ratio: *ratio,
-            },
-            SplitNode::Vertical { top, bottom, ratio } => crate::tui::layout::SavedSplit::Vertical {
-                top: Box::new(Self::extract_split(top)),
-                bottom: Box::new(Self::extract_split(bottom)),
-                ratio: *ratio,
-            },
+            SplitNode::Horizontal { left, right, ratio } => {
+                crate::tui::layout::SavedSplit::Horizontal {
+                    left: Box::new(Self::extract_split(left)),
+                    right: Box::new(Self::extract_split(right)),
+                    ratio: *ratio,
+                }
+            }
+            SplitNode::Vertical { top, bottom, ratio } => {
+                crate::tui::layout::SavedSplit::Vertical {
+                    top: Box::new(Self::extract_split(top)),
+                    bottom: Box::new(Self::extract_split(bottom)),
+                    ratio: *ratio,
+                }
+            }
         }
     }
 
@@ -520,16 +526,20 @@ impl Workspace {
             crate::tui::layout::SavedSplit::Leaf(leaf) => {
                 SplitNode::Leaf(Some(self.build_window(leaf.clone())))
             }
-            crate::tui::layout::SavedSplit::Horizontal { left, right, ratio } => SplitNode::Horizontal {
-                left: Box::new(self.restore_split(left)),
-                right: Box::new(self.restore_split(right)),
-                ratio: *ratio,
-            },
-            crate::tui::layout::SavedSplit::Vertical { top, bottom, ratio } => SplitNode::Vertical {
-                top: Box::new(self.restore_split(top)),
-                bottom: Box::new(self.restore_split(bottom)),
-                ratio: *ratio,
-            },
+            crate::tui::layout::SavedSplit::Horizontal { left, right, ratio } => {
+                SplitNode::Horizontal {
+                    left: Box::new(self.restore_split(left)),
+                    right: Box::new(self.restore_split(right)),
+                    ratio: *ratio,
+                }
+            }
+            crate::tui::layout::SavedSplit::Vertical { top, bottom, ratio } => {
+                SplitNode::Vertical {
+                    top: Box::new(self.restore_split(top)),
+                    bottom: Box::new(self.restore_split(bottom)),
+                    ratio: *ratio,
+                }
+            }
         }
     }
 

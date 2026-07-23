@@ -400,12 +400,17 @@ pub async fn run(
         SERVER_VERSION,
         |_ctx| {
             let webid = WebID::new();
-            let store = match &db_path {
-                Some(path) => crate::codegraph::graph::store::GraphStore::open(path)
-                    .map_err(|e| hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string())))?,
-                None => crate::codegraph::graph::store::GraphStore::open_in_memory()
-                    .map_err(|e| hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string())))?,
-            };
+            let store =
+                match &db_path {
+                    Some(path) => {
+                        crate::codegraph::graph::store::GraphStore::open(path).map_err(|e| {
+                            hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string()))
+                        })?
+                    }
+                    None => crate::codegraph::graph::store::GraphStore::open_in_memory().map_err(
+                        |e| hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string())),
+                    )?,
+                };
             let pipeline = IndexPipeline::new(store);
             Ok(CodeGraphServer::new(
                 webid,

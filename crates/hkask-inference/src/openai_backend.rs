@@ -20,8 +20,8 @@
 
 use crate::chat_protocol::build_chat_request;
 use crate::chat_protocol::{ChatResponse, chat_response_to_result, validate_prompt};
-use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::template::LLMParameters;
+use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult};
 use reqwest::Client;
 
 /// Parameterized OpenAI-compatible chat completion.

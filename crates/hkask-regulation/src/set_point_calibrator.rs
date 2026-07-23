@@ -16,8 +16,8 @@
 //! Default: 30 events (configurable via `HKASK_SET_POINT_MIN_OBSERVATIONS`).
 
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use hkask_types::LedgerStoragePort;
 use hkask_types::InfrastructureError;
+use hkask_types::LedgerStoragePort;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -322,8 +322,8 @@ impl SetPointCalibrator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_storage::database::sqlite::SqliteDriver;
     use hkask_storage::RegulationArchive;
+    use hkask_storage::database::sqlite::SqliteDriver;
     use hkask_types::WebID;
     use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 

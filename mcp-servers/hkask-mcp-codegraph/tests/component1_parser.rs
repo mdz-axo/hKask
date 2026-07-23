@@ -7,7 +7,9 @@
 //! - Extracts functions, structs, traits, impls, modules
 //! - Edge extraction finds calls and imports
 
-use hkask_mcp_codegraph::codegraph::indexer::{extractor::extract_symbols, parser::parse_rust_file};
+use hkask_mcp_codegraph::codegraph::indexer::{
+    extractor::extract_symbols, parser::parse_rust_file,
+};
 use hkask_mcp_codegraph::codegraph::types::{EdgeKind, SymbolKind};
 
 /// Parse a simple Rust snippet and verify basic extraction.

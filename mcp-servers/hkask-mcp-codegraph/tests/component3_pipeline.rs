@@ -170,7 +170,9 @@ fn test_fts5_search_on_hkask_code() {
         return;
     }
 
-    pipeline.index_file(&path, "hkask-mcp-server/src/lib.rs").unwrap();
+    pipeline
+        .index_file(&path, "hkask-mcp-server/src/lib.rs")
+        .unwrap();
 
     let conn = pipeline.store().conn();
 

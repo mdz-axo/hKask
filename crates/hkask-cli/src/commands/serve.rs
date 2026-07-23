@@ -6,8 +6,8 @@
 //! operate on the same shared state.
 
 use hkask_api::ApiState;
-use hkask_mcp_server::BUILTIN_SERVERS;
 use hkask_mcp::runtime::McpRuntime;
+use hkask_mcp_server::BUILTIN_SERVERS;
 
 /// Run the API server, sharing state with the CLI.
 ///

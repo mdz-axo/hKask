@@ -22,10 +22,10 @@
 
 use std::sync::Arc;
 
-use hkask_types::{InferencePort, SkillRegistryIndex};
 use hkask_templates::BundleManifest;
 use hkask_templates::BundleRegistryIndex;
 use hkask_types::Visibility;
+use hkask_types::{InferencePort, SkillRegistryIndex};
 
 use hkask_services_context::AgentService;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};

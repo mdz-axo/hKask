@@ -9,9 +9,9 @@
 //!
 //! ℏKask - A Minimal Viable Container for UserPods
 
-use hkask_types::{Skill, SkillZone};
 use hkask_templates::SkillLoader;
 use hkask_types::visibility::Visibility;
+use hkask_types::{Skill, SkillZone};
 
 use std::fs;
 use std::path::{Path, PathBuf};

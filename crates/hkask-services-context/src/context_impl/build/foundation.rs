@@ -47,8 +47,9 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         source: None,
         message: format!("SQLite pool: {e}"),
     })?;
-    let shared_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
-        Arc::new(hkask_storage::database::sqlite::SqliteDriver::new(shared_pool));
+    let shared_driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(
+        hkask_storage::database::sqlite::SqliteDriver::new(shared_pool),
+    );
 
     let gas_store: Arc<RegulationArchive> =
         Arc::new(RegulationArchive::from_driver(Arc::clone(&shared_driver)));

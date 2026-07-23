@@ -9,11 +9,11 @@
 //! but own their HTTP client, auth, and model listing endpoint independently.
 
 use futures_util::StreamExt;
+use hkask_types::template::LLMParameters;
 use hkask_types::{
     ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage,
     StructuredToolCall, TokenProb, TokenProbability,
 };
-use hkask_types::template::LLMParameters;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 

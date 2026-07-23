@@ -156,7 +156,6 @@ fn main() {
 
         Commands::Skill { action } => commands::skill::run(action),
 
-
         Commands::Doctor { bootstrap } => {
             if bootstrap {
                 commands::doctor::run_bootstrap_check(&rt);

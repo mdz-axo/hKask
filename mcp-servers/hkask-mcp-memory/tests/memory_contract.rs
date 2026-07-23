@@ -5,10 +5,10 @@
 //!
 //! Tested seam: `EpisodicMemory` (HMemStore-backed, uses TestDb for isolation).
 
-use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_mcp_memory::MemoryServer;
 use hkask_mcp_memory::types::{RecallRequest, StoreRequest};
 use hkask_memory::EpisodicMemory;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_storage::{HMem, HMemStore};
 use hkask_test_harness::TestWebId;
 use hkask_types::Visibility;
@@ -19,7 +19,8 @@ use std::sync::Arc;
 
 fn setup_store() -> HMemStore {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory pool");
-    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
+        Arc::new(SqliteDriver::new(pool));
     HMemStore::from_driver(driver)
 }
 

@@ -33,8 +33,8 @@ use crate::ocr::decimation;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
 use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_memory::SemanticMemory;
-use hkask_types::InferencePort;
 use hkask_services_core::settings::HkaskSettings;
+use hkask_types::InferencePort;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
@@ -231,7 +231,9 @@ impl DocProcServer {
                     .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
-                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse {
+                        stored: true, ..
+                    }) => {
                         tracing::debug!(target: "hkask.mcp.docproc.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {

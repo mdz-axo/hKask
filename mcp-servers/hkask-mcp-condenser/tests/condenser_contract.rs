@@ -8,9 +8,9 @@
 use hkask_condenser::engine::CondenserEngine;
 use hkask_condenser::types::Profile;
 use hkask_condenser::types::{ClassifyRequest, CompressRequest, SetProfileRequest};
-use hkask_mcp_server::server::CapabilityTier;
 use hkask_mcp_condenser::CondenserServer;
 use hkask_mcp_condenser::SaliencyRequest;
+use hkask_mcp_server::server::CapabilityTier;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use std::collections::HashMap;

@@ -5,8 +5,8 @@
 //! (the `hkask-mcp-skill` MCP server).
 
 use crate::ReplState;
-use hkask_types::SkillZone;
 use hkask_services_skill::{SkillAuditor, discover_skills};
+use hkask_types::SkillZone;
 use hkask_types::visibility::Visibility;
 use std::path::PathBuf;
 

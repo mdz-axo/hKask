@@ -10,9 +10,12 @@ use std::path::PathBuf;
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp_server::McpError> {
-    let boot =
-        hkask_mcp_server::bootstrap_mcp_server("filesystem", "hkask.mcp.filesystem", "HKASK_MCP_HOST")
-            .await?;
+    let boot = hkask_mcp_server::bootstrap_mcp_server(
+        "filesystem",
+        "hkask.mcp.filesystem",
+        "HKASK_MCP_HOST",
+    )
+    .await?;
 
     let project_root = std::env::var("HKASK_PROJECT_ROOT")
         .ok()

@@ -2,10 +2,8 @@ use super::WalletStore;
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
 use hkask_types::time::now_rfc3339;
+use hkask_types::{ApiKeyCapability, ChainId, PrivacyMode, RJoule, RateLimitConfig, WalletError};
 use hkask_types::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
-use hkask_types::{
-    ApiKeyCapability, ChainId, PrivacyMode, RJoule, RateLimitConfig, WalletError,
-};
 use std::str::FromStr;
 
 // ── Row type for query mapping ─────────────────────────────────────────────────

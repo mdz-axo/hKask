@@ -10,10 +10,10 @@
 //! Every API call with `Authorization: Bearer hk_...` opens a span tracking:
 //! `key_id, endpoint, scope_matched, gas_consumed, allocation_remaining, rate_limit_status`
 
+use hkask_types::Encumbrance;
 use hkask_types::WebID;
 use hkask_types::event::{CyclePhase, RegulationRecord, RegulationSink, Span, SpanNamespace};
 use hkask_types::id::ApiKeyId;
-use hkask_types::Encumbrance;
 use std::collections::HashMap;
 use std::sync::{
     Arc,

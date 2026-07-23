@@ -5,12 +5,12 @@
 //!
 //! Tested seam: `GraphStore` (in-memory), `find_symbol_by_name`, and traversal.
 
+use hkask_mcp_codegraph::CodeGraphServer;
 use hkask_mcp_codegraph::codegraph::graph::store::GraphStore;
 use hkask_mcp_codegraph::codegraph::graph::traversal;
 use hkask_mcp_codegraph::codegraph::indexer::pipeline::IndexPipeline;
 use hkask_mcp_codegraph::codegraph::types::Direction;
 use hkask_mcp_server::server::CapabilityTier;
-use hkask_mcp_codegraph::CodeGraphServer;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use std::collections::HashMap;
@@ -125,7 +125,6 @@ fn test_server() -> CodeGraphServer {
         None,
         CapabilityTier::detect(&HashMap::new()),
         Arc::new(Mutex::new(pipeline)),
-        
         Arc::new(std::sync::atomic::AtomicBool::new(false)),
     )
 }
@@ -211,5 +210,3 @@ async fn codegraph_context_rejects_invalid_budget_via_parameters_seam() {
         "invalid budget 'ultra' must be rejected at deserialization — got: {result:?}"
     );
 }
-
-

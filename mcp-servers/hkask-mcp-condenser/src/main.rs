@@ -7,8 +7,11 @@
 
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp_server::McpError> {
-    let boot =
-        hkask_mcp_server::bootstrap_mcp_server("condenser", "hkask.mcp.condenser", "HKASK_MCP_HOST")
-            .await?;
+    let boot = hkask_mcp_server::bootstrap_mcp_server(
+        "condenser",
+        "hkask.mcp.condenser",
+        "HKASK_MCP_HOST",
+    )
+    .await?;
     hkask_mcp_condenser::run(boot.userpod, boot.daemon_client).await
 }

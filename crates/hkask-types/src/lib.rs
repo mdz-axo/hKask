@@ -25,12 +25,12 @@ pub mod skill;
 pub mod template;
 pub mod template_type;
 
+pub mod ports;
 pub mod time;
 pub mod tool_taint;
 pub mod transcript;
 pub mod visibility;
 pub mod wallet_types;
-pub mod ports;
 
 #[cfg(feature = "sql")]
 pub mod sql_impls;
@@ -68,10 +68,10 @@ pub use tool_taint::ToolTaint;
 pub use transcript::{TimedWord, TranscriptBundle, TranscriptSegment};
 pub use visibility::{Confidence, Dimension, Visibility};
 
+pub use ports::*;
 pub use wallet_types::{
     ApiKeyCapability, ApiKeyMaterial, ChainId, DepositAddress, DepositReference, Encumbrance,
     EncumbranceStatus, GAS_PER_RJOULE, PriceFeedConfig, PrivacyMode, RJ_PER_USDC, RJoule,
     RateLimitConfig, TransactionType, TxHash, WalletBalance, WalletConfig, WalletError,
     WalletTransaction,
 };
-pub use ports::*;

@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use hkask_capability::{AuthContext, DelegationToken};
 use hkask_memory::{EpisodicStoragePort, SemanticStoragePort};
-use hkask_types::{ChatToolDefinition, InferencePort, StructuredToolCall};
 use hkask_types::WebID;
 use hkask_types::template::LLMParameters;
+use hkask_types::{ChatToolDefinition, InferencePort, StructuredToolCall};
 
 /// Token usage breakdown for gas accounting.
 #[derive(Clone, Debug, Serialize, Deserialize)]

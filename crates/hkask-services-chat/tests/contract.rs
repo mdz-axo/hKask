@@ -1,5 +1,5 @@
-use hkask_types::StructuredToolCall;
 use hkask_services_chat::chat::{ChatTurnResponse, TokenUsage};
+use hkask_types::StructuredToolCall;
 use proptest::prelude::*;
 
 proptest! {

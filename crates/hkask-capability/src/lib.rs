@@ -20,9 +20,9 @@ pub use token_types::{
     CapabilityError, DelegationToken, DelegationTokenBuilder, NoOpTokenRegistry,
     SYSTEM_MAX_ATTENUATION, SYSTEM_MAX_RECURSION, TokenRegistry, TokenRegistryError,
 };
+pub use tool_port::{ToolFuture, ToolInfo, ToolPort, ToolPortError};
 pub use verification::{
     CapabilityChecker, TOKEN_ERR_EXPIRED, TOKEN_ERR_INVALID_SIGNATURE, TOKEN_ERR_NO_CHECKER,
     VerificationOutcome, require_read_access, require_write_access, token_err_insufficient_access,
     token_err_tool_access_denied, verify_delegation_token, verify_delegation_token_now,
 };
-pub use tool_port::{ToolFuture, ToolInfo, ToolPort, ToolPortError};

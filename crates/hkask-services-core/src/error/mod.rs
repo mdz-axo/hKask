@@ -36,10 +36,10 @@
 
 use thiserror::Error;
 
-use hkask_types::{EmbeddingGenerationError, InferenceError};
 use hkask_types::InfrastructureError;
 use hkask_types::McpErrorKind;
 use hkask_types::WalletError;
+use hkask_types::{EmbeddingGenerationError, InferenceError};
 
 // ── Helper implementation modules ─────────────────────────────────────
 

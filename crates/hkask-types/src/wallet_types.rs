@@ -9,8 +9,8 @@
 //! - Every rJoule originates from a verified on-chain deposit `[IS-DECL]`
 //! - API keys are Ed25519-signed OCAP capability tokens `[OUGHT-DECL]`
 
-use chrono::{DateTime, Utc};
 use crate::{ApiKeyId, Ed25519PublicKey, InfrastructureError, WalletId};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;

@@ -678,11 +678,16 @@ mod tests {
             tool: &'a str,
             _args: serde_json::Value,
             _token: &'a hkask_capability::DelegationToken,
-        ) -> hkask_capability::ToolFuture<'a, Result<serde_json::Value, hkask_capability::ToolPortError>>
-        {
+        ) -> hkask_capability::ToolFuture<
+            'a,
+            Result<serde_json::Value, hkask_capability::ToolPortError>,
+        > {
             Box::pin(async move {
                 self.results.get(tool).cloned().ok_or_else(|| {
-                    hkask_capability::ToolPortError::InvocationFailed(format!("no mock for {}", tool))
+                    hkask_capability::ToolPortError::InvocationFailed(format!(
+                        "no mock for {}",
+                        tool
+                    ))
                 })
             })
         }

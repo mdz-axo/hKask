@@ -14,8 +14,8 @@ use crate::ReplState;
 use hkask_capability::DelegationAction;
 use hkask_capability::DelegationResource;
 use hkask_capability::DelegationToken;
-use hkask_capability::derive_signing_key;
 use hkask_capability::ToolPort;
+use hkask_capability::derive_signing_key;
 use std::path::PathBuf;
 
 /// Directory where transcripts are saved.

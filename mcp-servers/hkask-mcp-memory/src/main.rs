@@ -8,6 +8,7 @@
 #[tokio::main]
 async fn main() -> Result<(), hkask_mcp_server::McpError> {
     let boot =
-        hkask_mcp_server::bootstrap_mcp_server("memory", "hkask.mcp.memory", "HKASK_MCP_HOST").await?;
+        hkask_mcp_server::bootstrap_mcp_server("memory", "hkask.mcp.memory", "HKASK_MCP_HOST")
+            .await?;
     hkask_mcp_memory::run(boot.userpod, boot.daemon_client).await
 }

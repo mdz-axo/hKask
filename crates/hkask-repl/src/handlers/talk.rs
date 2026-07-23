@@ -11,8 +11,8 @@ use crate::TalkMode;
 use hkask_capability::DelegationAction;
 use hkask_capability::DelegationResource;
 use hkask_capability::DelegationToken;
-use hkask_capability::derive_signing_key;
 use hkask_capability::ToolPort;
+use hkask_capability::derive_signing_key;
 
 /// Speech summarizer prompt — condenses agent response for spoken output.
 const SPEECH_SUMMARIZE_PROMPT: &str = "\

@@ -675,8 +675,8 @@ impl hkask_types::embedding_port::EmbeddingPort for EmbeddingStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::sqlite::SqliteDriver;
     use crate::core::Database;
+    use crate::database::sqlite::SqliteDriver;
     use std::sync::Arc;
 
     /// Regression test for the self-deadlock in `delete`.

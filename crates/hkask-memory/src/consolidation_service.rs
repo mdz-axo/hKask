@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use crate::consolidation::ConsolidationBridge;
 use crate::semantic::SemanticMemory;
-use hkask_types::{ConsolidationOutcome, ConsolidationRequest};
 use hkask_types::WebID;
+use hkask_types::{ConsolidationOutcome, ConsolidationRequest};
 
 pub struct ConsolidationService {
     bridge: Arc<ConsolidationBridge>,

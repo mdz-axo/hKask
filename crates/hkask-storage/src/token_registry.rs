@@ -7,12 +7,12 @@
 //! Regulation spans record token *usage*; this store records token *issuance*.
 //! Together they enable the full consent audit picture.
 
-use hkask_capability::{
-    DelegationAction, DelegationResource, DelegationToken, TokenRegistry, TokenRegistryError,
-};
 use crate::database::driver::{query_map, query_row};
 use crate::database::value::DbValue;
 use crate::define_driver_store;
+use hkask_capability::{
+    DelegationAction, DelegationResource, DelegationToken, TokenRegistry, TokenRegistryError,
+};
 use hkask_types::WebID;
 
 define_driver_store!(TokenRegistryStore);
@@ -252,10 +252,10 @@ impl TokenRegistry for TokenRegistryStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::sqlite::SqliteDriver;
     use hkask_capability::DelegationAction;
     use hkask_capability::DelegationResource;
     use hkask_capability::token_types::TokenSignature;
-    use crate::database::sqlite::SqliteDriver;
     use hkask_types::WebID;
     use std::sync::Arc;
 

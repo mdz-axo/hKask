@@ -85,11 +85,12 @@ impl IndexPipeline {
         }
 
         // Parse and extract
-        let (tree, src_bytes) =
-            parser::parse_rust_file(&source).map_err(|e| crate::codegraph::error::CodeGraphError::Parse {
+        let (tree, src_bytes) = parser::parse_rust_file(&source).map_err(|e| {
+            crate::codegraph::error::CodeGraphError::Parse {
                 file: relative_path.to_string(),
                 message: e.to_string(),
-            })?;
+            }
+        })?;
         let (symbols, edges) = extract_symbols(&tree, &src_bytes, relative_path);
 
         // Insert into database

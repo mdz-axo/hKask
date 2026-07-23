@@ -25,9 +25,9 @@
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp_server::server::{CapabilityTier, McpToolError, execute_tool};
-use hkask_types::{InferencePort, RegistryEntry, RegistryIndex};
 use hkask_templates::Registry;
 use hkask_types::template::LLMParameters;
+use hkask_types::{InferencePort, RegistryEntry, RegistryIndex};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde::Deserialize;
 use std::collections::HashMap;

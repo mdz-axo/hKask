@@ -1,9 +1,9 @@
-use chrono::{DateTime, Utc};
 use crate::InfrastructureError;
 use crate::event::{RegulationRecord, SpanNamespace};
 use crate::id::WebID;
 use crate::loops::LoopId;
 use crate::regulation::CircuitState;
+use chrono::{DateTime, Utc};
 
 use async_trait::async_trait;
 

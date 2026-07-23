@@ -29,13 +29,13 @@ use hkask_condenser::inference;
 use hkask_condenser::inference::SUMMARY_SYSTEM_PROMPT;
 use hkask_condenser::saliency;
 use hkask_condenser::types::*;
-use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 use hkask_mcp_server::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_memory::EpisodicMemory;
 use hkask_memory::SemanticMemory;
-use hkask_types::InferencePort;
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_storage::{Database, EmbeddingStore, HMem};
+use hkask_types::InferencePort;
 use hkask_types::Visibility;
 use hkask_types::template::LLMParameters;
 use hkask_types::time::now_rfc3339;
@@ -105,7 +105,9 @@ impl CondenserServer {
                     .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
-                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse {
+                        stored: true, ..
+                    }) => {
                         tracing::debug!(target: "hkask.mcp.condenser.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {

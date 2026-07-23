@@ -2,10 +2,10 @@
 
 use super::InferenceRouter;
 use crate::chat_protocol::validate_prompt;
+use hkask_types::template::LLMParameters;
 use hkask_types::{
     ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceStreamChunk,
 };
-use hkask_types::template::LLMParameters;
 use std::pin::Pin;
 
 impl InferenceRouter {

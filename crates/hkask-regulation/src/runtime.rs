@@ -22,10 +22,10 @@ use crate::set_points::DEFAULT_VARIETY_MAX_DEFICIT;
 use crate::slo_manager::{SloDataProvider, SloManager};
 use crate::tool_stats::ToolStats;
 
-use hkask_types::{BackpressureSignal, DepletionSignal, LedgerObserver};
 use hkask_types::WebID;
 use hkask_types::event::{RegulationRecord, RegulationSink, SpanNamespace};
 use hkask_types::regulation::{LedgerHealth, RegulationHealth};
+use hkask_types::{BackpressureSignal, DepletionSignal, LedgerObserver};
 use parking_lot::RwLock as ParkingRwLock;
 use std::collections::HashMap;
 use std::collections::VecDeque;

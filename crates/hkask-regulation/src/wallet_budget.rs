@@ -213,9 +213,9 @@ mod tests {
     use super::*;
     use hkask_storage::WalletStore;
     use hkask_types::crypto::Ed25519PublicKey;
+    use hkask_types::{ChainId, PrivacyMode, TransactionType};
     use hkask_wallet::price_feed::StaticPriceFeed;
     use hkask_wallet::{GAS_PER_RJOULE, WalletConfig, WalletManager};
-    use hkask_types::{ChainId, PrivacyMode, TransactionType};
 
     // WalletBackedBudget tests require a real WalletManager with an in-memory DB.
     // These are integration-style tests — they validate the gas→rJoule→debit pipeline.

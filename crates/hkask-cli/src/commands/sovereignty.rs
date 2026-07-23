@@ -17,8 +17,7 @@ pub fn run(action: SovereigntyAction) {
 
 fn run_verify(principle: Option<String>, json: bool) {
     if json {
-        let result =
-            crate::verification::VerificationService::verify_json(principle.as_deref());
+        let result = crate::verification::VerificationService::verify_json(principle.as_deref());
         println!(
             "{}",
             serde_json::to_string_pretty(&result)
