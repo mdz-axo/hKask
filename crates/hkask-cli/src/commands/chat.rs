@@ -38,8 +38,8 @@ async fn finish_stream(
     params: &LLMParameters,
     input: &str,
 ) -> ChatTurnResponse {
-    let stream = prepared.inference_port.generate_stream_with_model(
-        &prepared.prompt,
+    let stream = prepared.inference_port.generate_stream_with_messages(
+        &prepared.messages,
         params,
         Some(&prepared.model),
         None,
@@ -140,6 +140,7 @@ pub async fn chat_with_agent_streaming(
         params_override: None,
         api_spec: None,
         tools: None,
+        thread_messages: None,
     };
 
     let prepared = match ChatService::prepare_chat(&ctx, &req).await {

@@ -31,6 +31,9 @@ pub struct TurnInput<'a> {
     pub tool_results: Option<String>,
     pub agent_override: Option<&'a str>,
     pub thread_history: Option<String>,
+    /// Typed message array from thread history — when present, used instead of
+    /// `thread_history` string to build multi-turn message arrays for inference.
+    pub thread_messages: Option<Vec<hkask_types::ChatMessage>>,
 }
 
 // ── TurnConfig: loop configuration ───────────────────────────────────
@@ -81,6 +84,7 @@ pub trait GasReservation: Send {
 pub trait ThreadMemory: Send {
     fn is_seeded(&self) -> bool;
     fn thread_history(&self, window: usize) -> Option<String>;
+    fn thread_history_messages(&self, window: usize) -> Option<Vec<hkask_types::ChatMessage>>;
     fn append_turn(&mut self, agent: &str, input: &str, response: &str);
     fn mark_seeded(&mut self);
 }
@@ -166,6 +170,7 @@ impl TurnExecutor for ReplTurnExecutor {
             condense_saliency_window: settings.condense_saliency_window,
             pre_compress: settings.pre_compress,
             thread_history: input.thread_history.clone(),
+            thread_messages: input.thread_messages.clone(),
             improv_mode: self.improv_mode.clone(),
             tool_section: String::new(),
             tools: if self.tool_definitions.is_empty() {
@@ -265,6 +270,9 @@ impl<'a> ThreadMemory for ReplThreadMemory<'a> {
     }
     fn thread_history(&self, window: usize) -> Option<String> {
         self.registry.thread_history(Some(window))
+    }
+    fn thread_history_messages(&self, window: usize) -> Option<Vec<hkask_types::ChatMessage>> {
+        self.registry.thread_history_messages(Some(window))
     }
     fn append_turn(&mut self, agent: &str, input: &str, response: &str) {
         self.registry.append_turn(agent, input, response);

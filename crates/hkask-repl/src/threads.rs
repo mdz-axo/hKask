@@ -243,6 +243,46 @@ impl ThreadRegistry {
         ))
     }
 
+    /// Get the active thread's conversation history as typed `ChatMessage`s.
+    ///
+    /// This is the multi-turn inference path: each turn's `role` ("user" or
+    /// "assistant") is preserved as a `ChatMessage` with the correct role tag,
+    /// so the provider sees `[user, assistant, user, assistant, ...]` — not a
+    /// single flattened string. This eliminates the "you responding to
+    /// yourself" defect.
+    ///
+    /// Returns the last `max_turns` exchanges (None = all). Returns None if
+    /// no active thread or thread has no turns.
+    pub fn thread_history_messages(
+        &self,
+        max_turns: Option<usize>,
+    ) -> Option<Vec<hkask_types::ChatMessage>> {
+        let thread_id = self.active_thread_id.as_ref()?;
+        let thread = self.threads.get(thread_id)?;
+        if thread.turns.is_empty() {
+            return None;
+        }
+        let turns: Vec<&TurnEntry> = if let Some(max) = max_turns {
+            let start = thread.turns.len().saturating_sub(max * 2);
+            thread.turns[start..].iter().collect()
+        } else {
+            thread.turns.iter().collect()
+        };
+        let messages: Vec<hkask_types::ChatMessage> = turns
+            .iter()
+            .filter(|t| t.role == "user" || t.role == "assistant")
+            .map(|t| hkask_types::ChatMessage {
+                role: t.role.clone(),
+                content: t.content.clone(),
+            })
+            .collect();
+        if messages.is_empty() {
+            None
+        } else {
+            Some(messages)
+        }
+    }
+
     /// Archive threads older than `max_age_days`. Returns count archived.
     pub fn archive_stale(&mut self, agent_name: &str, max_age_days: u32) -> usize {
         if max_age_days == 0 {

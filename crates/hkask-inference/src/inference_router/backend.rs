@@ -89,7 +89,7 @@ pub trait ChatBackend: Send + Sync {
             .map(|m| format!("{}: {}", m.role, m.content))
             .collect::<Vec<_>>()
             .join("\n\n");
-        self.generate(model, &prompt, params, tools)
+        Box::pin(async move { self.generate(model, &prompt, params, tools).await })
     }
 }
 

@@ -238,8 +238,34 @@ impl ChatService {
             None => format!("{}\n\nUser: {}", system_prompt, req.input),
         };
 
+        // Build typed message array for multi-turn inference (preserves role
+        // tags so the provider sees proper [system, user, assistant, ...]
+        // conversation structure). The system message carries the same system
+        // prompt + memory context as `full_prompt`; thread history (when
+        // present) is inserted between system and the current user turn.
+        let system_with_memory = match memory_context {
+            Some(ref ctx_text) => {
+                format!("{}\n\n## Relevant Memory\n{}", system_prompt, ctx_text)
+            }
+            None => system_prompt.clone(),
+        };
+        let messages = match req.thread_messages.as_ref() {
+            Some(thread_msgs) if !thread_msgs.is_empty() => {
+                let mut msgs = Vec::with_capacity(thread_msgs.len() + 2);
+                msgs.push(hkask_types::ChatMessage::system(&system_with_memory));
+                msgs.extend(thread_msgs.iter().cloned());
+                msgs.push(hkask_types::ChatMessage::user(&req.input));
+                msgs
+            }
+            _ => vec![
+                hkask_types::ChatMessage::system(&system_with_memory),
+                hkask_types::ChatMessage::user(&req.input),
+            ],
+        };
+
         Ok(PreparedChat {
             prompt: full_prompt,
+            messages,
             model,
             agent_webid,
             capability_token,
@@ -316,8 +342,8 @@ impl ChatService {
 
         let result = tokio::time::timeout(
             Duration::from_secs(120),
-            prepared.inference_port.generate_with_model(
-                &prepared.prompt,
+            prepared.inference_port.generate_with_messages(
+                &prepared.messages,
                 &params,
                 Some(&prepared.model),
                 req.tools.as_deref(),
@@ -737,6 +763,7 @@ impl ChatService {
             auth_context: None,
             params_override: Some(req.llm_params.clone()),
             tools: req.tools.clone(),
+            thread_messages: req.thread_messages.clone(),
         };
         let chat_response = Self::chat(ctx, chat_req).await?;
 

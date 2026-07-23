@@ -172,12 +172,18 @@ fn run_turn_loop(
         } else {
             deps.threads.thread_history(config.saliency_window)
         };
+        let thread_messages = if deps.threads.is_seeded() {
+            None
+        } else {
+            deps.threads.thread_history_messages(config.saliency_window)
+        };
         let turn_input = TurnInput {
             input: &current_input,
             iteration,
             tool_results: tool_results.take(),
             agent_override,
             thread_history,
+            thread_messages,
         };
 
         let chat_result = rt.block_on(deps.executor.execute_turn(&turn_input));
@@ -721,15 +727,18 @@ mod tests {
         fn is_seeded(&self) -> bool {
             self.seeded
         }
-        fn thread_history(&self, _: usize) -> Option<String> {
-            None
-        }
-        fn append_turn(&mut self, _: &str, _: &str, _: &str) {}
-        fn mark_seeded(&mut self) {
-            self.seeded = true;
-            self.mark_seeded_count += 1;
-        }
-    }
+        : usize) -> Option<String> {
+                    None
+                }
+                fn thread_history_messages(&self, _: usize) -> Option<Vec<hkask_types::ChatMessage>> {
+                    None
+                }
+                fn append_turn(&mut self, _: &str, _: &str, _: &str) {}
+                fn mark_seeded(&mut self) {
+                    self.seeded = true;
+                    self.mark_seeded_count += 1;
+                }
+            }
 
     fn turn_result(text: &str, tools: Vec<ToolCall>) -> TurnResult {
         use hkask_types::StructuredToolCall;

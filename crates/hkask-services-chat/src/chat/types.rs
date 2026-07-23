@@ -82,6 +82,11 @@ pub struct ChatTurnRequest {
     /// The REPL passes these from `state.tool_definitions` during turn processing
     /// including the `/ask` handler which routes through `single_agent_turn`.
     pub tools: Option<Vec<ChatToolDefinition>>,
+    /// Typed message array from thread history — when present, used to build
+    /// multi-turn `[system, user, assistant, ...]` message arrays for inference.
+    /// This preserves role tags so the provider sees proper conversation structure.
+    /// None for single-turn API/CLI calls.
+    pub thread_messages: Option<Vec<hkask_types::ChatMessage>>,
 }
 
 /// Prepared chat context — the result of prompt composition before inference.
@@ -91,7 +96,13 @@ pub struct ChatTurnRequest {
 /// for agent lookup, prompt composition, and semantic recall.
 pub struct PreparedChat {
     /// The full prompt ready for inference (system + semantic context + user input).
+    /// Retained for backward-compatible callers; `messages` is preferred for
+    /// multi-turn backends that speak the OpenAI message format.
     pub prompt: String,
+    /// Typed message array for inference (system + thread history + user).
+    /// Built alongside `prompt` so backends that accept message arrays can
+    /// preserve role tags across turns.
+    pub messages: Vec<hkask_types::ChatMessage>,
     /// The resolved model name.
     pub model: String,
     /// The agent's WebID (for episodic storage).
@@ -163,6 +174,11 @@ pub struct TurnRequest {
     /// the thread's own stream — switching threads changes this context.
     /// None if no active thread or thread has no turns.
     pub thread_history: Option<String>,
+    /// Typed message array from thread history — when present, used instead of
+    /// `thread_history` string to build multi-turn `[system, user, assistant, ...]`
+    /// message arrays for inference. This preserves role tags so the provider
+    /// sees proper conversation structure.
+    pub thread_messages: Option<Vec<hkask_types::ChatMessage>>,
     /// Active improv mode — when set, prepends mode-specific instructions
     /// to the system prompt so the model adopts the interaction posture.
     /// None means no improv posture (default agent behavior).
