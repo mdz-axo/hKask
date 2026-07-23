@@ -407,6 +407,8 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.training.provider.runpod.submit",
     "reg.training.provider.runpod.teardown",
     "reg.training.provider.runpod.upload",
+    // ── Training checkpoint (pod restart → Axolotl auto-resume) ──
+    "reg.training.checkpoint.resume",
 ];
 
 /// Hierarchical namespace validation — a sub-namespace like
