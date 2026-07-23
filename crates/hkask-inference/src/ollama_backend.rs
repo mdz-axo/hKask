@@ -151,21 +151,26 @@ impl OllamaBackend {
         model: &str,
         messages: &[ChatMessage],
         params: &LLMParameters,
-        tools: Option<&[ChatToolDefinition]>,
-    ) -> Result<InferenceResult, InferenceError> {
-        let effective_key = if self.api_key.is_empty() {
-            OLLAMA_SENTINEL_KEY
-        } else {
-            self.api_key.as_str()
-        };
-        openai_compatible_generate_messages(
-            &self.client,
-            &self.base_url,
-            effective_key,
-            model,
-            messages,
-            params,
-            tools,
+        : Option<&[ChatToolDefinition]>,
+            ) -> Result<InferenceResult, InferenceError> {
+                let effective_key = if self.api_key.is_empty() {
+                    OLLAMA_SENTINEL_KEY
+                } else {
+                    self.api_key.as_str()
+                };
+                // Sanitize tool schemas for Ollama — its Go API cannot parse
+                // boolean-valued JSON Schema fields like additionalProperties.
+                let tools_owned: Option<Vec<hkask_types::ChatToolDefinition>> =
+                    tools.map(sanitize_tools_for_ollama);
+                let tools_ref = tools_owned.as_deref();
+                openai_compatible_generate_messages(
+                    &self.client,
+                    &self.base_url,
+                    effective_key,
+                    model,
+                    messages,
+                    params,
+                    tools_ref,
             "/v1/chat/completions",
             "Bearer",
             "OM",
@@ -315,7 +320,7 @@ impl OllamaBackend {
 /// Remove JSON Schema fields that Ollama's Go API cannot parse.
 ///
 /// Ollama's Go structs expect tool parameter properties to be objects, not
-/// booleans. Standard JSON Schema fields like 
+/// booleans. Standard JSON Schema fields like
 /// cause a 400 error. This function recursively strips those fields.
 fn sanitize_tools_for_ollama(tools: &[hkask_types::ChatToolDefinition]) -> Vec<hkask_types::ChatToolDefinition> {
     tools.iter().map(|t| {
