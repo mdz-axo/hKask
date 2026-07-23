@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! # hKask Ledger — Double-Entry Accounting
 //!
 //! Immutable double-entry ledger backed by the provider-agnostic `DatabaseDriver`

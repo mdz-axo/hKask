@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask MCP Skill — exposes registered skills as callable MCP tools.
 //!
 //! Each skill in the registry becomes available through the `skill_execute` tool.

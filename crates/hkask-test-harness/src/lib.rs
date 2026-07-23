@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Test Harness — Shared fixtures for test infrastructure
 //!
 //! Public API:

@@ -327,8 +327,6 @@ async fn try_fal_docres(image: &DynamicImage, api_key: &str) -> Option<DynamicIm
 /// then applies it to produce a clean black/white image.
 /// O(w·h), no allocations beyond the output buffer.
 fn otsu_binarize(image: &mut DynamicImage) {
-    use imageproc::contrast::threshold;
-
     // Convert to grayscale for histogram computation
     let gray = image.to_luma8();
 
@@ -336,12 +334,14 @@ fn otsu_binarize(image: &mut DynamicImage) {
     let hist = histogram(&gray);
     let otsu_level = otsu_level(&hist);
 
-    // Apply threshold: pixels > otsu_level → 255, else → 0
-    let binarized = threshold(
-        &gray,
-        otsu_level as u8,
-        imageproc::contrast::ThresholdType::Binary,
-    );
+    // Apply binary threshold inline (pixels > otsu_level → 255, else → 0).
+    // Inlined from imageproc::contrast::threshold to drop the imageproc dep,
+    // which pulls rayon, ttf-parser, ab_glyph, and num-complex.
+    let level = otsu_level as u8;
+    let mut binarized = gray.clone();
+    for px in binarized.iter_mut() {
+        *px = if *px > level { 255 } else { 0 };
+    }
 
     // GAP-4: Regulation variety — detect potential over-thresholding (uniform output)
     let unique: std::collections::BTreeSet<u8> = binarized.as_raw().iter().copied().collect();

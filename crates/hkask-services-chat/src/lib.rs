@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Chat Service — chat orchestration, memory recall, turn management.
 //!
 //! Extracted from `hkask-services` (ADR-040, 2026-06-27).

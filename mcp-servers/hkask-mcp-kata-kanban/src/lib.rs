@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hkask-mcp-kata-kanban — Kata-Kanban workflow coordination MCP server.
 //!
 //! Provides 18 MCP tools for kanban board and task management.

@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! hKask CLI — Command-line interface
 
 #![allow(unused_crate_dependencies)] // Bin target — deps used in main.rs, lint checks lib target only

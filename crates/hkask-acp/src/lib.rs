@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hkask-acp — ACP (Agent Client Protocol) userpod library.
 //!
 //! Re-exports the public API for integration testing and external consumers.

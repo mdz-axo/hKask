@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Corpus Services — discovery and embedding pipeline.
 //!
 //! Merged from `hkask-services-discover` and `hkask-services-embed`.

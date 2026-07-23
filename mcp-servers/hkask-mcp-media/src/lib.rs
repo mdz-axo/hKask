@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask MCP Media — AI media generation (image, video, voice via centralized inference router)
 //!
 //! Tool families:

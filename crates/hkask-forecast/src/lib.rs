@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! Shared superforecasting computation engine (Tetlock GJP methodology).
 //!
 //! Canonical implementations used by both `hkask-mcp-scenarios` and

@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! hKask MCP Server — MCP server utilities, daemon transport, and startup verification.
 //!
 //! Provides the lightweight layer that all hKask MCP servers depend on:

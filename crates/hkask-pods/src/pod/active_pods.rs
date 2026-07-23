@@ -52,6 +52,7 @@ impl ActivePods {
     /// Full test harness with in-memory adapters, AllowAllConsent,
     /// mock templates, and master key set. One call sets up everything
     /// needed for integration tests.
+    #[allow(unsafe_code)]
     pub fn new_test_harness(data_dir: &std::path::Path) -> Self {
         // Set test secrets for OCAP signing and canonical SQLCipher encryption.
         unsafe {
@@ -74,6 +75,7 @@ impl ActivePods {
     }
 
     /// Inner test harness.
+    #[allow(unsafe_code)]
     fn new_test_harness_inner(data_dir: &std::path::Path) -> Self {
         use crate::AllowAllConsent;
         use crate::a2a::A2ARuntime;

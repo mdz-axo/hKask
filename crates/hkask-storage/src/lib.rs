@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 //! hKask Storage — SQLite + SQLCipher storage backend
 //!
 //! Consolidated from hkask-storage + hkask-database + hkask-storage-core.

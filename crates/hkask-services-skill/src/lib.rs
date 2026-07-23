@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Skill Service — skill discovery, publishing, hashing, auditing, and bundle composition.
 //!
 //! Extracted from `hkask-services`.

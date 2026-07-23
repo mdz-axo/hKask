@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask MCP Scenarios — domain-agnostic scenario planning server.
 //!
 //! Event-tree forecasting with conditional dependencies (MAIA methodology).

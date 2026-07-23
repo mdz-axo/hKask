@@ -39,6 +39,34 @@ pub struct GoalTransitionEvent {
     pub agent: WebID,
 }
 
+/// Derived goal lifecycle signal that Curation reacts to.
+///
+/// `GoalState` (hkask-types) models canonical states (Pending/Active/…/Abandoned).
+/// "stale" and "expired" are *derived* observational states emitted by goal
+/// lifecycle watchers, not canonical `GoalState` variants. This enum makes the
+/// Curation-relevant classification explicit instead of magic-string matching.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GoalLifecycle {
+    /// Goal has been Active past its staleness window — attention recommended.
+    Stale,
+    /// Goal has passed its deadline without completion.
+    Expired,
+    /// Any other (canonical `GoalState` or unknown) — no Curation action.
+    Other,
+}
+
+impl GoalLifecycle {
+    /// Classify a goal state string into a Curation-relevant lifecycle signal.
+    #[must_use]
+    pub fn from_state_str(state: &str) -> Self {
+        match state {
+            "stale" => Self::Stale,
+            "expired" => Self::Expired,
+            _ => Self::Other,
+        }
+    }
+}
+
 // ── Communication channel: CommunicationWatcher → Curation ──────────────────
 
 /// Communication event forwarded from the 7R7 listener through RegulationArchive.

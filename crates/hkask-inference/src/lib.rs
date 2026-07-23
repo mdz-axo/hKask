@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! hKask Inference — multi-provider inference router
 //!
 //! Routes LLM requests to 8 providers (DeepInfra, fal.ai, Together AI,

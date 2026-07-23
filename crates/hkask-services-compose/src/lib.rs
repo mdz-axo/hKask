@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! Style composition — exemplar retrieval, prose generation, centroid validation.
 
 use std::path::PathBuf;

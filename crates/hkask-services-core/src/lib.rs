@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Service-Layer Foundation — shared error types, configuration, and settings.
 //!
 //! This crate is the foundation for most service-layer modules: `ServiceError`,

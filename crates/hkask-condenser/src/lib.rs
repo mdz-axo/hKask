@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Condenser — Domain logic for context condensation
 //!
 //! Pure domain crate: compression algorithms, ontology-aware saliency

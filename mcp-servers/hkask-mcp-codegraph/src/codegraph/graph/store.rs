@@ -29,6 +29,7 @@ use crate::codegraph::types::{EdgeKind, Symbol};
 /// The `sqlite_vec` crate declares it with no Rust args, so we transmute to
 /// the real 3-arg signature and pass a live `sqlite3*` handle. The two
 /// pointer args are NULL — the documented static-link invocation.
+#[allow(unsafe_code)]
 fn init_sqlite_vec_on(conn: &Connection) -> rusqlite::Result<()> {
     type Sqlite3ExtInitFn = unsafe extern "C" fn(
         *mut rusqlite::ffi::sqlite3,

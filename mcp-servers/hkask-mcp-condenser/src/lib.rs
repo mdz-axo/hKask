@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask MCP Condenser — Context condensation for tool outputs
 //!
 //! Loop: Episodic (Loop 2) — Confirmed. Context condensation operates on the active

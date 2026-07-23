@@ -805,7 +805,13 @@ mod tests {
         let tools = MockTools::new().returning("search", json!({"result": "42"}));
         let mut threads = MockThreads::new();
         let mut sink = MockSink::new();
-        let deps = mock_deps(&ex, &gas, &tools, &mut threads);
+        let deps = TurnDeps {
+            executor: &ex,
+            gas: &gas,
+            tools: &tools,
+            threads: &mut threads,
+            on_reg_update: &noop,
+        };
         let outcome = run_turn_loop("q", deps, &mock_config(), rt.handle(), &mut sink, None);
         assert!(outcome.success);
         assert!(
@@ -896,6 +902,99 @@ mod tests {
         let deps = mock_deps(&ex, &gas, &tools, &mut threads);
         let _ = run_turn_loop("q", deps, &cfg, rt.handle(), &mut sink, None);
         assert!(sink.lines.iter().any(|l| l.contains("max iterations")));
+    }
+
+    #[test]
+    fn loop_grows_message_array_with_correct_roles() {
+        use std::sync::{Arc, Mutex};
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        // Mock executor that captures TurnInput.messages on each call.
+        let captured: Arc<Mutex<Vec<Option<Vec<hkask_types::ChatMessage>>>>> = Arc::new(Mutex::new(vec![]));
+
+        struct CapturingExecutor {
+            captured: Arc<Mutex<Vec<Option<Vec<hkask_types::ChatMessage>>>>>,
+        }
+
+        #[async_trait::async_trait]
+        impl TurnExecutor for CapturingExecutor {
+            async fn execute_turn(&self, input: &TurnInput<'_>) -> Result<TurnResult, ServiceError> {
+                self.captured.lock().unwrap().push(input.messages.clone());
+                let captured = self.captured.lock().unwrap();
+                if captured.len() == 1 {
+                    // Iteration 1: return tool calls + initial messages
+                    Ok(TurnResult {
+                        text: "Let me search for that.".to_string(),
+                        usage: TokenUsage { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+                        structured_tool_calls: vec![hkask_types::StructuredToolCall {
+                            server: "".to_string(),
+                            tool: "search".to_string(),
+                            args: json!({"q": "test"}),
+                            call_id: None,
+                        }],
+                        messages: vec![
+                            hkask_types::ChatMessage::system("You are a test agent."),
+                            hkask_types::ChatMessage::user("What is the capital of France?"),
+                        ],
+                    })
+                } else {
+                    // Iteration 2: return final response, no tool calls
+                    Ok(TurnResult {
+                        text: "The capital of France is Paris.".to_string(),
+                        usage: TokenUsage { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 },
+                        structured_tool_calls: vec![],
+                        messages: vec![],
+                    })
+                }
+            }
+        }
+
+        let ex = CapturingExecutor { captured: captured.clone() };
+        let gas = MockGas::new(100000, 100000);
+        let tools = MockTools::new().returning("search", json!({"result": "Paris"}));
+        let mut threads = MockThreads::new();
+        let mut sink = MockSink::new();
+        let cfg = mock_config();
+        let deps = TurnDeps {
+            executor: &ex,
+            gas: &gas,
+            tools: &tools,
+            threads: &mut threads,
+            on_reg_update: &noop,
+        };
+        let _ = run_turn_loop("What is the capital of France?", deps, &cfg, rt.handle(), &mut sink, None);
+
+        // Verify: 2 calls were made
+        let captured = captured.lock().unwrap();
+        assert_eq!(captured.len(), 2, "should have 2 executor calls");
+
+        // Iteration 1: messages should be None (first iteration, no prebuilt messages)
+        assert!(captured[0].is_none(), "iteration 1 should have no prebuilt messages");
+
+        // Iteration 2: messages should contain the growing array with correct roles
+        let iter2_messages = captured[1].as_ref().expect("iteration 2 should have prebuilt messages");
+        assert!(iter2_messages.len() >= 4, "iteration 2 should have system + user + assistant + tool_results");
+
+        // Find the assistant message — it should have role "assistant", NOT "user"
+        let has_assistant = iter2_messages.iter().any(|m| {
+            m.role == "assistant" && m.content.contains("Let me search")
+        });
+        assert!(has_assistant, "iteration 2 messages must contain the assistant response with role=assistant");
+
+        // Verify no role inversion: the assistant response must NOT appear as role="user"
+        let no_role_inversion = !iter2_messages.iter().any(|m| {
+            m.role == "user" && m.content.contains("Let me search")
+        });
+        assert!(no_role_inversion, "assistant response must NOT be tagged as role=user (role inversion bug)");
+
+        // Find the tool results message — it should have role "user"
+        let has_tool_results = iter2_messages.iter().any(|m| {
+            m.role == "user" && m.content.contains("search")
+        });
+        assert!(has_tool_results, "iteration 2 messages must contain tool results with role=user");
+    }
+
     }
 }
 

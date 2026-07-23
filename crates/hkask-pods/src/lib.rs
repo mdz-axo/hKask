@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 //! hKask Agents — Agent Pod Lifecycle and A2A Integration
 //!
 //! This crate provides:

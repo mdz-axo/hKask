@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Communication — core Matrix transport, agent registry, and 7R7 listener.
 //!
 //! This is a core infrastructure crate, not an MCP server. It provides:

@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Kata-Kanban Workflow Service — Toyota Kata process engine with Kanban board mechanics.
 //!
 //! ## Design Principle

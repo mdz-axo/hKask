@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hkask-mcp-filesystem — MCP server providing OCAP-governed filesystem
 //! and shell access to AI agents.
 //!

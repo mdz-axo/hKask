@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Capability — OCAP delegation token system
 //!
 //! Ed25519-signed delegation tokens with cryptographic attenuation.

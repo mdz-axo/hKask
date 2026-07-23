@@ -33,7 +33,9 @@ pub mod channels;
 pub mod loop_trait;
 
 // Re-export the full loop type system from hkask-types.
-pub use channels::{CommunicationEvent, CurationInput, GoalTransitionEvent, ToolConsumptionEvent};
+pub use channels::{
+    CommunicationEvent, CurationInput, GoalLifecycle, GoalTransitionEvent, ToolConsumptionEvent,
+};
 pub use hkask_types::loops::{
     ActionDecision, ActionType, BudgetOption, Deviation, DeviationDirection,
     ExperienceClassification, ImpactReport, LoopId, LoopMetrics, RegulationData, RegulatoryAction,

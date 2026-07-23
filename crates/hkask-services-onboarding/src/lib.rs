@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Onboarding Service — secret derivation, keychain, A2A registration, sign-in.
 //!
 //! Matrix account registration during onboarding has been removed (Matrix is

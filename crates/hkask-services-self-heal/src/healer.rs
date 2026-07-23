@@ -420,6 +420,7 @@ impl SelfHealer {
             .map_err(|e| HealError::TemplateRender(format!("Render: {e}")))
     }
 
+    #[allow(unsafe_code)]
     pub(crate) fn execute_action(
         &self,
         action: &HealAction,

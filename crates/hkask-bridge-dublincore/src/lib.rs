@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! Ontology vocabulary bridge — Dublin Core + BIBO + CiTO + PKO.
 //!
 //! A shared pure-vocabulary crate — canonical URI constants and mapping helpers

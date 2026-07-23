@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! hKask Keystore — OS keychain, encryption, and master key derivation
 
 pub mod encryption;

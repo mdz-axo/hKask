@@ -141,9 +141,6 @@ impl RegulationLoop for MetacognitionLoop {
             // send an A2A directive to the target bot before posting the escalation.
             // Data is now typed RegulationData; non-regulation actions carry NoData.
             // Template-driven directives are routed via CuratorDirective instead.
-            let _metric = "";
-            let _target = "";
-
             match action.action_type {
                 ActionType::Calibrate => {
                     if let Some(entry) = self.act_on_throttle(action).await {

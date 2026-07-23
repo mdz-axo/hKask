@@ -18,8 +18,8 @@
 use chrono::Utc;
 use hkask_memory::ConsolidationBridge;
 use hkask_regulation::types::loops::{
-    CommunicationEvent, CurationInput, Deviation, LoopId, RegulationLoop, RegulatoryAction, Signal,
-    SignalMetric,
+    CommunicationEvent, CurationInput, Deviation, GoalLifecycle, LoopId, RegulationLoop,
+    RegulatoryAction, Signal, SignalMetric,
 };
 use hkask_types::ConsolidationRequest;
 use hkask_types::DataCategory;
@@ -418,17 +418,19 @@ impl RegulationLoop for CurationLoop {
                             "RuntimeAlert received from Cybernetics"
                         );
                     }
-                    CurationInput::GoalTransition(event) => match event.to_state.as_str() {
-                        "stale" => {
-                            goal_stale_count += 1;
-                            tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal stale");
+                    CurationInput::GoalTransition(event) => {
+                        match GoalLifecycle::from_state_str(&event.to_state) {
+                            GoalLifecycle::Stale => {
+                                goal_stale_count += 1;
+                                tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal stale");
+                            }
+                            GoalLifecycle::Expired => {
+                                goal_expired_count += 1;
+                                tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal expired");
+                            }
+                            GoalLifecycle::Other => {}
                         }
-                        "expired" => {
-                            goal_expired_count += 1;
-                            tracing::debug!(target: CUR_TARGET, goal_id = %event.goal_id, "Goal expired");
-                        }
-                        _ => {}
-                    },
+                    }
                     CurationInput::Communication(event) => {
                         self.context.pending_communication.write().await.push(event);
                     }
@@ -496,15 +498,6 @@ impl RegulationLoop for CurationLoop {
                         hkask_regulation::types::loops::ActionType::Escalate,
                         hkask_regulation::types::loops::RegulatoryActionParams::reason(
                             "goals_stale",
-                        ),
-                    ));
-                }
-                SignalMetric::GoalExpiredCount if dev.signal.value > 0.0 => {
-                    actions.push(RegulatoryAction::new(
-                        LoopId::Curation,
-                        hkask_regulation::types::loops::ActionType::Escalate,
-                        hkask_regulation::types::loops::RegulatoryActionParams::reason(
-                            "goals_expired",
                         ),
                     ));
                 }

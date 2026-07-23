@@ -55,6 +55,7 @@ fn load_skills_into_registry(registry: &mut hkask_templates::SqliteRegistry) {
 /// Must run single-threaded before the tokio runtime starts.
 ///
 /// Used by: `init_repl_state`
+#[allow(unsafe_code)]
 fn propagate_onboarding_secrets_to_env(secrets: &hkask_services_onboarding::ResolvedSecrets) {
     // SAFETY: REPL init runs single-threaded before tokio runtime starts.
     unsafe {
@@ -74,6 +75,7 @@ fn propagate_onboarding_secrets_to_env(secrets: &hkask_services_onboarding::Reso
 /// Must run single-threaded before the tokio runtime starts.
 ///
 /// Used by: `init_repl_state`
+#[allow(unsafe_code)]
 fn propagate_userpod_env(agent_name: &str) {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     // SAFETY: REPL init runs single-threaded before tokio runtime starts.
@@ -237,6 +239,7 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
 /// Must run single-threaded before the tokio runtime starts.
 ///
 /// Used by: `init_repl_state`
+#[allow(unsafe_code)]
 fn propagate_condensation_env(settings: &crate::handlers::ReplSettings) {
     // SAFETY: REPL init runs single-threaded before tokio runtime starts.
     unsafe {

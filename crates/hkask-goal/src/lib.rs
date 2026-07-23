@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! Goal types — Cross-cutting infrastructure
 //!
 //! Goals are a minimal coordination substrate for multi-agent collaboration.

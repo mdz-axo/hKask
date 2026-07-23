@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask MCP — MCP runtime and governance
 //!
 //! Provides the McpRuntime for governed tool dispatch with OCAP,

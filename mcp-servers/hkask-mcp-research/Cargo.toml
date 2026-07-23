@@ -43,4 +43,3 @@ blake3.workspace = true
 futures-util.workspace = true
 regex.workspace = true
 feed-rs = "2.4"
-url.workspace = true

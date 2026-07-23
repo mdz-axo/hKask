@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hkask-mcp-cloud-gateway — mTLS + DelegationToken transport adapter.
 //!
 //! Provides remote access to the hKask daemon for MCP servers running

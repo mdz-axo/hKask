@@ -4113,7 +4113,6 @@ dependencies = [
  "hkask-storage",
  "hkask-types",
  "image",
- "imageproc",
  "minijinja",
  "pptx-to-md",
  "rand 0.9.4",
@@ -4287,7 +4286,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
- "url",
 ]
 
 [[package]]

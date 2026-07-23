@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! hKask API — HTTP API with OpenAPI
 //!
 //! **Endpoints:**

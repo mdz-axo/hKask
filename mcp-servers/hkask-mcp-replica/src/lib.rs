@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hkask-mcp-replica — Build and compose authorial style replicas (library).
 //!
 //! Exports ReplicaServer struct and tool methods for fuzz testability (P5 Testing

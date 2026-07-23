@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Runtime Services — text classification, provider intelligence, daemon handler.
 //!
 //! Merged from `hkask-services-classify` and `hkask-services-daemon`.

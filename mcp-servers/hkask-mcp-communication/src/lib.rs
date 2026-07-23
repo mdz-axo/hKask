@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hkask-mcp-communication — MCP server for Matrix communication and TTS.
 //!
 //! Provides 9 MCP tools for communication:

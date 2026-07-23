@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask MCP DocProc — Unified document processing MCP server
 //!
 //! Combines format conversion, OCR, chunking, h_mem extraction, embedding,

@@ -259,50 +259,38 @@ impl MetacognitionLoop {
         self.context.issue_directive(directive).await;
     }
 
-    // Act helpers — parameter extraction
-
-    /// Extract a string parameter from action data. Data is now typed `RegulationData`;
-    /// non-regulation actions carry `NoData`, so callers should provide reasonable defaults.
-    fn param_str<'a>(_action: &'a RegulatoryAction, _key: &str, default: &'a str) -> &'a str {
-        default
-    }
-
-    /// Extract a u64 parameter from action data. Data is now typed `RegulationData`;
-    /// non-regulation actions carry `NoData`, so callers should provide reasonable defaults.
-    fn param_u64(_action: &RegulatoryAction, _key: &str, default: u64) -> u64 {
-        default
-    }
-
     pub(super) async fn act_on_throttle(
         &self,
         action: &RegulatoryAction,
     ) -> Option<EscalationEntry> {
-        let domain = Self::param_str(action, "domain", "");
-        let new_threshold = Self::param_u64(
-            action,
-            "new_threshold",
-            self.config.thresholds.variety_deficit,
-        );
-        let deficit = Self::param_u64(action, "deficit", 0);
+        // Source data from the HealthSnapshot built in sense(), not from the
+        // action's typed RegulationData (which is NoData for metacognition actions).
+        match action.parameters.reason.as_str() {
+            "variety_deficit" | "calibrate" | "adjust_threshold" => {
+                let deficit = self
+                    .last_snapshot_tx
+                    .borrow()
+                    .as_ref()
+                    .map(|s| s.variety_deficit)
+                    .unwrap_or(0);
+                let new_threshold = self.config.thresholds.variety_deficit;
+                let directive = CuratorDirective::CalibrateThreshold {
+                    domain: "variety".to_string(),
+                    new_threshold,
+                };
+                self.issue_directive(directive).await;
 
-        if domain == "variety" {
-            let directive = CuratorDirective::CalibrateThreshold {
-                domain: "variety".to_string(),
-                new_threshold,
-            };
-            self.issue_directive(directive).await;
-
-            let error_context = format!(
-                "Total variety deficit ({}) exceeds threshold ({})",
-                deficit, self.config.thresholds.variety_deficit
-            );
-            Some(EscalationEntry::pending(
-                format!("Variety deficit: {}", deficit),
-                0.6,
-                error_context,
-            ))
-        } else {
-            None
+                let error_context = format!(
+                    "Total variety deficit ({}) exceeds threshold ({})",
+                    deficit, new_threshold
+                );
+                Some(EscalationEntry::pending(
+                    format!("Variety deficit: {}", deficit),
+                    0.6,
+                    error_context,
+                ))
+            }
+            _ => None,
         }
     }
 
@@ -320,11 +308,15 @@ impl MetacognitionLoop {
         &self,
         action: &RegulatoryAction,
     ) -> Option<EscalationEntry> {
-        let metric = Self::param_str(action, "metric", "");
-        let target = Self::param_str(action, "target", "");
-        match metric {
+        let reason = action.parameters.reason.as_str();
+        match reason {
             "critical_alerts" => {
-                let count = Self::param_u64(action, "count", 0) as usize;
+                let count = self
+                    .last_snapshot_tx
+                    .borrow()
+                    .as_ref()
+                    .map(|s| s.critical_alerts)
+                    .unwrap_or(0);
                 warn!(
                     target: MC_TARGET,
                     critical_alerts = count,
@@ -340,37 +332,35 @@ impl MetacognitionLoop {
                     ),
                 ))
             }
+            // No bot-health subsystem exists (sense passes bot_failures: 0),
+            // so no producer emits this reason and no data source is available.
             "bot_failures" => {
-                let count = Self::param_u64(action, "failed_count", 0) as usize;
-                let bot_names: Vec<String> = Vec::new();
                 warn!(
                     target: MC_TARGET,
-                    failed_bots = count,
-                    threshold = self.config.thresholds.bot_failures,
-                    "Bot failure count exceeds threshold"
+                    "bot_failures escalation requested but no bot-health subsystem is wired"
                 );
-                Some(EscalationEntry::pending(
-                    format!("{} bots require attention", count),
-                    0.4,
-                    format!("{} bots in critical state: {}", count, bot_names.join(", ")),
-                ))
+                None
             }
-            "restart" | "rebalance" => {
-                let diagnosis = Self::param_str(action, "diagnosis", "template-diagnosed");
-                let template = Self::param_str(action, "template", "unknown");
-                warn!(target: MC_TARGET, bot = %target, metric, diagnosis, "Template-directed bot action");
+            "restart" | "rebalance" | "escalate" => {
+                // Template-directed: diagnosis lives in last_template_output,
+                // not in the action (which carries only the reason string).
+                let diagnosis = {
+                    let guard = self.last_template_output.read().await;
+                    guard
+                        .as_ref()
+                        .and_then(|o| o.get("diagnosis").and_then(|v| v.as_str()))
+                        .unwrap_or("template-diagnosed")
+                        .to_string()
+                };
+                warn!(target: MC_TARGET, metric = %reason, diagnosis = %diagnosis, "Template-directed bot action");
                 Some(EscalationEntry::pending(
-                    format!("{} bot {} ({})", metric, target, diagnosis),
+                    format!("{} ({})", reason, diagnosis),
                     0.7,
-                    format!(
-                        "Template {} directed {} on {}: {}",
-                        template, metric, target, diagnosis
-                    ),
+                    format!("Template directed {}: {}", reason, diagnosis),
                 ))
             }
-
             _ => {
-                warn!(target: MC_TARGET, metric = %metric, "Unknown escalation metric");
+                warn!(target: MC_TARGET, metric = %reason, "Unknown escalation metric");
                 None
             }
         }

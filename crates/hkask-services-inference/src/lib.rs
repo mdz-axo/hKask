@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask inference service layer — `InferenceContext`, `InferenceService`, and the
 //! `ModelCache` TTL cache. Extracted from `hkask-services-core` (see
 //! `tasks/plan-core-scope-contraction.md`, Task 3.1).

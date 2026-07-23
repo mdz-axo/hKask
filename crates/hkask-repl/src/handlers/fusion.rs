@@ -3,6 +3,7 @@
 //! Controls multi-model deliberation from within a session.
 //! Supports OpenRouter (client-side panel+judge) and KiloCode (server-side auto-routing).
 
+#[allow(unsafe_code)]
 pub fn handle_fusion(arg1: &str, _state: &mut super::super::ReplState) {
     match arg1 {
         "" | "status" => {

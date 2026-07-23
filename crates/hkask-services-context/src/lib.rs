@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Context Service — AgentService, PerAgentMemory, and loop construction.
 //!
 //! Extracted from `hkask-services`.

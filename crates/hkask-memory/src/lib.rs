@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask Memory — Semantic and episodic memory pipelines
 //!
 //! **Recall deduplication** runs at recall time in `recall_dedup` (BLAKE3 hash

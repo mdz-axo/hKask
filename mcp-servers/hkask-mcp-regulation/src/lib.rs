@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! MCP server for hkask-regulation — regulation span history query tools.
 //!
 //! Exposes two tools for reading regulation regulation record history from the persistent

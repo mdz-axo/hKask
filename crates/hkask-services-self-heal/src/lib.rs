@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 //! hKask Self-Healing Engine — two-stage autonomous error recovery.
 //!
 //! Extracted from `hkask-services-core` (see `tasks/plan-core-scope-contraction.md`,

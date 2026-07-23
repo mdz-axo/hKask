@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! hkask-git-cas — gix-backed Git content-addressed storage adapter.
 //!
 //! This is the backup/gitcas component: it implements

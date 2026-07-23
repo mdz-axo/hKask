@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! hKask Wallet — rJoule payments, Hedera self-custody deposits, API key issuance.
 //!
 //! # Self-custody `[OUGHT-DECL]` (P1 — User Sovereignty)

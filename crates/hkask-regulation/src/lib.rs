@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), forbid(unsafe_code))]
 //! hKask Regulation — Cybernetic Nervous System
 //!
 //! Homeostatic self-regulation: variety sensing, algedonic alerts, energy budgets,

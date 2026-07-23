@@ -110,7 +110,7 @@ pub async fn discover_feeds(
             let feed_url = if href.starts_with("http") {
                 href.to_string()
             } else {
-                let base = url::Url::parse(url)?;
+                let base = reqwest::Url::parse(url)?;
                 base.join(href)
                     .map(|u| u.to_string())
                     .unwrap_or_else(|_| href.to_string())

@@ -18,7 +18,7 @@ hkask-inference = { path = "../../crates/hkask-inference" }
 
 
 image.workspace = true
-imageproc.workspace = true
+
 base64.workspace = true
 reqwest.workspace = true
 

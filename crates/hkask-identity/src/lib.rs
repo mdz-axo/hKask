@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! Human identity and authentication types — Loop 6 (Cybernetics): Access Guard
 //!
 //! Cybernetics subloop 6.1 (Access Guard) governs who can access what.

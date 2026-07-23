@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hKask MCP Memory — Unified episodic + semantic memory MCP server (library).
 //!
 //! Exports MemoryServer struct and tool methods for fuzz testability (P5 Testing

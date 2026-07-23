@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 //! Interactive REPL for hKask — discoverable, self-documenting, alive.
 //!
 //! Design principles:

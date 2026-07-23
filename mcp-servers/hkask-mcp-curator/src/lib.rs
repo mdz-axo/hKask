@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! hkask-mcp-curator — Curator MCP server library.
 //!
 //! Exposes the Curator's regulatory surface as MCP tools:
