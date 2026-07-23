@@ -213,7 +213,10 @@ runcmd:
             ])
             .await?;
 
-        let state = extract_json_field(&output, "state").unwrap_or("unknown".into());
+        // State is nested at status.state (verified via live API 2026-07-23).
+        // extract_json_field only checks metadata and top-level, so we use
+        // extract_nested_field for the nested path.
+        let state = extract_nested_field(&output, &["status", "state"]).unwrap_or("unknown".into());
         let status = match state.as_str() {
             "CREATING" | "STARTING" => TrainingJobStatus::Queued,
             "RUNNING" | "ACTIVE" => TrainingJobStatus::Running,
@@ -327,4 +330,118 @@ fn extract_nested_field(json: &str, path: &[&str]) -> Option<String> {
         // IP addresses may have CIDR suffix — strip it
         s.split('/').next().unwrap_or(s).to_string()
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Verified Nebius CLI JSON output (captured from live API 2026-07-23)
+    const DISK_CREATE_RESPONSE: &str = r#"{
+  "metadata": {
+    "id": "computedisk-e00pffkt6am6v07jrv",
+    "parent_id": "project-e00czb3vpr00hw3jgsf18x",
+    "name": "hkask-verify-img",
+    "resource_version": "1",
+    "created_at": "2026-07-23T11:58:50.684229Z"
+  },
+  "spec": {
+    "size_gibibytes": "200",
+    "type": "NETWORK_SSD",
+    "source_image_family": {
+      "image_family": "ubuntu24.04-cuda13.0"
+    }
+  },
+  "status": {
+    "state": "READY"
+  }
+}"#;
+
+    // Verified Nebius CLI instance get response (captured from live API 2026-07-23)
+    const INSTANCE_GET_RESPONSE: &str = r#"{
+  "metadata": {
+    "id": "computeinstance-e00srz5jr06c09vv1q",
+    "parent_id": "project-e00czb3vpr00hw3jgsf18x",
+    "name": "hkask-verify-vm"
+  },
+  "spec": {
+    "resources": {
+      "platform": "gpu-h100-sxm",
+      "preset": "1gpu-16vcpu-200gb"
+    }
+  },
+  "status": {
+    "state": "RUNNING",
+    "network_interfaces": [
+      {
+        "name": "net1",
+        "ip_address": {
+          "address": "10.0.0.11/32"
+        },
+        "public_ip_address": {
+          "address": "89.169.112.136/32"
+        }
+      }
+    ]
+  }
+}"#;
+
+    #[test]
+    fn extract_disk_id_from_metadata() {
+        let id = extract_json_field(DISK_CREATE_RESPONSE, "id");
+        assert_eq!(id, Some("computedisk-e00pffkt6am6v07jrv".to_string()));
+    }
+
+    #[test]
+    fn extract_vm_id_from_metadata() {
+        let id = extract_json_field(INSTANCE_GET_RESPONSE, "id");
+        assert_eq!(id, Some("computeinstance-e00srz5jr06c09vv1q".to_string()));
+    }
+
+    #[test]
+    fn extract_vm_state() {
+        let state = extract_json_field(INSTANCE_GET_RESPONSE, "state");
+        // state is under status.state, not metadata — extract_json_field checks
+        // metadata first, then top-level. status.state is nested, so this returns
+        // None. The status() method uses extract_json_field for state, which means
+        // it falls back to "unknown". This is a known limitation.
+        assert_eq!(state, None);
+    }
+
+    #[test]
+    fn extract_public_ip_with_cidr_stripped() {
+        let ip = extract_nested_field(
+            INSTANCE_GET_RESPONSE,
+            &[
+                "status",
+                "network_interfaces",
+                "0",
+                "public_ip_address",
+                "address",
+            ],
+        );
+        assert_eq!(ip, Some("89.169.112.136".to_string()));
+    }
+
+    #[test]
+    fn extract_internal_ip_with_cidr_stripped() {
+        let ip = extract_nested_field(
+            INSTANCE_GET_RESPONSE,
+            &["status", "network_interfaces", "0", "ip_address", "address"],
+        );
+        assert_eq!(ip, Some("10.0.0.11".to_string()));
+    }
+
+    #[test]
+    fn extract_nested_field_returns_none_for_bad_path() {
+        let result =
+            extract_nested_field(INSTANCE_GET_RESPONSE, &["status", "nonexistent", "field"]);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn extract_json_field_returns_none_for_missing_field() {
+        let result = extract_json_field(DISK_CREATE_RESPONSE, "nonexistent");
+        assert_eq!(result, None);
+    }
 }
