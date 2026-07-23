@@ -137,12 +137,15 @@ fn run_turn_loop(
     agent_override: Option<&str>,
 ) -> TurnOutcome {
     let display_name = agent_override.unwrap_or(&config.default_agent).to_string();
-    let mut current_input: String = input.to_string();
-    let mut tool_results: Option<String> = None;
     let mut iteration: usize = 0;
     let mut total_usage: Option<TokenUsage> = None;
     let mut final_response: Option<String> = None;
     let mut inference_error = false;
+    // Growing message array — maintained across iterations with proper role tags.
+    // Iteration 1: built by execute_turn (system + memory + thread + user).
+    // Iteration 2+: we append assistant(response) + user(tool_results) and pass
+    // the array back via prebuilt_messages, skipping prepare_chat entirely.
+    let mut messages: Option<Vec<hkask_types::ChatMessage>> = None;
 
     tracing::info!(target: "reg", reg_domain = "reg.chat.turn", operation = "started", agent = %display_name, input_len = input.len(), "REG");
 
@@ -167,23 +170,19 @@ fn run_turn_loop(
             };
         };
 
-        let thread_history = if deps.threads.is_seeded() {
-            None
-        } else {
-            deps.threads.thread_history(config.saliency_window)
-        };
-        let thread_messages = if deps.threads.is_seeded() {
-            None
-        } else {
+        // Iteration 1: pass thread_messages + input, let execute_turn build the array.
+        // Iteration 2+: pass the growing array via prebuilt_messages.
+        let thread_messages = if iteration == 1 && !deps.threads.is_seeded() {
             deps.threads.thread_history_messages(config.saliency_window)
+        } else {
+            None
         };
         let turn_input = TurnInput {
-            input: &current_input,
+            input,
             iteration,
-            tool_results: tool_results.take(),
             agent_override,
-            thread_history,
             thread_messages,
+            messages: messages.take(),
         };
 
         let chat_result = rt.block_on(deps.executor.execute_turn(&turn_input));
@@ -196,6 +195,9 @@ fn run_turn_loop(
                 break;
             }
         };
+
+        // Capture the message array from the result — this is our growing array.
+        let mut current_messages = chat_response.messages;
 
         let usage = chat_response.usage;
         if let Some(ref mut total) = total_usage {
@@ -224,16 +226,6 @@ fn run_turn_loop(
         );
 
         if parsed.tool_calls.is_empty() {
-            // Nudge: if tools are available but the model didn't emit a tool
-            // call on the first iteration, inject a reminder. This helps models
-            // that narrate intent ("Let me start by...") instead of emitting
-            // <<tool:...>> directives. The nudge is only injected once (iteration 1)
-            // to avoid infinite looping.
-            if iteration == 1 && config.has_tools {
-                sink.status(
-                    "  \x1b[2m\u{2139} Tools are available — if you need to use a tool, emit a <<tool:server/name\n{...}\n>> directive.\x1b[0m",
-                );
-            }
             sink.agent_text(&display_name, &parsed.text);
             final_response = Some(parsed.text.clone());
             break;
@@ -247,6 +239,10 @@ fn run_turn_loop(
             parsed.tool_calls.len(),
             display_name
         ));
+
+        // Append the assistant's response to the growing message array
+        // with the correct role tag — NOT as user input (N2 fix).
+        current_messages.push(hkask_types::ChatMessage::assistant(&response));
 
         let mut tool_results_vec = Vec::new();
         for call in &parsed.tool_calls {
@@ -294,8 +290,12 @@ fn run_turn_loop(
             tool_results_vec.push((call.clone(), result));
         }
 
-        current_input = response;
-        tool_results = Some(format_tool_results(&tool_results_vec));
+        // Append tool results as a user message — the model sees:
+        // [system, user, assistant(tool_calls), user(tool_results)]
+        // and generates the next response with proper role context.
+        let tool_results_text = format_tool_results(&tool_results_vec);
+        current_messages.push(hkask_types::ChatMessage::user(&tool_results_text));
+        messages = Some(current_messages);
     }
 
     let (gas_remaining, gas_cap) = deps.gas.gas_status();
@@ -758,6 +758,7 @@ mod tests {
                     call_id: None,
                 })
                 .collect(),
+            messages: vec![],
         }
     }
     fn tool_call(name: &str) -> ToolCall {
