@@ -126,6 +126,10 @@ pub struct RunpodHost {
     client: reqwest::Client,
     /// job_id -> pod_id mapping for status/cancel
     jobs: Arc<Mutex<HashMap<String, String>>>,
+    /// job_id -> last known uptime in seconds. Used to detect pod restarts:
+    /// if uptime decreases between polls, the pod restarted and Axolotl's
+    /// `auto_resume_from_checkpoints` will resume from the last checkpoint.
+    last_uptime: Arc<Mutex<HashMap<String, u64>>>,
     /// Path to the pod ID persistence file (JSON: {job_id: pod_id}).
     pods_file: PathBuf,
 }
@@ -166,6 +170,7 @@ impl RunpodHost {
             graphql_url: "https://api.runpod.io/graphql".to_string(),
             client: reqwest::Client::new(),
             jobs: Arc::new(Mutex::new(persisted)),
+            last_uptime: Arc::new(Mutex::new(HashMap::new())),
             pods_file,
         }
     }
@@ -1060,6 +1065,29 @@ impl TrainingHost for RunpodHost {
         let status_str = result["data"]["pod"]["desiredStatus"]
             .as_str()
             .unwrap_or("UNKNOWN");
+
+        // Detect pod restart: if uptime decreased since last poll, the pod
+        // restarted. Axolotl's `auto_resume_from_checkpoints: true` will resume
+        // from the last checkpoint saved to /workspace (which persists across
+        // restarts per RunPod docs).
+        let current_uptime = result["data"]["pod"]["runtime"]["uptimeInSeconds"]
+            .as_u64()
+            .unwrap_or(0);
+        if let Ok(mut uptimes) = self.last_uptime.lock() {
+            if let Some(&prev) = uptimes.get(job_id) {
+                if current_uptime < prev {
+                    tracing::warn!(
+                        target: "reg.training.checkpoint.resume",
+                        job_id = %job_id,
+                        pod_id = %pod_id,
+                        prev_uptime_secs = prev,
+                        new_uptime_secs = current_uptime,
+                        "Pod restarted — Axolotl will auto-resume from checkpoint"
+                    );
+                }
+            }
+            uptimes.insert(job_id.to_string(), current_uptime);
+        }
 
         tracing::debug!(
             target: "reg.training.provider.runpod.status",

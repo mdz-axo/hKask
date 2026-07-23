@@ -182,6 +182,23 @@ impl TrlHarness {
             serde_json::json!(p.quantization.bnb_4bit_use_double_quant),
         );
 
+        // Optimization fields — wired from TrainingParams so operators can
+        // control flash attention, gradient checkpointing, bf16, and packing.
+        context.insert("bf16".to_string(), serde_json::json!(p.advanced.bf16));
+        context.insert(
+            "sample_packing".to_string(),
+            serde_json::json!(p.sequence.sample_packing),
+        );
+        if let Some(ref gc) = p.advanced.gradient_checkpointing {
+            context.insert("gradient_checkpointing".to_string(), serde_json::json!(gc));
+        }
+        if let Some(ref attn) = p.advanced.attn_implementation {
+            context.insert(
+                "flash_attention".to_string(),
+                serde_json::json!((attn == "flash_attention_2").to_string()),
+            );
+        }
+
         context
     }
 

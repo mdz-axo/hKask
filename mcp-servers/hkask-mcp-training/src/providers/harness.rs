@@ -395,6 +395,22 @@ impl HarnessAdapter for LudwigHarness {
             serde_json::json!(opt.weight_decay),
         );
 
+        // Optimization fields — wired from TrainingParams.
+        context.insert("bf16".to_string(), serde_json::json!(p.advanced.bf16));
+        context.insert(
+            "sample_packing".to_string(),
+            serde_json::json!(p.sequence.sample_packing),
+        );
+        if let Some(ref gc) = p.advanced.gradient_checkpointing {
+            context.insert("gradient_checkpointing".to_string(), serde_json::json!(gc));
+        }
+        if let Some(ref attn) = p.advanced.attn_implementation {
+            context.insert(
+                "flash_attention".to_string(),
+                serde_json::json!((attn == "flash_attention_2").to_string()),
+            );
+        }
+
         let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
             .map(PathBuf::from)
             .unwrap_or_else(|| {
