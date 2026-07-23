@@ -185,7 +185,42 @@ fn run_turn_loop(
             messages: messages.take(),
         };
 
-        let chat_result = rt.block_on(deps.executor.execute_turn(&turn_input));
+        // Stream inference tokens to the sink as they arrive.
+        let mut stream = deps.executor.execute_turn_streaming(&turn_input);
+        let mut chat_response: Option<TurnResult> = None;
+        let mut stream_error: Option<String> = None;
+        use futures_util::StreamExt;
+        loop {
+            match rt.block_on(stream.next()) {
+                Some(Ok(super::deps::TurnStreamChunk::Delta(delta))) => {
+                    sink.agent_text(&display_name, &delta);
+                }
+                Some(Ok(super::deps::TurnStreamChunk::Done(result))) => {
+                    chat_response = Some(result);
+                    break;
+                }
+                Some(Err(e)) => {
+                    stream_error = Some(e.to_string());
+                    break;
+                }
+                None => break,
+            }
+        }
+        let chat_response = match (chat_response, stream_error) {
+            (Some(r), _) => r,
+            (None, Some(e)) => {
+                sink.status(&format!("  \x1b[31mInference error:\x1b[0m {}", e));
+                gas_guard.release();
+                inference_error = true;
+                break;
+            }
+            (None, None) => {
+                sink.status("  \x1b[31mInference error:\x1b[0m stream ended unexpectedly");
+                gas_guard.release();
+                inference_error = true;
+                break;
+            }
+        };
         let chat_response = match chat_result {
             Ok(r) => r,
             Err(e) => {
