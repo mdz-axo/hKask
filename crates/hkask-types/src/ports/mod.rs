@@ -26,8 +26,8 @@ pub use flowdef_validation::{
 };
 pub use inference_port::{InferencePort, InferenceStreamChunk};
 pub use inference_types::{
-    ChatToolDefinition, ChatToolFunction, InferenceError, InferenceResult, InferenceUsage,
-    StructuredToolCall, TokenProb, TokenProbability, compute_confidence,
+    ChatMessage, ChatToolDefinition, ChatToolFunction, InferenceError, InferenceResult,
+    InferenceUsage, StructuredToolCall, TokenProb, TokenProbability, compute_confidence,
 };
 pub use registry::{
     RegistryEntry, RegistryError, RegistryIndex, Skill, SkillRegistryIndex, SkillZone,

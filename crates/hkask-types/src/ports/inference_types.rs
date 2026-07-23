@@ -1,5 +1,45 @@
 use serde::{Deserialize, Serialize};
 
+/// A single message in a chat conversation, with an explicit role tag.
+///
+/// This is the foundation type for multi-turn inference: the message array
+/// `[system, user, assistant, user, assistant, ...]` is sent directly to the
+/// provider's `/v1/chat/completions` endpoint. Previous assistant responses
+/// MUST carry `role: "assistant"` — embedding them inside a `user` message
+/// causes the model to mirror/echo user input (the "you responding to
+/// yourself" defect).
+///
+/// `role` is a String (not an enum) for OpenAI wire-format compatibility —
+/// providers may introduce new roles (e.g., "tool") without breaking this type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    /// "system", "user", "assistant", or "tool"
+    pub role: String,
+    /// The message content.
+    pub content: String,
+}
+
+impl ChatMessage {
+    pub fn system(content: impl Into<String>) -> Self {
+        Self {
+            role: "system".to_string(),
+            content: content.into(),
+        }
+    }
+    pub fn user(content: impl Into<String>) -> Self {
+        Self {
+            role: "user".to_string(),
+            content: content.into(),
+        }
+    }
+    pub fn assistant(content: impl Into<String>) -> Self {
+        Self {
+            role: "assistant".to_string(),
+            content: content.into(),
+        }
+    }
+}
+
 /// Inference error types
 #[derive(Debug, thiserror::Error)]
 pub enum InferenceError {

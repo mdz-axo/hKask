@@ -1,5 +1,6 @@
 use super::inference_types::{
-    ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage, StructuredToolCall,
+    ChatMessage, ChatToolDefinition, InferenceError, InferenceResult, InferenceUsage,
+    StructuredToolCall,
 };
 use crate::template::LLMParameters;
 use futures_util::Stream;
@@ -26,6 +27,49 @@ pub trait InferencePort: Send + Sync {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
         self.generate(prompt, parameters, tools)
+    }
+
+    /// Multi-turn inference with an explicit message array.
+    ///
+    /// This is the correct path for chat/REPL: each message carries its own
+    /// `role` ("system", "user", "assistant"), so the provider sees the
+    /// conversation as `[system, user, assistant, user, ...]` — not a single
+    /// flattened string. This eliminates the "you responding to yourself"
+    /// defect where previous assistant responses were embedded inside a
+    /// `user` role message.
+    ///
+    /// Default: flattens messages to a string and delegates to
+    /// `generate_with_model`. Backends that speak the OpenAI wire format
+    /// override this to pass the message array directly.
+    fn generate_with_messages(
+        &self,
+        messages: &[ChatMessage],
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
+        let prompt = messages
+            .iter()
+            .map(|m| format!("{}: {}", m.role, m.content))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        self.generate_with_model(&prompt, parameters, model_override, tools)
+    }
+
+    /// Streaming variant of `generate_with_messages`.
+    ///
+    /// Default: yields a single chunk from `generate_with_messages`.
+    fn generate_stream_with_messages(
+        &self,
+        messages: &[ChatMessage],
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
+        let future = self.generate_with_messages(messages, parameters, model_override, tools);
+        Box::pin(futures_util::stream::once(async move {
+            Ok(InferenceStreamChunk::from(future.await?))
+        }))
     }
 
     fn generate_n(
@@ -135,6 +179,25 @@ impl InferencePort for Arc<dyn InferencePort> {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
         self.as_ref().generate_with_model(p, pa, m, tools)
+    }
+    fn generate_with_messages(
+        &self,
+        messages: &[ChatMessage],
+        pa: &LLMParameters,
+        m: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
+        self.as_ref().generate_with_messages(messages, pa, m, tools)
+    }
+    fn generate_stream_with_messages(
+        &self,
+        messages: &[ChatMessage],
+        pa: &LLMParameters,
+        m: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
+        self.as_ref()
+            .generate_stream_with_messages(messages, pa, m, tools)
     }
     fn generate_n(
         &self,
