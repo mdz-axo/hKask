@@ -36,79 +36,124 @@ pub use types::{
 
 /// Create a training host from configuration.
 ///
-/// The host is fixed to Runpod — the only cloud host.
+/// Supports three providers: Runpod, DeepInfra, and Nebius.
+/// The provider is selected from `config.host`.
 pub fn create_host(config: &TrainingHostConfig) -> Result<Box<dyn TrainingHost>, ProviderError> {
-    if config.runpod_api_key.is_empty() {
-        return Err(ProviderError::Unavailable(
-            "Runpod API key not configured (set RUNPOD_API_KEY)".to_string(),
-        ));
+    match config.host {
+        TrainingHostId::Runpod => {
+            if config.runpod_api_key.is_empty() {
+                return Err(ProviderError::Unavailable(
+                    "Runpod API key not configured (set RUNPOD_API_KEY)".to_string(),
+                ));
+            }
+            Ok(Box::new(RunpodHost::new(runpod::RunpodHostInit {
+                api_key: config.runpod_api_key.clone(),
+                template_id: config.runpod_template_id.clone(),
+                gpu_type_id: config.runpod_gpu_type_id.clone(),
+                container_disk_gb: config.runpod_container_disk_gb,
+                min_memory_gb: config.runpod_min_memory_gb,
+                min_vcpu: config.runpod_min_vcpu_count,
+                docker_image: config.runpod_docker_image.clone(),
+            })))
+        }
+        TrainingHostId::DeepInfra => {
+            let api_key = std::env::var("DI_API_KEY")
+                .map_err(|_| ProviderError::Unavailable("DI_API_KEY not configured".to_string()))?;
+            let gpu_config =
+                std::env::var("DEEPINFRA_GPU_CONFIG").unwrap_or_else(|_| "1xH100-80GB".to_string());
+            let container_image = std::env::var("DEEPINFRA_CONTAINER_IMAGE")
+                .unwrap_or_else(|_| "di-cont-ubuntu-torch:latest".to_string());
+            let ssh_key = read_ssh_public_key()?;
+            Ok(Box::new(DeepInfraHost::new(
+                api_key,
+                gpu_config,
+                container_image,
+                ssh_key,
+            )))
+        }
+        TrainingHostId::Nebius => {
+            let project_id = std::env::var("NEBIUS_PROJECT_ID").map_err(|_| {
+                ProviderError::Unavailable("NEBIUS_PROJECT_ID not configured".to_string())
+            })?;
+            let subnet_id = std::env::var("NEBIUS_SUBNET_ID").map_err(|_| {
+                ProviderError::Unavailable("NEBIUS_SUBNET_ID not configured".to_string())
+            })?;
+            let ssh_key = read_ssh_public_key()?;
+            let gpu_platform =
+                std::env::var("NEBIUS_GPU_PLATFORM").unwrap_or_else(|_| "gpu-h100-sxm".to_string());
+            let gpu_preset = std::env::var("NEBIUS_GPU_PRESET")
+                .unwrap_or_else(|_| "1gpu-16vcpu-200gb".to_string());
+            let image_family = std::env::var("NEBIUS_IMAGE_FAMILY")
+                .unwrap_or_else(|_| "ubuntu24.04-cuda13.0".to_string());
+            Ok(Box::new(NebiusHost::new(
+                project_id,
+                subnet_id,
+                ssh_key,
+                gpu_platform,
+                gpu_preset,
+                image_family,
+            )))
+        }
     }
-    // Template ID and Docker image are both optional individually — but at
-    // least one must be available so `RunpodHost::submit` can resolve an image
-    // source. The canonical flow uses the pre-built axolotl template
-    // (`DEFAULT_RUNPOD_TEMPLATE_ID`) plus its base image
-    // (`DEFAULT_RUNPOD_DOCKER_IMAGE`); both are baked into `RunpodHost` as
-    // constants, so construction succeeds out of the box without requiring
-    // the operator to set either var.
-    if config.runpod_template_id.is_empty() && config.runpod_docker_image.is_empty() {
-        tracing::warn!(
-            target: "hkask.training.runpod",
-            "Neither RUNPOD_TEMPLATE_ID nor RUNPOD_DOCKER_IMAGE is set — \
-             RunpodHost::submit() will default to the canonical axolotl \
-             template and base image"
-        );
-    }
-    Ok(Box::new(RunpodHost::new(runpod::RunpodHostInit {
-        api_key: config.runpod_api_key.clone(),
-        template_id: config.runpod_template_id.clone(),
-        gpu_type_id: config.runpod_gpu_type_id.clone(),
-        container_disk_gb: config.runpod_container_disk_gb,
-        min_memory_gb: config.runpod_min_memory_gb,
-        min_vcpu: config.runpod_min_vcpu_count,
-        docker_image: config.runpod_docker_image.clone(),
-    })))
+}
+
+/// Read the SSH public key from ~/.ssh/id_ed25519.pub (or id_rsa.pub as fallback).
+fn read_ssh_public_key() -> Result<String, ProviderError> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| ProviderError::Unavailable("Cannot find home directory".to_string()))?;
+    let ed25519 = home.join(".ssh/id_ed25519.pub");
+    let rsa = home.join(".ssh/id_rsa.pub");
+    let path = if ed25519.exists() { ed25519 } else { rsa };
+    std::fs::read_to_string(&path)
+        .map(|s| s.trim().to_string())
+        .map_err(|e| ProviderError::Unavailable(format!("Cannot read SSH public key: {e}")))
 }
 
 // ── Training host config ──────────────────────────────────────────────────
 
 /// Training host configuration resolved from hKask settings.
 ///
-/// Selects the Runpod cloud host with API credentials. The harness is
-/// selected separately and injected into the host at construction time —
-/// this config only describes *where* compute runs.
-///
-/// Deployment settings (GPU type, disk, memory, vCPU, image) are resolved
-/// keychain-first via `CredentialRequirement` declarations — never from
-/// `.env`. They flow through `ServerContext.credentials` into this struct,
-/// then into `RunpodHost`, where `submit()` reads them as authoritative
-/// operator-accepted values. The model-size heuristic in `submit()` is a
-/// last-resort fallback for `gpu_type_id` only, used when the operator
-/// leaves it unset; it must never override an explicitly accepted value.
+/// Supports three providers: Runpod, DeepInfra, and Nebius.
+/// The provider is selected from `host` field. Runpod-specific fields
+/// are only used when `host == TrainingHostId::Runpod`. DeepInfra and
+/// Nebius read their configuration from environment variables at
+/// `create_host` time.
 #[derive(Debug, Clone)]
 pub struct TrainingHostConfig {
-    /// Selected training host (always Runpod — kept for future extensibility).
+    /// Selected training host.
     pub host: TrainingHostId,
     /// Runpod API key.
     pub runpod_api_key: String,
     /// Runpod GPU pod template ID with axolotl pre-installed.
     pub runpod_template_id: String,
-    /// Runpod GPU type ID (e.g. `"NVIDIA H100 80GB HBM3"`). Empty defers to
-    /// the model-size heuristic in `RunpodHost::submit`.
+    /// Runpod GPU type ID (e.g. `"NVIDIA H100 80GB HBM3"`).
     pub runpod_gpu_type_id: String,
-    /// Container disk in GB. `0` defers to the model-size heuristic.
+    /// Container disk in GB.
     pub runpod_container_disk_gb: u32,
-    /// Minimum pod memory in GB. `0` defers to the RunpodHost default.
+    /// Minimum pod memory in GB.
     pub runpod_min_memory_gb: u32,
-    /// Minimum vCPU count. `0` defers to the RunpodHost default.
+    /// Minimum vCPU count.
     pub runpod_min_vcpu_count: u32,
-    /// Docker image name. Empty defers to `DEFAULT_RUNPOD_DOCKER_IMAGE`.
+    /// Docker image name.
     pub runpod_docker_image: String,
 }
 
 impl Default for TrainingHostConfig {
     fn default() -> Self {
+        // Auto-detect: if DI_API_KEY is set, use DeepInfra (cheapest H100).
+        // If NEBIUS_PROJECT_ID is set, use Nebius. Otherwise Runpod.
+        let host =
+            if std::env::var("DI_API_KEY").is_ok() && std::env::var("RUNPOD_API_KEY").is_err() {
+                TrainingHostId::DeepInfra
+            } else if std::env::var("NEBIUS_PROJECT_ID").is_ok()
+                && std::env::var("RUNPOD_API_KEY").is_err()
+            {
+                TrainingHostId::Nebius
+            } else {
+                TrainingHostId::Runpod
+            };
         Self {
-            host: TrainingHostId::Runpod,
+            host,
             runpod_api_key: String::new(),
             runpod_template_id: String::new(),
             runpod_gpu_type_id: String::new(),
@@ -154,6 +199,14 @@ mod tests {
         assert_eq!(
             TrainingHostId::from_str("runpod"),
             Some(TrainingHostId::Runpod)
+        );
+        assert_eq!(
+            TrainingHostId::from_str("deepinfra"),
+            Some(TrainingHostId::DeepInfra)
+        );
+        assert_eq!(
+            TrainingHostId::from_str("nebius"),
+            Some(TrainingHostId::Nebius)
         );
         assert_eq!(TrainingHostId::from_str("unknown"), None);
     }

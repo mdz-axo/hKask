@@ -1858,11 +1858,32 @@ dependencies = [
 
 [[package]]
 name = "dirs"
+version = "5.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
+dependencies = [
+ "dirs-sys 0.4.1",
+]
+
+[[package]]
+name = "dirs"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
 dependencies = [
- "dirs-sys",
+ "dirs-sys 0.5.0",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users 0.4.6",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -1873,7 +1894,7 @@ checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users",
+ "redox_users 0.5.2",
  "windows-sys 0.61.2",
 ]
 
@@ -3859,7 +3880,7 @@ dependencies = [
  "chrono",
  "clap",
  "crossterm",
- "dirs",
+ "dirs 6.0.0",
  "futures-util",
  "hex",
  "hkask-api",
@@ -4008,7 +4029,7 @@ version = "0.31.0"
 dependencies = [
  "aes-gcm",
  "argon2",
- "dirs",
+ "dirs 6.0.0",
  "ed25519-dalek",
  "hex",
  "hkask-types",
@@ -4122,7 +4143,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "chrono",
- "dirs",
+ "dirs 6.0.0",
  "hkask-forecast",
  "hkask-ledger",
  "hkask-mcp-server",
@@ -4188,7 +4209,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "calamine",
- "dirs",
+ "dirs 6.0.0",
  "docx-rs",
  "dotenvy",
  "hkask-bridge-dublincore",
@@ -4399,7 +4420,7 @@ name = "hkask-mcp-server"
 version = "0.31.0"
 dependencies = [
  "async-trait",
- "dirs",
+ "dirs 6.0.0",
  "hex",
  "hkask-keystore",
  "hkask-storage",
@@ -4441,6 +4462,7 @@ dependencies = [
  "async-trait",
  "blake3",
  "chrono",
+ "dirs 5.0.1",
  "hf-hub",
  "hkask-capability",
  "hkask-inference",
@@ -4542,7 +4564,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "crossterm",
- "dirs",
+ "dirs 6.0.0",
  "futures-util",
  "hkask-capability",
  "hkask-communication",
@@ -4653,7 +4675,7 @@ dependencies = [
 name = "hkask-services-core"
 version = "0.31.0"
 dependencies = [
- "dirs",
+ "dirs 6.0.0",
  "hkask-inference",
  "hkask-keystore",
  "hkask-storage",
@@ -4763,7 +4785,7 @@ dependencies = [
 name = "hkask-services-self-heal"
 version = "0.31.0"
 dependencies = [
- "dirs",
+ "dirs 6.0.0",
  "dotenvy",
  "hkask-types",
  "minijinja",
@@ -4901,7 +4923,7 @@ dependencies = [
  "async-trait",
  "blake3",
  "chrono",
- "dirs",
+ "dirs 6.0.0",
  "futures-util",
  "hex",
  "hkask-capability",
@@ -7690,6 +7712,17 @@ dependencies = [
 
 [[package]]
 name = "redox_users"
+version = "0.4.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba009ff324d1fc1b900bd1fdb31564febe58a8ccc8a6fdbb93b543d33b13ca43"
+dependencies = [
+ "getrandom 0.2.17",
+ "libredox",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "redox_users"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
@@ -8681,7 +8714,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32824fab5e16e6c4d86dc1ba84489390419a39f97699852b66480bb87d297ed8"
 dependencies = [
  "bstr",
- "dirs",
+ "dirs 6.0.0",
  "os_str_bytes",
 ]
 
@@ -10918,7 +10951,7 @@ dependencies = [
  "colored",
  "const-str",
  "ctor",
- "dirs",
+ "dirs 6.0.0",
  "futures",
  "git-version",
  "humantime",
