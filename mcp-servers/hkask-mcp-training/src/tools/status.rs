@@ -9,7 +9,7 @@ use serde_json::json;
 
 impl TrainingServer {
     #[tool(
-        description = "Check the status of a training job. Polls the training host for pod status and checks for a completion manifest on HuggingFace. When training completes, automatically registers the adapter in the adapter store with metadata from the completion manifest."
+        description = "Check the status of a training job. Returns pod status, SSH connection info, uptime, GPU type, and recent log lines. When training completes (detected via HuggingFace completion manifest), automatically registers the adapter with metadata from the manifest."
     )]
     pub async fn training_status(
         &self,
@@ -21,24 +21,64 @@ impl TrainingServer {
                     // The pod stays RUNNING (exec sleep infinity for SSH
                     // debugging), so RunPod's desiredStatus alone cannot signal
                     // completion. Check for a completion manifest on HuggingFace.
-                    let (status, manifest) = if pod_status == TrainingJobStatus::Running {
+                    let (status, manifest) = if pod_status.status == TrainingJobStatus::Running {
                         self.check_completion_manifest(&job_id)
                             .await
                             .unwrap_or((TrainingJobStatus::Running, None))
                     } else {
-                        (pod_status, None)
+                        (pod_status.status, None)
                     };
 
                     let mut result = json!({
                         "job_id": job_id,
                         "status": serde_json::to_value(status).unwrap_or_default(),
+                        "pod_id": pod_status.pod_id,
+                        "ssh_command": pod_status.ssh_command,
+                        "pod_ip": pod_status.ip,
+                        "ssh_port": pod_status.ssh_port,
+                        "is_public_ip": pod_status.is_public_ip,
+                        "uptime_seconds": pod_status.uptime_seconds,
+                        "gpu_type": pod_status.gpu_type,
                     });
+
+                    // If no public SSH, warn loudly — the operator cannot debug.
+                    if !pod_status.ssh_command.is_empty() {
+                        tracing::info!(
+                            target: "hkask.training.status.ssh",
+                            job_id = %job_id,
+                            ssh = %pod_status.ssh_command,
+                            "Pod is accessible via SSH"
+                        );
+                    } else if pod_status.status == TrainingJobStatus::Running {
+                        tracing::warn!(
+                            target: "hkask.training.status.ssh",
+                            job_id = %job_id,
+                            "Pod has NO public SSH — cannot debug. Ensure cloudType: SECURE and supportPublicIp: true."
+                        );
+                        result["ssh_warning"] = json!(
+                            "No public SSH available. Cannot inspect pod logs or debug. \
+                             Ensure pods deploy to Secure Cloud with public IP support."
+                        );
+                    }
+
+                    // Fetch recent log lines via SSH for real-time visibility.
+                    if !pod_status.ssh_command.is_empty() && status == TrainingJobStatus::Running {
+                        if let Some(logs) = crate::providers::types::fetch_pod_logs(
+                            &pod_status.ssh_command, 20
+                        ).await {
+                            result["recent_logs"] = json!(logs);
+                        }
+                    }
 
                     // Persist status update
                     if let Some(ref job_store) = self.job_store {
                         let status_str = format!("{:?}", status).to_lowercase();
                         if let Err(e) = job_store.update_status(&job_id, &status_str) {
-                            tracing::warn!(target: "hkask.training.job.persist", job_id = %job_id, error = %e, "Failed to update job status");
+                            tracing::warn!(
+                                target: "hkask.training.job.persist",
+                                job_id = %job_id, error = %e,
+                                "Failed to update job status"
+                            );
                         }
                     }
 
@@ -55,7 +95,6 @@ impl TrainingServer {
                                 existing
                             }
                             None => {
-                                // Fresh auto-registration from the completion manifest.
                                 if let Some(ref manifest) = manifest {
                                     let base_model = manifest.base_model.clone().unwrap_or_default();
                                     let adapter_name = format!("adapter-{}", &job_id[..8]);
@@ -78,9 +117,7 @@ impl TrainingServer {
                                         }),
                                         Some(std::path::Path::new(&weight_path)),
                                     );
-                                    match self
-                                        .adapter_store
-                                        .store(&adapter)
+                                    match self.adapter_store.store(&adapter)
                                         .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))
                                     {
                                         Ok(()) => {
@@ -89,7 +126,11 @@ impl TrainingServer {
                                             result["base_model"] = json!(base_model);
                                             result["adapter_repository"] = json!(manifest.adapter.repository);
                                             result["adapter_path"] = json!(manifest.adapter.path);
-                                            tracing::info!(target: "hkask.training.adapter.created", adapter_id = %job_id, "Adapter auto-registered from completion manifest");
+                                            tracing::info!(
+                                                target: "hkask.training.adapter.created",
+                                                adapter_id = %job_id,
+                                                "Adapter auto-registered from completion manifest"
+                                            );
                                             adapter
                                         }
                                         Err(e) => {
@@ -110,8 +151,7 @@ impl TrainingServer {
                         let adapter_skill = adapter.skill_name.clone().unwrap_or_default();
                         if !adapter_skill.is_empty() {
                             let current_loss = Self::metrics_from_trained(&adapter).and_then(|m| m.loss);
-                            if let Some(prev) = self
-                                .adapter_store
+                            if let Some(prev) = self.adapter_store
                                 .get_previous_by_skill_name(&adapter_skill, adapter.id)
                                 .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
                                 && let (Some(new_loss), Some(prev_loss)) = (
@@ -122,21 +162,18 @@ impl TrainingServer {
                                     result["ab_comparison"] = json!({
                                         "skill_name": adapter_skill,
                                         "previous_version": prev.version,
-                                        "previous_adapter_name": prev.expertise.name,
                                         "previous_loss": prev_loss,
-                                        "new_version": adapter.version,
                                         "new_loss": new_loss,
                                         "loss_improved": improved,
                                         "auto_promoted": improved,
                                     });
-                                    tracing::info!(target: "hkask.training.retrain.ab", skill = %adapter_skill, prev_loss = %prev_loss, new_loss = %new_loss, improved = improved, "A/B comparison completed");
                                 }
                         }
                     }
 
                     Ok(result)
                 }
-                Err(e) => Err(McpToolError::internal(format!("Status query failed: {}", e))),
+                Err(e) => Err(McpToolError::internal(format!("Status query failed: {e}"))),
             }
         })
         .await

@@ -56,6 +56,45 @@ fn email_client() -> &'static reqwest::Client {
     CLIENT.get_or_init(reqwest::Client::new)
 }
 
+/// Cached IMAP TLS connector — avoids rebuilding the root cert store on every poll.
+fn imap_tls_connector() -> tokio_rustls::TlsConnector {
+    use std::sync::OnceLock;
+    static CONNECTOR: OnceLock<tokio_rustls::TlsConnector> = OnceLock::new();
+    CONNECTOR
+        .get_or_init(|| {
+            let mut roots = rustls::RootCertStore::empty();
+            roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+            let config = rustls::ClientConfig::builder()
+                .with_root_certificates(roots)
+                .with_no_client_auth();
+            tokio_rustls::TlsConnector::from(std::sync::Arc::new(config))
+        })
+        .clone()
+}
+
+/// Extract the text/plain body from a raw RFC 822 message.
+/// Falls back to raw UTF-8 lossy conversion if parsing fails.
+fn extract_text_body(raw: &[u8]) -> String {
+    match mailparse::parse_mail(raw) {
+        Ok(parsed) => extract_text_plain_from_mime(&parsed),
+        Err(_) => String::from_utf8_lossy(raw).into_owned(),
+    }
+}
+
+/// Recursively walk the MIME tree to find the first text/plain part.
+fn extract_text_plain_from_mime(msg: &mailparse::ParsedMail) -> String {
+    if msg.ctype.mimetype == "text/plain" {
+        return msg.get_body().map(|(body, _)| body).unwrap_or_default();
+    }
+    for part in &msg.submessages {
+        let text = extract_text_plain_from_mime(part);
+        if !text.is_empty() {
+            return text;
+        }
+    }
+    String::new()
+}
+
 /// Send an email via MXroute's HTTP API.
 ///
 /// Reads credentials from environment variables:
@@ -208,22 +247,24 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
     let password = std::env::var("HKASK_SMTP_PASSWORD")
         .map_err(|_| EmailError::NotConfigured("HKASK_SMTP_PASSWORD not set".into()))?;
 
-    let mut roots = rustls::RootCertStore::empty();
-    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let tls_config = rustls::ClientConfig::builder()
-        .with_root_certificates(roots)
-        .with_no_client_auth();
-    let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(tls_config));
+    let connector = imap_tls_connector();
 
-    let tcp = tokio::net::TcpStream::connect((server.as_str(), 993))
-        .await
-        .map_err(|e| EmailError::Imap(format!("tcp connect: {e}")))?;
+    let tcp = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        tokio::net::TcpStream::connect((server.as_str(), 993)),
+    )
+    .await
+    .map_err(|_| EmailError::Imap("imap connect timeout (30s)".into()))?
+    .map_err(|e| EmailError::Imap(format!("tcp connect: {e}")))?;
     let server_name = rustls::pki_types::ServerName::try_from(server.clone())
         .map_err(|e| EmailError::Imap(format!("server name: {e}")))?;
-    let tls_stream = connector
-        .connect(server_name, tcp)
-        .await
-        .map_err(|e| EmailError::Imap(format!("tls handshake: {e}")))?;
+    let tls_stream = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        connector.connect(server_name, tcp),
+    )
+    .await
+    .map_err(|_| EmailError::Imap("tls handshake timeout (15s)".into()))?
+    .map_err(|e| EmailError::Imap(format!("tls handshake: {e}")))?;
 
     // async-imap uses futures-ecosystem AsyncRead/AsyncWrite; tokio-rustls
     // provides tokio-ecosystem traits. The compat adapter bridges them.
@@ -254,7 +295,7 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
             .collect::<Vec<_>>()
             .join(",");
         let mut fetch_stream = session
-            .uid_fetch(&uid_set, "(UID ENVELOPE BODY.PEEK[TEXT])")
+            .uid_fetch(&uid_set, "(UID ENVELOPE BODY.PEEK[])")
             .await
             .map_err(|e| EmailError::Imap(format!("fetch: {e}")))?;
 
@@ -290,7 +331,7 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
                 .unwrap_or_default();
             let body = msg
                 .body()
-                .map(|b| String::from_utf8_lossy(b).into_owned())
+                .map(|b| extract_text_body(b))
                 .unwrap_or_default();
 
             tracing::info!(
@@ -315,7 +356,7 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
             .map_err(|e| EmailError::Imap(format!("store seen: {e}")))?;
     }
 
-    let _ = session.logout().await;
+    if let Err(e) = session.logout().await { tracing::debug!(target: "reg.email.received", error = %e, "IMAP logout failed (non-critical)"); }
     Ok(messages)
 }
 

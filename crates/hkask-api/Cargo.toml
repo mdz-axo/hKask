@@ -37,6 +37,7 @@ tokio-rustls = "0.26"
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 webpki-roots = "0.26"
 tokio-util = { workspace = true, features = ["compat"] }
+mailparse = "0.16"
 utoipa-axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true

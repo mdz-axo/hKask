@@ -182,6 +182,12 @@ impl RunpodHost {
         self.jobs.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// Get the SSH command for a job, if available. Set by status() when
+    /// a public SSH port is found on the pod.
+    pub fn ssh_for_job(&self, job_id: &str) -> Option<String> {
+        self.ssh_commands.lock().ok()?.get(job_id).cloned()
+    }
+
     /// Inject a synthetic job_id → pod_id mapping where the job_id equals the
     /// pod_id (used by smoke test examples that only have the pod_id).
     pub fn inject_pod_id(&self, pod_id: &str) {
@@ -1054,16 +1060,7 @@ impl TrainingHost for RunpodHost {
             None => return Err(ProviderError::JobFailed(format!("No pod found for job {job_id}"))),
         };
 
-        let query = r#
-            query GetPod($id: String!) {
-                pod(input: { podId: $id }) {
-                    id
-                    desiredStatus
-                    runtime { uptimeInSeconds ports { publicPort privatePort ip isIpPublic } }
-                    machine { gpuTypeId }
-                }
-            }
-        "#;
+        let query = r#"query GetPod($id: String!) { pod(input: { podId: $id }) { id desiredStatus runtime { uptimeInSeconds ports { publicPort privatePort ip isIpPublic } } machine { gpuTypeId } } }"#;
         let result = self.graphql_query(query, json!({ "id": pod_id })).await?;
 
         let status_str = result["data"]["pod"]["desiredStatus"].as_str().unwrap_or("UNKNOWN");

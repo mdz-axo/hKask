@@ -114,7 +114,8 @@ use hkask_mcp_training::TrainingServer;
 use hkask_mcp_training::adapter::AdapterStore;
 use hkask_mcp_training::dataset::DatasetPipeline;
 use hkask_mcp_training::providers::{
-    ProviderError, TrainingHarnessId, TrainingHost, TrainingHostId, TrainingJob, TrainingJobStatus,
+    PodStatus, ProviderError, TrainingHarnessId, TrainingHost, TrainingHostId, TrainingJob,
+    TrainingJobStatus,
 };
 use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_types::WebID;
@@ -130,8 +131,17 @@ impl TrainingHost for MockTrainingHost {
     async fn submit(&self, _job: &TrainingJob) -> Result<String, ProviderError> {
         Err(ProviderError::Unavailable("mock host".into()))
     }
-    async fn status(&self, _job_id: &str) -> Result<TrainingJobStatus, ProviderError> {
-        Ok(TrainingJobStatus::Failed)
+    async fn status(&self, _job_id: &str) -> Result<PodStatus, ProviderError> {
+        Ok(PodStatus {
+            status: TrainingJobStatus::Failed,
+            pod_id: "mock".to_string(),
+            ssh_command: String::new(),
+            ip: String::new(),
+            ssh_port: 0,
+            is_public_ip: false,
+            uptime_seconds: 0,
+            gpu_type: "mock".to_string(),
+        })
     }
     async fn cancel(&self, _job_id: &str) -> Result<(), ProviderError> {
         Ok(())

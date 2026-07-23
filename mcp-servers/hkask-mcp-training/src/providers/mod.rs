@@ -23,7 +23,7 @@ pub use harness::{AxolotlHarness, HarnessAdapter, LudwigHarness};
 pub use runpod::RunpodHost;
 pub use trl_harness::TrlHarness;
 pub use types::{
-    AdvancedParams, CompletionMetadata, LoraParams, OptimizationParams, ProviderError,
+    AdvancedParams, CompletionMetadata, LoraParams, OptimizationParams, PodStatus, ProviderError,
     QuantizationParams, SequenceParams, TrainingHarnessId, TrainingHost, TrainingHostId,
     TrainingJob, TrainingJobStatus, TrainingParams, TrlTrainer,
 };

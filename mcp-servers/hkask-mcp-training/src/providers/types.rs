@@ -646,15 +646,21 @@ pub enum ProviderError {
 
 /// Pluggable training host — where a training job runs.
 ///
-/// This is the *host* layer (cloud or local GPU), distinct from the *harness* layer
-/// (Axolotl tooling) and the *base model* layer (Qwen/Gemma/Mistral).
-/// Each implementation talks to a specific compute backend.
+/// ARCHITECTURAL REQUIREMENT: Every pod MUST be debuggable. The `status`
+/// method returns `PodStatus` with SSH connection info, IP, uptime, and GPU
+/// type. Pods without public SSH access are useless for debugging and
+/// must not be deployed.
 ///
-/// Implementations translate canonical `TrainingJob` representations into
-/// host-specific API calls (CLI execution, remote HTTP dispatch, etc.).
-/// The trait is async to accommodate both local subprocess management and
-/// cloud provider HTTP calls via `hkask-inference` routing.
-#[async_trait::async_trait]
+/// The old trait returned bare `TrainingJobStatus` — no SSH info, no pod
+/// details, no way to debug. That design caused repeated money-wasting
+/// failures where pods ran for 30+ minutes with no way to inspect them.
+/// This trait fixes that by requiring full visibility.
+///
+/// The `completion_metadata` and `adapter_weight_path` methods have been
+/// REMOVED. Completion is detected via the HuggingFace manifest
+/// (`check_completion_manifest` in `TrainingServer`). Adapter paths come
+/// from the manifest's `adapter.repository` field.
+
 /// Rich pod status returned by `TrainingHost::status`. Includes everything
 /// an operator needs to monitor, debug, and SSH into a running pod.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -664,7 +670,7 @@ pub struct PodStatus {
     /// Provider-specific pod ID (e.g. RunPod pod ID).
     pub pod_id: String,
     /// SSH command to connect to the pod (e.g. "ssh root@1.2.3.4 -p 12345").
-    /// Empty if no public SSH is available.
+    /// Empty if no public SSH is available — this is a red flag.
     pub ssh_command: String,
     /// Pod IP address (public if available, internal otherwise).
     pub ip: String,
@@ -678,16 +684,19 @@ pub struct PodStatus {
     pub gpu_type: String,
 }
 
+#[async_trait::async_trait]
 pub trait TrainingHost: Send + Sync {
     /// Submit a training job for execution.
     /// Returns a provider-specific job ID for status tracking.
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError>;
 
     /// Query the status of a previously submitted job.
-    /// Returns rich pod status including SSH connection info for debugging.
+    /// Returns rich pod status including SSH connection info, IP, uptime,
+    /// and GPU type. The operator MUST be able to SSH into the pod and
+    /// inspect logs. If `ssh_command` is empty, the pod is not debuggable.
     async fn status(&self, job_id: &str) -> Result<PodStatus, ProviderError>;
 
-    /// Cancel a running or queued job.
+    /// Cancel a running or queued job. Terminates the pod to stop billing.
     async fn cancel(&self, job_id: &str) -> Result<(), ProviderError>;
 }
 
