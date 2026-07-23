@@ -139,8 +139,10 @@ impl HkaskAcpAgent {
             }
         };
 
-        let inference: Arc<dyn InferencePort> =
-            Arc::new(InferenceRouter::new(InferenceConfig::from_env()));
+        let inference: Arc<dyn InferencePort> = Arc::new(hkask_guard::GuardedInferencePort::new(
+            Arc::new(InferenceRouter::new(InferenceConfig::from_env())) as Arc<dyn InferencePort>,
+            hkask_guard::ContentGuard::mandatory(&hkask_guard::GuardConfig::from_env()),
+        ));
 
         // P9: Fusion cost-safety — log the configuration on startup.
         // With the plugin-based approach (explicit panel + judge models),
