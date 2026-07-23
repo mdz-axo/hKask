@@ -14,9 +14,28 @@ use uuid::Uuid;
 pub struct WindowId(pub Uuid);
 
 /// Actions a window can request from the workspace.
-/// Drained via `Window::drain_action()` after each tick.
+///
+/// Drained via `Window::drain_action()` after each tick. Windows emit
+/// these to request structural changes (open/close/split) that they
+/// cannot perform themselves because they don't own the split tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WorkspaceAction {
+    /// Open a window of the given kind as a split from the focused window.
+    OpenWindow(WindowKind),
+    /// Close the focused window.
+    CloseFocused,
+    /// Split the focused window in the given direction.
+    Split(SplitDirection),
+    /// Cycle focus to the next window.
+    FocusNext,
+    /// Cycle focus to the previous window.
+    FocusPrev,
+    /// Create a new tab with an optional name.
+    NewTab(Option<String>),
+    /// Switch to the next tab.
+    NextTab,
+    /// Switch to the previous tab.
+    PrevTab,
     /// Quit the TUI.
     Quit,
 }
@@ -24,33 +43,69 @@ pub enum WorkspaceAction {
 /// Direction for splitting a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitDirection {
+    /// Side-by-side (left | right).
     Horizontal,
+    /// Stacked (top / bottom).
     Vertical,
 }
 
-/// The kind of window — determines icon, default title, and creation behaviour.
+/// The kind of window — determines title, description, and creation behaviour.
 ///
-/// The TUI now hosts only the Chat window; all other window types have been
-/// removed. The enum is retained (single-variant) so the workspace, layout
-/// persistence, and catalog can continue to tag windows by kind.
+/// Each variant maps to an MCP server or a local UI surface. The workspace
+/// factory (`window_catalog::create_window`) constructs the concrete `Window`
+/// impl for each kind. Layout persistence serializes the kind by
+/// `default_title()`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum WindowKind {
-    /// AI chat interface — the primary interaction window (default: Chat mode).
+    /// AI chat interface — the primary interaction window.
     /// Curator chat is a mode within ChatWindow.
     Chat,
+    /// Kanban board — task coordination via `hkask-mcp-kata-kanban`.
+    Kanban,
+    /// Companies — financial data via `hkask-mcp-companies`.
+    Companies,
+    /// Scenarios — scenario planning and forecasting via `hkask-mcp-scenarios`.
+    Scenarios,
 }
 
 impl WindowKind {
-    /// (title, description, allows_multiple, is_mcp_tabbed)
-    /// is_mcp_tabbed = true means the window handles Tab internally
-    /// (Chat/Data toggle) rather than letting the workspace cycle focus.
-    pub(crate) const META: &[(WindowKind, &str, &str, bool, bool)] = &[(
-        WindowKind::Chat,
-        "Chat",
-        "AI chat with your userpod agent (default: Chat mode)",
-        true,
-        false,
-    )];
+    /// (kind, title, description, allows_multiple, is_mcp_tabbed)
+    ///
+    /// `allows_multiple` = true means more than one instance can exist
+    /// (useful for Chat). Singleton kinds refocus if already open.
+    ///
+    /// `is_mcp_tabbed` = true means the window handles Tab internally
+    /// rather than letting the workspace cycle focus.
+    pub(crate) const META: &[(WindowKind, &str, &str, bool, bool)] = &[
+        (
+            WindowKind::Chat,
+            "Chat",
+            "AI chat with your userpod agent (default: Chat mode)",
+            true,
+            false,
+        ),
+        (
+            WindowKind::Kanban,
+            "Kanban",
+            "Kanban board and task coordination",
+            false,
+            false,
+        ),
+        (
+            WindowKind::Companies,
+            "Companies",
+            "Company financial data and profiles",
+            false,
+            false,
+        ),
+        (
+            WindowKind::Scenarios,
+            "Scenarios",
+            "Scenario planning and forecast tracking",
+            false,
+            false,
+        ),
+    ];
 
     pub fn default_title(&self) -> &'static str {
         Self::META
@@ -77,14 +132,31 @@ impl WindowKind {
             .unwrap_or(false)
     }
 
-    /// Whether this window handles Tab key internally (Chat/Data toggle for
-    /// MCP-tabbed windows, or PTY focus for Terminal).
+    /// Whether this window handles Tab key internally.
     pub fn uses_internal_tab(&self) -> bool {
         Self::META
             .iter()
             .find(|(k, ..)| k == self)
             .map(|(_, _, _, _, t)| *t)
             .unwrap_or(false)
+    }
+
+    /// Parse a kind from a slash-command argument (case-insensitive).
+    ///
+    /// Accepts both the title ("Chat") and the variant name ("chat").
+    pub fn from_str(s: &str) -> Option<Self> {
+        let lower = s.to_lowercase();
+        Self::META
+            .iter()
+            .find(|(k, title, _, _, _)| {
+                title.to_lowercase() == lower || format!("{:?}", k).to_lowercase() == lower
+            })
+            .map(|(k, ..)| *k)
+    }
+
+    /// All known window kinds (for command palette / `/open` completion).
+    pub fn all() -> Vec<WindowKind> {
+        Self::META.iter().map(|(k, ..)| *k).collect()
     }
 }
 
@@ -110,7 +182,6 @@ pub trait Window {
     fn handle_key(&mut self, key: KeyEvent) -> bool;
 
     /// Whether this window can be closed by the user.
-    /// All windows are closeable (the persistent Logo window was removed).
     fn can_close(&self) -> bool {
         true
     }
@@ -124,10 +195,12 @@ pub trait Window {
     /// Called periodically (every tick) for background updates.
     fn tick(&mut self) {}
 
-    /// Drain a pending workspace action (e.g., from slash commands).
-    /// Default implementation returns `None` — only ChatWindow overrides this.
-    fn drain_action(&mut self) -> Option<WorkspaceAction> {
-        None
+    /// Drain all pending workspace actions (e.g., from slash commands).
+    ///
+    /// Returns a `Vec` so a window can emit multiple actions per tick
+    /// (e.g., `/open kanban /split v` in one input line).
+    fn drain_actions(&mut self) -> Vec<WorkspaceAction> {
+        Vec::new()
     }
 }
 
@@ -140,11 +213,9 @@ mod tests {
         // If a new WindowKind variant is added but META isn't updated,
         // default_title() panics. This test guards against that.
         let kinds: Vec<WindowKind> = WindowKind::META.iter().map(|(k, ..)| *k).collect();
-        assert_eq!(
-            kinds.len(),
-            1,
-            "META entry count changed — update this test"
-        );
+        let all = WindowKind::all();
+        assert_eq!(kinds.len(), all.len(), "META and all() disagree");
+        assert!(kinds.len() >= 4, "expected at least 4 window kinds");
     }
 
     #[test]
@@ -157,13 +228,22 @@ mod tests {
 
     #[test]
     fn allows_multiple_reads_from_meta() {
-        // Chat is the only multi-instance window now.
         assert!(WindowKind::Chat.allows_multiple());
+        assert!(!WindowKind::Kanban.allows_multiple());
     }
 
     #[test]
-    fn chat_does_not_use_internal_tab() {
-        // The Chat window does not handle Tab internally (no Data tab).
-        assert!(!WindowKind::Chat.uses_internal_tab());
+    fn from_str_parses_case_insensitive() {
+        assert_eq!(WindowKind::from_str("chat"), Some(WindowKind::Chat));
+        assert_eq!(WindowKind::from_str("Kanban"), Some(WindowKind::Kanban));
+        assert_eq!(
+            WindowKind::from_str("COMPANIES"),
+            Some(WindowKind::Companies)
+        );
+        assert_eq!(
+            WindowKind::from_str("scenarios"),
+            Some(WindowKind::Scenarios)
+        );
+        assert_eq!(WindowKind::from_str("nonexistent"), None);
     }
 }

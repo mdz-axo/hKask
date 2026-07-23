@@ -4,12 +4,64 @@ use crate::a2a::A2ARuntime;
 use crate::consent::ConsentManager;
 use crate::ports::EscalationPort;
 use hkask_regulation::RegulationLedger;
+use hkask_regulation::meta_span::emit_meta_directive;
 use hkask_regulation::types::loops::CommunicationEvent;
 use hkask_templates::ManifestExecutor;
 use hkask_types::LedgerStoragePort;
 use hkask_types::curator::{CuratorDirective, CuratorHandle};
+use hkask_types::event::RegulationSink;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{RwLock, mpsc};
+
+/// In-process counters for the Curator's own decision quality.
+///
+/// These are NOT persisted as `reg.*` algedonic events (so CurationLoop never
+/// reads them back — circularity guard). They feed the metacognition
+/// self-calibration loop, and corresponding `reg.meta.*` spans are emitted for
+/// external observability via the `RegulationSink`.
+#[derive(Debug, Default)]
+pub struct SelfQuality {
+    directives_issued: AtomicU64,
+    escalations_dropped: AtomicU64,
+    circuit_breaker_trips: AtomicU64,
+}
+
+/// An immutable snapshot of the Curator's self-quality counters.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SelfQualitySnapshot {
+    pub directives_issued: u64,
+    pub escalations_dropped: u64,
+    pub circuit_breaker_trips: u64,
+}
+
+impl SelfQuality {
+    /// Record that a CuratorDirective was issued.
+    pub fn record_directive(&self) {
+        self.directives_issued.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record that an escalation could not be persisted (dropped).
+    pub fn record_escalation_dropped(&self) {
+        self.escalations_dropped.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record that the template circuit breaker tripped.
+    pub fn record_circuit_breaker(&self) {
+        self.circuit_breaker_trips.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Snapshot all counters (relaxed ordering — approximate is sufficient
+    /// for self-calibration decisions).
+    #[must_use]
+    pub fn snapshot(&self) -> SelfQualitySnapshot {
+        SelfQualitySnapshot {
+            directives_issued: self.directives_issued.load(Ordering::Relaxed),
+            escalations_dropped: self.escalations_dropped.load(Ordering::Relaxed),
+            circuit_breaker_trips: self.circuit_breaker_trips.load(Ordering::Relaxed),
+        }
+    }
+}
 
 /// CuratorContext — aggregates the runtime references the Curator needs.
 pub struct CuratorContext {
@@ -23,6 +75,14 @@ pub struct CuratorContext {
     /// RegulationRecord store for algedonic review queries.
     /// Curation reads from the persistent log, not live Regulation state.
     regulation_store: Option<Arc<dyn LedgerStoragePort>>,
+    /// Sink for emitting `reg.meta.*` self-observation spans. Optional because
+    /// standalone CLI metacognition has no persistent Regulation archive.
+    /// Distinct from `regulation_store` (read trait) — this is the write trait
+    /// (`RegulationSink`). Both are satisfied by the same `RegulationArchive`.
+    regulation_sink: Option<Arc<dyn RegulationSink>>,
+    /// In-process self-quality counters — feed metacognition self-calibration.
+    /// Shared (Arc) so both CurationLoop and MetacognitionLoop can record/observe.
+    self_quality: Arc<SelfQuality>,
     /// A2A port for A2A messaging (e.g. directing bots).
     a2a_port: Option<Arc<A2ARuntime>>,
     /// Manifest executor for invoking KnowAct templates.
@@ -64,6 +124,8 @@ impl CuratorContext {
             curator_directive_tx,
             escalation_port,
             regulation_store: None,
+            regulation_sink: None,
+            self_quality: Arc::new(SelfQuality::default()),
             a2a_port: None,
             manifest_executor: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
@@ -92,6 +154,8 @@ impl CuratorContext {
             curator_directive_tx,
             escalation_port,
             regulation_store: Some(regulation_store),
+            regulation_sink: None,
+            self_quality: Arc::new(SelfQuality::default()),
             a2a_port: None,
             manifest_executor: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
@@ -120,6 +184,16 @@ impl CuratorContext {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_consent_manager(mut self, consent_manager: Arc<ConsentManager>) -> Self {
         self.consent_manager = Some(consent_manager);
+        self
+    }
+
+    /// Builder: attach a `RegulationSink` so the Curator can emit `reg.meta.*`
+    /// self-observation spans. Optional — standalone CLI metacognition has no
+    /// persistent archive. When absent, self-observation spans are skipped
+    /// (in-process `SelfQuality` counters still work).
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_regulation_sink(mut self, sink: Arc<dyn RegulationSink>) -> Self {
+        self.regulation_sink = Some(sink);
         self
     }
 
@@ -186,6 +260,19 @@ impl CuratorContext {
         self.consent_manager.as_ref()
     }
 
+    /// Access the `RegulationSink` for emitting `reg.meta.*` self-observation spans.
+    ///
+    /// Returns None when no persistent archive is configured (standalone CLI).
+    pub(crate) fn regulation_sink(&self) -> Option<&Arc<dyn RegulationSink>> {
+        self.regulation_sink.as_ref()
+    }
+
+    /// Access the in-process self-quality counters (for metacognition
+    /// self-calibration). Always present.
+    pub(crate) fn self_quality(&self) -> &Arc<SelfQuality> {
+        &self.self_quality
+    }
+
     /// Access the ManifestExecutor for template invocations.
     ///
     /// Returns None if no executor has been set yet (late binding —
@@ -224,6 +311,16 @@ impl CuratorContext {
     /// post: If `curator_directive_tx` is `Some`, the directive is sent; logs
     ///       a warning if the send fails. If `None`, this is a no-op.
     pub async fn issue_directive(&self, directive: CuratorDirective) {
+        // Record self-quality (in-process) and emit a reg.meta.directive span
+        // (persistent, for external observability). The variant name is captured
+        // before the directive is moved into the channel.
+        let variant = directive.variant_name();
+        let target = directive.agent_target();
+        self.self_quality.record_directive();
+        if let Some(sink) = self.regulation_sink() {
+            emit_meta_directive(sink, self.handle.curator_id(), variant, target.as_ref());
+        }
+
         if let Some(ref tx) = self.curator_directive_tx
             && let Err(e) = tx.send(directive)
         {

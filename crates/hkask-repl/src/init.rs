@@ -567,6 +567,7 @@ pub(super) fn init_repl_state(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #![allow(unsafe_code)] // env var manipulation requires unsafe in Rust 2024
     use crate::handlers::ReplSettings;
 
     /// Serialize tests that modify process environment variables.
