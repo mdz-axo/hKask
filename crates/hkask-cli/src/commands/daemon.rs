@@ -78,6 +78,7 @@ async fn run_daemon() -> Result<(), CliError> {
             tracing::warn!(target: "hkask.daemon", error = %e, "Build with env config failed, retrying in-memory");
             hkask_services_context::AgentService::build_with_email(
                 hkask_services_core::ServiceConfig::in_memory(),
+                None,
             )
             .await
             .map_err(|e| {
@@ -87,6 +88,7 @@ async fn run_daemon() -> Result<(), CliError> {
             })?
         }
     };
+    hkask_api::email::wire_inbox_poller(&ctx, 60);
 
     // Start the loop system
     ctx.ledger().loops.start().await;
