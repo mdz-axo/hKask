@@ -66,7 +66,7 @@ impl InferencePort for GuardedInferencePort {
             return Box::pin(async { Err(InferenceError::Generation(msg)) });
         }
         let cleaned = scan.output.content(prompt).to_string();
-        let guard = &self.guard;
+        let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let mut result = inner.generate(&cleaned, parameters, tools).await?;
@@ -92,7 +92,7 @@ impl InferencePort for GuardedInferencePort {
         }
         let cleaned = scan.output.content(prompt).to_string();
         let model = model_override.map(str::to_string);
-        let guard = &self.guard;
+        let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let mut result = inner
@@ -126,7 +126,7 @@ impl InferencePort for GuardedInferencePort {
             }
         }
         let model = model_override.map(str::to_string);
-        let guard = &self.guard;
+        let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         let messages = messages.to_vec();
         Box::pin(async move {
@@ -154,7 +154,7 @@ impl InferencePort for GuardedInferencePort {
             return Box::pin(async { Err(InferenceError::Generation(msg)) });
         }
         let cleaned = scan.output.content(prompt).to_string();
-        let guard = &self.guard;
+        let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let mut results = inner.generate_n(&cleaned, parameters, n).await?;
@@ -182,7 +182,7 @@ impl InferencePort for GuardedInferencePort {
         }
         let cleaned = scan.output.content(prompt).to_string();
         let model = model_override.map(str::to_string);
-        let guard = &self.guard;
+        let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         let images = images.to_vec();
         Box::pin(async move {
@@ -209,7 +209,7 @@ impl InferencePort for GuardedInferencePort {
         let scan = self.guard.scan_input(prompt);
         if !scan.passed {
             let msg = reject_msg(&scan.violations);
-            return Box::pin(futures_util::stream::once(async {
+            return Box::pin(futures_util::stream::once(async move {
                 Err(InferenceError::Generation(msg))
             }));
         }
@@ -227,7 +227,7 @@ impl InferencePort for GuardedInferencePort {
         let scan = self.guard.scan_input(prompt);
         if !scan.passed {
             let msg = reject_msg(&scan.violations);
-            return Box::pin(futures_util::stream::once(async {
+            return Box::pin(futures_util::stream::once(async move {
                 Err(InferenceError::Generation(msg))
             }));
         }
@@ -247,7 +247,7 @@ impl InferencePort for GuardedInferencePort {
             let scan = self.guard.scan_input(&msg.content);
             if !scan.passed {
                 let msg_text = reject_msg(&scan.violations);
-                return Box::pin(futures_util::stream::once(async {
+                return Box::pin(futures_util::stream::once(async move {
                     Err(InferenceError::Generation(format!(
                         "role={}: {}",
                         msg.role, msg_text
