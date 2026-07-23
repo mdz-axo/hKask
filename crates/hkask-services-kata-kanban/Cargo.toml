@@ -26,5 +26,3 @@ minijinja.workspace = true
 
 # Kanban-specific
 hkask-pods = { path = "../hkask-pods" }
-
-[dev-dependencies]

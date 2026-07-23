@@ -14,5 +14,3 @@ hkask-types = { path = "../hkask-types" }
 
 tracing.workspace = true
 
-[dev-dependencies]
-
