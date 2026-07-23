@@ -89,14 +89,20 @@ fn build_agent_service_inner(
         Ok(_handle) => tokio::task::block_in_place(|| {
             let rt = tokio::runtime::Runtime::new()
                 .map_err(|e| CliError::Config(format!("Failed to create runtime: {}", e)))?;
-            rt.block_on(AgentService::build_with_email(config, hkask_api::email::CuratorAlertEmailSink::try_from_env()))
-                .map_err(|e| CliError::AgentService(e.to_string()))
+            rt.block_on(AgentService::build_with_email(
+                config,
+                hkask_api::email::CuratorAlertEmailSink::try_from_env(),
+            ))
+            .map_err(|e| CliError::AgentService(e.to_string()))
         }),
         Err(_) => {
             let rt = tokio::runtime::Runtime::new()
                 .map_err(|e| CliError::Config(format!("Failed to create runtime: {}", e)))?;
-            rt.block_on(AgentService::build_with_email(config, hkask_api::email::CuratorAlertEmailSink::try_from_env()))
-                .map_err(|e| CliError::AgentService(e.to_string()))
+            rt.block_on(AgentService::build_with_email(
+                config,
+                hkask_api::email::CuratorAlertEmailSink::try_from_env(),
+            ))
+            .map_err(|e| CliError::AgentService(e.to_string()))
         }
     }
 }

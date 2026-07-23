@@ -377,7 +377,6 @@ pub struct CuratorAlertEmailSink {
 }
 
 impl CuratorAlertEmailSink {
-
     /// Create from env, returning `None` when no recipient is configured.
     pub fn try_from_env() -> Option<std::sync::Arc<dyn hkask_regulation::AlertEmailSink>> {
         let recipient = std::env::var("HKASK_ALERT_EMAIL")
@@ -494,7 +493,10 @@ impl NonceStore {
     /// that the recipient ignores).
     fn cleanup_expired(&self) {
         let ttl = self.ttl;
-        self.tokens.lock().expect("nonce store not poisoned").retain(|_, issued_at| issued_at.elapsed() < ttl);
+        self.tokens
+            .lock()
+            .expect("nonce store not poisoned")
+            .retain(|_, issued_at| issued_at.elapsed() < ttl);
     }
 }
 
@@ -691,7 +693,10 @@ pub fn wire_inbox_poller(
 // ── Notification/Digest mode (S5) ──────────────────────────────────────────
 
 /// Send a digest email summarizing pending escalations.
-async fn send_digest(escalations: &hkask_storage::EscalationQueue, recipient: &str) -> EmailResult<()> {
+async fn send_digest(
+    escalations: &hkask_storage::EscalationQueue,
+    recipient: &str,
+) -> EmailResult<()> {
     let pending = match escalations.list_pending() {
         Ok(p) => p,
         Err(e) => {
@@ -700,7 +705,9 @@ async fn send_digest(escalations: &hkask_storage::EscalationQueue, recipient: &s
         }
     };
     let count = pending.len();
-    if pending.is_empty() { return Ok(()); }
+    if pending.is_empty() {
+        return Ok(());
+    }
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M UTC");
 
     let mut rows = String::new();
@@ -708,9 +715,15 @@ async fn send_digest(escalations: &hkask_storage::EscalationQueue, recipient: &s
         let id = entry.id.to_string();
         let output = html_escape(&entry.output);
         let created = entry.created_at.format("%Y-%m-%d %H:%M").to_string();
-        rows.push_str(&format!("<tr><td><code>{id}</code></td><td>{output}</td><td>{created}</td></tr>"));
+        rows.push_str(&format!(
+            "<tr><td><code>{id}</code></td><td>{output}</td><td>{created}</td></tr>"
+        ));
     }
-    let truncated = if count > 10 { format!("<p style='color:#8b949e'>Showing 10 of {count}.</p>") } else { String::new() };
+    let truncated = if count > 10 {
+        format!("<p style='color:#8b949e'>Showing 10 of {count}.</p>")
+    } else {
+        String::new()
+    };
 
     let subject = format!("[hKask Digest] {count} pending escalation(s)");
     let body = format!(
@@ -721,11 +734,17 @@ async fn send_digest(escalations: &hkask_storage::EscalationQueue, recipient: &s
 
 /// Escape HTML special characters in user-provided text.
 fn html_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Spawn a periodic digest email task.
-pub fn spawn_digest_task(escalations: std::sync::Arc<hkask_storage::EscalationQueue>, recipient: String, interval_secs: u64) {
+pub fn spawn_digest_task(
+    escalations: std::sync::Arc<hkask_storage::EscalationQueue>,
+    recipient: String,
+    interval_secs: u64,
+) {
     tokio::spawn(async move {
         let interval = std::time::Duration::from_secs(interval_secs);
         loop {
@@ -737,7 +756,7 @@ pub fn spawn_digest_task(escalations: std::sync::Arc<hkask_storage::EscalationQu
     });
 }
 
-/// Wire the digest email task to an AgentService. Reads 
+/// Wire the digest email task to an AgentService. Reads
 /// (default 86400 = daily). No-op when email is not configured.
 pub fn wire_digest_task(ctx: &hkask_services_context::AgentService) {
     let recipient = std::env::var("HKASK_ALERT_EMAIL")
@@ -747,7 +766,8 @@ pub fn wire_digest_task(ctx: &hkask_services_context::AgentService) {
         return;
     }
     let interval = std::env::var("HKASK_DIGEST_INTERVAL_SECS")
-        .ok().and_then(|s| s.parse().ok())
+        .ok()
+        .and_then(|s| s.parse().ok())
         .unwrap_or(86400);
     let escalations = std::sync::Arc::clone(&ctx.governance().escalations);
     spawn_digest_task(escalations, recipient, interval);
@@ -877,7 +897,10 @@ mod tests {
 
     #[test]
     fn html_escape_basics() {
-        assert_eq!(html_escape("<script>alert(1)</script>"), "&lt;script&gt;alert(1)&lt;/script&gt;");
+        assert_eq!(
+            html_escape("<script>alert(1)</script>"),
+            "&lt;script&gt;alert(1)&lt;/script&gt;"
+        );
         assert_eq!(html_escape("a & b"), "a &amp; b");
         assert_eq!(html_escape("plain text"), "plain text");
     }
@@ -888,10 +911,14 @@ mod tests {
         let to = std::env::var("HKASK_SMTP_USERNAME").expect("HKASK_SMTP_USERNAME set");
         let subject = "hKask integration test - fetch_unread";
         let body = "<p>This is a test email for IMAP round-trip verification.</p>";
-        send_email(&to, subject, body, EmailMode::Notification).await.expect("send_email");
+        send_email(&to, subject, body, EmailMode::Notification)
+            .await
+            .expect("send_email");
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
         let messages = fetch_unread().await.expect("fetch_unread");
-        let found = messages.iter().any(|m| m.subject.contains("hKask integration test"));
+        let found = messages
+            .iter()
+            .any(|m| m.subject.contains("hKask integration test"));
         assert!(found, "test email not found in unread messages");
     }
 }
