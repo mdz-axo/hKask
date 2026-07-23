@@ -9,11 +9,11 @@
 //! auto-routing via `kilo-auto/*` virtual models.
 
 use crate::chat_protocol::{
-    ChatResponse, build_chat_request_from_prompt, build_vision_request, chat_response_to_result,
-    parse_sse_stream, validate_prompt,
+    ChatResponse, build_chat_request_from_prompt, build_chat_request_messages,
+    build_vision_request, chat_response_to_result, parse_sse_stream, validate_prompt,
 };
 use crate::config::InferenceConfig;
-use crate::openai_backend::{openai_compatible_generate, openai_compatible_generate_messages};
+use crate::openai_compat::{openai_compatible_generate, openai_compatible_generate_messages};
 use chrono::Utc;
 use futures_util::StreamExt;
 use hkask_types::template::LLMParameters;
@@ -187,7 +187,8 @@ impl KiloCodeBackend {
                     messages.push(ChatMessage::system(sys));
                 }
                 messages.push(ChatMessage::user(&prompt));
-                let request = build_chat_request_messages(&model, messages, &params, Some(true), None, tools);
+                let request =
+                    build_chat_request_messages(&model, messages, &params, Some(true), None, tools);
 
                 let response = match client
                     .post(format!("{base_url}/chat/completions"))

@@ -36,6 +36,8 @@ pub(super) struct PendingCalibration {
     pub(super) raised: bool,
     /// Regulation effectiveness measured at the time the calibration was applied.
     pub(super) eff_before: f64,
+    /// Decision source: "generative" (LLM template) or "fallback" (Rust rail).
+    pub(super) source: &'static str,
 }
 
 /// Metacognition loop — Curator Agent's system governance mechanism.
@@ -441,19 +443,16 @@ impl MetacognitionLoop {
     /// SelfQuality counters (not reg.* algedonic events, which CurationLoop
     /// reads for the system).
     ///
-    /// Policy (bidirectional, with hysteresis to prevent oscillation):
-    /// - RAISE the variety-deficit threshold by 10% (capped at 2x) when
-    ///   escalations are being dropped (delta >= RAISE_DROP_THRESHOLD) - the
-    ///   feedback loop is overloaded, so escalate less aggressively.
-    /// - LOWER the threshold by 5% (floored at the system default) when the
-    ///   loop is healthy (no drops, effectiveness > 0.8) AND a cooldown has
-    ///   elapsed since the last raise - the Curator can be more responsive.
-    ///   The cooldown + floor prevent raise/lower cycling.
-    ///
-    /// The decision is computed by the pure compute_threshold_adjustment
-    /// function (independently tested); this method applies it and emits
-    /// reg.meta.self_calibration.
-    pub(super) fn self_calibrate(&self) {
+    /// Policy: generative-first. When a ManifestExecutor is wired, the Curator
+    /// generates its own threshold adjustment via the
+    /// curator/metacognition-self-calibrate template from self-quality evidence
+    /// and the last calibration effectiveness delta - the Curator acting as its
+    /// own generative entity. The Rust compute_threshold_adjustment is the
+    /// safety-rail fallback (no executor, or template failure). The model answer
+    /// is clamped to the bounded band; a raise resets the hysteresis cooldown.
+    /// reg.meta.self_calibration records the decision source and before/after
+    /// effectiveness so generative-vs-fallback quality can be compared.
+    pub(super) async fn self_calibrate(&self) {
         let sq = self.context.self_quality().snapshot();
         let prev_dropped = self
             .last_cal_dropped
@@ -463,7 +462,6 @@ impl MetacognitionLoop {
             .swap(sq.directives_issued, std::sync::atomic::Ordering::Relaxed);
         let delta_dropped = sq.escalations_dropped.saturating_sub(prev_dropped);
         let delta_directives = sq.directives_issued.saturating_sub(prev_directives);
-        // Count this cycle; reset to 0 on a raise (hysteresis cooldown).
         let since_raise = self
             .calibrations_since_raise
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -475,16 +473,14 @@ impl MetacognitionLoop {
             .unwrap_or(0.0);
         let old = self.escalation_policy.thresholds().variety_deficit;
 
-        // Close out the previous calibration: its effectiveness-after is the
-        // current effectiveness (enough cycles have now elapsed). This emits
-        // the causal record (before/after effectiveness) that a future learner
-        // (e.g. GEPA) uses to judge whether threshold changes improved outcomes.
+        // Close out the previous calibration (its eff_after = now) and capture
+        // it as the causal evidence for the generative decision.
         let prev_pending = self
             .pending_calibration
             .lock()
             .expect("pending_calibration lock poisoned")
             .take();
-        if let Some(p) = prev_pending {
+        let last_calibration = prev_pending.map(|p| {
             if let Some(sink) = self.context.regulation_sink() {
                 emit_meta_self_calibration(
                     sink.as_ref(),
@@ -494,45 +490,65 @@ impl MetacognitionLoop {
                     p.threshold_after,
                     Some(p.eff_before),
                     Some(effectiveness),
+                    p.source,
                 );
             }
             info!(
                 target: MC_TARGET,
-                raised = p.raised,
+                source = p.source,
                 eff_before = p.eff_before,
                 eff_after = effectiveness,
                 threshold_before = p.threshold_before,
                 threshold_after = p.threshold_after,
                 "Closed out pending calibration with effectiveness measurement"
             );
-        }
+            serde_json::json!({
+                "threshold_before": p.threshold_before,
+                "threshold_after": p.threshold_after,
+                "direction": if p.raised { "raise" } else { "lower" },
+                "eff_before": p.eff_before,
+                "eff_after": effectiveness,
+                "eff_delta": effectiveness - p.eff_before,
+            })
+        });
 
-        let Some(adj) = compute_threshold_adjustment(
-            delta_dropped,
-            delta_directives,
-            effectiveness,
-            old,
-            since_raise,
-        ) else {
+        // Decide: generative-first, Rust safety-rail fallback.
+        let Some((proposed, source)) = self
+            .decide_self_calibration(
+                delta_dropped,
+                delta_directives,
+                effectiveness,
+                old,
+                since_raise,
+                last_calibration.as_ref(),
+            )
+            .await
+        else {
             return;
         };
+        // Hard safety rail: clamp to the bounded band regardless of source.
+        let new = proposed.clamp(DEFAULT_ESCALATION_VARIETY_DEFICIT, VARIETY_DEFICIT_CEILING);
+        if new == old {
+            return; // hold / no-op
+        }
+        let raised = new > old;
 
         let mut next = self.escalation_policy.thresholds();
-        next.variety_deficit = adj.new_variety_deficit;
+        next.variety_deficit = new;
         self.escalation_policy.set_thresholds(next);
-        if adj.raised {
+        if raised {
             self.calibrations_since_raise
                 .store(0, std::sync::atomic::Ordering::Relaxed);
         }
-        // Record this calibration as pending an effectiveness-after measurement.
         *self
             .pending_calibration
             .lock()
             .expect("pending_calibration lock poisoned") = Some(PendingCalibration {
             threshold_before: old,
-            threshold_after: adj.new_variety_deficit,
-            raised: adj.raised,
+            threshold_after: new,
+            raised,
             eff_before: effectiveness,
+            source,
         });
         if let Some(sink) = self.context.regulation_sink() {
             emit_meta_self_calibration(
@@ -540,20 +556,115 @@ impl MetacognitionLoop {
                 self.context.handle().curator_id(),
                 "variety_deficit",
                 old,
-                adj.new_variety_deficit,
+                new,
                 Some(effectiveness),
                 None,
+                source,
             );
         }
         tracing::info!(
             target: MC_TARGET,
             old,
-            new = adj.new_variety_deficit,
-            raised = adj.raised,
+            new,
+            raised,
+            source,
             delta_dropped,
             effectiveness,
             "Self-calibration applied to variety_deficit threshold"
         );
+    }
+
+    /// Decide a new variety-deficit threshold. Generative-first (LLM template);
+    /// Rust compute_threshold_adjustment safety-rail fallback. The sparse-data
+    /// gate applies to both paths (don't burn LLM gas on a single directive;
+    /// loss prevention bypasses the gate when escalations are being dropped).
+    async fn decide_self_calibration(
+        &self,
+        delta_dropped: u64,
+        delta_directives: u64,
+        effectiveness: f64,
+        old: u64,
+        since_raise: u64,
+        last_calibration: Option<&serde_json::Value>,
+    ) -> Option<(u64, &'static str)> {
+        if delta_directives < MIN_OBSERVATIONS_TO_CALIBRATE && delta_dropped < RAISE_DROP_THRESHOLD
+        {
+            return None;
+        }
+        if let Some(executor) = self.context.manifest_executor().await
+            && let Some(new) = self
+                .try_generative_calibration(&executor, effectiveness, old, last_calibration)
+                .await
+        {
+            return Some((new, "generative"));
+        }
+        compute_threshold_adjustment(
+            delta_dropped,
+            delta_directives,
+            effectiveness,
+            old,
+            since_raise,
+        )
+        .map(|adj| (adj.new_variety_deficit, "fallback"))
+    }
+
+    /// Invoke the curator/metacognition-self-calibrate template to generate a
+    /// proposed new threshold. Returns None on template failure (caller falls
+    /// back to the Rust safety-rail).
+    async fn try_generative_calibration(
+        &self,
+        executor: &Arc<hkask_templates::ManifestExecutor>,
+        effectiveness: f64,
+        old: u64,
+        last_calibration: Option<&serde_json::Value>,
+    ) -> Option<u64> {
+        let sq = self.context.self_quality().snapshot();
+        let mut ctx = HashMap::new();
+        ctx.insert(
+            "self_quality".into(),
+            serde_json::json!({
+                "directives_issued": sq.directives_issued,
+                "escalations_dropped": sq.escalations_dropped,
+                "circuit_breaker_trips": sq.circuit_breaker_trips,
+            }),
+        );
+        ctx.insert("effectiveness".into(), serde_json::json!(effectiveness));
+        ctx.insert("current_threshold".into(), serde_json::json!(old));
+        ctx.insert(
+            "threshold_floor".into(),
+            serde_json::json!(DEFAULT_ESCALATION_VARIETY_DEFICIT),
+        );
+        ctx.insert(
+            "threshold_ceiling".into(),
+            serde_json::json!(VARIETY_DEFICIT_CEILING),
+        );
+        ctx.insert(
+            "last_calibration".into(),
+            serde_json::json!(last_calibration),
+        );
+        match executor
+            .execute_knowact("curator/metacognition-self-calibrate.j2", &ctx)
+            .await
+        {
+            Ok(out) => out
+                .get("new_threshold")
+                .and_then(|v| v.as_u64())
+                .or_else(|| {
+                    tracing::warn!(
+                        target: MC_TARGET,
+                        "Self-calibration template returned no new_threshold — falling back"
+                    );
+                    None
+                }),
+            Err(e) => {
+                tracing::warn!(
+                    target: MC_TARGET,
+                    error = %e,
+                    "Self-calibration template failed — falling back to Rust safety-rail"
+                );
+                None
+            }
+        }
     }
 
     /// Template-driven compute: invoke KnowAct templates for calibrated decisions.

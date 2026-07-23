@@ -57,7 +57,7 @@ pub mod kilocode_backend;
 pub mod model_constants;
 pub mod ollama_backend;
 pub mod ollama_registry;
-pub mod openai_backend;
+pub mod openai_compat;
 pub mod openrouter_backend;
 pub mod runpod_backend;
 pub mod together_backend;

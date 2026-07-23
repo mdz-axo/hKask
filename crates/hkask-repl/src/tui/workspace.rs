@@ -350,31 +350,25 @@ pub struct Workspace {
     focused_window: Option<WindowId>,
     /// Whether the session should quit (set by Ctrl+Q or /quit).
     pub should_quit: bool,
-    system_bridge: Arc<dyn SystemBridge>,
-    repl_bridge: Arc<dyn ReplBridge>,
     bridges: WorkspaceBridges,
     status_bar: StatusBar,
     keymap_state: KeymapState,
-    /// Countdown (in ticks) until `AwaitWindow` keymap state auto-resets.
     keymap_timeout: u8,
 }
 
-#[derive(Default)]
 struct WorkspaceBridges {
+    system_bridge: Arc<dyn SystemBridge>,
+    repl_bridge: Arc<dyn ReplBridge>,
     settings_bridge: Option<Arc<dyn SettingsBridge>>,
     session_bridge: Option<Arc<dyn SessionBridge>>,
     tool_invoke_bridge: Option<Arc<dyn ToolInvokeBridge>>,
 }
 
 impl WorkspaceBridges {
-    fn to_window_bridges(
-        &self,
-        system_bridge: Arc<dyn SystemBridge>,
-        repl_bridge: Arc<dyn ReplBridge>,
-    ) -> crate::tui::window_catalog::WindowBridges {
+    fn to_window_bridges(&self) -> crate::tui::window_catalog::WindowBridges {
         crate::tui::window_catalog::WindowBridges {
-            system_bridge,
-            repl_bridge,
+            system_bridge: self.system_bridge.clone(),
+            repl_bridge: self.repl_bridge.clone(),
             settings_bridge: self.settings_bridge.clone(),
             session_bridge: self.session_bridge.clone(),
             tool_invoke_bridge: self.tool_invoke_bridge.clone(),
@@ -386,8 +380,14 @@ impl Workspace {
     pub fn new(system: Arc<dyn SystemBridge>, repl: Arc<dyn ReplBridge>) -> Self {
         let model = system.model_name().to_string();
         let chat_id = WindowId(Uuid::new_v4());
-        let bridges = WorkspaceBridges::default();
-        let factory_ctx = bridges.to_window_bridges(system.clone(), repl.clone());
+        let bridges = WorkspaceBridges {
+            system_bridge: system.clone(),
+            repl_bridge: repl.clone(),
+            settings_bridge: None,
+            session_bridge: None,
+            tool_invoke_bridge: None,
+        };
+        let factory_ctx = bridges.to_window_bridges();
         let chat =
             crate::tui::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
 
@@ -404,8 +404,6 @@ impl Workspace {
             active_tab: 0,
             focused_window: Some(chat_id),
             should_quit: false,
-            system_bridge: system,
-            repl_bridge: repl,
             bridges,
             status_bar,
             keymap_state: KeymapState::Normal,
@@ -423,8 +421,14 @@ impl Workspace {
     pub fn new_test(system: Arc<dyn SystemBridge>, repl: Arc<dyn ReplBridge>) -> Self {
         let model = system.model_name().to_string();
         let chat_id = WindowId(Uuid::new_v4());
-        let bridges = WorkspaceBridges::default();
-        let factory_ctx = bridges.to_window_bridges(system.clone(), repl.clone());
+        let bridges = WorkspaceBridges {
+            system_bridge: system.clone(),
+            repl_bridge: repl.clone(),
+            settings_bridge: None,
+            session_bridge: None,
+            tool_invoke_bridge: None,
+        };
+        let factory_ctx = bridges.to_window_bridges();
         let chat =
             crate::tui::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
         let root = SplitNode::Leaf(chat);
@@ -440,8 +444,6 @@ impl Workspace {
             active_tab: 0,
             focused_window: Some(chat_id),
             should_quit: false,
-            system_bridge: system,
-            repl_bridge: repl,
             bridges,
             status_bar,
             keymap_state: KeymapState::Normal,
@@ -798,9 +800,7 @@ impl Workspace {
     }
 
     fn create_window_of_kind(&self, kind: WindowKind, id: WindowId) -> Box<dyn Window> {
-        let ctx = self
-            .bridges
-            .to_window_bridges(self.system_bridge.clone(), self.repl_bridge.clone());
+        let ctx = self.bridges.to_window_bridges();
         crate::tui::window_catalog::create_window(kind, id, &ctx)
     }
 
@@ -928,9 +928,9 @@ impl Workspace {
         for action in actions {
             self.apply_action(action);
         }
-        self.status_bar.gas_remaining = self.system_bridge.gas_remaining();
-        self.status_bar.gas_cap = self.system_bridge.gas_cap();
-        let alerts = self.system_bridge.reg_alert_count();
+        self.status_bar.gas_remaining = self.bridges.system_bridge.gas_remaining();
+        self.status_bar.gas_cap = self.bridges.system_bridge.gas_cap();
+        let alerts = self.bridges.system_bridge.reg_alert_count();
         self.status_bar.reg_status = if alerts >= 5 {
             crate::tui::status_bar::RegStatus::Critical(alerts)
         } else if alerts > 0 {
@@ -938,8 +938,8 @@ impl Workspace {
         } else {
             crate::tui::status_bar::RegStatus::Healthy
         };
-        self.status_bar.context_pressure = self.system_bridge.context_pressure();
-        self.status_bar.model = self.system_bridge.model_name().to_string();
+        self.status_bar.context_pressure = self.bridges.system_bridge.context_pressure();
+        self.status_bar.model = self.bridges.system_bridge.model_name().to_string();
     }
 }
 

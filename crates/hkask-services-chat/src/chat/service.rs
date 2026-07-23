@@ -33,6 +33,7 @@ use hkask_services_context::AgentService;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
 use hkask_services_inference::{InferenceContext, InferenceService};
 use hkask_types::curator::CuratorHandle;
+use hkask_types::ports::inference_types::InferenceError;
 
 /// Chat service — encapsulates the full chat turn pipeline.
 pub struct ChatService;
@@ -390,33 +391,30 @@ impl ChatService {
         )
         .await
         .map_err(|_elapsed| ServiceError::ModelService {
-            : ServiceError::ModelService {
-                        kind: ErrorKind::ServiceUnavailable,
-                        source: None,
-                        message: "Inference call timed out after 120s".to_string(),
-                        retryable: true,
-                    })?
-                    .map_err(|e| {
-                        // Classify by error type: connection/circuit/generation errors are
-                        // transient (retryable); model/json errors are client-side (not retryable).
-                        let (kind, retryable) = match &e {
-                            InferenceError::Connection(_) | InferenceError::CircuitOpen(_) => {
-                                (ErrorKind::ServiceUnavailable, true)
-                            }
-                            InferenceError::Generation(_) => {
-                                (ErrorKind::ServiceUnavailable, true)
-                            }
-                            InferenceError::Model(_) | InferenceError::Json(_) | InferenceError::VisionUnsupported(_) => {
-                                (ErrorKind::BadRequest, false)
-                            }
-                        };
-                        ServiceError::ModelService {
-                            kind,
-                            source: None,
-                            message: e.to_string(),
-                            retryable,
-                        }
-                    })?;
+            kind: ErrorKind::ServiceUnavailable,
+            source: None,
+            message: "Inference call timed out after 120s".to_string(),
+            retryable: true,
+        })?
+        .map_err(|e| {
+            // Classify by error type: connection/circuit/generation errors are
+            // transient (retryable); model/json errors are client-side (not retryable).
+            let (kind, retryable) = match &e {
+                InferenceError::Connection(_) | InferenceError::CircuitOpen(_) => {
+                    (ErrorKind::ServiceUnavailable, true)
+                }
+                InferenceError::Generation(_) => (ErrorKind::ServiceUnavailable, true),
+                InferenceError::Model(_)
+                | InferenceError::Json(_)
+                | InferenceError::VisionUnsupported(_) => (ErrorKind::BadRequest, false),
+            };
+            ServiceError::ModelService {
+                kind,
+                source: None,
+                message: e.to_string(),
+                retryable,
+            }
+        })?;
 
         let response_span = Span::new(
             SpanNamespace::new("reg.chat").expect("canonical namespace: reg.chat"),

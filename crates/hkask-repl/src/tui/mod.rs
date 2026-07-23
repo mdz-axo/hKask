@@ -60,9 +60,9 @@ use std::time::Duration;
 
 use bridges::{tui_bridge_setter, with_bridges};
 pub use repl_bridge::{
-    CommandResult, InferenceRequestId, InferenceState, McpInvokeRequestId, McpInvokeState,
-    ModelSwitchResult, ReplBridge, SessionBridge, SettingsBridge, SystemBridge, ToolInvokeBridge,
-    TuiModelInfo, TuiTurnResult,
+    CommandResult, InferenceRequestId, InferenceState, McpInvokeError, McpInvokeRequestId,
+    McpInvokeState, ModelSwitchResult, ReplBridge, SessionBridge, SettingsBridge, SystemBridge,
+    ToolInvokeBridge, TuiModelInfo, TuiTurnResult,
 };
 pub use splash::SplashScreen;
 pub use window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};

@@ -692,7 +692,7 @@ Multi-provider inference router for hKask — DeepInfra, Together AI, fal.ai, Op
 | `model_constants` | Model name constants |
 | `ollama_backend` | Ollama local inference backend (`OM/` prefix) — no API key required |
 | `ollama_registry` | Ollama model/adapter registry — register hKask GGUFs and LoRA adapters as Ollama models |
-| `openai_backend` | OpenAI provider backend |
+| `openai_compat` | Shared OpenAI-compatible chat completion logic used by all chat backends |
 | `openrouter_backend` | OpenRouter provider backend (`OR/` prefix) |
 | `runpod_backend` | RunPod serverless backend (`RP/` prefix) |
 | `together_backend` | Together AI provider backend (`TG/` prefix) |

@@ -407,7 +407,7 @@ struct PendingTuiInference {
 /// Receiver for one TUI MCP tool invocation.
 #[cfg(feature = "tui")]
 struct PendingTuiInvoke {
-    receiver: std::sync::mpsc::Receiver<Result<serde_json::Value, String>>,
+    receiver: std::sync::mpsc::Receiver<Result<serde_json::Value, crate::tui::McpInvokeError>>,
 }
 
 /// Bridge implementation connecting the TUI to hKask's full inference engine.
@@ -921,7 +921,20 @@ impl crate::tui::ToolInvokeBridge for TuiReplBridge {
                 runtime
                     .invoke(&server, &tool, args, &token)
                     .await
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| match e {
+                        hkask_capability::ToolPortError::NotFound(_) => {
+                            crate::tui::McpInvokeError::ToolNotFound(tool.clone())
+                        }
+                        hkask_capability::ToolPortError::CapabilityDenied(msg) => {
+                            crate::tui::McpInvokeError::Server(msg)
+                        }
+                        hkask_capability::ToolPortError::EnergyBudgetExceeded(msg) => {
+                            crate::tui::McpInvokeError::Server(msg)
+                        }
+                        hkask_capability::ToolPortError::InvocationFailed(msg) => {
+                            crate::tui::McpInvokeError::Server(msg)
+                        }
+                    })
             });
             let _ = tx.send(result);
         });
