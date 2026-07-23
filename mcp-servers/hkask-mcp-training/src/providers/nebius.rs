@@ -166,7 +166,7 @@ runcmd:
                 "--boot-disk-existing-disk-id",
                 &disk_id,
                 "--boot-disk-attach-mode",
-                "READ_WRITE",
+                "read_write",
                 "--cloud-init-user-data",
                 &cloud_init,
                 "--network-interfaces",
