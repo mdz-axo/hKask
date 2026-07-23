@@ -372,10 +372,18 @@ impl RunpodHost {
             "name: \"{}\"",
             Self::escape_graphql_string(&pod_name)
         ));
-        // Image: when a templateId is provided, use empty imageName so RunPod
-        // uses the template's image. When no template, use the docker image.
+        // RunPod requires imageName to be non-empty even when templateId is set.
+        // When a template is used, RunPod uses the template's image, but the
+        // imageName field must still contain a valid image reference.
         let image_name = if !spec.template_id.is_empty() {
-            "" // template provides the image
+            // Template is set — imageName is required but ignored by RunPod
+            // in favor of the template's image. Use the default image as a
+            // placeholder (RunPod will use the template's image instead).
+            if !spec.docker_image.is_empty() {
+                spec.docker_image
+            } else {
+                "runpod/base"
+            }
         } else {
             spec.docker_image
         };
