@@ -295,13 +295,22 @@ pub async fn run(
     userpod: String,
     daemon_client: Option<hkask_mcp_server::DaemonClient>,
 ) -> Result<(), hkask_mcp_server::McpError> {
-    // Host is fixed to Runpod (cloud-only, single host).
-    // Harness default is Axolotl; per-job harness selection via TrainingParams.harness
-    // (operator-accepted from the lora-training skill's G6 gate) is honored at
-    // submit time — RunpodHost::submit selects the harness for config rendering.
-    // All harnesses and trainers are implemented: Axolotl (SFT),
-    // TRL (SFT/DPO/KTO/ORPO/Reward), Ludwig (SFT/DPO/KTO/ORPO/GRPO).
-    let host_id = TrainingHostId::Runpod;
+    // Host selection: auto-detect from env vars, or use HKASK_TRAINING_HOST.
+    // DeepInfra is preferred when DI_API_KEY is set (cheapest H100 at $1.79/hr).
+    // Nebius is used when NEBIUS_PROJECT_ID is set.
+    // Runpod is the fallback when RUNPOD_API_KEY is set.
+    let host_id = std::env::var("HKASK_TRAINING_HOST")
+        .ok()
+        .and_then(|h| TrainingHostId::from_str(&h))
+        .unwrap_or_else(|| {
+            if std::env::var("DI_API_KEY").is_ok() {
+                TrainingHostId::DeepInfra
+            } else if std::env::var("NEBIUS_PROJECT_ID").is_ok() {
+                TrainingHostId::Nebius
+            } else {
+                TrainingHostId::Runpod
+            }
+        });
     let harness_id = TrainingHarnessId::Axolotl;
 
     let cache_dir = PathBuf::from(
@@ -444,9 +453,25 @@ pub async fn run(
             })
         },
         vec![
-            hkask_mcp_server::CredentialRequirement::required(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "RUNPOD_API_KEY",
-                "RunPod API key for governed training-job submission",
+                "RunPod API key (required only when using RunPod host)",
+            ),
+            hkask_mcp_server::CredentialRequirement::optional(
+                "DI_API_KEY",
+                "DeepInfra API key (required when using DeepInfra host)",
+            ),
+            hkask_mcp_server::CredentialRequirement::optional(
+                "NEBIUS_PROJECT_ID",
+                "Nebius project ID (required when using Nebius host)",
+            ),
+            hkask_mcp_server::CredentialRequirement::optional(
+                "NEBIUS_SUBNET_ID",
+                "Nebius subnet ID (required when using Nebius host)",
+            ),
+            hkask_mcp_server::CredentialRequirement::optional(
+                "HKASK_TRAINING_HOST",
+                "Training host: runpod, deepinfra, or nebius (auto-detected from available API keys)",
             ),
             hkask_mcp_server::CredentialRequirement::optional(
                 "RUNPOD_TEMPLATE_ID",

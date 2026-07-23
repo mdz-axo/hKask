@@ -491,7 +491,7 @@ struct PodDeploySpec<'a> {
 /// trl+peft+transformers, Ludwig installs ludwig. The lora-training skill's
 /// G6 gate determines which harness to use; this method generates the script
 /// that makes that recommendation real on the pod.
-fn generate_install_script(
+pub fn generate_install_script(
     job: &TrainingJob,
     harness: TrainingHarnessId,
 ) -> Result<String, ProviderError> {
