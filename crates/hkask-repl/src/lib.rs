@@ -397,6 +397,28 @@ pub fn run_tui(
     }
 }
 
+/// Map a ToolPortError to a TUI-facing McpInvokeError.
+#[cfg(feature = "tui")]
+fn map_tool_port_error(
+    err: hkask_capability::ToolPortError,
+    tool: &str,
+) -> crate::tui::McpInvokeError {
+    match err {
+        hkask_capability::ToolPortError::NotFound(_) => {
+            crate::tui::McpInvokeError::ToolNotFound(tool.to_string())
+        }
+        hkask_capability::ToolPortError::CapabilityDenied(msg) => {
+            crate::tui::McpInvokeError::Server(msg)
+        }
+        hkask_capability::ToolPortError::EnergyBudgetExceeded(msg) => {
+            crate::tui::McpInvokeError::Server(msg)
+        }
+        hkask_capability::ToolPortError::InvocationFailed(msg) => {
+            crate::tui::McpInvokeError::Server(msg)
+        }
+    }
+}
+
 /// Receiver and partial output owned by one TUI inference request.
 #[cfg(feature = "tui")]
 struct PendingTuiInference {
@@ -953,6 +975,54 @@ impl crate::tui::ToolInvokeBridge for TuiReplBridge {
                 pending.remove(&request);
                 crate::tui::McpInvokeState::Idle
             }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "tui"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn map_tool_port_error_not_found() {
+        let err = hkask_capability::ToolPortError::NotFound(hkask_types::NotFound {
+            entity_type: "tool".to_string(),
+            id: "test_tool".to_string(),
+        });
+        let mapped = map_tool_port_error(err, "my_tool");
+        match mapped {
+            crate::tui::McpInvokeError::ToolNotFound(t) => assert_eq!(t, "my_tool"),
+            other => panic!("expected ToolNotFound, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn map_tool_port_error_capability_denied() {
+        let err = hkask_capability::ToolPortError::CapabilityDenied("denied".into());
+        let mapped = map_tool_port_error(err, "tool_x");
+        match mapped {
+            crate::tui::McpInvokeError::Server(msg) => assert_eq!(msg, "denied"),
+            other => panic!("expected Server, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn map_tool_port_error_energy_exceeded() {
+        let err = hkask_capability::ToolPortError::EnergyBudgetExceeded("no gas".into());
+        let mapped = map_tool_port_error(err, "tool_x");
+        match mapped {
+            crate::tui::McpInvokeError::Server(msg) => assert_eq!(msg, "no gas"),
+            other => panic!("expected Server, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn map_tool_port_error_invocation_failed() {
+        let err = hkask_capability::ToolPortError::InvocationFailed("crashed".into());
+        let mapped = map_tool_port_error(err, "tool_x");
+        match mapped {
+            crate::tui::McpInvokeError::Server(msg) => assert_eq!(msg, "crashed"),
+            other => panic!("expected Server, got {:?}", other),
         }
     }
 }
