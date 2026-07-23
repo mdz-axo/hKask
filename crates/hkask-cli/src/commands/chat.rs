@@ -22,15 +22,17 @@ pub use hkask_services_chat::TokenUsage;
 fn build_chat_context(
     name: &str,
     secrets: Option<&ResolvedSecrets>,
-) -> Result<AgentService, ChatTurnResponse> {
+) -> Result<AgentService, Box<ChatTurnResponse>> {
     let from_secrets = secrets.map(|s| (name, s));
-    super::helpers::build_agent_service_from_secrets(from_secrets).map_err(|e| ChatTurnResponse {
-        text: format!("AgentService error: {}", e),
-        usage: None,
-        finish_reason: "error".to_string(),
-        tool_calls: vec![],
-        reasoning: None,
-        messages: vec![],
+    super::helpers::build_agent_service_from_secrets(from_secrets).map_err(|e| {
+        Box::new(ChatTurnResponse {
+            text: format!("AgentService error: {}", e),
+            usage: None,
+            finish_reason: "error".to_string(),
+            tool_calls: vec![],
+            reasoning: None,
+            messages: vec![],
+        })
     })
 }
 
@@ -133,7 +135,7 @@ pub async fn chat_with_agent_streaming(
 
     let ctx = match build_chat_context(name, secrets) {
         Ok(ctx) => ctx,
-        Err(resp) => return resp,
+        Err(resp) => return *resp,
     };
 
     let req = ChatTurnRequest {
