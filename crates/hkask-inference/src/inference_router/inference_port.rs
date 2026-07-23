@@ -4,7 +4,8 @@ use super::InferenceRouter;
 use crate::chat_protocol::validate_prompt;
 use hkask_types::template::LLMParameters;
 use hkask_types::{
-    ChatToolDefinition, InferenceError, InferencePort, InferenceResult, InferenceStreamChunk,
+    ChatMessage, ChatToolDefinition, InferenceError, InferencePort, InferenceResult,
+    InferenceStreamChunk,
 };
 use std::pin::Pin;
 
@@ -74,6 +75,97 @@ impl InferenceRouter {
             self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
                 .await
                 .map_err(|error| self.heal_error(error, "generate_with_model"))
+        })
+    }
+
+    /// Multi-turn variant of `generate_ungoverned` — accepts an explicit message
+    /// array instead of a single prompt string. Fusion and adapter paths flatten
+    /// messages to a string (they are prompt-based internally); the default path
+    /// dispatches the message array directly to the backend.
+    pub(super) fn generate_ungoverned_messages(
+        &self,
+        messages: &[ChatMessage],
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        // Fusion is prompt-based internally — flatten messages when fusion is active.
+        if !parameters.bypass_fusion && model_override.is_none() {
+            let fusion = parameters
+                .fusion_config
+                .clone()
+                .or_else(|| self.config.fusion.clone());
+            if let Some(fusion) = fusion {
+                let prompt = messages
+                    .iter()
+                    .map(|m| format!("{}: {}", m.role, m.content))
+                    .collect::<Vec<_>>()
+                    .join("\n\n");
+                let parameters = parameters.clone();
+                let tools = tools.map(<[ChatToolDefinition]>::to_vec);
+                return Box::pin(async move {
+                    validate_prompt(&prompt)?;
+                    self.orchestrate_fusion(&prompt, &parameters, tools.as_deref(), &fusion)
+                        .await
+                        .map_err(|error| self.heal_error(error, "generate_with_messages"))
+                });
+            }
+        }
+
+        // LoRA adapter path — flatten messages (adapter dispatch is prompt-based).
+        if let Some(adapter) = &parameters.adapter {
+            let prompt = messages
+                .iter()
+                .map(|m| format!("{}: {}", m.role, m.content))
+                .collect::<Vec<_>>()
+                .join("\n\n");
+            let (provider, model) = match self.resolve_chat(adapter) {
+                Ok(route) => route,
+                Err(error) => {
+                    return Box::pin(async move {
+                        Err(self.heal_error(error, "generate_with_messages"))
+                    });
+                }
+            };
+            let model = model.to_string();
+            let prompt = prompt.to_string();
+            let parameters = parameters.clone();
+            let tools = tools.map(<[ChatToolDefinition]>::to_vec);
+            return Box::pin(async move {
+                validate_prompt(&prompt)?;
+                self.dispatch_generate(provider, &model, &prompt, &parameters, tools.as_deref())
+                    .await
+                    .map_err(|error| self.heal_error(error, "generate_with_messages"))
+            });
+        }
+
+        // Default path — dispatch the message array directly to the backend.
+        let model_name = self.effective_model(model_override, parameters);
+        let (provider, model) = match self.resolve_chat(&model_name) {
+            Ok(route) => route,
+            Err(error) => {
+                return Box::pin(
+                    async move { Err(self.heal_error(error, "generate_with_messages")) },
+                );
+            }
+        };
+        let model = model.to_string();
+        let messages = messages.to_vec();
+        let parameters = parameters.clone();
+        let tools = tools.map(<[ChatToolDefinition]>::to_vec);
+
+        Box::pin(async move {
+            self.dispatch_generate_messages(
+                provider,
+                &model,
+                &messages,
+                &parameters,
+                tools.as_deref(),
+            )
+            .await
+            .map_err(|error| self.heal_error(error, "generate_with_messages"))
         })
     }
 }

@@ -5,7 +5,9 @@
 use super::InferenceRouter;
 use crate::config::ProviderId;
 use hkask_types::template::LLMParameters;
-use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::{
+    ChatMessage, ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk,
+};
 use std::pin::Pin;
 
 impl InferenceRouter {
@@ -32,6 +34,33 @@ impl InferenceRouter {
             ))
         })?;
         backend.generate(model, prompt, params, tools).await
+    }
+
+    /// Dispatch a multi-turn generate call to the resolved chat backend.
+    ///
+    /// expect: "The system dispatches regulated inference to the correct provider"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — shared dispatch for multi-turn text generation
+    /// pre:  provider is a resolved ProviderId with an available chat backend
+    /// pre:  model, messages, params are validated
+    /// post: returns Ok(InferenceResult) on success
+    /// post: returns Err(Connection) if no chat backend is configured for provider
+    pub(crate) async fn dispatch_generate_messages(
+        &self,
+        provider: ProviderId,
+        model: &str,
+        messages: &[ChatMessage],
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Result<InferenceResult, InferenceError> {
+        let backend = self.chat_backend(provider).ok_or_else(|| {
+            InferenceError::Connection(format!(
+                "Provider {} is not available (check configuration)",
+                provider.as_str()
+            ))
+        })?;
+        backend
+            .generate_with_messages(model, messages, params, tools)
+            .await
     }
 
     /// Dispatch a streaming generate call to the resolved chat backend.

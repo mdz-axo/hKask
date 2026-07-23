@@ -11,8 +11,8 @@
 use futures_util::StreamExt;
 use hkask_types::template::LLMParameters;
 use hkask_types::{
-    ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk, InferenceUsage,
-    StructuredToolCall, TokenProb, TokenProbability,
+    ChatMessage, ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk,
+    InferenceUsage, StructuredToolCall, TokenProb, TokenProbability,
 };
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -96,13 +96,6 @@ pub struct ChatRequest {
     pub tool_choice: Option<String>,
 }
 
-/// A single message in the chat conversation.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ChatMessage {
-    pub role: String,
-    pub content: String,
-}
-
 /// Build an OpenAI-compatible chat completion request from hKask parameters.
 ///
 /// `stream: false` is explicit in non-streaming calls to prevent chunked
@@ -133,6 +126,56 @@ pub fn build_chat_request(
         content: prompt.to_string(),
     });
 
+    ChatRequest {
+        model: model.to_string(),
+        messages,
+        temperature: params.temperature,
+        top_p: params.top_p,
+        top_k: params.top_k as i32,
+        min_p: params.min_p,
+        typical_p: params.typical_p,
+        frequency_penalty: params.frequency_penalty,
+        presence_penalty: params.presence_penalty,
+        max_tokens: params.max_tokens as i32,
+        seed: params.seed,
+        n_probs,
+        stream,
+        enable_thinking: !params.disable_thinking,
+        chat_template_kwargs: if params.disable_thinking {
+            Some(serde_json::json!({"enable_thinking": false}))
+        } else {
+            None
+        },
+        tools,
+        tool_choice: None,
+    }
+}
+
+/// Build an OpenAI-compatible chat completion request from an explicit message
+/// array.
+///
+/// Unlike [`build_chat_request`], which constructs a `[system?, user]` pair from
+/// a single prompt string, this function passes the caller-supplied messages
+/// directly to the provider. This is the correct path for multi-turn chat: each
+/// message carries its own role (`"system"`, `"user"`, `"assistant"`), so the
+/// provider sees the full conversation history instead of a flattened string.
+///
+/// `stream: false` is explicit in non-streaming calls to prevent chunked
+/// transfer encoding from confusing JSON parsers.
+///
+/// expect: "The system constructs and validates regulated LLM requests"
+/// \[P9\] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload from message array
+/// pre:  model is non-empty, messages is non-empty
+/// post: returns ChatRequest with the caller-supplied messages and parameters
+#[must_use]
+pub fn build_chat_request_messages(
+    model: &str,
+    messages: Vec<ChatMessage>,
+    params: &LLMParameters,
+    stream: Option<bool>,
+    n_probs: Option<i32>,
+    tools: Option<Vec<ChatToolDefinition>>,
+) -> ChatRequest {
     ChatRequest {
         model: model.to_string(),
         messages,

@@ -12,9 +12,11 @@ use crate::chat_protocol::{
 };
 use crate::config::InferenceConfig;
 use crate::fal_workflow::{self, WorkflowNode, WorkflowResult};
-use crate::openai_backend::openai_compatible_generate;
+use crate::openai_backend::{openai_compatible_generate, openai_compatible_generate_messages};
 use hkask_types::template::LLMParameters;
-use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::{
+    ChatMessage, ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk,
+};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -79,6 +81,38 @@ impl FalBackend {
             &self.api_key,
             model,
             prompt,
+            params,
+            tools,
+            "/v1/chat/completions",
+            "Key",
+            "FA",
+        )
+        .await
+    }
+
+    /// Send a multi-turn chat completion request to fal.ai with an explicit
+    /// message array.
+    ///
+    /// expect: "The system regulates text/image/speech generation through provider membranes"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multi-turn text generation
+    /// pre:  model is a valid fal.ai model name
+    /// pre:  messages is non-empty
+    /// pre:  params is a valid LLMParameters
+    /// post: returns Ok(InferenceResult) with generated text, model, usage stats
+    /// post: if connection fails → Err(InferenceError::Connection)
+    pub async fn generate_with_messages(
+        &self,
+        model: &str,
+        messages: &[ChatMessage],
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Result<InferenceResult, InferenceError> {
+        openai_compatible_generate_messages(
+            &self.client,
+            &self.base_url,
+            &self.api_key,
+            model,
+            messages,
             params,
             tools,
             "/v1/chat/completions",

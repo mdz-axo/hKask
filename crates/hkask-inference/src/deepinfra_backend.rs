@@ -9,9 +9,11 @@
 
 use crate::chat_protocol::{stream_chat_completion, vision_infer};
 use crate::config::InferenceConfig;
-use crate::openai_backend::openai_compatible_generate;
+use crate::openai_backend::{openai_compatible_generate, openai_compatible_generate_messages};
 use hkask_types::template::LLMParameters;
-use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::{
+    ChatMessage, ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -70,6 +72,39 @@ impl DeepInfraBackend {
             &self.api_key,
             model,
             prompt,
+            params,
+            tools,
+            "/v1/chat/completions",
+            "Bearer",
+            "DI",
+        )
+        .await
+    }
+
+    /// Send a multi-turn chat completion request to DeepInfra with an explicit
+    /// message array. Each message carries its own role (`"system"`, `"user"`,
+    /// `"assistant"`), so the provider sees the full conversation history.
+    ///
+    /// expect: "The system regulates text/image/speech generation through provider membranes"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — regulated multi-turn text generation
+    /// pre:  model is a valid DeepInfra model name
+    /// pre:  messages is non-empty
+    /// pre:  params is a valid LLMParameters
+    /// post: returns Ok(InferenceResult) with generated text, model, usage stats
+    /// post: if connection fails → Err(InferenceError::Connection)
+    pub async fn generate_with_messages(
+        &self,
+        model: &str,
+        messages: &[ChatMessage],
+        params: &LLMParameters,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Result<InferenceResult, InferenceError> {
+        openai_compatible_generate_messages(
+            &self.client,
+            &self.base_url,
+            &self.api_key,
+            model,
+            messages,
             params,
             tools,
             "/v1/chat/completions",

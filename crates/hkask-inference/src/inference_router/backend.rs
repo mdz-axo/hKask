@@ -35,7 +35,9 @@ use crate::runpod_backend::RunpodBackend;
 use crate::together_backend::TogetherBackend;
 use futures_util::Stream;
 use hkask_types::template::LLMParameters;
-use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk};
+use hkask_types::{
+    ChatMessage, ChatToolDefinition, InferenceError, InferenceResult, InferenceStreamChunk,
+};
 use std::future::Future;
 use std::pin::Pin;
 
@@ -67,6 +69,28 @@ pub trait ChatBackend: Send + Sync {
         params: &LLMParameters,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>>;
+
+    /// Generate a chat completion from an explicit message array (multi-turn).
+    ///
+    /// Each message carries its own role (`"system"`, `"user"`, `"assistant"`),
+    /// so the provider sees the full conversation history instead of a flattened
+    /// string. Default: flattens messages to a string and delegates to `generate`.
+    /// Backends that speak the OpenAI wire format override this to pass the
+    /// message array directly.
+    fn generate_with_messages<'a>(
+        &'a self,
+        model: &'a str,
+        messages: &'a [ChatMessage],
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        let prompt = messages
+            .iter()
+            .map(|m| format!("{}: {}", m.role, m.content))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        self.generate(model, &prompt, params, tools)
+    }
 }
 
 /// Vision/multimodal backend: image-grounded generation.
@@ -111,6 +135,15 @@ impl ChatBackend for DeepInfraBackend {
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
+    fn generate_with_messages<'a>(
+        &'a self,
+        model: &'a str,
+        messages: &'a [ChatMessage],
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_with_messages(model, messages, params, tools))
+    }
 }
 
 impl ChatBackend for TogetherBackend {
@@ -131,6 +164,15 @@ impl ChatBackend for TogetherBackend {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
+    }
+    fn generate_with_messages<'a>(
+        &'a self,
+        model: &'a str,
+        messages: &'a [ChatMessage],
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_with_messages(model, messages, params, tools))
     }
 }
 
@@ -153,6 +195,15 @@ impl ChatBackend for OpenRouterBackend {
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
+    fn generate_with_messages<'a>(
+        &'a self,
+        model: &'a str,
+        messages: &'a [ChatMessage],
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_with_messages(model, messages, params, tools))
+    }
 }
 
 impl ChatBackend for KiloCodeBackend {
@@ -173,6 +224,15 @@ impl ChatBackend for KiloCodeBackend {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
+    }
+    fn generate_with_messages<'a>(
+        &'a self,
+        model: &'a str,
+        messages: &'a [ChatMessage],
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_with_messages(model, messages, params, tools))
     }
 }
 
@@ -195,6 +255,15 @@ impl ChatBackend for OllamaBackend {
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
+    fn generate_with_messages<'a>(
+        &'a self,
+        model: &'a str,
+        messages: &'a [ChatMessage],
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_with_messages(model, messages, params, tools))
+    }
 }
 
 impl ChatBackend for ClineBackend {
@@ -216,6 +285,15 @@ impl ChatBackend for ClineBackend {
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
     }
+    fn generate_with_messages<'a>(
+        &'a self,
+        model: &'a str,
+        messages: &'a [ChatMessage],
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_with_messages(model, messages, params, tools))
+    }
 }
 
 impl ChatBackend for FalBackend {
@@ -236,6 +314,15 @@ impl ChatBackend for FalBackend {
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + 'a>> {
         self.generate_stream(model, prompt, params, tools)
+    }
+    fn generate_with_messages<'a>(
+        &'a self,
+        model: &'a str,
+        messages: &'a [ChatMessage],
+        params: &'a LLMParameters,
+        tools: Option<&'a [ChatToolDefinition]>,
+    ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + 'a>> {
+        Box::pin(self.generate_with_messages(model, messages, params, tools))
     }
 }
 
