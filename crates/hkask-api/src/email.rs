@@ -84,7 +84,7 @@ fn extract_text_body(raw: &[u8]) -> String {
 /// Recursively walk the MIME tree to find the first text/plain part.
 fn extract_text_plain_from_mime(msg: &mailparse::ParsedMail) -> String {
     if msg.ctype.mimetype == "text/plain" {
-        return msg.get_body().map(|(body, _)| body).unwrap_or_default();
+        return msg.get_body().unwrap_or_default();
     }
     for part in &msg.subparts {
         let text = extract_text_plain_from_mime(part);

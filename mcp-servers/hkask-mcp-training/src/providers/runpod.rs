@@ -129,8 +129,7 @@ pub struct RunpodHost {
     /// job_id -> last known uptime in seconds. Used to detect pod restarts.
     last_uptime: Arc<Mutex<HashMap<String, u64>>>,
     /// job_id -> SSH command string. Populated by status() for the response.
-    ssh_commands: Arc<Mutex<HashMap<String, String>>,
-    /// Path to the pod ID persistence file.
+    ssh_commands: Arc<Mutex<HashMap<String, String>>>,
     /// Path to the pod ID persistence file (JSON: {job_id: pod_id}).
     pods_file: PathBuf,
 }
@@ -1052,20 +1051,34 @@ impl TrainingHost for RunpodHost {
 
     async fn status(&self, job_id: &str) -> Result<PodStatus, ProviderError> {
         let pod_id = {
-            let map = self.jobs.lock().map_err(|e| ProviderError::Backend(format!("Lock error: {e}")))?;
+            let map = self
+                .jobs
+                .lock()
+                .map_err(|e| ProviderError::Backend(format!("Lock error: {e}")))?;
             map.get(job_id).cloned()
         };
         let pod_id = match pod_id {
             Some(id) => id,
-            None => return Err(ProviderError::JobFailed(format!("No pod found for job {job_id}"))),
+            None => {
+                return Err(ProviderError::JobFailed(format!(
+                    "No pod found for job {job_id}"
+                )));
+            }
         };
 
         let query = r#"query GetPod($id: String!) { pod(input: { podId: $id }) { id desiredStatus runtime { uptimeInSeconds ports { publicPort privatePort ip isIpPublic } } machine { gpuTypeId } } }"#;
         let result = self.graphql_query(query, json!({ "id": pod_id })).await?;
 
-        let status_str = result["data"]["pod"]["desiredStatus"].as_str().unwrap_or("UNKNOWN");
-        let current_uptime = result["data"]["pod"]["runtime"]["uptimeInSeconds"].as_u64().unwrap_or(0);
-        let gpu_type = result["data"]["pod"]["machine"]["gpuTypeId"].as_str().unwrap_or("unknown").to_string();
+        let status_str = result["data"]["pod"]["desiredStatus"]
+            .as_str()
+            .unwrap_or("UNKNOWN");
+        let current_uptime = result["data"]["pod"]["runtime"]["uptimeInSeconds"]
+            .as_u64()
+            .unwrap_or(0);
+        let gpu_type = result["data"]["pod"]["machine"]["gpuTypeId"]
+            .as_str()
+            .unwrap_or("unknown")
+            .to_string();
 
         // Extract SSH connection info from ports. We need a public IP with
         // privatePort 22 (SSH). If no public SSH port is available, the pod
@@ -1073,33 +1086,56 @@ impl TrainingHost for RunpodHost {
         let ports = result["data"]["pod"]["runtime"]["ports"].as_array();
         let (ssh_command, ip, ssh_port, is_public_ip) = ports
             .map(|ports| {
-                ports.iter().find_map(|p| {
-                    let is_pub = p.get("isIpPublic").and_then(|v| v.as_bool()).unwrap_or(false);
-                    let priv_port = p.get("privatePort").and_then(|v| v.as_u64()).unwrap_or(0);
-                    if is_pub && priv_port == 22 {
-                        let ip = p.get("ip").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let pub_port = p.get("publicPort").and_then(|v| v.as_u64()).unwrap_or(0);
-                        Some((format!("ssh root@{ip} -p {pub_port}"), ip, pub_port, true))
-                    } else {
-                        None
-                    }
-                }).unwrap_or_else(|| {
-                    // Fallback: use any port info we can get, even if not public
-                    if let Some(first) = ports.first() {
-                        let ip = first.get("ip").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                        let pub_port = first.get("publicPort").and_then(|v| v.as_u64()).unwrap_or(0);
-                        let is_pub = first.get("isIpPublic").and_then(|v| v.as_bool()).unwrap_or(false);
-                        (String::new(), ip, pub_port, is_pub)
-                    } else {
-                        (String::new(), String::new(), 0, false)
-                    }
-                })
+                ports
+                    .iter()
+                    .find_map(|p| {
+                        let is_pub = p
+                            .get("isIpPublic")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        let priv_port = p.get("privatePort").and_then(|v| v.as_u64()).unwrap_or(0);
+                        if is_pub && priv_port == 22 {
+                            let ip = p
+                                .get("ip")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let pub_port =
+                                p.get("publicPort").and_then(|v| v.as_u64()).unwrap_or(0);
+                            Some((format!("ssh root@{ip} -p {pub_port}"), ip, pub_port, true))
+                        } else {
+                            None
+                        }
+                    })
+                    .unwrap_or_else(|| {
+                        // Fallback: use any port info we can get, even if not public
+                        if let Some(first) = ports.first() {
+                            let ip = first
+                                .get("ip")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let pub_port = first
+                                .get("publicPort")
+                                .and_then(|v| v.as_u64())
+                                .unwrap_or(0);
+                            let is_pub = first
+                                .get("isIpPublic")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false);
+                            (String::new(), ip, pub_port, is_pub)
+                        } else {
+                            (String::new(), String::new(), 0, false)
+                        }
+                    })
             })
             .unwrap_or((String::new(), String::new(), 0, false));
 
         // Detect pod restart
         if let Ok(mut uptimes) = self.last_uptime.lock() {
-            if let Some(&prev) = uptimes.get(job_id) && current_uptime < prev {
+            if let Some(&prev) = uptimes.get(job_id)
+                && current_uptime < prev
+            {
                 tracing::warn!(
                     target: "reg.training.checkpoint.resume",
                     job_id = %job_id, pod_id = %pod_id,
