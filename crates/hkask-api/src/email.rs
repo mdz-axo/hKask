@@ -377,10 +377,6 @@ pub struct CuratorAlertEmailSink {
 }
 
 impl CuratorAlertEmailSink {
-    /// Create from env: `HKASK_ALERT_EMAIL` or fall back to `HKASK_SMTP_USERNAME`.
-    pub fn from_env() -> Self {
-        let alert_recipient = std::env::var("HKASK_ALERT_EMAIL")
-            .unwrap_or_else(|_| std::env::var("HKASK_SMTP_USERNAME").unwrap_or_default());
         Self {
             alert_recipient,
             nonce_store: None,
@@ -706,14 +702,14 @@ async fn send_digest(escalations: &hkask_storage::EscalationQueue, recipient: &s
     for entry in pending.iter().take(10) {
         let id = entry.id.to_string();
         let output = html_escape(&entry.output);
-        let age = now.to_string(); // simplified — full age calc would need created_at diff
-        rows.push_str(&format!("<tr><td><code>{id}</code></td><td>{output}</td><td>{age}</td></tr>"));
+        let created = entry.created_at.format("%Y-%m-%d %H:%M").to_string();
+        rows.push_str(&format!("<tr><td><code>{id}</code></td><td>{output}</td><td>{created}</td></tr>"));
     }
     let truncated = if count > 10 { format!("<p style='color:#8b949e'>Showing 10 of {count}.</p>") } else { String::new() };
 
     let subject = format!("[hKask Digest] {count} pending escalation(s)");
     let body = format!(
-        "<h2>hKask Escalation Digest</h2><p><b>{count}</b> pending escalation(s) as of {now}</p><table border='1' cellpadding='6' style='border-collapse:collapse'><tr><th>ID</th><th>Output</th></tr>{rows}</table>{truncated}<p style='color:#8b949e;font-size:0.8rem'>Reply with: resolve &lt;id&gt; token:&lt;your-token&gt;</p>"
+        "<h2>hKask Escalation Digest</h2><p><b>{count}</b> pending escalation(s) as of {now}</p><table border='1' cellpadding='6' style='border-collapse:collapse'><tr><th>ID</th><th>Output</th><th>Created</th></tr>{rows}</table>{truncated}<p style='color:#8b949e;font-size:0.8rem'>To resolve an escalation, reply to an alert email with: resolve Reply with: resolve &lt;id&gt; token:&lt;your-token&gt;lt;idReply with: resolve &lt;id&gt; token:&lt;your-token&gt;gt;</p>"
     );
     send_email(recipient, &subject, &body, EmailMode::Notification).await
 }
@@ -872,5 +868,25 @@ mod tests {
         let token = store.issue();
         std::thread::sleep(std::time::Duration::from_millis(10));
         assert!(!store.verify(&token), "expired token should fail");
+    }
+
+    #[test]
+    fn html_escape_basics() {
+        assert_eq!(html_escape("<script>alert(1)</script>"), "&lt;script&gt;alert(1)&lt;/script&gt;");
+        assert_eq!(html_escape("a & b"), "a &amp; b");
+        assert_eq!(html_escape("plain text"), "plain text");
+    }
+
+    #[ignore = "requires live MXroute credentials (HKASK_SMTP_USERNAME, HKASK_SMTP_PASSWORD, HKASK_MXROUTE_SERVER)"]
+    #[tokio::test]
+    async fn imap_round_trip() {
+        let to = std::env::var("HKASK_SMTP_USERNAME").expect("HKASK_SMTP_USERNAME set");
+        let subject = "hKask integration test - fetch_unread";
+        let body = "<p>This is a test email for IMAP round-trip verification.</p>";
+        send_email(&to, subject, body, EmailMode::Notification).await.expect("send_email");
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+        let messages = fetch_unread().await.expect("fetch_unread");
+        let found = messages.iter().any(|m| m.subject.contains("hKask integration test"));
+        assert!(found, "test email not found in unread messages");
     }
 }
