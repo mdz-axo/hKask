@@ -91,6 +91,9 @@ pub struct CuratorContext {
     /// executor is constructed after MCP pods, but CuratorContext must
     /// exist before them. Set via `set_manifest_executor()`.
     manifest_executor: RwLock<Option<Arc<ManifestExecutor>>>,
+    /// Skill catalog snapshot for epistemic routing. Late binding —
+    /// set via `set_skill_catalog()` after the registry is bootstrapped.
+    skill_catalog: RwLock<Option<Vec<hkask_types::RegistryEntry>>>,
     /// Consent manager for P2 sovereignty checks. Optional because some
     /// CuratorContext users (standalone CLI metacognition) do not have
     /// a consent store. When present, the Curation Loop uses it to gate
@@ -128,6 +131,7 @@ impl CuratorContext {
             self_quality: Arc::new(SelfQuality::default()),
             a2a_port: None,
             manifest_executor: RwLock::new(None),
+            skill_catalog: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
             consent_manager: None,
         }
@@ -158,6 +162,7 @@ impl CuratorContext {
             self_quality: Arc::new(SelfQuality::default()),
             a2a_port: None,
             manifest_executor: RwLock::new(None),
+            skill_catalog: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
             consent_manager: None,
         }
@@ -288,6 +293,19 @@ impl CuratorContext {
     /// cloning the `Arc`.
     pub async fn has_manifest_executor(&self) -> bool {
         self.manifest_executor.read().await.is_some()
+    }
+
+    /// Late-binding setter: attach a skill catalog snapshot after construction.
+    ///
+    /// Used by the epistemic routing consumer to invoke skill-router when
+    /// low-confidence escalations are detected.
+    pub async fn set_skill_catalog(&self, catalog: Vec<hkask_types::RegistryEntry>) {
+        *self.skill_catalog.write().await = Some(catalog);
+    }
+
+    /// Access the skill catalog snapshot for epistemic routing.
+    pub(crate) async fn skill_catalog(&self) -> Option<Vec<hkask_types::RegistryEntry>> {
+        self.skill_catalog.read().await.clone()
     }
 
     /// Issue a CuratorDirective through the direct channel to Cybernetics.

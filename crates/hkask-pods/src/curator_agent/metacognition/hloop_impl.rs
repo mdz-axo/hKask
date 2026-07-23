@@ -349,6 +349,12 @@ impl RegulationLoop for MetacognitionLoop {
 
         // Meta-cybernetic self-management: generative-first threshold
         // self-calibration (LLM template) with Rust safety-rail fallback.
+        // Route low-confidence escalations through skill-router to find
+        // certainty-finding skills. Closes the epistemic_route → epistemic_routed loop.
+        self.route_epistemic_escalations(&low_confidence_signals).await;
+
+        // Meta-cybernetic self-management: generative-first threshold
+        // self-calibration (LLM template) with Rust safety-rail fallback.
         self.self_calibrate().await;
     }
 }
