@@ -399,13 +399,11 @@ mod tests {
     }
 
     #[test]
-    fn extract_vm_state() {
-        let state = extract_json_field(INSTANCE_GET_RESPONSE, "state");
-        // state is under status.state, not metadata — extract_json_field checks
-        // metadata first, then top-level. status.state is nested, so this returns
-        // None. The status() method uses extract_json_field for state, which means
-        // it falls back to "unknown". This is a known limitation.
-        assert_eq!(state, None);
+    fn extract_vm_state_via_nested_path() {
+        // State is at status.state (not top-level or metadata).
+        // The status() method uses extract_nested_field for this.
+        let state = extract_nested_field(INSTANCE_GET_RESPONSE, &["status", "state"]);
+        assert_eq!(state, Some("RUNNING".to_string()));
     }
 
     #[test]
