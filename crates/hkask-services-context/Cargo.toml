@@ -33,6 +33,7 @@ chrono.workspace = true
 hkask-communication = { path = "../hkask-communication" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-keystore = { path = "../hkask-keystore" }
+hkask-guard = { path = "../hkask-guard" }
 
 [dev-dependencies]
 uuid.workspace = true

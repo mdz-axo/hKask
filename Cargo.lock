@@ -4539,6 +4539,7 @@ dependencies = [
  "hkask-capability",
  "hkask-communication",
  "hkask-git-cas",
+ "hkask-guard",
  "hkask-identity",
  "hkask-inference",
  "hkask-keystore",
