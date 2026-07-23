@@ -43,9 +43,9 @@ inputs:
     type: object
     description: "Workspace metadata and known references"
     required: false
-  - name: existing_skills
+  - name: skill_catalog
     type: array
-    description: "Skill corpus list for coverage analysis"
+    description: "Installed skill catalog (same array passed to skill-discovery and skill-router)"
     required: false
   - name: task_patterns
     type: array
@@ -72,7 +72,7 @@ steps:
     gas_cap: 6000
     timeout_seconds: 60
     input_mapping:
-      existing_skills: "{{ existing_skills | default([]) }}"
+      skill_catalog: "{{ skill_catalog | default([]) }}"
       task_patterns: "{{ task_patterns | default([]) }}"
 
   - ordinal: 3

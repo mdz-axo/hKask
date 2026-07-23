@@ -8,7 +8,7 @@ lexicon_terms:
 - prioritize
 contract:
   input:
-    existing_skills: array
+    skill_catalog: array
     task_patterns: array
   output:
     covered_patterns: array
@@ -35,7 +35,7 @@ You are a skill coverage analyst. Your job is to map common task patterns agains
 ## Existing Skills
 
 ```json
-{{ existing_skills | tojson }}
+{{ skill_catalog | tojson }}
 ```
 
 ## Task Patterns

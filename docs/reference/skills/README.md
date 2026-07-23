@@ -1,7 +1,7 @@
 ---
 title: "Skill, Template, and Bundle Registry — Reference"
 audience: [developers, skill-authors, agents]
-last_updated: 2026-07-11
+last_updated: 2026-07-22
 version: "0.31.0"
 status: "Active"
 domain: "Core"
@@ -28,7 +28,7 @@ last-verified-against: "91bfc585c"
 ## Open issues in this registry (2026-07-17)
 
 - **SKILL.md derivation is not wired.** No `skill-translator` code or CLI command exists; the `skill-maintenance-reverse.j2` template is the only derivation path and must be invoked as a skill by an agent. Existing SKILL.md files may be hand-maintained (a P5.1 drift risk).
-- **Count reconciliation:** the filesystem has 83 registry manifests (2 FlowDef, 81 template-crate manifests). 82 template crates under `registry/templates/`; 48 SKILL.md directories under `.agents/skills/` (46 PDCA skills + 2 templates). The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory. Total capabilities: 49 (46 skills + 2 templates + 1 bundle).
+- **Count reconciliation:** the filesystem has 100 registry manifests (49 category=skill, 51 non-skill). 89 template crates under `registry/templates/`; 52 SKILL.md directories under `.agents/skills/`. The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory. Total catalogued: 54 (52 skills + 1 template + 1 bundle).
 
 ---
 
@@ -40,7 +40,7 @@ last-verified-against: "91bfc585c"
 
 ---
 
-## Core Development (9 skills)
+## Core Development (11 skills)
 
 | Skill | Type | Purpose | Artifacts |
 |-------|------|---------|----------|
@@ -52,11 +52,13 @@ last-verified-against: "91bfc585c"
 | `improve-codebase-architecture` | Skill | Find deepening opportunities in codebases | `registry/manifests/improve-codebase-architecture.yaml` · `registry/templates/improve-codebase-architecture/` |
 | `strangler-fig` | Skill | Incremental architectural migration via Fowler's Strangler Fig pattern | `registry/manifests/strangler-fig.yaml` · `registry/templates/strangler-fig/` |
 | `idiomatic-rust` | Skill | Type-driven Rust design through Graydon Hoare's principles | `registry/manifests/idiomatic-rust.yaml` · `registry/templates/idiomatic-rust/` |
+| `task-breakdown` | Skill | Convergent planning: vertical task slicing with acceptance criteria, checkpoints, and skill_match_query routing | `registry/manifests/task-breakdown.yaml` · `registry/templates/task-breakdown/` |
+| `codegraph` | Skill | Code understanding: discover, map, and query the target codebase for goal-relevant context | `registry/manifests/codegraph.yaml` · `registry/templates/codegraph/` |
 | `diataxis-diagram` | Skill | Generate Mermaid diagrams from code using Diataxis methodology | `registry/manifests/diataxis-diagram.yaml` · `registry/templates/diataxis-diagram/` |
 
 ---
 
-## Reasoning & Analysis (8 skills)
+## Reasoning & Analysis (10 skills)
 
 | Skill | Type | Purpose | Artifacts |
 |-------|------|---------|----------|
@@ -68,6 +70,8 @@ last-verified-against: "91bfc585c"
 | `grill-me` | Skill | Socratic questioning to stress-test understanding | `registry/manifests/grill-me.yaml` · `registry/templates/grill-me/` |
 | `zoom-out` | Skill | Broader context on unfamiliar code | `registry/manifests/zoom-out.yaml` · `registry/templates/zoom-out/` |
 | `sequential-inquiry` | Skill | Dynamic chain-of-thought with automatic deep-dive delegation | `registry/manifests/sequential-inquiry.yaml` · `registry/templates/sequential-inquiry/` |
+| `falsifiability` | Skill | Eliminative inference: Popper falsifiability gate, Chamberlin multiple hypotheses, Platt strong inference, Pearl counterfactuals | `registry/manifests/falsifiability.yaml` · `registry/templates/falsifiability/` |
+| `metacognition` | Skill | Master self-reflection: decompose goals, assess progress, calibrate strategy, GEPA self-improvement | `registry/manifests/metacognition.yaml` · `registry/templates/metacognition/` |
 
 ---
 
@@ -83,7 +87,7 @@ last-verified-against: "91bfc585c"
 
 ---
 
-## Meta & Maintenance (6 skills)
+## Meta & Maintenance (7 skills)
 
 | Skill | Type | Purpose | Artifacts |
 |-------|------|---------|----------|
@@ -93,10 +97,22 @@ last-verified-against: "91bfc585c"
 | `handoff` | Skill | Session handoff — capture what was done, what remains | `registry/manifests/handoff.yaml` · `registry/templates/handoff/` |
 | `skill-discovery` | Skill | Acquire NEW skills: detect capability gaps, search catalog, evaluate candidates, guide installation | `registry/manifests/skill-discovery.yaml` · `registry/templates/skill-discovery/` |
 | `skill-router` | Skill | Route tasks to installed skills: ranked fit-scored recommendations + uncovered capability gap signals | `registry/templates/skill-router/manifest.yaml` · `registry/templates/skill-router/` |
+| `gpa-evolution` | Skill | Genetic-Pareto evolutionary optimization over text artifacts: sample, reflect, mutate, recombine Pareto frontier | `registry/manifests/gpa-evolution.yaml` · `registry/templates/gpa-evolution/` |
 
 ---
 
-## Specialized (12 skills + 1 template)
+## Security & Posture (4 skills)
+
+| Skill | Type | Purpose | Artifacts |
+|-------|------|---------|----------|
+| `kali-audit` | Skill | Convergent security review: OWASP LLM Top 10, MITRE ATLAS, NIST SSDF against code, templates, manifests, MCP surfaces, LLM I/O | `registry/manifests/kali-audit.yaml` · `registry/templates/kali-audit/` |
+| `supply-chain-sentinel` | Skill | Dependency and supply chain audit: version pinning, registry verification, license conflicts, unmaintained indicators | `registry/manifests/supply-chain-sentinel.yaml` · `registry/templates/supply-chain-sentinel/` |
+| `runtime-posture-monitor` | Skill | Runtime security posture: observes Regulation telemetry for endpoint abuse, bot traffic, LLM usage anomalies | `registry/manifests/runtime-posture-monitor.yaml` · `registry/templates/runtime-posture-monitor/` |
+| `attack-taxonomy-mapper` | Skill | Maps supply chain findings to OSC&R attack taxonomy; consumes supply-chain-sentinel and kali-audit findings | `registry/manifests/attack-taxonomy-mapper.yaml` · `registry/templates/attack-taxonomy-mapper/` |
+
+---
+
+## Specialized (14 skills + 1 template)
 
 | Skill | Type | Purpose | Artifacts |
 |-------|------|---------|----------|
@@ -114,6 +130,8 @@ last-verified-against: "91bfc585c"
 | `media-workflow` | Skill | Multi-step Fal.ai media pipeline composition and execution (Improvement Kata) | `registry/manifests/media-workflow.yaml` · `registry/templates/media-workflow/` |
 | `qa-script-builder` | Template | Design autonomous QA pipeline manifests (one-shot, not PDCA) | `registry/templates/qa-script-builder/manifest.yaml` (no FlowDef manifest) |
 | `semantic-graph-audit` | Skill | Domain-agnostic semantic dependency graph analysis | `registry/manifests/semantic-graph-audit.yaml` · `registry/templates/semantic-graph-audit/` |
+| `wardley-mapper` | Skill | Generic Wardley mapping: inventory components, classify evolution, map value chain, derive strategy | `registry/manifests/wardley-mapper.yaml` · `registry/templates/wardley-mapper/` |
+| `lora-training` | Skill | LoRA/QLoRA training config and contract enforcement: 8-gate PEFT method selection, math/quant/data/harness audit | `registry/templates/lora-training/manifest.yaml` · `registry/templates/lora-training/` |
 
 ---
 
@@ -122,11 +140,12 @@ last-verified-against: "91bfc585c"
 | Category | Count | Types |
 |----------|-------|-------|
 | Guardrails | 1 | Skill |
-| Core Development | 9 | Skills |
-| Reasoning & Analysis | 8 | Skills |
+| Core Development | 11 | Skills |
+| Reasoning & Analysis | 10 | Skills |
 | Kata & Coaching | 4 skills + 1 composition | Skills + Composition |
-| Meta & Maintenance | 6 | Skills |
-| Specialized | 12 skills + 1 template | Skills + Template |
-| **Catalogued here** | **48 skills + 2 templates + 1 bundle** | **51 capabilities** |
+| Meta & Maintenance | 7 | Skills |
+| Security & Posture | 4 | Skills |
+| Specialized | 14 skills + 1 template | Skills + Template |
+| **Catalogued here** | **52 skills + 1 templates + 1 bundle** | **54 capabilities** |
 
-> **Filesystem reality:** `registry/templates/` contains 79 FlowDef manifests across 81 template directories; `.agents/skills/` contains 48 SKILL.md directories (46 skills + 2 templates). The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory.
+> **Filesystem reality:** `registry/templates/` contains 89 template directories; `registry/manifests/` contains 100 FlowDef manifests (49 category=skill, rest are qa-script/runtime-config/daemon-process/pipeline). `.agents/skills/` contains 52 SKILL.md directories. The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory.

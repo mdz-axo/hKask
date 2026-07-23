@@ -1,6 +1,7 @@
 //! `RegulationLoop` trait implementation for `MetacognitionLoop`.
 
 use crate::ports::{EscalationBatch, EscalationEntry};
+use hkask_regulation::meta_span::emit_meta_escalation;
 use hkask_regulation::types::loops::{
     ActionType, Deviation, LoopId, RegulationLoop, RegulatoryAction, Signal, SignalMetric,
 };
@@ -239,12 +240,28 @@ impl RegulationLoop for MetacognitionLoop {
             )
             .await
             {
+                self.context.self_quality().record_escalation_dropped();
+                if let Some(sink) = self.context.regulation_sink() {
+                    emit_meta_escalation(
+                        sink.as_ref(),
+                        self.context.handle().curator_id(),
+                        "dropped",
+                        batch_confidence,
+                    );
+                }
                 tracing::error!(
                     target: "reg.curation.escalation",
                     batch_id = %batch.id,
                     error = %e,
                     batch_size = batch.entries.len(),
                     "Failed to persist consolidated escalation batch after retries — escalations LOST"
+                );
+            } else if let Some(sink) = self.context.regulation_sink() {
+                emit_meta_escalation(
+                    sink.as_ref(),
+                    self.context.handle().curator_id(),
+                    "persisted",
+                    batch_confidence,
                 );
             }
         } else {
@@ -262,12 +279,28 @@ impl RegulationLoop for MetacognitionLoop {
                 .await
                 {
                     lost_count += 1;
+                    self.context.self_quality().record_escalation_dropped();
+                    if let Some(sink) = self.context.regulation_sink() {
+                        emit_meta_escalation(
+                            sink.as_ref(),
+                            self.context.handle().curator_id(),
+                            "dropped",
+                            entry.confidence,
+                        );
+                    }
                     tracing::error!(
                         target: "reg.curation.escalation",
                         template_id = %entry.template_id,
                         bot_id = %entry.bot_id,
                         error = %e,
                         "Failed to persist escalation after retries — escalation LOST"
+                    );
+                } else if let Some(sink) = self.context.regulation_sink() {
+                    emit_meta_escalation(
+                        sink.as_ref(),
+                        self.context.handle().curator_id(),
+                        "persisted",
+                        entry.confidence,
                     );
                 }
             }
@@ -280,5 +313,9 @@ impl RegulationLoop for MetacognitionLoop {
                 );
             }
         }
+
+        // Meta-cybernetic self-management: adjust own thresholds from the
+        // self-quality counters observed this cycle.
+        self.self_calibrate();
     }
 }

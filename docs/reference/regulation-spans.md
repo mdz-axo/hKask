@@ -158,6 +158,71 @@ Monitors architectural seam health — the boundaries where Strangler Fig migrat
 **Algedonic threshold:** SLO breach escalations are handled by `RegulationLedger` via `reg.slo.breach_escalated` (emitted as a tracing event, not a typed span variant). Severity is `Critical` if the SLO's `Severity` field is `Critical`.
 
 
+### 3.9 Skill Spans
+
+**File:** `crates/hkask-types/src/event.rs` (CANONICAL_NAMESPACES) · emitted by `crates/hkask-services-skill/src/skill_impl.rs`
+
+Skill lifecycle, registry, cascade, convergence, budget, routing, and discovery spans. All namespaced under `reg.skill.*`. Unlike other span types (which have dedicated Rust enums), skill spans are canonical namespace strings emitted as tracing events by the skill service.
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.lifecycle` | `reg.skill.lifecycle` | Skill lifecycle events (activation, loading, publishing) |
+| `reg.skill.lifecycle.skill_activated` | `reg.skill.lifecycle.skill_activated` | A skill is activated for an agent session |
+| `reg.skill.lifecycle.skills_loaded` | `reg.skill.lifecycle.skills_loaded` | Skills loaded from the registry |
+| `reg.skill.lifecycle.skills_discovered` | `reg.skill.lifecycle.skills_discovered` | Skills discovered during registry scan |
+| `reg.skill.lifecycle.skill_published` | `reg.skill.lifecycle.skill_published` | A skill is published to the public zone |
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.registry` | `reg.skill.registry` | Registry validation events |
+| `reg.skill.registry.registry_validated` | `reg.skill.registry.registry_validated` | Registry manifest validated successfully |
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.cascade` | `reg.skill.cascade` | Cascade step execution |
+| `reg.skill.cascade.step_executed` | `reg.skill.cascade.step_executed` | A cascade step was executed |
+| `reg.skill.cascade.compute` | `reg.skill.cascade.compute` | Cascade computation event |
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.convergence` | `reg.skill.convergence` | Cascade convergence outcomes |
+| `reg.skill.convergence.converged` | `reg.skill.convergence.converged` | A skill cascade converged (metric <= threshold) |
+| `reg.skill.convergence.escalated` | `reg.skill.convergence.escalated` | A skill cascade escalated (max iterations exhausted) |
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.budget` | `reg.skill.budget` | Gas and rJoule budget events |
+| `reg.skill.budget.gas_exhausted` | `reg.skill.budget.gas_exhausted` | Gas budget exhausted for a skill execution |
+| `reg.skill.budget.gas_alert` | `reg.skill.budget.gas_alert` | Gas alert threshold reached |
+| `reg.skill.budget.rjoule_exhausted` | `reg.skill.budget.rjoule_exhausted` | rJoule budget exhausted |
+| `reg.skill.budget.rjoule_alert` | `reg.skill.budget.rjoule_alert` | rJoule alert threshold reached |
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.frontmatter` | `reg.skill.frontmatter` | SKILL.md frontmatter parse errors |
+| `reg.skill.frontmatter.missing` | `reg.skill.frontmatter.missing` | SKILL.md frontmatter is missing |
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.manifest` | `reg.skill.manifest` | Registry manifest errors |
+| `reg.skill.manifest.unparseable` | `reg.skill.manifest.unparseable` | Registry manifest could not be parsed |
+| `reg.skill.manifest.absent` | `reg.skill.manifest.absent` | Registry manifest file is absent |
+| `reg.skill.manifest.unreadable` | `reg.skill.manifest.unreadable` | Registry manifest file is unreadable |
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.routing` | `reg.skill.routing` | Skill-to-task routing (skill-router) |
+| `reg.skill.routing.matched` | `reg.skill.routing.matched` | skill-router produced a ranked recommendation |
+| `reg.skill.routing.uncovered` | `reg.skill.routing.uncovered` | skill-router found no matching skill (gap signal) |
+
+| Variant | Namespace | Emitted When |
+|---|---|---|
+| `reg.skill.discovery` | `reg.skill.discovery` | Capability gap detection and candidate evaluation (skill-discovery) |
+| `reg.skill.discovery.gap_detected` | `reg.skill.discovery.gap_detected` | skill-discovery classified a capability gap |
+| `reg.skill.discovery.searched` | `reg.skill.discovery.searched` | skill-discovery searched the catalog for candidates |
+| `reg.skill.discovery.evaluated` | `reg.skill.discovery.evaluated` | skill-discovery scored a candidate skill |
+
+
 **File:** `crates/hkask-wallet/src/reg_span.rs`
 
 14 variants covering wallet lifecycle: `Balance`, `Deposit`, `DepositShielded`, `Withdrawal`, `Conversion`, `KeyIssued`, `KeyRevoked`, `KeyExpired`, `KeyExhausted`, `ChainError`, `Created`, `Draw`, `Spend`, `Exhausted`.

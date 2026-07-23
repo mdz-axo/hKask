@@ -135,7 +135,7 @@ impl EscalationPolicy {
 
     /// Read the current thresholds (for self-calibration old/new reporting).
     #[must_use]
-    pub fn thresholds(&self) -> EscalationThresholds {
+    pub(crate) fn thresholds(&self) -> EscalationThresholds {
         self.thresholds
             .read()
             .expect("escalation thresholds lock poisoned")
@@ -144,7 +144,7 @@ impl EscalationPolicy {
 
     /// Replace the thresholds — used by metacognition self-management to
     /// adjust the Curator's own sensitivity from observed decision quality.
-    pub fn set_thresholds(&self, thresholds: EscalationThresholds) {
+    pub(crate) fn set_thresholds(&self, thresholds: EscalationThresholds) {
         *self
             .thresholds
             .write()

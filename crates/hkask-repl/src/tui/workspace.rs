@@ -11,10 +11,10 @@ use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
-use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
+use crate::tui::bridges::{with_bridges, workspace_bridge_setter};
 use crate::tui::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
 use crate::tui::status_bar::StatusBar;
 use crate::tui::tab::Tab;
@@ -72,6 +72,7 @@ impl SplitNode {
     pub fn window_kind(&self, target: WindowId) -> Option<WindowKind> {
         match self {
             SplitNode::Leaf(w) if w.id() == target => Some(w.kind()),
+            SplitNode::Leaf(_) => None,
             SplitNode::Horizontal { left, right, .. } => left
                 .window_kind(target)
                 .or_else(|| right.window_kind(target)),
@@ -105,94 +106,93 @@ impl SplitNode {
         }
     }
 
-    /// Find the leaf matching `target`, take ownership of its window,
-    /// and replace the entire node with `replacement`. Returns the old
-    /// window so the caller can re-insert it into a new split.
-    fn replace_leaf(
-        &mut self,
-        target: WindowId,
-        replacement: SplitNode,
-    ) -> Option<Box<dyn Window>> {
+    /// Take the window out of the leaf matching `target`, replacing it
+    /// with a placeholder. Returns `(old_window, new_tree)`.
+    /// The caller is expected to immediately replace the placeholder.
+    fn take_leaf(self, target: WindowId) -> (Option<Box<dyn Window>>, SplitNode) {
         match self {
             SplitNode::Leaf(w) if w.id() == target => {
-                let old = std::mem::replace(self, replacement);
-                match old {
-                    SplitNode::Leaf(w) => Some(w),
-                    _ => unreachable!(),
-                }
+                let placeholder =
+                    SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil()))));
+                (Some(w), placeholder)
             }
-            SplitNode::Horizontal { left, right, .. } => left
-                .replace_leaf(target, replacement.clone())
-                .or_else(|| right.replace_leaf(target, replacement)),
-            SplitNode::Vertical { top, bottom, .. } => top
-                .replace_leaf(target, replacement.clone())
-                .or_else(|| bottom.replace_leaf(target, replacement)),
+            SplitNode::Leaf(w) => (None, SplitNode::Leaf(w)),
+            SplitNode::Horizontal { left, right, ratio } => {
+                let (old, left) = left.take_leaf(target);
+                if old.is_some() {
+                    return (
+                        old,
+                        SplitNode::Horizontal {
+                            left: Box::new(left),
+                            right,
+                            ratio,
+                        },
+                    );
+                }
+                let (old, right) = right.take_leaf(target);
+                (
+                    old,
+                    SplitNode::Horizontal {
+                        left: Box::new(left),
+                        right: Box::new(right),
+                        ratio,
+                    },
+                )
+            }
+            SplitNode::Vertical { top, bottom, ratio } => {
+                let (old, top) = top.take_leaf(target);
+                if old.is_some() {
+                    return (
+                        old,
+                        SplitNode::Vertical {
+                            top: Box::new(top),
+                            bottom,
+                            ratio,
+                        },
+                    );
+                }
+                let (old, bottom) = bottom.take_leaf(target);
+                (
+                    old,
+                    SplitNode::Vertical {
+                        top: Box::new(top),
+                        bottom: Box::new(bottom),
+                        ratio,
+                    },
+                )
+            }
         }
     }
 
-    /// Close the window with `target` id. If this leaf is a child of a
-    /// split, the split collapses to the surviving sibling. Returns
-    /// `true` if a window was closed.
-    fn close_window(&mut self, target: WindowId) -> bool {
+    /// Returns a new tree with the target window removed. Splits collapse
+    /// to the surviving sibling. Returns `None` if the target was the
+    /// only window in the tree.
+    fn remove_window(self, target: WindowId) -> Option<SplitNode> {
         match self {
-            SplitNode::Leaf(w) if w.id() == target => true,
-            SplitNode::Leaf(_) => false,
-            SplitNode::Horizontal { left, right, .. } => {
-                if left.close_window(target) {
-                    // If left is now a leaf matching target, it was the
-                    // closed one — collapse to right.
-                    if matches!(&**left, SplitNode::Leaf(w) if w.id() == target) {
-                        let _ = std::mem::replace(
-                            self,
-                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
-                                WindowId(Uuid::nil()),
-                            ))),
-                        );
-                        *self = std::mem::replace(
-                            right.as_mut(),
-                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
-                                WindowId(Uuid::nil()),
-                            ))),
-                        );
-                    }
-                    true
-                } else if right.close_window(target) {
-                    if matches!(&**right, SplitNode::Leaf(w) if w.id() == target) {
-                        *self = std::mem::replace(
-                            left.as_mut(),
-                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
-                                WindowId(Uuid::nil()),
-                            ))),
-                        );
-                    }
-                    true
-                } else {
-                    false
+            SplitNode::Leaf(w) if w.id() == target => None,
+            SplitNode::Leaf(w) => Some(SplitNode::Leaf(w)),
+            SplitNode::Horizontal { left, right, ratio } => {
+                match (left.remove_window(target), right.remove_window(target)) {
+                    (None, Some(r)) => Some(r),
+                    (Some(l), None) => Some(l),
+                    (Some(l), Some(r)) => Some(SplitNode::Horizontal {
+                        left: Box::new(l),
+                        right: Box::new(r),
+                        ratio,
+                    }),
+                    (None, None) => None,
                 }
             }
-            SplitNode::Vertical { top, bottom, .. } => {
-                if top.close_window(target) {
-                    if matches!(&**top, SplitNode::Leaf(w) if w.id() == target) {
-                        *self = std::mem::replace(
-                            bottom.as_mut(),
-                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
-                                WindowId(Uuid::nil()),
-                            ))),
-                        );
-                    }
-                    true
-                } else if bottom.close_window(target) {
-                    if matches!(&**bottom, SplitNode::Leaf(w) if w.id() == target) {
-                        *self = std::mem::replace(
-                            top.as_mut(),
-                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
-                                WindowId(Uuid::nil()),
-                            ))),
-                        );
-                    }
-                    true
-                } else {
-                    false
+            SplitNode::Vertical { top, bottom, ratio } => {
+                match (top.remove_window(target), bottom.remove_window(target)) {
+                    (None, Some(b)) => Some(b),
+                    (Some(t), None) => Some(t),
+                    (Some(t), Some(b)) => Some(SplitNode::Vertical {
+                        top: Box::new(t),
+                        bottom: Box::new(b),
+                        ratio,
+                    }),
+                    (None, None) => None,
                 }
             }
         }
@@ -295,6 +295,7 @@ impl SplitNode {
     fn find_by_kind(&self, kind: WindowKind) -> Option<WindowId> {
         match self {
             SplitNode::Leaf(w) if w.kind() == kind => Some(w.id()),
+            SplitNode::Leaf(_) => None,
             SplitNode::Horizontal { left, right, .. } => {
                 left.find_by_kind(kind).or_else(|| right.find_by_kind(kind))
             }
@@ -641,16 +642,22 @@ impl Workspace {
             return;
         };
 
-        // Take the focused leaf out and replace it with a vertical split.
-        let placeholder = SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil()))));
-        let old_leaf = self.root_mut().replace_leaf(focused, placeholder);
-        if let Some(old) = old_leaf {
+        // Take the focused leaf out, build a vertical split with the new window.
+        let old_root = std::mem::replace(
+            self.root_mut(),
+            SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil())))),
+        );
+        let (old_win, new_root) = old_root.take_leaf(focused);
+        if let Some(old) = old_win {
             *self.root_mut() = SplitNode::Vertical {
                 top: Box::new(SplitNode::Leaf(old)),
                 bottom: Box::new(SplitNode::Leaf(new_win)),
                 ratio: 0.5,
             };
             self.focus_window(new_id);
+        } else {
+            // Target not found — put it back.
+            *self.root_mut() = new_root;
         }
     }
 
@@ -664,9 +671,12 @@ impl Workspace {
         let new_id = WindowId(Uuid::new_v4());
         let new_win = self.create_window_of_kind(WindowKind::Chat, new_id);
 
-        let placeholder = SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil()))));
-        let old_leaf = self.root_mut().replace_leaf(focused, placeholder);
-        if let Some(old) = old_leaf {
+        let old_root = std::mem::replace(
+            self.root_mut(),
+            SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil())))),
+        );
+        let (old_win, new_root) = old_root.take_leaf(focused);
+        if let Some(old) = old_win {
             let new_node = match dir {
                 SplitDirection::Horizontal => SplitNode::Horizontal {
                     left: Box::new(SplitNode::Leaf(old)),
@@ -681,6 +691,8 @@ impl Workspace {
             };
             *self.root_mut() = new_node;
             self.focus_window(new_id);
+        } else {
+            *self.root_mut() = new_root;
         }
     }
 
@@ -691,15 +703,6 @@ impl Workspace {
         let Some(focused) = self.focused_window else {
             return;
         };
-
-        // Check can_close
-        let can_close = self
-            .root()
-            .find_leaf_mut(focused)
-            .is_some_and(|w| w.can_close());
-        if !can_close {
-            return;
-        }
 
         let count = self.root().window_ids().len();
         if count <= 1 {
@@ -716,10 +719,13 @@ impl Workspace {
             return;
         }
 
-        // Close and collapse.
-        let closed = self.root_mut().close_window(focused);
-        if closed {
-            // Focus the first remaining window.
+        // Take root out, remove the target window, put it back.
+        let old_root = std::mem::replace(
+            self.root_mut(),
+            SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil())))),
+        );
+        if let Some(new_root) = old_root.remove_window(focused) {
+            *self.root_mut() = new_root;
             if let Some(&first) = self.root().window_ids().first() {
                 self.focus_window(first);
             } else {

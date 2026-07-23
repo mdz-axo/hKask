@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::ports::EscalationEntry;
+use hkask_regulation::meta_span::{emit_meta_circuit_breaker, emit_meta_self_calibration};
 use hkask_regulation::types::loops::{
     ActionType, Deviation, DeviationDirection, Loop, LoopId, RegulationData, RegulatoryAction,
     RegulatoryActionParams, SignalMetric,
@@ -36,6 +37,8 @@ pub struct MetacognitionLoop {
     /// After 3 consecutive failures, skip template for 5 cycles.
     pub(super) consecutive_template_failures: std::sync::atomic::AtomicU64,
     pub(super) template_skip_remaining: std::sync::atomic::AtomicU64,
+    pub(super) last_cal_dropped: std::sync::atomic::AtomicU64,
+    pub(super) last_cal_directives: std::sync::atomic::AtomicU64,
     /// Communication posture — loaded from the agent's persona.
     /// Governs speak/silent decisions and accommodation level.
     pub(super) communication_posture: CommunicationPosture,
@@ -84,6 +87,8 @@ impl MetacognitionLoop {
             last_template_output: RwLock::new(None),
             consecutive_template_failures: std::sync::atomic::AtomicU64::new(0),
             template_skip_remaining: std::sync::atomic::AtomicU64::new(0),
+            last_cal_dropped: std::sync::atomic::AtomicU64::new(0),
+            last_cal_directives: std::sync::atomic::AtomicU64::new(0),
             communication_posture: posture,
             agent_name,
         }
@@ -406,6 +411,68 @@ impl MetacognitionLoop {
     // Delegation methods removed — RegulationLoop trait impl provides tick().
 
     /// Template-driven compute: invoke KnowAct templates for calibrated decisions.
+    /// Self-calibration: the Curator observes its OWN decision quality and
+    /// adjusts its escalation sensitivity. This is the meta-cybernetic loop
+    /// (Meta -> Curation -> Cybernetics), kept non-circular by reading in-process
+    /// SelfQuality counters (not reg.* algedonic events, which CurationLoop
+    /// reads for the system).
+    ///
+    /// Policy (first cut, deliberately conservative — only ever RAISES the
+    /// variety-deficit threshold to reduce noise):
+    /// - If escalations are being dropped (delta >= 3 since last calibration),
+    ///   the feedback loop is overloaded, so raise the variety-deficit threshold
+    ///   by 10% so the Curator escalates less aggressively.
+    /// - Lowering is intentionally omitted until effectiveness-driven lowering
+    ///   is validated (avoid runaway oscillation).
+    pub(super) fn self_calibrate(&self) {
+        let sq = self.context.self_quality().snapshot();
+        let prev_dropped = self
+            .last_cal_dropped
+            .swap(sq.escalations_dropped, std::sync::atomic::Ordering::Relaxed);
+        let prev_directives = self
+            .last_cal_directives
+            .swap(sq.directives_issued, std::sync::atomic::Ordering::Relaxed);
+
+        let delta_dropped = sq.escalations_dropped.saturating_sub(prev_dropped);
+        let delta_directives = sq.directives_issued.saturating_sub(prev_directives);
+
+        // Only calibrate when there is recent activity to learn from.
+        if delta_directives == 0 && delta_dropped == 0 {
+            return;
+        }
+
+        // Escalations being lost means the Curator is too sensitive for the
+        // queue capacity. Raise the variety-deficit threshold by 10% (at least
+        // +1, capped at 2x to bound runaway growth).
+        if delta_dropped >= 3 {
+            let current = self.escalation_policy.thresholds();
+            let old = current.variety_deficit;
+            let cap = old.saturating_mul(2).max(old + 1);
+            let new = ((old / 10).max(1) + old).min(cap);
+            if new != old {
+                let mut next = current.clone();
+                next.variety_deficit = new;
+                self.escalation_policy.set_thresholds(next);
+                if let Some(sink) = self.context.regulation_sink() {
+                    emit_meta_self_calibration(
+                        sink.as_ref(),
+                        self.context.handle().curator_id(),
+                        "variety_deficit",
+                        old,
+                        new,
+                    );
+                }
+                tracing::info!(
+                    target: MC_TARGET,
+                    old,
+                    new,
+                    delta_dropped,
+                    "Self-calibration: raised variety_deficit threshold (escalations were being dropped)"
+                );
+            }
+        }
+    }
+
     pub(super) async fn compute_with_templates(
         &self,
         executor: &Arc<hkask_templates::ManifestExecutor>,
@@ -590,6 +657,14 @@ impl MetacognitionLoop {
                 if failures >= 3 {
                     self.template_skip_remaining
                         .store(5, std::sync::atomic::Ordering::Relaxed);
+                    self.context.self_quality().record_circuit_breaker();
+                    if let Some(sink) = self.context.regulation_sink() {
+                        emit_meta_circuit_breaker(
+                            sink.as_ref(),
+                            self.context.handle().curator_id(),
+                            5,
+                        );
+                    }
                     tracing::warn!(target: MC_TARGET, "Circuit breaker tripped — skipping template for 5 cycles");
                 }
                 return self.compute_with_thresholds(deviations);

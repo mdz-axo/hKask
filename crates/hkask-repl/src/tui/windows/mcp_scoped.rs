@@ -275,11 +275,14 @@ impl McpScopedState {
         let prompt_span = Span::styled("> ", prompt_style);
 
         let input_line = if is_focused {
-            let (before, after) = text_cursor::parts(&self.input, self.cursor_pos);
+            let (before, ch, after) = text_cursor::parts(&self.input, self.cursor_pos);
             Line::from(vec![
                 prompt_span,
                 Span::raw(before),
-                Span::styled("|", Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    ch.map(|c| c.to_string()).unwrap_or_else(|| "|".into()),
+                    Style::default().fg(Color::Yellow),
+                ),
                 Span::raw(after),
             ])
         } else {
@@ -301,19 +304,15 @@ impl McpScopedState {
                 true
             }
             (KeyModifiers::NONE, KeyCode::Delete) => {
-                text_cursor::delete(&mut self.input, &mut self.cursor_pos);
+                text_cursor::delete(&mut self.input, self.cursor_pos);
                 true
             }
             (KeyModifiers::NONE, KeyCode::Left) => {
-                if self.cursor_pos > 0 {
-                    self.cursor_pos -= 1;
-                }
+                text_cursor::move_left(&self.input, &mut self.cursor_pos);
                 true
             }
             (KeyModifiers::NONE, KeyCode::Right) => {
-                if self.cursor_pos < self.input.len() {
-                    self.cursor_pos += 1;
-                }
+                text_cursor::move_right(&self.input, &mut self.cursor_pos);
                 true
             }
             (KeyModifiers::NONE, KeyCode::Up) => {
