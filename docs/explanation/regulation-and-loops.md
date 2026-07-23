@@ -337,6 +337,16 @@ The `verify_impact` phase of the `CyberneticsLoop` produces `ImpactReport` with 
 
 `StagnationDetector` at `crates/hkask-regulation/src/cybernetics_loop.rs:93` tracks repeated ineffectiveness: when the same (metric, action_type) pair fails for `stagnation_threshold` cycles (default 5), it triggers `RegulatoryPlateauDetected` — an escalation to the Curator. Before plateau, substitution ladders are tried: `substitution_after` (default 2 cycles) activates the next action in the ladder. If all alternatives are exhausted, the plateau escalates to Curation.
 
+#### Curator Self-Calibration (reg.meta)
+
+The Curator is its own generative entity for self-management. `MetacognitionLoop::self_calibrate()` (in `loop_body.rs`) runs at the end of each `act()` cycle and adjusts the Curator's own variety-deficit escalation threshold:
+
+- **Generative-first.** When a `ManifestExecutor` is wired, it invokes `curator/metacognition-self-calibrate.j2`, passing in-process `SelfQuality` counters (directives issued, escalations dropped, circuit-breaker trips), current `regulation_effectiveness`, the bounded band, and the last calibration's effectiveness delta. The LLM returns a `new_threshold` + `rationale`.
+- **Rust safety-rail fallback.** `compute_threshold_adjustment` (pure, independently tested) decides raise/lower from the same signals when no executor is wired or the template fails — raise 10% on dropped escalations, lower 5% when the loop is healthy and a cooldown has elapsed.
+- **Hard bounds.** Both paths are `clamp`ed to `[DEFAULT_ESCALATION_VARIETY_DEFICIT, 4x default]`; a raise resets a hysteresis cooldown; a min-observations gate prevents calibrating on sparse data.
+
+The `reg.meta.*` namespace (`hkask-regulation/src/meta_span.rs`) records the Curator's own decision quality: `reg.meta.directive` (every directive issued), `reg.meta.escalation` (persist/drop outcomes), `reg.meta.circuit_breaker` (template breaker trips), and `reg.meta.self_calibration` (each threshold change with `eff_before`/`eff_after`/`eff_delta` and the decision `source` — generative vs fallback). This is non-circular by construction: `reg.meta.*` is deliberately NOT in `ALGEDONIC_SPAN_CATEGORIES`, so `CurationLoop::sense()` (which reads via `query_algedonic`) never observes the Curator's self-spans. The authority DAG gains a meta-level: Meta -> Curation -> Cybernetics -> domains. The `eff_delta` records are the causal signal an offline `gpa-evolution` pass can later sample to evolve the self-calibration template itself.
+
 #### The CAT Communication Posture
 
 `MetacognitionLoop` evaluates Matrix messages through `cat::evaluate()` at `crates/hkask-pods/src/curator_agent/cat.rs:24` — a pure-function engagement gate based on Communication Accommodation Theory. The `convergence_bias` governs: >0.0 speaks when addressed by name, ≥0.7 speaks to any message, =0.0 remains silent.
@@ -345,7 +355,7 @@ Before the CAT gate, `condenser/condenser_score_saliency` scores message relevan
 
 #### The Curator's Relationship to Magna Carta
 
-The Curator cannot override P1–P4. This is a first-order architectural invariant. `CuratorContext::issue_directive()` verifies capability before every directive. The Curator operates within `SovereigntyChecker` boundaries — it can only access data categories with explicit consent. It is bound by the same OCAP membranes as every other agent.
+The Curator cannot override P1–P4. This is a first-order architectural invariant. `CuratorContext::issue_directive()` sends directives on the direct `mpsc` channel; authority is enforced by construction — `CuratorHandle` is a singleton (`CuratorHandle::system()`), so the one authorized handle IS the capability (no runtime always-pass gate). The Curator operates within `SovereigntyChecker` boundaries — it can only access data categories with explicit consent. It is bound by the same OCAP membranes as every other agent.
 
 The Curator's role is enforcer, not sovereign. It detects Magna Carta violations (`consent_anomaly`, `governance_report` spans), alerts the user, and recommends remediation — but the user decides. The `reg.sovereignty.consent_audited` span records consent audits; the Curator can verify that consent is in place but cannot grant, revoke, or override it.
 

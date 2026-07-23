@@ -490,7 +490,7 @@ impl MetacognitionLoop {
                     p.threshold_after,
                     Some(p.eff_before),
                     Some(effectiveness),
-                    p.source,
+                    "close_out",
                 );
             }
             info!(

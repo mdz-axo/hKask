@@ -94,11 +94,23 @@ Non-circularity is enforced structurally: these spans are NOT in
 `query_algedonic`) never reads them back. Self-quality is tracked in-process
 (`SelfQuality` counters) and fed to `MetacognitionLoop::self_calibrate()`,
 which adjusts `EscalationPolicy` thresholds (interior-mutable `Arc<RwLock>`)
-and emits `reg.meta.self_calibration`. First-cut policy: raise the
-variety-deficit threshold by 10% when escalations are being dropped (reduce
-noise); lowering deferred to avoid oscillation. Authority DAG: Meta -> Curation
--> Cybernetics -> domains. Pairs with the `metacognition` + `gpa-evolution`
-skills for future learned self-management.
+and emits `reg.meta.self_calibration`. Authority DAG: Meta -> Curation
+-> Cybernetics -> domains.
+
+**Final policy (M4 + M6):** generative-first. `self_calibrate` is async and
+asks the `curator/metacognition-self-calibrate.j2` template to generate its
+own threshold adjustment from self-quality + effectiveness + the last
+calibration's effectiveness delta (the Curator as its own generative entity).
+The Rust `compute_threshold_adjustment` is the safety-rail fallback (no
+executor / template failure). Both paths are clamped to a bounded band
+[floor, 4x ceiling] with hysteresis cooldown + min-observations gate; the
+`reg.meta.self_calibration` span records the decision source (generative /
+fallback) + before/after effectiveness (eff_delta) — the causal signal. Pairs
+with the `metacognition` + `gpa-evolution` skills: the M5 spans become the
+GEPA trajectory data for offline evolution of the self-calibration template.
+
+**Deferred:** GEPA offline evolution of the template itself — waits on real
+`reg.meta.self_calibration` trajectory data accumulating from runtime.
 
 ## Pre-existing issue (self-heal) — confirmed resolved
 

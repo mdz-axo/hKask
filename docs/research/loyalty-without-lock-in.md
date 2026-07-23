@@ -131,6 +131,7 @@ The Curator daemon (P12.1) already exists as a per-system regulatory loop. Its c
 | `system_state_gather` | Local pod health, Regulation spans, bot success rates | Cross-pod 5W1H consistency, federation health, peer pod state |
 | `metacognition-diagnose` | Local alert cascades, resource exhaustion | Ontological conflicts between pods, skill composition failures, trust degradation |
 | `metacognition-calibrate` | Local threshold tuning, gas budget adjustment | Federation trust thresholds, convergence window sizing, sync interval tuning |
+| `metacognition-self-calibrate` | Curator self-management — generates its own escalation-threshold adjustment from self-quality + effectiveness delta (generative-first, Rust safety-rail fallback; `reg.meta.self_calibration` spans) | Cross-pod self-calibration policy exchange, federated GEPA evolution of the self-calibration template |
 | `metacognition-escalate` | Administrator alerts for local issues | Cross-pod conflict escalation, federation integrity violations, sovereignty breaches |
 
 The critical architectural principle: the federated curator is a **capability surface**, not a control surface. It does not block, gate, or reject. It surfaces the 5W1H answers — "this artifact was authored by pod X, serves principle P3, has a convergence threshold of 0.15, and its content hash is Y." The user retains sovereignty (P1). The curator's job is to make ontological answers visible and verifiable, enabling the user to make capability decisions without performing the analysis themselves.
