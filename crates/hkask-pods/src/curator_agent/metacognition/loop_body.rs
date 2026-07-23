@@ -583,10 +583,7 @@ impl MetacognitionLoop {
     /// `reg.meta.escalation` span with outcome "epistemic_routed" per signal,
     /// closing the loop from detection to action. Gracefully degrades when the
     /// skill catalog or manifest executor is not available (standalone CLI).
-    pub(super) async fn route_epistemic_escalations(
-        &self,
-        signals: &[(f64, String)],
-    ) {
+    pub(super) async fn route_epistemic_escalations(&self, signals: &[(f64, String)]) {
         if signals.is_empty() {
             return;
         }
@@ -690,7 +687,14 @@ impl MetacognitionLoop {
         }
         if let Some(executor) = self.context.manifest_executor().await
             && let Some(new) = self
-                .try_generative_calibration(&executor, effectiveness, old, last_calibration)
+                .try_generative_calibration(
+                    &executor,
+                    effectiveness,
+                    old,
+                    delta_directives,
+                    delta_dropped,
+                    last_calibration,
+                )
                 .await
         {
             return Some((new, "generative"));
@@ -713,16 +717,20 @@ impl MetacognitionLoop {
         executor: &Arc<hkask_templates::ManifestExecutor>,
         effectiveness: f64,
         old: u64,
+        delta_directives: u64,
+        delta_dropped: u64,
         last_calibration: Option<&serde_json::Value>,
     ) -> Option<u64> {
         let sq = self.context.self_quality().snapshot();
         let mut ctx = HashMap::new();
+        // Deltas since last calibration (not cumulative totals) — the model
+        // needs recent activity, not ever-growing monotonic counters.
         ctx.insert(
             "self_quality".into(),
             serde_json::json!({
-                "directives_issued": sq.directives_issued,
-                "escalations_dropped": sq.escalations_dropped,
-                "circuit_breaker_trips": sq.circuit_breaker_trips,
+                "directives_since_last_cal": delta_directives,
+                "escalations_dropped_since_last_cal": delta_dropped,
+                "circuit_breaker_trips_total": sq.circuit_breaker_trips,
             }),
         );
         ctx.insert("effectiveness".into(), serde_json::json!(effectiveness));
@@ -1235,8 +1243,8 @@ mod epistemic_routing_tests {
     use super::*;
     use hkask_regulation::RegulationLedger;
     use hkask_types::curator::CuratorHandle;
-    use hkask_types::{BotID, EscalationID, InfrastructureError, TemplateID};
     use hkask_types::escalation::{EscalationBatch, EscalationEntry};
+    use hkask_types::{BotID, EscalationID, InfrastructureError, TemplateID};
 
     /// No-op EscalationPort for testing — all operations succeed with empty results.
     struct NoopEscalationPort;

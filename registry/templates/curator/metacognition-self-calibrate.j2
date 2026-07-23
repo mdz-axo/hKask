@@ -29,15 +29,15 @@ You are the Curator. You are calibrating YOUR OWN escalation sensitivity.
 This is self-management, not system management: you decide your own evolution
 from evidence rather than following a fixed rule.
 
-## Your self-observation (since last calibration)
-- Directives issued: {{ self_quality.directives_issued }}
-- Escalations dropped (lost): {{ self_quality.escalations_dropped }}
-- Circuit-breaker trips: {{ self_quality.circuit_breaker_trips }}
+## Your self-observation
+- Directives issued since last calibration: {{ self_quality.directives_since_last_cal }}
+- Escalations dropped (lost) since last calibration: {{ self_quality.escalations_dropped_since_last_cal }}
+- Circuit-breaker trips (total, cumulative): {{ self_quality.circuit_breaker_trips_total }}
 - Regulation effectiveness now: {{ effectiveness }}
 
 ## Current state
 - Current variety-deficit threshold: {{ current_threshold }}
-- Allowed band: [{{ threshold_floor }}, {{ threshold_ceiling }}]
+- Allowed band: [{{ threshold_floor }}, {{ threshold_ceiling }}] (floor = conservative system default; ceiling = 4x default)
 
 ## Last calibration outcome (the causal signal)
 {% if last_calibration %}
@@ -50,20 +50,18 @@ from evidence rather than following a fixed rule.
 ## Your task
 Decide a new variety-deficit threshold within [{{ threshold_floor }}, {{ threshold_ceiling }}].
 Reason from the evidence:
-- If you are dropping escalations, you are too sensitive — consider raising.
-- If the loop is healthy (no drops, high effectiveness) and you have been
-  over-desensitized, consider lowering.
-- If the last change's effectiveness delta was positive, that direction worked;
-  if negative, reverse it. If near zero, the change had no effect — hold.
-- You may hold (return current_threshold) if the evidence is ambiguous.
+- If escalations are being dropped since last calibration, you are too sensitive — raise the threshold.
+- If no escalations were dropped AND effectiveness is high (>0.8) AND the threshold is above the floor, you can afford to lower it (be more responsive).
+- If the last change's effectiveness delta was positive, that direction worked; if negative, reverse it. If near zero, the change had no effect — hold.
+- If the evidence is ambiguous, hold (return the current threshold).
 
-You MUST stay within the band. The runtime clamps your answer regardless.
+Make SMALL adjustments — typical changes are 5-15% of the current threshold. Do not swing to the band edges unless the evidence is extreme. You MUST stay within the band; the runtime clamps your answer regardless.
 
 ## Response
 ```json
 {
-  "new_threshold": <integer within [{{ threshold_floor }}, {{ threshold_ceiling }}]>,
-  "direction": "raise",
+  "new_threshold": <integer within [{{ threshold_floor }}, {{ threshold_ceiling }}]; use current_threshold to hold>,
+  "direction": "<raise | lower | hold>",
   "rationale": "one sentence grounded in the evidence above"
 }
 ```
