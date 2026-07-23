@@ -16,6 +16,8 @@ pub enum EmailError {
     ApiStatus(u16),
     #[error("MXroute API error: {0}")]
     ApiError(String),
+    #[error("IMAP error: {0}")]
+    Imap(String),
 }
 
 /// Result type for email operations.
@@ -143,4 +145,129 @@ pub async fn send_invite_email(
     );
 
     send_email(to_email, &subject, &body).await
+}
+
+// ── Inbound (IMAP) ─────────────────────────────────────────────────────
+
+/// A received email fetched from the curator's IMAP inbox.
+///
+/// `body` is the raw TEXT part (RFC 822 body after headers) as best-effort
+/// UTF-8. Full MIME/multipart parsing is deferred — S1 returns the primitive;
+/// command parsing (S4) operates on this text.
+#[derive(Debug, Clone)]
+pub struct InboundEmail {
+    pub from: String,
+    pub subject: String,
+    pub body: String,
+    pub uid: u32,
+}
+
+/// Fetch unread messages from the curator's IMAP inbox (port 993 SSL).
+///
+/// Reuses the same env vars as [`send_email`] — no new credentials:
+/// - `HKASK_MXROUTE_SERVER` — IMAP server hostname (same as SMTP)
+/// - `HKASK_SMTP_USERNAME` — full email address (IMAP login)
+/// - `HKASK_SMTP_PASSWORD` — mailbox password
+///
+/// Returns unread messages and marks them `\Seen`. Emits `reg.email.received`
+/// per message. This closes the inbound half of the email feedback loop.
+pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
+    use futures_util::StreamExt;
+
+    let server = std::env::var("HKASK_MXROUTE_SERVER")
+        .map_err(|_| EmailError::NotConfigured("HKASK_MXROUTE_SERVER not set".into()))?;
+    let username = std::env::var("HKASK_SMTP_USERNAME")
+        .map_err(|_| EmailError::NotConfigured("HKASK_SMTP_USERNAME not set".into()))?;
+    let password = std::env::var("HKASK_SMTP_PASSWORD")
+        .map_err(|_| EmailError::NotConfigured("HKASK_SMTP_PASSWORD not set".into()))?;
+
+    let mut roots = rustls::RootCertStore::empty();
+    roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    let tls_config = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    let connector = tokio_rustls::TlsConnector::from(std::sync::Arc::new(tls_config));
+
+    let tcp = tokio::net::TcpStream::connect((server.as_str(), 993))
+        .await
+        .map_err(|e| EmailError::Imap(format!("tcp connect: {e}")))?;
+    let server_name = rustls::pki_types::ServerName::try_from(server.clone())
+        .map_err(|e| EmailError::Imap(format!("server name: {e}")))?;
+    let tls_stream = connector
+        .connect(server_name, tcp)
+        .await
+        .map_err(|e| EmailError::Imap(format!("tls handshake: {e}")))?;
+
+    let client = async_imap::Client::new(tls_stream);
+    let mut session = client
+        .login(&username, &password)
+        .await
+        .map_err(|(e, _)| EmailError::Imap(format!("imap login: {e}")))?;
+
+    session
+        .select("INBOX")
+        .await
+        .map_err(|e| EmailError::Imap(format!("select inbox: {e}")))?;
+
+    let uids: Vec<u32> = session
+        .uid_search("UNSEEN")
+        .await
+        .map_err(|e| EmailError::Imap(format!("search unseen: {e}")))?
+        .into_iter()
+        .collect();
+
+    let mut messages = Vec::new();
+    if !uids.is_empty() {
+        let mut fetch_stream = session
+            .uid_fetch(uids, "(UID ENVELOPE BODY.PEEK[TEXT])")
+            .await
+            .map_err(|e| EmailError::Imap(format!("fetch: {e}")))?;
+
+        while let Some(msg) = fetch_stream
+            .next()
+            .await
+            .transpose()
+            .map_err(|e| EmailError::Imap(format!("fetch iter: {e}")))?
+        {
+            let uid = msg.uid.unwrap_or(0);
+            let from = msg
+                .envelope
+                .as_ref()
+                .and_then(|env| env.from.as_ref())
+                .and_then(|addrs| addrs.first())
+                .and_then(|a| {
+                    a.mailbox
+                        .as_ref()
+                        .and_then(|mb| String::from_utf8(mb.to_vec()).ok())
+                })
+                .unwrap_or_default();
+            let subject = msg
+                .envelope
+                .as_ref()
+                .and_then(|env| env.subject.as_ref())
+                .and_then(|s| String::from_utf8(s.to_vec()).ok())
+                .unwrap_or_default();
+            let body = msg
+                .body
+                .as_ref()
+                .and_then(|b| String::from_utf8(b.to_vec()).ok())
+                .unwrap_or_default();
+
+            tracing::info!(
+                target = "reg.email.received",
+                from = %from,
+                subject = %subject,
+                "REG"
+            );
+            messages.push(InboundEmail {
+                from,
+                subject,
+                body,
+                uid,
+            });
+        }
+    }
+
+    let _ = session.logout().await;
+    Ok(messages)
 }
