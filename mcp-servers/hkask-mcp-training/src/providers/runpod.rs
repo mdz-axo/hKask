@@ -578,12 +578,30 @@ pub fn generate_install_script(
     script.push_str("mkdir -p \"$HF_HOME\" \"$PIP_CACHE_DIR\" \"$TMPDIR\" /workspace/outputs\n\n");
 
     // Step 1: Install harness packages.
+    // On pre-built images (e.g. DeepInfra's di-cont-ubuntu-torch), the harness
+    // may already be installed with a GPU-specific PyTorch build. Reinstalling
+    // via pip can overwrite the custom PyTorch with a standard build that lacks
+    // Blackwell (B200) kernel support. So we check first and skip if present.
     script.push_str(
         "# ── Step 1: Install harness packages ───────────────────────────────────────\n",
     );
     script.push_str("echo '=== Installing packages ==='\n");
+    script.push_str("# Check if harness is already installed (skip to avoid breaking GPU-specific PyTorch)\n");
+    script.push_str("HARNESS_CMD=\"");
+    script.push_str(train_command);
+    script.push_str("\"\n");
+    script.push_str("if command -v axolotl \u0026\u0026 [ \"$(basename \"$HARNESS_CMD\")\" = \"axolotl\" ]; then\n");
+    script.push_str("    echo 'Axolotl already installed — skipping pip install (preserving GPU PyTorch)'\n");
+    script.push_str("elif command -v ludwig \u0026\u0026 [ \"$(basename \"$HARNESS_CMD\")\" = \"ludwig\" ]; then\n");
+    script.push_str("    echo 'Ludwig already installed — skipping pip install (preserving GPU PyTorch)'\n");
+    script.push_str("elif [ \"$(basename \"$HARNESS_CMD\")\" = \"python\" ] \u0026\u0026 python -c 'import trl' 2>/dev/null; then\n");
+    script.push_str("    echo 'TRL already installed — skipping pip install (preserving GPU PyTorch)'\n");
+    script.push_str("else\n");
+    script.push_str("    echo 'Installing harness packages...'\n");
+    script.push_str("    ");
     script.push_str(pip_packages);
-    script.push_str("\n\n");
+    script.push_str("\n");
+    script.push_str("fi\n\n");
 
     // Step 2: Write the training config via quoted heredoc.
     script.push_str(

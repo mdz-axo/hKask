@@ -5,6 +5,15 @@
 >
 > **Update 2026-07-23**: DeepInfra API verified. DeepInfra offers **B200 only**
 > (not H100 as originally researched). Pricing and configs corrected below.
+>
+> **Update 2026-07-23**: Nebius CLI verified end-to-end — disk create, VM create,
+> SSH access, H100 GPU confirmed, cleanup tested. All CLI flags and JSON paths
+> validated against live API.
+>
+> **Update 2026-07-23**: B200 + Axolotl compatibility researched. Axolotl
+> officially supports Blackwell with PyTorch 2.9.1 + CUDA 13.0. The install
+> script now checks for pre-installed harnesses to avoid overwriting GPU-specific
+> PyTorch builds.
 
 ## Comprehensive Provider Comparison
 

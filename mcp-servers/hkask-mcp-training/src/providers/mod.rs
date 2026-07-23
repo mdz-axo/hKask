@@ -229,6 +229,24 @@ mod tests {
     }
 
     #[test]
+    fn estimate_cost_deepinfra_b200() {
+        // B200 at $3.69/hr = 740_000 urj per epoch
+        let cost = types::estimate_training_cost_urj(&TrainingHostId::DeepInfra, 1, "Qwen3:8b");
+        assert_eq!(cost, 740_000);
+        let cost = types::estimate_training_cost_urj(&TrainingHostId::DeepInfra, 3, "Qwen3:8b");
+        assert_eq!(cost, 2_220_000);
+    }
+
+    #[test]
+    fn estimate_cost_nebius_h100() {
+        // H100 at $3.85/hr = 650_000 urj per epoch
+        let cost = types::estimate_training_cost_urj(&TrainingHostId::Nebius, 1, "Qwen3:8b");
+        assert_eq!(cost, 650_000);
+        let cost = types::estimate_training_cost_urj(&TrainingHostId::Nebius, 2, "Llama-3.3-70B");
+        assert_eq!(cost, 5_200_000);
+    }
+
+    #[test]
     fn training_job_new_has_valid_defaults() {
         let params = TrainingParams::default();
         let job = TrainingJob::new(
