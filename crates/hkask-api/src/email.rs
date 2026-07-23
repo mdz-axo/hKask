@@ -336,6 +336,19 @@ impl CuratorAlertEmailSink {
             .unwrap_or_else(|_| std::env::var("HKASK_SMTP_USERNAME").unwrap_or_default());
         Self { alert_recipient }
     }
+
+    /// Create from env, returning `None` when no recipient is configured.
+    pub fn try_from_env() -> Option<std::sync::Arc<dyn hkask_regulation::AlertEmailSink>> {
+        let recipient = std::env::var("HKASK_ALERT_EMAIL")
+            .or_else(|_| std::env::var("HKASK_SMTP_USERNAME"))
+            .ok()?;
+        if recipient.is_empty() {
+            return None;
+        }
+        Some(std::sync::Arc::new(Self {
+            alert_recipient: recipient,
+        }))
+    }
 }
 
 impl hkask_regulation::AlertEmailSink for CuratorAlertEmailSink {
