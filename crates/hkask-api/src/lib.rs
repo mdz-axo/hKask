@@ -111,7 +111,8 @@ impl ApiState {
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to build service context: {e}"),
             })?;
-        crate::email::wire_inbox_poller(&ctx, 60, Some(nonce));
+        crate::email::wire_inbox_poller(&ctx, crate::email::inbox_poll_interval_secs(), Some(nonce));
+        crate::email::wire_digest_task(&ctx);
         Self::from_service_context(ctx).await
     }
 

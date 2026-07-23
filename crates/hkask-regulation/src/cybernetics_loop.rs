@@ -1153,6 +1153,7 @@ impl RegulationLoop for CyberneticsLoop {
 
                 // Fallback: persist full alert to RegulationArchive for Curator retrieval on next activation
                 if !sent_live {
+                    let mut persisted = false;
                     if let Some(ref sink) = self.event_sink {
                         let event = RegulationRecord::new(
                             WebID::from_persona(b"regulation"),
@@ -1169,26 +1170,29 @@ impl RegulationLoop for CyberneticsLoop {
                             }),
                             0,
                         );
-                        if let Err(e) = sink.persist(&event) {
-                            tracing::error!(target: "reg.alert", error = %e, "CRITICAL: Failed to persist algedonic alert — alert lost. Both live channel and persistence failed.");
-                        } else {
-                            tracing::info!(target: "reg.alert", deficit = deficit, threshold = threshold, "Algedonic alert persisted to RegulationArchive (Curator inbox unavailable)");
+                        match sink.persist(&event) {
+                            Ok(()) => {
+                                persisted = true;
+                                tracing::info!(target: "reg.alert", deficit = deficit, threshold = threshold, "Algedonic alert persisted to RegulationArchive (Curator inbox unavailable)");
+                            }
+                            Err(e) => {
+                                tracing::error!(target: "reg.alert", error = %e, "Failed to persist algedonic alert to archive");
+                            }
                         }
-                    } else if let Some(ref email_sink) = self.alert_email_sink {
+                    }
+
+                    // Email notification: fires when live channel is down, regardless of
+                    // archive outcome. Serves as notification (archive succeeded) or last
+                    // resort (archive failed/unavailable).
+                    if let Some(ref email_sink) = self.alert_email_sink {
                         email_sink.send_alert_email(&alert);
-                        tracing::info!(
-                            target: "reg.alert",
-                            deficit = deficit,
-                            threshold = threshold,
-                            "Algedonic alert sent via email fallback"
-                        );
-                    } else {
-                        tracing::error!(
-                            target: "reg.alert",
-                            deficit = deficit,
-                            threshold = threshold,
-                            "CRITICAL: Algedonic alert LOST - no live channel, event_sink, or email sink"
-                        );
+                        if persisted {
+                            tracing::info!(target: "reg.alert", deficit = deficit, threshold = threshold, "Algedonic alert emailed as notification (live channel down, archive persisted)");
+                        } else {
+                            tracing::info!(target: "reg.alert", deficit = deficit, threshold = threshold, "Algedonic alert emailed as last resort (archive unavailable)");
+                        }
+                    } else if !persisted {
+                        tracing::error!(target: "reg.alert", deficit = deficit, threshold = threshold, "CRITICAL: Algedonic alert LOST - no live channel, event_sink, or email sink");
                     }
                 }
             }

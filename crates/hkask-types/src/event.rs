@@ -177,7 +177,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.cybernetics",
     "reg.cybernetics.backpressure",
     "reg.cybernetics.substitution",
-    // ── Email (curator interaction — outbound + inbound) ──
+    // ── Email (curator interaction — outbound reg.email.sent + inbound reg.email.received) ──
     "reg.email",
     // ── Deploy / Sessions ──
     "reg.deploy.backup_auto_export",

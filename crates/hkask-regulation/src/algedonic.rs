@@ -46,7 +46,8 @@ pub struct RuntimeAlert {
 }
 
 /// Sink for sending algedonic alerts via email as a last-resort loop closure
-/// when the live channel and persistence are both unavailable.
+/// when the live channel and persistence are both unavailable (S1->S5 algedonic
+/// fallback path).
 ///
 /// Implementations should be non-blocking — spawn async work internally
 /// rather than blocking the cybernetics loop.

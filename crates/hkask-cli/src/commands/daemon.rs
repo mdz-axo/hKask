@@ -89,7 +89,8 @@ async fn run_daemon() -> Result<(), CliError> {
             })?
         }
     };
-    hkask_api::email::wire_inbox_poller(&ctx, 60, Some(nonce));
+    hkask_api::email::wire_inbox_poller(&ctx, hkask_api::email::inbox_poll_interval_secs(), Some(nonce));
+    hkask_api::email::wire_digest_task(&ctx);
 
     // Start the loop system
     ctx.ledger().loops.start().await;

@@ -335,7 +335,7 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
                 .and_then(|env| env.subject.as_deref())
                 .map(|s| String::from_utf8_lossy(s).into_owned())
                 .unwrap_or_default();
-            let body = msg.body().map(|b| extract_text_body(b)).unwrap_or_default();
+            let body = msg.body().map(extract_text_body).unwrap_or_default();
 
             tracing::info!(
                 target = "reg.email.received",
@@ -566,6 +566,15 @@ pub fn is_authorized_sender(from: &str) -> bool {
     !allowlist.is_empty() && allowlist.split(',').any(|e| e.trim() == from)
 }
 
+/// Read the inbox poll interval from `HKASK_INBOX_POLL_INTERVAL_SECS` (default 60).
+#[must_use]
+pub fn inbox_poll_interval_secs() -> u64 {
+    std::env::var("HKASK_INBOX_POLL_INTERVAL_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(60)
+}
+
 /// Spawn a background IMAP poller that calls `handler` per received email.
 /// When `nonce_store` is provided, commands without a valid token are rejected.
 pub fn spawn_inbox_poller<F>(
@@ -678,6 +687,71 @@ pub fn wire_inbox_poller(
         }
     });
 }
+
+// ── Notification/Digest mode (S5) ──────────────────────────────────────────
+
+/// Send a digest email summarizing pending escalations.
+async fn send_digest(escalations: &hkask_storage::EscalationQueue, recipient: &str) -> EmailResult<()> {
+    let pending = match escalations.list_pending() {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!(target: "reg.email.sent", error = %e, "Digest: failed to list pending escalations");
+            return Ok(());
+        }
+    };
+    let count = pending.len();
+    let now = chrono::Utc::now().format("%Y-%m-%d %H:%M UTC");
+
+    let mut rows = String::new();
+    for entry in pending.iter().take(10) {
+        let id = entry.id.to_string();
+        let output = html_escape(&entry.output);
+        let age = now.to_string(); // simplified — full age calc would need created_at diff
+        rows.push_str(&format!("<tr><td><code>{id}</code></td><td>{output}</td><td>{age}</td></tr>"));
+    }
+    let truncated = if count > 10 { format!("<p style='color:#8b949e'>Showing 10 of {count}.</p>") } else { String::new() };
+
+    let subject = format!("[hKask Digest] {count} pending escalation(s)");
+    let body = format!(
+        "<h2>hKask Escalation Digest</h2><p><b>{count}</b> pending escalation(s) as of {now}</p><table border='1' cellpadding='6' style='border-collapse:collapse'><tr><th>ID</th><th>Output</th></tr>{rows}</table>{truncated}<p style='color:#8b949e;font-size:0.8rem'>Reply with: resolve &lt;id&gt; token:&lt;your-token&gt;</p>"
+    );
+    send_email(recipient, &subject, &body, EmailMode::Notification).await
+}
+
+/// Escape HTML special characters in user-provided text.
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+}
+
+/// Spawn a periodic digest email task.
+pub fn spawn_digest_task(escalations: std::sync::Arc<hkask_storage::EscalationQueue>, recipient: String, interval_secs: u64) {
+    tokio::spawn(async move {
+        let interval = std::time::Duration::from_secs(interval_secs);
+        loop {
+            tokio::time::sleep(interval).await;
+            if let Err(e) = send_digest(&escalations, &recipient).await {
+                tracing::warn!(target: "reg.email.sent", error = %e, "Digest email failed");
+            }
+        }
+    });
+}
+
+/// Wire the digest email task to an AgentService. Reads 
+/// (default 86400 = daily). No-op when email is not configured.
+pub fn wire_digest_task(ctx: &hkask_services_context::AgentService) {
+    let recipient = std::env::var("HKASK_ALERT_EMAIL")
+        .or_else(|_| std::env::var("HKASK_SMTP_USERNAME"))
+        .unwrap_or_default();
+    if recipient.is_empty() {
+        return;
+    }
+    let interval = std::env::var("HKASK_DIGEST_INTERVAL_SECS")
+        .ok().and_then(|s| s.parse().ok())
+        .unwrap_or(86400);
+    let escalations = std::sync::Arc::clone(&ctx.governance().escalations);
+    spawn_digest_task(escalations, recipient, interval);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

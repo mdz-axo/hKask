@@ -38,7 +38,8 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
         .map_err(|e| {
             Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
         })?;
-    hkask_api::email::wire_inbox_poller(&ctx, 60, Some(nonce));
+    hkask_api::email::wire_inbox_poller(&ctx, hkask_api::email::inbox_poll_interval_secs(), Some(nonce));
+    hkask_api::email::wire_digest_task(&ctx);
 
     // Start API MCP servers on the AgentService's runtime.
     // Derived from hkask_mcp_server::BUILTIN_SERVERS (canonical registry).
