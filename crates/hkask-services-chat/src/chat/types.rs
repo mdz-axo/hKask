@@ -44,6 +44,11 @@ pub struct ChatTurnResponse {
     pub finish_reason: String,
     /// Structured tool calls when the model supports native function calling.
     pub tool_calls: Vec<StructuredToolCall>,
+    /// Thinking-mode reasoning trace, surfaced separately from `text` so the
+    /// REPL can render a live "thinking" section (Zed/Cline pattern). `None`
+    /// when the provider emits no chain-of-thought.
+    #[serde(default)]
+    pub reasoning: Option<String>,
     /// The message array used for this inference call.
     /// On the first iteration this is the array built by `prepare_chat`;
     /// on subsequent iterations it is the pre-built array passed in.
@@ -191,6 +196,10 @@ pub struct TurnResult {
     /// Structured tool calls when the model requests tools.
     /// Empty if finish_reason != "tool_calls".
     pub structured_tool_calls: Vec<StructuredToolCall>,
+    /// Thinking-mode reasoning trace for this iteration, surfaced separately
+    /// from `text` so the REPL can render a "thinking" section. `None` when
+    /// the provider emits no chain-of-thought.
+    pub reasoning: Option<String>,
     /// The message array used for this inference call.
     /// The turn loop grows this array across iterations by appending
     /// `assistant(response)` and `user(tool_results)` messages.

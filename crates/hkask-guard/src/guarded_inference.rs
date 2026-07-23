@@ -297,6 +297,7 @@ mod tests {
                     finish_reason: "stop".to_string(),
                     token_probabilities: None,
                     tool_calls: vec![],
+                    reasoning: None,
                 })
             })
         }

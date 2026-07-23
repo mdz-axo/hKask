@@ -62,5 +62,6 @@ pub(super) async fn openai_compatible_infer(
             .to_string(),
         token_probabilities: None,
         tool_calls: vec![],
+        reasoning: None,
     })
 }

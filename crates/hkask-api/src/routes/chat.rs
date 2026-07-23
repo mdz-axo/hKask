@@ -144,6 +144,7 @@ pub(crate) async fn chat(
             usage: None,
             finish_reason: "error".to_string(),
             tool_calls: vec![],
+            reasoning: None,
             messages: vec![],
         },
     };

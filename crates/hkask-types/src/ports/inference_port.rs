@@ -142,6 +142,9 @@ pub trait InferencePort: Send + Sync {
 #[derive(Debug, Clone)]
 pub struct InferenceStreamChunk {
     pub text_delta: String,
+    /// Thinking-mode reasoning delta (Qwen3/GLM-5.2 `reasoning_content`,
+    /// Ollama `delta.reasoning`). Empty when the provider emits no thinking.
+    pub reasoning_delta: String,
     pub model: String,
     pub finish_reason: Option<String>,
     pub usage: Option<InferenceUsage>,
@@ -152,6 +155,7 @@ impl From<InferenceResult> for InferenceStreamChunk {
     fn from(r: InferenceResult) -> Self {
         Self {
             text_delta: r.text,
+            reasoning_delta: r.reasoning.unwrap_or_default(),
             model: r.model,
             finish_reason: Some(r.finish_reason),
             usage: Some(r.usage),

@@ -443,6 +443,7 @@ fn algo_merge(responses: &[PanelResponse]) -> InferenceResult {
         finish_reason,
         token_probabilities: None,
         tool_calls,
+        reasoning: None,
     }
 }
 
@@ -567,6 +568,7 @@ fn algo_vote(responses: &[PanelResponse]) -> InferenceResult {
         finish_reason,
         token_probabilities: None,
         tool_calls,
+        reasoning: None,
     }
 }
 
@@ -1430,6 +1432,7 @@ mod tests {
             finish_reason: "stop".to_string(),
             token_probabilities: None,
             tool_calls: Vec::new(),
+            reasoning: None,
         }
     }
 

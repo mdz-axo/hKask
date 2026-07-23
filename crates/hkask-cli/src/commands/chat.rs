@@ -29,6 +29,7 @@ fn build_chat_context(
         usage: None,
         finish_reason: "error".to_string(),
         tool_calls: vec![],
+        reasoning: None,
         messages: vec![],
     })
 }
@@ -47,6 +48,7 @@ async fn finish_stream(
     );
 
     let mut full_text = String::new();
+    let mut final_reasoning = String::new();
     let mut final_usage: Option<InferenceUsage> = None;
     let mut final_finish_reason = String::from("stop");
     let mut final_tool_calls: Vec<hkask_types::StructuredToolCall> = vec![];
@@ -62,6 +64,7 @@ async fn finish_stream(
                     let _ = std::io::stdout().flush();
                 }
                 full_text.push_str(&chunk.text_delta);
+                final_reasoning.push_str(&chunk.reasoning_delta);
                 if let Some(usage) = chunk.usage {
                     final_usage = Some(usage);
                 }
@@ -78,6 +81,7 @@ async fn finish_stream(
                     usage: None,
                     finish_reason: "error".to_string(),
                     tool_calls: vec![],
+                    reasoning: None,
                     messages: vec![],
                 };
             }
@@ -96,6 +100,7 @@ async fn finish_stream(
 
     ChatTurnResponse {
         text: full_text,
+        reasoning: (!final_reasoning.is_empty()).then_some(final_reasoning),
         usage: final_usage.map(|u| TokenUsage {
             prompt_tokens: u.prompt_tokens,
             completion_tokens: u.completion_tokens,
@@ -156,6 +161,7 @@ pub async fn chat_with_agent_streaming(
                 usage: None,
                 finish_reason: "error".to_string(),
                 tool_calls: vec![],
+                reasoning: None,
                 messages: vec![],
             };
         }

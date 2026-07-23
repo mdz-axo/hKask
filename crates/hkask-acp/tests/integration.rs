@@ -47,6 +47,7 @@ impl InferencePort for MockInferencePort {
                 finish_reason: "stop".into(),
                 token_probabilities: None,
                 tool_calls: vec![],
+                reasoning: None,
             })
         })
     }
@@ -65,6 +66,7 @@ impl InferencePort for MockInferencePort {
 fn make_chunk(text: &str) -> InferenceStreamChunk {
     InferenceStreamChunk {
         text_delta: text.into(),
+        reasoning_delta: String::new(),
         model: "test".into(),
         finish_reason: None,
         usage: None,
@@ -75,6 +77,7 @@ fn make_chunk(text: &str) -> InferenceStreamChunk {
 fn make_final_chunk(text: &str, finish: &str, tokens: u32) -> InferenceStreamChunk {
     InferenceStreamChunk {
         text_delta: text.into(),
+        reasoning_delta: String::new(),
         model: "test".into(),
         finish_reason: Some(finish.into()),
         usage: Some(InferenceUsage {

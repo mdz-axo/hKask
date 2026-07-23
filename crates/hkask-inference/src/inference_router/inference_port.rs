@@ -296,6 +296,7 @@ impl InferencePort for InferenceRouter {
                         .map_err(|e| self.heal_error(e, "generate_stream_with_model"))?;
                     Ok(InferenceStreamChunk {
                         text_delta: result.text,
+                        reasoning_delta: result.reasoning.unwrap_or_default(),
                         model: result.model,
                         finish_reason: Some(result.finish_reason),
                         usage: Some(result.usage),

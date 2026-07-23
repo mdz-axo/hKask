@@ -244,6 +244,11 @@ pub struct ChatResponseMessage {
     /// (e.g. thinking exhausted the token budget before emitting `content`).
     #[serde(default)]
     pub reasoning_content: Option<String>,
+    /// Thinking-mode reasoning trace (Ollama emits this as `reasoning`).
+    /// DeepInfra/Qwen3 use `reasoning_content`; both are captured so the
+    /// REPL can surface the chain-of-thought live.
+    #[serde(default)]
+    pub reasoning: Option<String>,
     /// Tool calls requested by the model (OpenAI function calling).
     /// Per the OpenAI Chat Completions API spec, `tool_calls` lives on the
     /// `message` object, not on the `choice`. When `finish_reason == "tool_calls"`,
@@ -311,6 +316,12 @@ pub struct StreamChoice {
 pub struct StreamDelta {
     #[serde(default)]
     pub content: Option<String>,
+    /// Thinking-mode reasoning delta (DeepInfra/Qwen3/GLM-5.2 streaming).
+    #[serde(default)]
+    pub reasoning_content: Option<String>,
+    /// Thinking-mode reasoning delta (Ollama streaming: `delta.reasoning`).
+    #[serde(default)]
+    pub reasoning: Option<String>,
     /// Tool calls requested by the model (OpenAI function calling, streaming).
     /// Per the OpenAI Chat Completions API spec, `tool_calls` lives on the
     /// `delta` object in streaming responses.
@@ -402,16 +413,24 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
         .map(|calls| map_tool_calls(calls))
         .unwrap_or_default();
 
-    // Thinking-mode models (Qwen3, GLM-5.2) put the final answer in `content`
-    // and deliberation in `reasoning_content`. When `content` is null/empty
-    // (the model spent its token budget reasoning, or returned tool calls
-    // without content), fall back to `reasoning_content` so downstream JSON
-    // extractors can still recover the answer.
+    // Thinking-mode models (Qwen3, GLM-5.2, DeepSeek-R1) put the final answer
+    // in `content` and deliberation in `reasoning_content` (DeepInfra) or
+    // `reasoning` (Ollama). When `content` is null/empty (the model spent its
+    // token budget reasoning, or returned tool calls without content), fall
+    // back to the reasoning trace so downstream JSON extractors can still
+    // recover the answer — in that degenerate case the reasoning IS the
+    // answer, so it is not also surfaced separately as thinking (avoids the
+    // chain-of-thought-as-answer leak).
+    let reasoning_raw = choice
+        .message
+        .reasoning_content
+        .clone()
+        .or(choice.message.reasoning.clone());
     let content = choice.message.content.unwrap_or_default();
-    let text = if !content.is_empty() {
-        content
+    let (text, reasoning) = if !content.is_empty() {
+        (content, reasoning_raw)
     } else {
-        choice.message.reasoning_content.unwrap_or_default()
+        (reasoning_raw.unwrap_or_default(), None)
     };
 
     let usage = response.usage.unwrap_or_default();
@@ -419,6 +438,7 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
     Ok(InferenceResult {
         text,
         model: response.model,
+        reasoning,
         usage: InferenceUsage {
             prompt_tokens: usage.prompt_tokens,
             completion_tokens: usage.completion_tokens,
@@ -461,6 +481,12 @@ pub fn parse_sse_stream(
         };
 
         let text_delta = choice.delta.content.clone().unwrap_or_default();
+        let reasoning_delta = choice
+            .delta
+            .reasoning_content
+            .clone()
+            .or_else(|| choice.delta.reasoning.clone())
+            .unwrap_or_default();
         let finish_reason = choice.finish_reason.clone();
         let tool_calls = choice
             .delta
@@ -476,6 +502,7 @@ pub fn parse_sse_stream(
 
         chunks.push(Ok(InferenceStreamChunk {
             text_delta,
+            reasoning_delta,
             model: chunk.model.clone(),
             finish_reason: finish_reason.clone(),
             usage: if finish_reason.is_some() { usage } else { None },
@@ -490,6 +517,7 @@ pub fn parse_sse_stream(
     if chunks.is_empty() {
         chunks.push(Ok(InferenceStreamChunk {
             text_delta: String::new(),
+            reasoning_delta: String::new(),
             model: model_id.to_string(),
             finish_reason: Some("stop".to_string()),
             usage: None,
@@ -664,6 +692,84 @@ mod tests {
         assert_eq!(result.text, "The answer is 42.");
         assert_eq!(result.finish_reason, "unknown");
         assert_eq!(result.usage.prompt_tokens, 0);
+    }
+
+    /// Anti-regression: when a thinking model emits BOTH `content` (the answer)
+    /// and `reasoning_content` (the chain-of-thought), the reasoning must be
+    /// carried on `InferenceResult.reasoning` separately and MUST NOT be folded
+    /// into `text` (which would surface private CoT as the public answer and
+    /// re-feed it into memory as the response).
+    #[test]
+    fn chat_result_surfaces_reasoning_separately_from_answer() {
+        let raw = r#"{
+            "model": "KC/z-ai/glm-5.2",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Paris",
+                    "reasoning_content": "The user asked for France's capital."
+                },
+                "finish_reason": "stop"
+            }]
+        }"#;
+        let resp: ChatResponse = serde_json::from_str(raw).expect("deserialize");
+        let result = chat_response_to_result(resp).expect("result");
+        assert_eq!(result.text, "Paris", "content is the answer, not the CoT");
+        assert_eq!(
+            result.reasoning.as_deref(),
+            Some("The user asked for France's capital."),
+            "reasoning_content must surface on .reasoning, not be dropped"
+        );
+    }
+
+    /// Anti-regression (Cline #8636 class): reasoning deltas in an SSE stream
+    /// must land on `InferenceStreamChunk.reasoning_delta`, never be silently
+    /// dropped, and never leak into `text_delta`. Covers both DeepInfra-style
+    /// `delta.reasoning_content` and Ollama-style `delta.reasoning`.
+    #[test]
+    fn stream_carries_reasoning_delta() {
+        let body = r#"data: {"model":"KC/glm-5.2","choices":[{"delta":{"content":"","reasoning_content":"Let me think."}}]}
+data: {"model":"KC/glm-5.2","choices":[{"delta":{"content":"Paris"}}]}
+data: {"model":"KC/glm-5.2","choices":[{"delta":{},"finish_reason":"stop"}]}
+data: [DONE]
+"#;
+        let chunks = parse_sse_stream(body, "KC/glm-5.2");
+        let reasoning: String = chunks
+            .iter()
+            .filter_map(|c| c.as_ref().ok())
+            .map(|c| c.reasoning_delta.clone())
+            .collect();
+        let text: String = chunks
+            .iter()
+            .filter_map(|c| c.as_ref().ok())
+            .map(|c| c.text_delta.clone())
+            .collect();
+        assert!(
+            reasoning.contains("Let me think."),
+            "reasoning delta must survive"
+        );
+        assert!(
+            !text.contains("Let me think."),
+            "reasoning must not leak into text_delta"
+        );
+        assert!(text.contains("Paris"), "answer text must survive");
+
+        // Ollama-style `delta.reasoning` must also map to reasoning_delta.
+        let ollama = r#"data: {"model":"OM/qwen3","choices":[{"delta":{"reasoning":"deliberating"}}]}
+data: {"model":"OM/qwen3","choices":[{"delta":{"content":"42"},"finish_reason":"stop"}]}
+data: [DONE]
+"#;
+        let chunks = parse_sse_stream(ollama, "OM/qwen3");
+        let reasoning: String = chunks
+            .iter()
+            .filter_map(|c| c.as_ref().ok())
+            .map(|c| c.reasoning_delta.clone())
+            .collect();
+        assert!(
+            reasoning.contains("deliberating"),
+            "Ollama delta.reasoning must map to reasoning_delta"
+        );
     }
 
     /// expect: "Inference chat request building works correctly under test conditions"

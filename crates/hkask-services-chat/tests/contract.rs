@@ -50,6 +50,7 @@ fn chat_response_serde_roundtrip() {
         }),
         finish_reason: "stop".into(),
         tool_calls: vec![],
+        reasoning: None,
         messages: vec![],
     };
     let json = serde_json::to_string(&resp).unwrap();
@@ -66,6 +67,7 @@ fn chat_response_minimal_serde() {
         usage: None,
         finish_reason: "length".into(),
         tool_calls: vec![],
+        reasoning: None,
         messages: vec![],
     };
     let json = serde_json::to_string(&resp).unwrap();

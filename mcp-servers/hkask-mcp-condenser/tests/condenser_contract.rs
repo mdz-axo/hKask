@@ -181,6 +181,7 @@ impl hkask_types::InferencePort for NoopInferencePort {
                 finish_reason: "stop".into(),
                 token_probabilities: None,
                 tool_calls: vec![],
+                reasoning: None,
             })
         })
     }

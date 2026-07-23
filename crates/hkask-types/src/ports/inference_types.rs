@@ -146,4 +146,10 @@ pub struct InferenceResult {
     /// always empty — `parse_tool_calls()` in `tool_augmented` handles `<<tool:...>>` fallback.
     #[serde(default)]
     pub tool_calls: Vec<StructuredToolCall>,
+    /// Thinking-mode reasoning trace (Qwen3, GLM-5.2, DeepSeek-R1). Populated
+    /// when the model emits a chain-of-thought separate from the final answer.
+    /// Surfaced to the REPL as a live "thinking" trace (Zed/Cline pattern);
+    /// excluded from context history and episodic storage by default.
+    #[serde(default)]
+    pub reasoning: Option<String>,
 }

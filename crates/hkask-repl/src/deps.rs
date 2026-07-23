@@ -76,10 +76,38 @@ pub trait TurnExecutor: Send + Sync {
         input: &'a TurnInput<'a>,
     ) -> Pin<Box<dyn futures_util::Stream<Item = Result<TurnStreamChunk, ServiceError>> + Send + 'a>>
     {
-        Box::pin(futures_util::stream::once(async move {
-            let result = self.execute_turn(input).await?;
-            Ok(TurnStreamChunk::Done(result))
-        }))
+        // Non-streaming default: run the full turn, then surface the model's
+        // reasoning trace (if any) as a single `Thinking` chunk before the
+        // final `Done`. This makes a reasoning model's chain-of-thought
+        // visible even when the executor doesn't stream tokens live. A
+        // streaming executor overrides this to emit `Delta`/`Thinking`
+        // chunks as they arrive from the wire.
+        enum State<R> {
+            Pending,
+            Thinking(R),
+            Done,
+        }
+        Box::pin(futures_util::stream::unfold(
+            State::Pending,
+            move |state| async move {
+                match state {
+                    State::Pending => match self.execute_turn(input).await {
+                        Ok(result) => match result.reasoning.clone() {
+                            Some(reasoning) if !reasoning.is_empty() => Some((
+                                Ok(TurnStreamChunk::Thinking(reasoning)),
+                                State::Thinking(result),
+                            )),
+                            _ => Some((Ok(TurnStreamChunk::Done(result)), State::Done)),
+                        },
+                        Err(e) => Some((Err(e), State::Done)),
+                    },
+                    State::Thinking(result) => {
+                        Some((Ok(TurnStreamChunk::Done(result)), State::Done))
+                    }
+                    State::Done => None,
+                }
+            },
+        ))
     }
 }
 
@@ -88,6 +116,11 @@ pub trait TurnExecutor: Send + Sync {
 pub enum TurnStreamChunk {
     /// Incremental text delta from the LLM.
     Delta(String),
+    /// Incremental reasoning/thinking delta from a reasoning model
+    /// (Qwen3/GLM-5.2/DeepSeek-R1). Surfaced separately from `Delta` so the
+    /// REPL renders a distinct "thinking" section instead of mixing the
+    /// chain-of-thought into the answer (Cline issue #8636 regression class).
+    Thinking(String),
     /// Final result — contains the complete text, usage, tool calls, and messages.
     Done(TurnResult),
 }

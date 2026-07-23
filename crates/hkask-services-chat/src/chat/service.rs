@@ -479,6 +479,7 @@ impl ChatService {
 
         Ok(ChatTurnResponse {
             text: result.text,
+            reasoning: result.reasoning,
             usage: Some(TokenUsage {
                 prompt_tokens: result.usage.prompt_tokens,
                 completion_tokens: result.usage.completion_tokens,
@@ -754,6 +755,7 @@ impl ChatService {
             let chat_response = Self::chat(ctx, chat_req).await?;
             return Ok(TurnResult {
                 text: chat_response.text,
+                reasoning: chat_response.reasoning,
                 usage: chat_response.usage.unwrap_or(TokenUsage {
                     prompt_tokens: 0,
                     completion_tokens: 0,
@@ -815,6 +817,7 @@ impl ChatService {
 
         Ok(TurnResult {
             text: chat_response.text,
+            reasoning: chat_response.reasoning,
             usage: chat_response.usage.unwrap_or(TokenUsage {
                 prompt_tokens: 0,
                 completion_tokens: 0,

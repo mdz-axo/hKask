@@ -20,6 +20,9 @@ use super::reg_display;
 
 trait TurnSink {
     fn agent_text(&mut self, agent: &str, text: &str);
+    /// Render a reasoning/thinking delta in a visually distinct section so
+    /// the chain-of-thought never mixes into the answer (Cline #8636).
+    fn thinking(&mut self, agent: &str, text: &str);
     fn tool_log(&mut self, line: &str);
     fn status(&mut self, line: &str);
 }
@@ -29,6 +32,11 @@ struct StdoutSink;
 impl TurnSink for StdoutSink {
     fn agent_text(&mut self, agent: &str, text: &str) {
         println!("{}: {}", agent, text);
+    }
+    fn thinking(&mut self, agent: &str, text: &str) {
+        // Dim, prefixed "↳ thinking" so reasoning is visually separated from
+        // the answer and collapsible in a future TUI render.
+        println!("  \x1b[2m↳ {} thinking:\x1b[0m {}", agent, text);
     }
     fn tool_log(&mut self, line: &str) {
         println!("{}", line);
@@ -41,6 +49,10 @@ impl TurnSink for StdoutSink {
 #[cfg(feature = "tui")]
 struct CaptureSink {
     response_text: String,
+    /// Reasoning trace, kept separate from `response_text` so the TUI can
+    /// render a collapsible "Thinking" block (Zed/Cline pattern) instead of
+    /// interleaving chain-of-thought into the answer.
+    reasoning_text: String,
     tool_output: String,
 }
 
@@ -49,6 +61,7 @@ impl CaptureSink {
     fn new() -> Self {
         Self {
             response_text: String::new(),
+            reasoning_text: String::new(),
             tool_output: String::new(),
         }
     }
@@ -59,6 +72,12 @@ impl TurnSink for CaptureSink {
     fn agent_text(&mut self, _agent: &str, text: &str) {
         use std::fmt::Write;
         let _ = writeln!(self.response_text, "{}", text);
+    }
+    fn thinking(&mut self, _agent: &str, text: &str) {
+        use std::fmt::Write;
+        // Accumulate reasoning deltas into a dedicated buffer, separate
+        // from the answer so the TUI renders a distinct Thinking block.
+        let _ = write!(self.reasoning_text, "{}", text);
     }
     fn tool_log(&mut self, line: &str) {
         use std::fmt::Write;
@@ -194,6 +213,9 @@ fn run_turn_loop(
             match rt.block_on(stream.next()) {
                 Some(Ok(super::deps::TurnStreamChunk::Delta(delta))) => {
                     sink.agent_text(&display_name, &delta);
+                }
+                Some(Ok(super::deps::TurnStreamChunk::Thinking(thinking))) => {
+                    sink.thinking(&display_name, &thinking);
                 }
                 Some(Ok(super::deps::TurnStreamChunk::Done(result))) => {
                     chat_response = Some(result);
@@ -561,6 +583,9 @@ mod tests {
         fn agent_text(&mut self, a: &str, t: &str) {
             self.lines.push(format!("{}: {}", a, t));
         }
+        fn thinking(&mut self, a: &str, t: &str) {
+            self.lines.push(format!("{} thinking: {}", a, t));
+        }
         fn tool_log(&mut self, l: &str) {
             self.lines.push(l.to_string());
         }
@@ -807,8 +832,15 @@ mod tests {
                     call_id: None,
                 })
                 .collect(),
+            reasoning: None,
             messages: vec![],
         }
+    }
+
+    fn turn_result_with_reasoning(text: &str, reasoning: &str) -> TurnResult {
+        let mut r = turn_result(text, vec![]);
+        r.reasoning = Some(reasoning.to_string());
+        r
     }
     fn tool_call(name: &str) -> ToolCall {
         ToolCall {
@@ -869,6 +901,65 @@ mod tests {
         assert!(
             sink.lines.iter().any(|l| l.contains("The answer is 42.")),
             "final response must display after tool calls"
+        );
+    }
+
+    /// Anti-regression for Cline #8636: reasoning must never be silently dropped
+    /// and must render in a distinct "thinking" section, never mixed into the
+    /// answer. A reasoning model's chain-of-thought is surfaced via the default
+    /// `execute_turn_streaming` `Thinking` chunk → `sink.thinking`, separate
+    /// from the `Delta`/answer path.
+    #[test]
+    fn thinking_emitted_to_sink_separately() {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // Executor returns a final answer WITH a reasoning trace and no tool
+        // calls — the turn loop must terminate after one iteration.
+        let ex = MockExecutor::new().then(turn_result_with_reasoning(
+            "Paris",
+            "The user asked for the capital of France. France's capital is Paris.",
+        ));
+        let gas = MockGas::new(10000, 10000);
+        let tools = MockTools::new();
+        let mut threads = MockThreads::new();
+        let mut sink = MockSink::new();
+        let deps = mock_deps(&ex, &gas, &tools, &mut threads);
+        let outcome = run_turn_loop(
+            "capital of France?",
+            deps,
+            &mock_config(),
+            rt.handle(),
+            &mut sink,
+            None,
+        );
+        assert!(outcome.success);
+
+        // The reasoning trace must reach the sink under the "thinking" channel.
+        let thinking_line = sink
+            .lines
+            .iter()
+            .find(|l| l.contains("thinking:"))
+            .expect("reasoning must be emitted to the thinking sink, not dropped");
+        assert!(
+            thinking_line.contains("capital of France"),
+            "thinking line must carry the chain-of-thought: {thinking_line}"
+        );
+
+        // The answer line must contain the final answer and NOT the deliberation —
+        // chain-of-thought must never mix into the answer (the Cline #8636 bug).
+        let answer_lines: Vec<&String> = sink
+            .lines
+            .iter()
+            .filter(|l| !l.contains("thinking:") && !l.starts_with(' '))
+            .collect();
+        let combined = answer_lines
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(combined.contains("Paris"), "answer must contain Paris");
+        assert!(
+            !combined.contains("capital of France. France's capital is Paris"),
+            "chain-of-thought must not be mixed into the answer"
         );
     }
 
@@ -993,6 +1084,7 @@ mod tests {
                             args: json!({"q": "test"}),
                             call_id: None,
                         }],
+                        reasoning: None,
                         messages: vec![
                             hkask_types::ChatMessage::system("You are a test agent."),
                             hkask_types::ChatMessage::user("What is the capital of France?"),
@@ -1008,6 +1100,7 @@ mod tests {
                             total_tokens: 30,
                         },
                         structured_tool_calls: vec![],
+                        reasoning: None,
                         messages: vec![],
                     })
                 }
