@@ -79,6 +79,8 @@ pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
+mod tools;
+
 use crate::adapter::AdapterRouter;
 use crate::adapter::adapter_store::Checksum;
 use crate::adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, TrainingProvenance};
@@ -91,16 +93,13 @@ use crate::providers::{
     TrainingJobStatus, create_host,
 };
 use crate::types::*;
-use hkask_inference::{InferenceConfig, InferenceRouter};
-
-use hkask_mcp_server::server::{McpToolError, execute_tool};
+use hkask_inference::InferenceConfig;
+use hkask_mcp_server::server::McpToolError;
 use hkask_memory::SemanticMemory;
 use hkask_storage::HMem;
 use hkask_types::InferencePort;
 use hkask_types::Visibility;
-use hkask_types::template::LLMParameters;
-use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
-use serde_json::json;
+use rmcp::tool_router;
 use sha2::Digest;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -288,11 +287,13 @@ impl TrainingServer {
             }
         }
     }
+}
 
-    #[tool(
-        description = "Ingest QA pairs for model training. Stores question-answer pairs with provenance in semantic memory for future fine-tuning dataset assembly."
-    )]
-    pub async fn training_ingest_qa(
+// Tool implementations live in `tools/` submodule — each tool is an
+// `impl TrainingServer` block in its own file. The `#[tool_router]` above
+// registers all `#[tool]` methods across all impl blocks in the crate.
+
+// ── Entry point ───────────────────────────────────────────────────────────
         &self,
         Parameters(IngestQaRequest {
             qa_items,
