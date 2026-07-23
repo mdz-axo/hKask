@@ -70,6 +70,13 @@ pub enum RegulationData {
     },
     /// Tool reliability degraded below threshold.
     ToolReliabilityDegraded { reliability: f64, threshold: f64 },
+    /// Curator (metacognition) budget override directed at a named agent.
+    ///
+    /// Carries the LLM-produced target agent name and new budget so `act()`
+    /// can issue a `CuratorDirective::OverrideEnergyBudget` without losing the
+    /// values (previously the action carried only a reason string and the
+    /// budget/target were silently dropped).
+    CuratorBudgetOverride { agent: String, new_budget: u64 },
     /// No typed regulation data — used for non-regulation actions.
     #[serde(rename = "no_data")]
     #[default]

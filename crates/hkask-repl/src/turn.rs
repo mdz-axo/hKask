@@ -995,7 +995,6 @@ mod tests {
         assert!(has_tool_results, "iteration 2 messages must contain tool results with role=user");
     }
 
-    }
 }
 
 #[cfg(all(test, feature = "tui"))]

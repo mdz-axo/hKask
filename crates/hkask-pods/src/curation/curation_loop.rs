@@ -33,6 +33,11 @@ use crate::curation::context::CuratorContext;
 
 const CUR_TARGET: &str = "curation.loop";
 
+/// Default energy-budget override issued for high-confidence escalations when
+/// no policy-driven value is available. Exposed as a named constant rather than
+/// an inline magic number so it is auditable and overridable in future config.
+const DEFAULT_ESCALATION_BUDGET_OVERRIDE: u64 = 5000;
+
 /// Curation Loop — pure regulatory observer.
 ///
 /// Reads from the RegulationRecord store and produces `CuratorDirective`s through
@@ -562,12 +567,15 @@ impl RegulationLoop for CurationLoop {
                             for entry in entries.iter().filter(|e| e.confidence > 0.5) {
                                 let directive = CuratorDirective::OverrideEnergyBudget {
                                     agent: entry.bot_id.into(),
-                                    new_budget: 5000,
+                                    new_budget: DEFAULT_ESCALATION_BUDGET_OVERRIDE,
                                 };
                                 self.context.issue_directive(directive).await;
                                 tracing::info!(target: CUR_TARGET, escalation_id = %entry.id, "Issued OverrideEnergyBudget directive for escalated bot");
                             }
-                            self.try_auto_consolidate().await;
+                            // Consolidation is driven by the dedicated
+                            // `consolidation_candidates_exist` action, not here —
+                            // avoids a double `try_auto_consolidate()` when both
+                            // signals fire in one act() pass.
                         }
                         Ok(_) => {}
                         Err(e) => {

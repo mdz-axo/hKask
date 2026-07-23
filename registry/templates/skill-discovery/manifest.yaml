@@ -1,14 +1,18 @@
 # Template crate manifest for skill-discovery skill
-# hKask v0.28.0
+# hKask v0.31.0
 
 crate:
   name: skill-discovery
-  version: "0.30.0"
+  version: "0.31.0"
   description: >
-    Find, evaluate, and install skills for hKask. Registry crate (manifest.yaml + *.j2)
-    is the canonical source of truth. Detect capability gaps in the skill corpus,
-    search for candidate registry crates, validate format and quality, and guide
-    installation. Full lifecycle from gap to verified skill.
+    Acquire NEW skills for hKask. Full lifecycle: detect capability gaps in the
+    skill corpus, search the catalog for candidates that could fill each gap,
+    evaluate candidates against format/quality/safety criteria, and guide
+    installation. Registry crate (manifest.yaml + *.j2) is the canonical source
+    of truth. Distinct from skill-router (which matches tasks to EXISTING
+    skills): skill-discovery acquires NEW skills. skill-router feeds uncovered
+    capabilities to skill-discovery as gap signals; skill-discovery installs
+    new skills → the catalog grows → skill-router has better coverage.
 
 templates:
   - id: skill-discovery/skill-discovery-detect-gap
@@ -20,6 +24,20 @@ templates:
       Detect capability gaps in the registry corpus. Analyze task patterns against
       existing registry crate descriptions and template_type coverage. Classify gaps
       (coverage, feature, automation, governance) and prioritize by impact.
+
+  - id: skill-discovery/skill-discovery-search
+    name: "Search the skill catalog for candidates matching a capability gap"
+    path: skill-discovery-search.j2
+    type: KnowAct
+    lexicon_terms: [search, match, rank, retrieve, recommend]
+    description: >
+      Search the skill catalog for candidates that could fill a capability gap.
+      Scores each skill 0.0–1.0 on capability match (0.50), lexicon overlap
+      (0.25), and trigger relevance (0.25). Returns ranked candidates with fit
+      scores and gap_fill_type (direct/extension/adaptation). Classifies search
+      coverage as found (fit ≥0.60), weak (0.30–0.59), or empty (<0.30 →
+      create_skill action). This is the SEARCH phase — the EVALUATE phase vets
+      candidates for quality and safety.
 
   - id: skill-discovery/skill-discovery-evaluate
     name: "Evaluate a candidate registry crate against format, quality, and…"

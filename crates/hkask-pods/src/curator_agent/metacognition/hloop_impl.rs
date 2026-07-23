@@ -152,6 +152,9 @@ impl RegulationLoop for MetacognitionLoop {
                         escalation_entries.push(entry);
                     }
                 }
+                ActionType::OverrideEnergyBudget => {
+                    self.act_on_budget_override(action).await;
+                }
                 _ => self.act_on_no_action(action),
             }
         }
@@ -163,14 +166,35 @@ impl RegulationLoop for MetacognitionLoop {
             let summary = batch.summary();
             // Invoke escalate template for LLM-formatted notification when executor available
             let summary = if let Some(executor) = self.context.manifest_executor().await {
+                // Feed the actual HealthSnapshot (built in sense()) and the real
+                // batch entries into the escalate template — not empty defaults.
+                let snap = self.last_snapshot_tx.borrow().clone();
+                let entry_outputs: Vec<String> =
+                    batch.entries.iter().map(|e| e.output.clone()).collect();
                 let mut ctx = std::collections::HashMap::new();
-                ctx.insert("critical_issues".into(), serde_json::json!([]));
-                ctx.insert("system_health".into(), serde_json::json!("degraded"));
-                ctx.insert("variety_deficit".into(), serde_json::json!(0));
-                ctx.insert("active_alerts".into(), serde_json::json!([]));
+                ctx.insert(
+                    "critical_issues".into(),
+                    serde_json::json!(entry_outputs.clone()),
+                );
+                ctx.insert(
+                    "system_health".into(),
+                    serde_json::json!(
+                        snap.as_ref()
+                            .map(|s| s.reg_health.clone())
+                            .unwrap_or_else(|| "unknown".to_string())
+                    ),
+                );
+                ctx.insert(
+                    "variety_deficit".into(),
+                    serde_json::json!(snap.as_ref().map(|s| s.variety_deficit).unwrap_or(0)),
+                );
+                ctx.insert(
+                    "active_alerts".into(),
+                    serde_json::json!(snap.as_ref().map(|s| s.total_alerts).unwrap_or(0)),
+                );
                 ctx.insert("bot_failures".into(), serde_json::json!([]));
                 ctx.insert("energy_budget_status".into(), serde_json::json!("unknown"));
-                ctx.insert("required_actions".into(), serde_json::json!([]));
+                ctx.insert("required_actions".into(), serde_json::json!(entry_outputs));
                 match executor
                     .execute_knowact("curator/metacognition-escalate.j2", &ctx)
                     .await

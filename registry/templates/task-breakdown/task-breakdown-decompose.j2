@@ -14,6 +14,7 @@ contract:
     risks: array
     refinement_directives: array
     parallelization_hint: string
+    skill_catalog: array
   output:
     tasks: array
     phases: array
@@ -78,6 +79,16 @@ None — this is the first iteration. Produce the initial decomposition.
 ## Parallelization Hint
 
 {{ parallelization_hint }}
+{% endif %}
+
+{% if skill_catalog %}
+## Skill Catalog
+
+The following skills are installed and available for task execution. For each task you produce, include a `skill_match_query` field — a natural-language description of the capability this task needs. This query is consumed by skill-router to generate ranked skill recommendations. Do NOT attempt to match skills yourself — just describe the capability need.
+
+```json
+{{ skill_catalog | tojson }}
+```
 {% endif %}
 
 ## Vertical vs Horizontal Slicing
@@ -159,7 +170,8 @@ Respond with a JSON object:
       "feature_path": "The user-visible outcome this slice enables",
       "layers_touched": ["types", "ports", "services", "cli"],
       "depends_on_slices": [],
-      "risk_level": "high|medium|low"
+      "risk_level": "high|medium|low",
+      "skill_match_queries": ["aggregated capability queries from this slice tasks"]
     }
   ],
   "tasks": [
@@ -175,7 +187,8 @@ Respond with a JSON object:
       "files_likely_touched": ["crates/<crate>/src/path.rs"],
       "estimated_scope": "XS|S|M|L",
       "phase": "Foundation|Core Features|Polish",
-      "risk_level": "high|medium|low"
+      "risk_level": "high|medium|low",
+      "skill_match_query": "Natural-language description of the skill capability this task needs (e.g., 'debug a performance regression in async Rust code'). Omit if skill_catalog was not provided."
     }
   ],
   "phases": [

@@ -76,6 +76,8 @@ jobs:
         run: bash scripts/check-reg-canonical.sh
       - name: Security regression library
         run: bash scripts/check-kali-regressions.sh
+      - name: Unsafe-gating attribute coverage (RR-0020)
+        run: bash scripts/check-unsafe-forbid.sh
       - name: Training-config regression library
         run: bash scripts/check-lora-training-regressions.sh
       - name: Convergence metric weights

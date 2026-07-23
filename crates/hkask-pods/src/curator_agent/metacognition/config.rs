@@ -1,14 +1,10 @@
 //! Metacognition configuration types and constants.
 
 use std::collections::HashMap;
-use std::time::Duration;
 
 use hkask_types::event::SpanNamespace;
 
 pub(crate) const MC_TARGET: &str = "curator.metacognition";
-
-/// Default interval between metacognition cycles (1 hour).
-pub(crate) const DEFAULT_METACOGNITION_INTERVAL_SECS: u64 = 3600;
 
 /// Default expected variety per domain for deficit calculation.
 pub(crate) const DEFAULT_EXPECTED_VARIETY_PER_DOMAIN: u64 = 50;
@@ -32,10 +28,11 @@ pub struct HealthSnapshot {
 }
 
 /// Metacognition loop configuration.
+///
+/// The loop's tick cadence is governed by `LoopScheduler` (Curation = 10s),
+/// not by this config — so there is no `interval` field here.
 #[derive(Debug, Clone)]
 pub struct MetacognitionConfig {
-    /// Interval between metacognition cycles (default: 1 hour)
-    pub interval: Duration,
     /// Escalation thresholds
     pub(crate) thresholds: super::escalation::EscalationThresholds,
     /// Expected variety per domain (for deficit calculation)
@@ -47,7 +44,6 @@ pub struct MetacognitionConfig {
 impl Default for MetacognitionConfig {
     fn default() -> Self {
         Self {
-            interval: Duration::from_secs(DEFAULT_METACOGNITION_INTERVAL_SECS),
             thresholds: super::escalation::EscalationThresholds::default(),
             expected_variety_per_domain: DEFAULT_EXPECTED_VARIETY_PER_DOMAIN,
             max_concurrent_escalations: DEFAULT_MAX_CONCURRENT_ESCALATIONS,

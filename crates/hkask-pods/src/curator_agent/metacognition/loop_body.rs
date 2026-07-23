@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::ports::EscalationEntry;
 use hkask_regulation::types::loops::{
-    ActionType, Deviation, DeviationDirection, Loop, LoopId, RegulatoryAction,
+    ActionType, Deviation, DeviationDirection, Loop, LoopId, RegulationData, RegulatoryAction,
     RegulatoryActionParams, SignalMetric,
 };
 use hkask_types::WebID;
@@ -375,6 +375,33 @@ impl MetacognitionLoop {
         );
     }
 
+    /// Handle an `OverrideEnergyBudget` action: extract the typed
+    /// `CuratorBudgetOverride` data and issue a `CuratorDirective`.
+    ///
+    /// This closes the gap where the LLM's `adjust_budget` remediation step
+    /// was silently dropped (the action carried only a reason string).
+    pub(super) async fn act_on_budget_override(&self, action: &RegulatoryAction) {
+        if let RegulationData::CuratorBudgetOverride { agent, new_budget } = &action.parameters.data
+        {
+            let directive = CuratorDirective::OverrideEnergyBudget {
+                agent: WebID::from_persona(agent.as_bytes()),
+                new_budget: *new_budget,
+            };
+            self.issue_directive(directive).await;
+            info!(
+                target: MC_TARGET,
+                agent = %agent,
+                new_budget,
+                "Issued OverrideEnergyBudget from template directive"
+            );
+        } else {
+            warn!(
+                target: MC_TARGET,
+                "OverrideEnergyBudget action carried no CuratorBudgetOverride data — ignored"
+            );
+        }
+    }
+
     // Explicit 4-stage cycle: sense → compare → compute → act
     // Delegation methods removed — RegulationLoop trait impl provides tick().
 
@@ -593,7 +620,13 @@ impl MetacognitionLoop {
                             actions.push(RegulatoryAction::new(
                                 LoopId::Curation,
                                 ActionType::OverrideEnergyBudget,
-                                RegulatoryActionParams::reason("adjust_budget"),
+                                RegulatoryActionParams::with_data(
+                                    "adjust_budget",
+                                    RegulationData::CuratorBudgetOverride {
+                                        agent: target.to_string(),
+                                        new_budget,
+                                    },
+                                ),
                             ));
                         }
                     }
