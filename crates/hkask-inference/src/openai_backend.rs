@@ -74,10 +74,25 @@ pub async fn openai_compatible_generate(
         )));
     }
 
-    let chat_response: ChatResponse = response
-        .json()
+    // Capture the raw body before deserializing so parse errors include
+    // the actual response text for debugging (reqwest's `.json()` consumes
+    // the body and only reports "error decoding response body").
+    let body = response
+        .text()
         .await
-        .map_err(|e| InferenceError::Json(format!("{} JSON parse: {}", provider_code, e)))?;
+        .map_err(|e| InferenceError::Connection(format!("{} body read: {}", provider_code, e)))?;
+
+    let chat_response: ChatResponse = serde_json::from_str(&body).map_err(|e| {
+        let preview = if body.len() > 500 {
+            format!("{}...", &body[..500])
+        } else {
+            body.clone()
+        };
+        InferenceError::Json(format!(
+            "{} JSON parse: {} | body: {}",
+            provider_code, e, preview
+        ))
+    })?;
 
     let result = chat_response_to_result(chat_response)?;
     tracing::info!(

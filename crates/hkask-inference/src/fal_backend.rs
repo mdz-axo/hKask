@@ -127,10 +127,18 @@ impl FalBackend {
                 status, body
             )));
         }
-        let chat_response: ChatResponse = response
-            .json()
+        let body = response
+            .text()
             .await
-            .map_err(|e| InferenceError::Json(format!("fal.ai JSON: {}", e)))?;
+            .map_err(|e| InferenceError::Connection(format!("fal.ai body read: {}", e)))?;
+        let chat_response: ChatResponse = serde_json::from_str(&body).map_err(|e| {
+            let preview = if body.len() > 500 {
+                format!("{}...", &body[..500])
+            } else {
+                body.clone()
+            };
+            InferenceError::Json(format!("fal.ai JSON: {} | body: {}", e, preview))
+        })?;
         chat_response_to_result(chat_response)
     }
 

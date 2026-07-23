@@ -4,7 +4,9 @@
 //! Model prefix: RP/ (e.g., RP/olmocr-2-7b)
 
 use crate::RouterModelEntry;
-use crate::chat_protocol::{build_vision_request, chat_response_to_result, validate_prompt};
+use crate::chat_protocol::{
+    ChatResponse, build_vision_request, chat_response_to_result, validate_prompt,
+};
 use crate::config::InferenceConfig;
 use hkask_types::template::LLMParameters;
 use hkask_types::{InferenceError, InferenceResult};
@@ -72,10 +74,18 @@ impl RunpodBackend {
                 status, body
             )));
         }
-        let chat_response = response
-            .json()
+        let body = response
+            .text()
             .await
-            .map_err(|e| InferenceError::Json(format!("RunPod JSON: {}", e)))?;
+            .map_err(|e| InferenceError::Connection(format!("RunPod body read: {}", e)))?;
+        let chat_response: ChatResponse = serde_json::from_str(&body).map_err(|e| {
+            let preview = if body.len() > 500 {
+                format!("{}...", &body[..500])
+            } else {
+                body.clone()
+            };
+            InferenceError::Json(format!("RunPod JSON: {} | body: {}", e, preview))
+        })?;
         let result = chat_response_to_result(chat_response)?;
         info!(target: "reg.inference", provider = "RP", model = %result.model, tokens = result.usage.total_tokens, "RunPod vision inference completed");
         Ok(result)

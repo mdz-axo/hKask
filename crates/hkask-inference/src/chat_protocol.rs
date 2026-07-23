@@ -227,10 +227,18 @@ pub(crate) async fn vision_infer(
             label, status, body
         )));
     }
-    let chat_response = response
-        .json()
+    let body = response
+        .text()
         .await
-        .map_err(|e| InferenceError::Json(format!("{} JSON: {}", label, e)))?;
+        .map_err(|e| InferenceError::Connection(format!("{} body read: {}", label, e)))?;
+    let chat_response: ChatResponse = serde_json::from_str(&body).map_err(|e| {
+        let preview = if body.len() > 500 {
+            format!("{}...", &body[..500])
+        } else {
+            body.clone()
+        };
+        InferenceError::Json(format!("{} JSON: {} | body: {}", label, e, preview))
+    })?;
     let result = chat_response_to_result(chat_response)?;
     info!(target: "reg.inference", provider = label, model = %result.model, tokens = result.usage.total_tokens, "{} vision inference completed", label);
     Ok(result)
@@ -239,17 +247,24 @@ pub(crate) async fn vision_infer(
 // ── Response types ───────────────────────────────────────────────────────────
 
 /// OpenAI-compatible chat completion response.
+///
+/// `usage` is optional — some providers omit it (e.g. when streaming, or on
+/// error fallback responses that still return 200 with a partial body).
 #[derive(Debug, Deserialize)]
 pub struct ChatResponse {
     pub model: String,
     pub choices: Vec<ChatChoice>,
-    pub usage: ChatUsage,
+    #[serde(default)]
+    pub usage: Option<ChatUsage>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ChatChoice {
     pub message: ChatResponseMessage,
-    pub finish_reason: String,
+    /// May be `None` on some providers when the response is truncated or
+    /// the model returns tool calls without an explicit stop reason.
+    #[serde(default)]
+    pub finish_reason: Option<String>,
     #[serde(default, rename = "token_probs")]
     pub token_probs: Option<Vec<RawTokenProb>>,
 }
@@ -257,7 +272,11 @@ pub struct ChatChoice {
 #[derive(Debug, Deserialize)]
 pub struct ChatResponseMessage {
     pub role: String,
-    pub content: String,
+    /// May be `None` when the model uses tool calls (OpenAI spec allows
+    /// `null`) or when thinking mode exhausts the token budget before
+    /// emitting `content` (GLM-5.2, Qwen3).
+    #[serde(default)]
+    pub content: Option<String>,
     /// Thinking-mode reasoning trace (Qwen3, GLM-5.2 on DeepInfra).
     /// Populated when the model thinks; the final answer lives in `content`.
     /// Captured so callers can recover the answer when `content` is empty
@@ -272,7 +291,7 @@ pub struct ChatResponseMessage {
     pub tool_calls: Option<Vec<RawToolCall>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct ChatUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
@@ -423,24 +442,30 @@ pub fn chat_response_to_result(response: ChatResponse) -> Result<InferenceResult
         .unwrap_or_default();
 
     // Thinking-mode models (Qwen3, GLM-5.2) put the final answer in `content`
-    // and deliberation in `reasoning_content`. When `content` is empty (the
-    // model spent its token budget reasoning), fall back to `reasoning_content`
-    // so downstream JSON extractors can still recover the answer.
-    let text = if !choice.message.content.is_empty() {
-        choice.message.content
+    // and deliberation in `reasoning_content`. When `content` is null/empty
+    // (the model spent its token budget reasoning, or returned tool calls
+    // without content), fall back to `reasoning_content` so downstream JSON
+    // extractors can still recover the answer.
+    let content = choice.message.content.unwrap_or_default();
+    let text = if !content.is_empty() {
+        content
     } else {
         choice.message.reasoning_content.unwrap_or_default()
     };
+
+    let usage = response.usage.unwrap_or_default();
 
     Ok(InferenceResult {
         text,
         model: response.model,
         usage: InferenceUsage {
-            prompt_tokens: response.usage.prompt_tokens,
-            completion_tokens: response.usage.completion_tokens,
-            total_tokens: response.usage.total_tokens,
+            prompt_tokens: usage.prompt_tokens,
+            completion_tokens: usage.completion_tokens,
+            total_tokens: usage.total_tokens,
         },
-        finish_reason: choice.finish_reason,
+        finish_reason: choice
+            .finish_reason
+            .unwrap_or_else(|| "unknown".to_string()),
         token_probabilities,
         tool_calls,
     })
@@ -631,11 +656,47 @@ mod tests {
 
         assert_eq!(resp.model, crate::model_constants::TEST_MODEL_SMALL);
         assert_eq!(resp.choices.len(), 1);
-        assert_eq!(resp.choices[0].message.content, "The sun beat down.");
-        assert_eq!(resp.choices[0].finish_reason, "stop");
-        assert_eq!(resp.usage.prompt_tokens, 11);
-        assert_eq!(resp.usage.completion_tokens, 5);
-        assert_eq!(resp.usage.total_tokens, 16);
+        assert_eq!(
+            resp.choices[0].message.content.as_deref(),
+            Some("The sun beat down.")
+        );
+        assert_eq!(resp.choices[0].finish_reason.as_deref(), Some("stop"));
+        let usage = resp.usage.expect("usage present");
+        assert_eq!(usage.prompt_tokens, 11);
+        assert_eq!(usage.completion_tokens, 5);
+        assert_eq!(usage.total_tokens, 16);
+    }
+
+    /// expect: "ChatResponse handles null content (GLM-5.2 thinking mode, tool-call responses)"
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — tolerates OpenAI spec-compliant null content
+    #[test]
+    fn chat_response_deserializes_null_content() {
+        let raw = r#"{
+            "model": "KC/z-ai/glm-5.2",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "reasoning_content": "The answer is 42."
+                },
+                "finish_reason": null
+            }]
+        }"#;
+
+        let resp: ChatResponse =
+            serde_json::from_str(raw).expect("ChatResponse must deserialize null content");
+
+        assert_eq!(resp.choices.len(), 1);
+        assert!(resp.choices[0].message.content.is_none());
+        assert!(resp.choices[0].finish_reason.is_none());
+        assert!(resp.usage.is_none());
+
+        // chat_response_to_result should fall back to reasoning_content.
+        let result = chat_response_to_result(resp).expect("result from null-content response");
+        assert_eq!(result.text, "The answer is 42.");
+        assert_eq!(result.finish_reason, "unknown");
+        assert_eq!(result.usage.prompt_tokens, 0);
     }
 
     /// expect: "Inference chat request building works correctly under test conditions"
