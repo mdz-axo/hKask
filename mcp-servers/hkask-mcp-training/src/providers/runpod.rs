@@ -600,7 +600,7 @@ pub fn generate_install_script(
     script.push_str("    echo 'Installing harness packages...'\n");
     script.push_str("    ");
     script.push_str(pip_packages);
-    script.push_str("\n");
+    script.push('\n');
     script.push_str("fi\n\n");
 
     // Step 2: Write the training config via quoted heredoc.
