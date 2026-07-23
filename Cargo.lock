@@ -4745,7 +4745,6 @@ dependencies = [
  "hkask-guard",
  "hkask-inference",
  "hkask-ledger",
- "hkask-mcp",
  "hkask-mcp-server",
  "hkask-pods",
  "hkask-regulation",

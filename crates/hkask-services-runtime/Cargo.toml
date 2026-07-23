@@ -10,7 +10,6 @@ hkask-services-core = { path = "../hkask-services-core" }
 hkask-guard = { path = "../hkask-guard" }
 
 hkask-pods = { path = "../hkask-pods" }
-hkask-mcp = { path = "../hkask-mcp" }
 hkask-mcp-server = { path = "../hkask-mcp-server" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-types = { path = "../hkask-types" }
