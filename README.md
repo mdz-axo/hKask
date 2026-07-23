@@ -240,14 +240,15 @@ Law); `AlgedonicManager` fires on deficit; `SetPointCalibrator` self-tunes the
 set-points, closing the Conant-Ashby loop. Not passive monitoring — active
 regulation.
 
-### Pattern C — Cybernetic Mediation (Curator + 7R7)
+### Pattern C — Cybernetic Mediation (Curator)
 
 The **Curator** is the system's cybernetic mediator (VSM S4 — Intelligence),
-**not an autonomous agent**. It observes, assesses, escalates *to the user*, and
-tunes Regulation set-points — but it never bypasses OCAP, never acts without
-capability tokens, and never removes the human from the loop. Exactly one
-Curator per install (singleton invariant). The 7R7 listener is a dumb pipe by
-design: transport moves messages; agents decide what they mean.
+**not an autonomous agent**. It mediates between the user and the system's AI
+tools and resources — skills, MCP servers, and inference — coordinating their
+use and managing hKask's regulation. It observes, assesses, escalates *to the
+user*, and tunes Regulation set-points — but it never bypasses OCAP, never acts
+without capability tokens, and never removes the human from the loop. Exactly
+one Curator per install (singleton invariant).
 
 ### Pattern D — Sovereign Identity & Memory (UserPod)
 
