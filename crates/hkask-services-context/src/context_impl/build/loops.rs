@@ -70,7 +70,7 @@ pub(super) async fn build_loops(
         .register_loop(Arc::clone(&cybernetics_loop) as Arc<dyn RegulationLoop>)
         .await;
 
-:   // Inference loop (optional)
+    // Inference loop (optional)
     let inference_port: Option<Arc<dyn InferencePort>> = if config.in_memory {
         None
     } else {
@@ -83,12 +83,11 @@ pub(super) async fn build_loops(
         // Wrap with GuardedInferencePort so every InferencePort call (executor
         // select/populate, REPL chat turn, condenser) is content-scanned at the
         // LLM I/O boundary — universal by construction, not caller opt-in.
-        let guarded_port: Arc<dyn InferencePort> = Arc::new(
-            hkask_guard::GuardedInferencePort::new(
+        let guarded_port: Arc<dyn InferencePort> =
+            Arc::new(hkask_guard::GuardedInferencePort::new(
                 Arc::new(router) as Arc<dyn InferencePort>,
                 hkask_guard::ContentGuard::mandatory(&hkask_guard::GuardConfig::from_env()),
-            ),
-        );
+            ));
         let inference_loop = hkask_pods::InferenceLoop::new()
             .with_energy_budget(config.energy_budget_cap, config.gas_replenish_rate)
             .with_model(&config.default_model);

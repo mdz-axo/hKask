@@ -109,7 +109,7 @@ flowchart TD
             Turn["REPL turn · hkask-repl/turn<br/>memory recall + inference + tool dispatch<br/>+ gas reservation per turn"]
             Executor["ManifestExecutor<br/>select → populate → execute cascade<br/>matryoshka-bounded (7)"]
             Mcp["16 MCP servers · rmcp dispatch<br/>GovernedTool · OCAP-gated"]
-            Guard["hkask-guard · ContentGuard<br/>scan_input / scan_output · reg.guard.*<br/>CALLER-SIDE — not yet universal (refactor target)"]
+            Guard["hkask-guard · ContentGuard + GuardedInferencePort<br/>scan_input / scan_output · reg.guard.*<br/>universal decorator at InferencePort seam"]
             Router["InferenceRouter · InferencePort<br/>8 providers · fusion · circuit breakers"]
         end
 
@@ -135,22 +135,19 @@ flowchart TD
         %% ─── Executor drives the soft layer: loads skill manifests,
         %%      renders their template_ref via inference, dispatches execute ──
         Executor -->|"loads BundleManifest"| Registry
-        Executor -->|"select/populate via InferencePort (UNGUARDED — refactor)"| Router
+        Executor -->|"select/populate via GuardedInferencePort"| Guard
         Executor -->|"execute step → ToolPort"| Mcp
 
         %% ─── Everything runs under pod authority (OCAP governs every execute) ──
         UserOcap -->|"govern every execute"| Executor
         Curator -->|"KnowAct via execute_knowact()"| Executor
 
-        %% ─── Guard is CALLER-SIDE, not in the router. Currently only
-        %%      classify/extract/QA services invoke it; the Executor's
-        %%      select/populate and the REPL chat turn bypass it. ──
-        Turn -->|"chat turn inference (UNGUARDED — refactor)"| Router
-        Classify["Classify / extract / QA services<br/>scan_input → generate → scan_output"]
-        Classify -->|"scan_input"| Guard
-        Guard -->|"scanned input"| Router
-        Router -. "model output" .-> Guard
-        Guard -. "scan_output" .-> Classify
+        %% ── GuardedInferencePort wraps the InferenceRouter at the composition
+        %%      root (build_loops) — all InferencePort callers route through it. ──
+        Turn -->|"chat turn via GuardedInferencePort"| Guard
+        Classify["Classify / extract / QA services<br/>own reqwest path — manual scan_input / scan_output"]
+        Classify -->|"manual scan"| Guard
+        Guard -->|"scanned input → InferenceRouter"| Router
         Router --> Providers["8 LLM/media providers<br/>Cline · DeepInfra · fal.ai · KiloCode<br/>Ollama · OpenRouter · Runpod · Together"]
 
         %% ─── PDCA skill loop: Executor iterates until convergence ──
@@ -193,12 +190,15 @@ verified_against:
   - crates/hkask-pods/src/pod/deployment.rs (PodDeployment: PodKind::Curator + PodKind::UserPod two-pod architecture, Curator singleton)
   - docs/architecture/core/hKask-architecture-master.md (Pattern A skills=manifests+templates with SKILL.md derived; Pattern B CyberneticsLoop sense→compare→compute→act→verify; Pattern C Curator VSM S4 escalates to user; Pattern D UserPod = sovereignty unit, human is principal)
   - crates/hkask-guard/src/pipeline.rs (scan_input / scan_output at LLM I/O boundaries)
+  - crates/hkask-guard/src/guarded_inference.rs (GuardedInferencePort decorator — wraps InferencePort, scan_input before generate, scan_output after)
+  - crates/hkask-services-context/src/context_impl/build/loops.rs (composition root — GuardedInferencePort wraps InferenceRouter at build_loops)
+  - crates/hkask-acp/src/main_impl.rs (ACP entry point — GuardedInferencePort wraps InferenceRouter)
 corrections_from_prior_diagram:
   - Pods moved to center; Human + Curator shown INSIDE their pods (UserPod VSM S1, CuratorPod VSM S4) — prior diagram had PerUser as a side subgraph fed by Tui
   - Skills no longer a separate side node: soft layer IS the skill registry (manifest.yaml + *.j2 = source of truth); SKILL.md shown as derived companion only
   - ManifestExecutor now loads BundleManifest from the skill registry and renders template_ref via InferencePort — prior diagram showed Templates→Executor with Skills→Manifests→Templates as a separate chain
   - InferenceRouter shown as cross-cutting (Executor + Curator both invoke it) — prior diagram had it only at the end of an Mcp→Guard→Router chain
-  - hkask-guard moved to CALLER-SIDE (invoked by classify/extract/QA services, NOT by the router) and labeled 'not yet universal' — verified InferenceRouter has zero ContentGuard refs; Executor select/populate and REPL chat turn bypass it (refactor signal: GuardedInferencePort decorator)
+  - hkask-guard shown as GuardedInferencePort decorator at the InferencePort seam — wraps InferenceRouter at composition root (build_loops) so all InferencePort callers (Executor select/populate, REPL chat turn, condenser, ACP) are content-scanned by construction; classify/extract services keep manual scan (own reqwest path, not InferencePort)
   - Wallet edges fixed: Router debits rJoules, SensorBus senses wallet health (WalletKeyHealthSensor/WalletBalanceRatioSensor in CyberneticsLoop::build) — prior diagram had Cyber→Wallet (reversed)
   - SensorBus added as the sense mediation layer — spans land in RegulationLedger, sensors read from ledger/budget manager, CyberneticsLoop walks SensorBus (EnergyBudgetSensor, VarietySensor, WalletKeyHealthSensor, WalletBalanceRatioSensor, ToolReliabilitySensor)
   - REPL turn layer (hkask-repl/turn.rs) added between Surface and UserPod — prior diagram jumped Surface→UserPod, hiding the chat turn orchestration
@@ -207,9 +207,9 @@ corrections_from_prior_diagram:
   - OCAP shown governing every execute step from the UserPod — prior diagram had a static Executor→Ocap edge
   - Federation node now notes 7R7 listener + Matrix standing session (Pattern C communication layer)
 inquiry_method: sequential-inquiry + grill-me (verified each edge against source)
-refactor_signals:
-  - STRONG: ContentGuard not universal — introduce GuardedInferencePort decorator at InferencePort seam; remove scattered scan_input/scan_output from classify_impl.rs and docproc (6 call sites)
-  - LOW: REPL turn orchestration in hkask-repl/src/turn.rs could extract to hkask-services-turn to match hkask-services-* pattern and host the guarded port cleanly
+refactor_status:
+  - DONE: GuardedInferencePort decorator implemented in crates/hkask-guard/src/guarded_inference.rs; wired at composition root (build_loops) and ACP entry point; 4 unit tests pass (clean pass-through, injection rejected, secret redacted, message-level injection rejected); full workspace compiles; classify_impl.rs and docproc keep manual scan (own reqwest/MCP paths, not InferencePort)
+  - DEFERRED: REPL turn orchestration in hkask-repl/src/turn.rs could extract to hkask-services-turn (low priority)
 status: VERIFIED
 -->
 
