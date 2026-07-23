@@ -152,7 +152,7 @@ That reload loop is the genuine follow-up (not a dual-index redundancy).
 |-------|------|
 | `hkask-mcp` | MCP runtime, `mcp_server!` macro, `execute_tool`, `CapabilityTier` |
 | `hkask-templates` | `Registry::bootstrap()`, `RegistryIndex` |
-| `hkask-ports` | `InferencePort`, `RegistryIndex` traits |
+| `hkask-types` | `InferencePort`, `RegistryIndex` traits |
 | `hkask-inference` | `InferenceRouter` (production `InferencePort`) |
 | `hkask-types` | `LLMParameters`, `McpErrorKind`, `WebID` |
 | `minijinja` | Template rendering (lenient undefined behaviour) |

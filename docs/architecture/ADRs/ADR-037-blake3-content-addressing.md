@@ -75,7 +75,7 @@ The git CAS backup system must address blob content independently of git's nativ
 grep -r "from_blake3\|blake3::hash" crates/hkask-mcp/src/git_cas/ --include="*.rs"
 
 # Verify ContentHash is 32 bytes
-grep -A2 "pub struct ContentHash" crates/hkask-ports/src/git_cas/types.rs
+grep -A2 "pub struct ContentHash" crates/hkask-types/src/git_cas/types.rs
 
 # Verify BLAKE3 is also used in memory dedup
 grep -r "blake3" crates/hkask-memory/src/recall_dedup.rs
@@ -94,7 +94,7 @@ cargo test -p hkask-memory -- recall_dedup
 
 - [ADR-036: gix Migration](ADR-036-gix-migration.md) — Pure-Rust git backend that calls BLAKE3
 - ADR-038: Eight-Repo CAS Design (archived — superseded by pod-directory backup model)
-- [`crates/hkask-ports/src/git_cas/types.rs`](../../../crates/hkask-ports/src/git_cas/types.rs) — `ContentHash` newtype
+- [`crates/hkask-types/src/git_cas/types.rs`](../../../crates/hkask-types/src/git_cas/types.rs) — `ContentHash` newtype
 
 ## References
 

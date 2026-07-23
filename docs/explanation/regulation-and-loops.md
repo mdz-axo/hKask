@@ -716,7 +716,7 @@ The following Mermaid diagrams were inlined from the former `docs/diagrams/` dir
 This class diagram maps the internal structure of `hkask-regulation` after the StorageGuard extraction and WalletBudgetPort introduction. The Regulation crate previously conflated seven distinct responsibilities; two have been addressed:
 
 - **StorageGuard** — extracted to `hkask-services-context::storage_guard` module (2026-07-11)
-- **Wallet coupling** — resolved via `WalletBudgetPort` trait in `hkask-ports` (2026-07-11). Regulation no longer depends on `hkask-wallet`; it depends on the abstract port.
+- **Wallet coupling** — resolved via `WalletBudgetPort` trait in `hkask-types` (2026-07-11). Regulation no longer depends on `hkask-wallet`; it depends on the abstract port.
 
 Remaining responsibility clusters still in Regulation:
 
@@ -885,7 +885,7 @@ status: VERIFIED
 | Step | Extract | Target Crate | Status |
 |------|---------|-------------|--------|
 | 2a | `StorageGuardLoop` + `StorageGuardConfig` | `hkask-services-context::storage_guard` | ✅ Done 2026-07-11 |
-| — | `WalletBudgetPort` trait | `hkask-ports` | ✅ Done 2026-07-11 |
+| — | `WalletBudgetPort` trait | `hkask-types` | ✅ Done 2026-07-11 |
 
 ## Remaining Extraction Candidates
 

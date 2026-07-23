@@ -23,7 +23,7 @@ Single source of truth for build, test, and CI health. Updated per session.
 - Reverted timed Kanban/Media cache refreshes after determining that `tick` runs on the same event-loop thread and therefore does not provide asynchronous isolation.
 - Replaced fabricated Backup, Wallet, and pod telemetry with explicit unavailable/ready/failed semantics.
 - Corrected active TUI launch, keybinding, persistence, bridge-count, and dependency documentation.
-- `cargo test -p hkask-tui`: 127 passed; strict clippy passed for `hkask-repl` (tui module) and `hkask-repl --features tui`.
+- `cargo test -p hkask-repl`: 127 passed; strict clippy passed for `hkask-repl` (tui module) and `hkask-repl --features tui`.
 
 **Previous session (2026-07-17):**
 - Documentation consolidation (diataxis-diagram + grill-me + kata-improvement skills).

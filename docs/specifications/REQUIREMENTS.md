@@ -103,7 +103,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Indexing is incremental — SHA-256 content hash comparison skips unchanged files on re-index
   - [x] Index staleness is Regulation-observable — drives algedonic alerts when the index is stale
   - [x] Context feedback loop tracks symbol usage ratio to improve future assembly (`codegraph_feedback`)
-- **Implementation:** `hkask-codegraph` (domain crate: types, graph store, indexer, search, traversal, analysis, context assembly), `hkask-mcp-codegraph` (MCP server: 11 tools)
+- **Implementation:** `hkask-mcp-codegraph` (domain crate: types, graph store, indexer, search, traversal, analysis, context assembly), `hkask-mcp-codegraph` (MCP server: 11 tools)
 - **Tests:** `component1_parser.rs`, `component3_pipeline.rs`, `component7_impact.rs` (22 tests total)
 - **Status:** Implemented (v0.31.0)
 - **Curation:** Merge — two-crate pattern matches `hkask-condenser`; no service layer needed
@@ -473,7 +473,7 @@ Curation: Merge | Revise | Defer | Discard
   - [x] Ping/Pong keepalive
   - [ ] Cancel mid-generation (Phase 2)
   - [ ] Bearer token auth (Phase 2)
-- **Implementation:** `crates/hkask-api/src/routes/chat_ws.rs`, `crates/hkask-services-chat/src/chat/service.rs` (`chat_stream()`), `crates/hkask-ports/src/inference_port.rs` (tools in streaming trait)
+- **Implementation:** `crates/hkask-api/src/routes/chat_ws.rs`, `crates/hkask-services-chat/src/chat/service.rs` (`chat_stream()`), `crates/hkask-types/src/inference_port.rs` (tools in streaming trait)
 - **Tests:** — (integration test deferred to Phase 2)
 - **Status:** Implemented (Phase 1)
 - **Curation:** Merge — foundational for browser-based chat UIs

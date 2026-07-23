@@ -267,7 +267,7 @@ The `parent_event` field creates causal chains: the `reg.tool.completed` event h
 
 #### WeightedEvent and Decay
 
-Events do not persist at full weight forever. `WeightedEvent` at `crates/hkask-ports/src/regulation.rs:106` pairs a `RegulationRecord` with a `weight: f64`. `DecayConfig` (line 116) defines per-category exponential decay constants: cybernetics has a 5-minute half-life, curation 15 minutes, inference 2 minutes, episodic 10 minutes. Events below `weight_threshold` (default 0.001) are not replayed. This implements episodic memory — recent events matter more than ancient ones — and prevents the Regulation from drowning in historical noise.
+Events do not persist at full weight forever. `WeightedEvent` at `crates/hkask-types/src/regulation.rs:106` pairs a `RegulationRecord` with a `weight: f64`. `DecayConfig` (line 116) defines per-category exponential decay constants: cybernetics has a 5-minute half-life, curation 15 minutes, inference 2 minutes, episodic 10 minutes. Events below `weight_threshold` (default 0.001) are not replayed. This implements episodic memory — recent events matter more than ancient ones — and prevents the Regulation from drowning in historical noise.
 
 The `LedgerStoragePort::replay_weighted()` method provides time-decayed event replay, enabling the Regulation to reconstruct system state from recent history without loading the entire event store. This is the computational expression of the least-action principle applied to observability: only the computationally cheapest (most recent, most salient) events factor into regulation decisions.
 

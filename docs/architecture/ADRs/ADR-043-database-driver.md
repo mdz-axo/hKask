@@ -20,7 +20,7 @@ infrastructure — violating Magna Carta P1 (User Sovereignty).
 
 ## Decision
 
-Introduce hkask-database crate with DatabaseDriver trait abstracting over
+Introduce hkask-storage crate with DatabaseDriver trait abstracting over
 SQLite and PostgreSQL. All stores (HMemStore, EmbeddingStore, wallet, registry)
 construct via `from_driver(driver)`. Provider selected via HKASK_DB_PROVIDER.
 

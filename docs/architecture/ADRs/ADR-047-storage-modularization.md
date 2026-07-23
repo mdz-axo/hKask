@@ -24,14 +24,14 @@ to compile efficiently.
 
 ## Decision
 
-**Chosen Approach:** Extract the storage foundation into `hkask-storage-core`
+**Chosen Approach:** Extract the storage foundation into `hkask-storage`
 and organize domain storage behind the `hkask-storage` facade.
 
 **Storage modules:**
 
 | Module/Crate | Contents |
 |--------------|----------|
-| `hkask-storage-core` | `Database`, `Store` trait, lock helpers, SQL macros |
+| `hkask-storage` | `Database`, `Store` trait, lock helpers, SQL macros |
 | `hkask-storage::gallery` | `GalleryStore`, `GalleryRecord`, image/tag types |
 | `hkask-storage::kata` | `KataHistoryStore`, `KataHistoryEntry` |
 | `hkask-storage::hmem` | `HMemStore`, `HMem`, `HMemError` |
@@ -72,7 +72,7 @@ crate root. Downstream consumers see no API change.
 |-----------|-----------|----------|
 | **P5** (Essentialism) | ✅ | Each storage domain has a single responsibility |
 | **P7** (Prefer deletion over deprecation) | ✅ | 11 files deleted from monolith |
-| **G2** (Surface ≤ 7) | ✅ | `hkask-storage-core`: 4 public modules |
+| **G2** (Surface ≤ 7) | ✅ | `hkask-storage`: 4 public modules |
 
 ## Related Documents
 

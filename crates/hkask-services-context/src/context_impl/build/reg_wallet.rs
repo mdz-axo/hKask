@@ -4,6 +4,7 @@ use super::super::*;
 use super::foundation::Foundation;
 use super::loops::LoopWiring;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceConfig, ServiceError};
+use hkask_types::RegistryIndex;
 use hkask_services_self_heal::{HealAction, HealContext, HealRegistry, HealStrategy, SelfHealer};
 use hkask_wallet::manager::{WalletManager, WalletSelfHealer};
 use std::collections::HashMap;
@@ -85,6 +86,13 @@ pub(super) async fn build_registry_and_wallet(
             (None, None, None)
         }
     };
+
+    // Wire the skill catalog snapshot into CuratorContext for epistemic routing.
+    // The catalog is a snapshot of all registered templates — sufficient for
+    // skill-router because the catalog changes infrequently.
+    let catalog = registry.lock().await.list(None);
+    l.curator_context.set_skill_catalog(catalog).await;
+    tracing::info!(target: "hkask.startup", "Skill catalog wired into CuratorContext — epistemic routing enabled");
 
     Ok(RegWallet {
         registry,

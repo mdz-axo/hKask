@@ -17,13 +17,13 @@ mds_categories: [curation]
 ## Context
 
 hKask uses hexagonal architecture with port traits defining boundaries between
-domain logic and adapters. Port traits historically accumulated in `hkask-ports`
+domain logic and adapters. Port traits historically accumulated in `hkask-types`
 without a clear criterion for when a trait should live in a shared crate versus
 its domain crate.
 
 **Problem Statement:** Three port traits (`EpisodicStoragePort`,
 `SemanticStoragePort`, `MCPRuntimePort`) lived in `hkask-pods/src/ports/`
-rather than `hkask-ports`, forcing any crate needing memory storage ports to
+rather than `hkask-types`, forcing any crate needing memory storage ports to
 depend on the entire `hkask-pods` crate.
 
 **Stakeholders:** Service layer crates, adapter authors, crate maintainers.
@@ -37,9 +37,9 @@ depend on the entire `hkask-pods` crate.
 
 **Chosen Approach: Port traits live in the domain crate that first consumes
 them. When a second consumer needs the trait, it is promoted to the crate
-nearest to both consumers — either the natural domain crate or `hkask-ports`.**
+nearest to both consumers — either the natural domain crate or `hkask-types`.**
 
-The `hkask-ports` crate serves as the **promotion graveyard** — it only
+The `hkask-types` crate serves as the **promotion graveyard** — it only
 contains traits that are consumed by at least two crates and don't have a
 natural domain home closer to both consumers.
 
@@ -49,7 +49,7 @@ natural domain home closer to both consumers.
 |-----------|----------|
 | 1 crate | Lives in consumer's crate |
 | 2+ crates, shared domain | Lives in domain crate (e.g., `hkask-memory` for memory ports) |
-| 2+ crates, cross-domain | Lives in `hkask-ports` (promotion graveyard) |
+| 2+ crates, cross-domain | Lives in `hkask-types` (promotion graveyard) |
 
 ### Applied to current ports
 
@@ -58,8 +58,8 @@ natural domain home closer to both consumers.
 | `EpisodicStoragePort` | `hkask-pods` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
 | `SemanticStoragePort` | `hkask-pods` + `hkask-services-context` | 2 consumers, memory domain | `hkask-memory` |
 | `MCPRuntimePort` | `hkask-pods` | 1 consumer | Stays in `hkask-pods` |
-| `InferencePort` | `hkask-services-chat` + `hkask-services-runtime` + `hkask-regulation` | 3 consumers, cross-domain | `hkask-ports` |
-| `LedgerObserver` | `hkask-regulation` + `hkask-services-runtime` | 2 consumers, cross-domain | `hkask-ports` |
+| `InferencePort` | `hkask-services-chat` + `hkask-services-runtime` + `hkask-regulation` | 3 consumers, cross-domain | `hkask-types` |
+| `LedgerObserver` | `hkask-regulation` + `hkask-services-runtime` | 2 consumers, cross-domain | `hkask-types` |
 
 ### New type: `MemoryPortError`
 
@@ -77,8 +77,8 @@ continues to work. New code should import from `hkask_memory::ports`.
 
 **Alternatives Considered:**
 
-1. **Move all three to `hkask-ports`** — Rejected: `MCPRuntimePort` has a single
-   consumer; premature promotion violates P7. The current `hkask-ports` crate
+1. **Move all three to `hkask-types`** — Rejected: `MCPRuntimePort` has a single
+   consumer; premature promotion violates P7. The current `hkask-types` crate
    already has 13 traits that could benefit from the promotion rule.
 
 2. **Leave everything where it is** — Rejected: `hkask-services-context`
@@ -90,9 +90,9 @@ continues to work. New code should import from `hkask_memory::ports`.
    separation of concerns.
 
 **Rationale:** Co-locating ports with their domain logic (memory ports in
-`hkask-memory`, inference ports in `hkask-ports`) improves locality — the port
+`hkask-memory`, inference ports in `hkask-types`) improves locality — the port
 definition, its domain implementations, and its tests live in one crate. The
-promotion threshold ensures `hkask-ports` stays small and only contains
+promotion threshold ensures `hkask-types` stays small and only contains
 genuinely cross-cutting abstractions.
 
 ## Consequences
@@ -100,7 +100,7 @@ genuinely cross-cutting abstractions.
 **Positive:**
 - `hkask-services-context` no longer imports memory port traits from
   `hkask-pods` (they come from `hkask-memory` which it already depends on)
-- `hkask-ports` has a clear membership criterion — no more accumulation of
+- `hkask-types` has a clear membership criterion — no more accumulation of
   single-consumer traits
 - Port trait location is now governed by an explicit rule rather than
   historical accident
@@ -113,7 +113,7 @@ genuinely cross-cutting abstractions.
 
 **Risks:**
 - Future port promotions may miss the two-consumer check, causing traits to
-  accumulate back in `hkask-ports`. Mitigation: this ADR documents the rule
+  accumulate back in `hkask-types`. Mitigation: this ADR documents the rule
   explicitly.
 
 ## Migration Path

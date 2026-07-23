@@ -119,7 +119,7 @@ enum VectorBackend {
 `EmbeddingStore::from_driver()` selects the backend based on
 `driver.provider()` — `SqliteDriver` → `SqliteVec`, `PostgresDriver` →
 `PgVector`. The `PostgresDriver` is already implemented
-([`crates/hkask-database/src/postgres.rs`](crates/hkask-database/src/postgres.rs),
+([`crates/hkask-storage/src/postgres.rs`](crates/hkask-storage/src/postgres.rs),
 250 lines, `impl DatabaseDriver`). The search SQL for both paths is already
 written and tested.
 

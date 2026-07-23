@@ -63,7 +63,7 @@ with the connection, not orphaned at process exit. This is the documented canoni
 for static-linked extensions.
 
 **Implemented:** `init_sqlite_vec_on(&Connection)` replaces the global `Once` +
-`sqlite3_auto_extension` in both `hkask-storage-core` and `hkask-mcp-codegraph`.
+`sqlite3_auto_extension` in both `hkask-storage` and `hkask-mcp-codegraph`.
 
 ### 2. SQLCipher Reopen Configuration Inconsistency
 

@@ -536,7 +536,7 @@ A world-class platform engineer — combining Vogels' API discipline, Hightower'
 
 | Pattern | Where | PE Significance |
 |---------|-------|-----------------|
-| **Hexagonal Architecture** | `hkask-ports` — trait abstractions for Regulation, inference, embedding, tool dispatch, registry, git-cas | Infrastructure swappable without touching domain logic |
+| **Hexagonal Architecture** | `hkask-types` — trait abstractions for Regulation, inference, embedding, tool dispatch, registry, git-cas | Infrastructure swappable without touching domain logic |
 | **Cybernetic Self-Regulation** | 28 Regulation span namespaces, VarietyTracker, AlgedonicManager, BackpressureSignal, CircuitBreaker | Observability as architecture. Ashby's Law enforced at type level |
 | **Energy-Based Cost Governance** | GasBudget, rJoule (1 rJ = 250,000 gas), triple-entry ledger, ProviderIntelligence | FinOps built into type system. Rate limiting subsumed by energy tracking |
 | **Capability Membranes (OCAP)** | Read/Write/Signal/Never boundaries between four loops, typed crossings only | Zero-trust architecture. No ambient authority |

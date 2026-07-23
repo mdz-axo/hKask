@@ -99,7 +99,7 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 `docs/reference/api/hkask-templates.md` — Registry, SqliteRegistry, ManifestExecutor, SkillLoader
 `docs/reference/api/hkask-capability.md` — DelegationToken, CapabilityChecker, TokenRegistry
 `docs/reference/api/hkask-guard.md` — ContentGuard, GuardConfig, GuardResult
-`docs/reference/api/hkask-database.md` — DatabaseDriver, SqliteDriver, PostgresDriver
+`docs/reference/api/hkask-storage.md` — DatabaseDriver, SqliteDriver, PostgresDriver
 `docs/reference/api/hkask-storage.md` — Storage facade, HMemStore, RegulationArchive, EmbeddingStore
 `docs/reference/api/hkask-cli.md` — 33 CLI subcommands, flags, env vars
 `docs/reference/api/hkask-api.md` — 26 HTTP API route groups, request/response types
@@ -197,7 +197,7 @@ docs/
 │   ├── README.md
 │   ├── api/
 │   │   ├── hkask-types.md
-│   │   ├── hkask-ports.md
+│   │   ├── hkask-types.md
 │   │   ├── hkask-regulation.md
 │   │   ├── hkask-mcp.md
 │   │   ├── hkask-mcp-codegraph.md
@@ -207,7 +207,7 @@ docs/
 │   │   ├── hkask-templates.md
 │   │   ├── hkask-capability.md
 │   │   ├── hkask-guard.md
-│   │   ├── hkask-database.md
+│   │   ├── hkask-storage.md
 │   │   ├── hkask-storage.md
 │   │   ├── hkask-cli.md
 │   │   ├── hkask-api.md

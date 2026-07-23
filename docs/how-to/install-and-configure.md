@@ -196,14 +196,14 @@ export HKASK_SERPAPI_API_KEY="your-serpapi-key"
 
 ## Database Backend Configuration
 
-hKask supports two database backends through the provider-agnostic `DatabaseDriver` trait in `crates/hkask-database/src/driver.rs`.
+hKask supports two database backends through the provider-agnostic `DatabaseDriver` trait in `crates/hkask-storage/src/driver.rs`.
 
 | Provider | Status | Backend | Pooling | Vector Search | Encryption |
 |----------|--------|---------|---------|---------------|------------|
 | SQLite | v0.31 stable | rusqlite | r2d2 (8 conn) | sqlite-vec | SQLCipher |
 | PostgreSQL | v0.32 planned | sqlx | sqlx pool | pgvector | pgcrypto |
 
-SQLite is the default and only production-ready backend in v0.31. PostgreSQL support is implemented in `crates/hkask-database/src/postgres.rs` but gated behind the v0.32 milestone.
+SQLite is the default and only production-ready backend in v0.31. PostgreSQL support is implemented in `crates/hkask-storage/src/postgres.rs` but gated behind the v0.32 milestone.
 
 ### SQLite Configuration
 
@@ -242,7 +242,7 @@ let driver = SqliteDriver::in_memory_driver(); // Arc<dyn DatabaseDriver>
 
 ### Encryption Setup
 
-Encryption is handled at the driver level via `Encryptor` in `crates/hkask-database/src/encrypt.rs`. It uses **AES-256-GCM** with a key derived via BLAKE3 from a user-provided passphrase.
+Encryption is handled at the driver level via `Encryptor` in `crates/hkask-storage/src/encrypt.rs`. It uses **AES-256-GCM** with a key derived via BLAKE3 from a user-provided passphrase.
 
 Set the master passphrase as an environment variable or Kubernetes secret:
 

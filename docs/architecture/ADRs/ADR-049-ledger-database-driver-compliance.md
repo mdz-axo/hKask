@@ -40,7 +40,7 @@ pub struct Ledger {
 }
 ```
 
-Its `Cargo.toml` depends on `rusqlite.workspace = true` but does not depend on `hkask-database`. This means:
+Its `Cargo.toml` depends on `rusqlite.workspace = true` but does not depend on `hkask-storage`. This means:
 
 1. The ledger cannot use PostgreSQL — it is hardcoded to SQLite.
 2. Multi-user deployments that select PostgreSQL cannot use the ledger.
@@ -49,11 +49,11 @@ Its `Cargo.toml` depends on `rusqlite.workspace = true` but does not depend on `
 
 ## Decision
 
-**Remediate:** Refactor `hkask-ledger` to depend on `hkask-database::DatabaseDriver` and construct via `from_driver(driver)`, matching every other store in the codebase.
+**Remediate:** Refactor `hkask-ledger` to depend on `hkask-storage::DatabaseDriver` and construct via `from_driver(driver)`, matching every other store in the codebase.
 
 ### Remediation Steps
 
-1. Add `hkask-database` dependency to `hkask-ledger/Cargo.toml`.
+1. Add `hkask-storage` dependency to `hkask-ledger/Cargo.toml`.
 2. Replace `Mutex<Connection>` with `DatabaseDriver` (or `Arc<DatabaseDriver>` for shared access).
 3. Refactor `Ledger::open(path)` → `Ledger::from_driver(driver: &DatabaseDriver)`.
 4. Keep the SQL DDL identical — `execute_batch` works on both SQLite and Postgres via the driver.
@@ -76,7 +76,7 @@ The ledger's double-entry invariant (postings sum to zero, idempotency by refere
 - SQL dialect differences may surface (e.g., `INSERT OR IGNORE` is SQLite-specific; Postgres uses `ON CONFLICT DO NOTHING`).
 
 ### Neutral
-- The `hkask-database` driver already handles `?N` → `$N` parameter translation for Postgres.
+- The `hkask-storage` driver already handles `?N` → `$N` parameter translation for Postgres.
 
 ## Compliance
 

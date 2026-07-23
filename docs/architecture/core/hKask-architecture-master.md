@@ -601,7 +601,7 @@ Every rate limit is an energy constraint over a time window — a strict semanti
 
 **OCAP governance:** All 11 tools are OCAP-gated through the standard MCP `CapabilityTier` mechanism. 8 tools call `ensure_indexed()` (lazy initialization) before executing; 3 tools (`stats`, `reindex`, `index_embeddings`) skip this guard.
 
-**Crates:** `hkask-codegraph`, `hkask-mcp-codegraph`
+**Crates:** `hkask-mcp-codegraph`, `hkask-mcp-codegraph`
 
 **Current implementation diagrams:** [CodeGraph Type System](../../reference/api-reference.md#codegraph-type-system-class-diagram), [CodeGraph Schema ERD](../../reference/api-reference.md#codegraph-database-schema-erd), [CodeGraph Pipeline](../../reference/api-reference.md#codegraph-indexing-pipeline-flowchart), [CodeGraph Agent Workflow](../../reference/api-reference.md#codegraph-agent-workflow-sequence). The [CodeGraph Pipeline Lifecycle](../../reference/api-reference.md#codegraph-indexpipeline-lifecycle-state) document is a proposed lifecycle model, not current implementation behavior.
 
@@ -4064,7 +4064,7 @@ Curator A                          Curator B
 ### 4.2 Invitation Policy Seam
 
 ```rust
-/// In hkask-ports:
+/// In hkask-types:
 pub trait InvitationPolicy: Send + Sync {
     fn evaluate(&self, invitation: &FederationInvitation) -> InvitationDecision;
 }
@@ -4151,7 +4151,7 @@ pub struct FederationHealthModel {
 ```
 CLI/API/MCP → hkask-services-core → hkask-pods → hkask-federation
                                    ↓                  ↓
-                              hkask-pods     hkask-ports (traits)
+                              hkask-pods     hkask-types (traits)
                                    ↓                  ↓
                               hkask-regulation         hkask-types
 ```
@@ -4171,7 +4171,7 @@ Total: 3 modules, ~38 public items. Link lifecycle merged into `sync` (was separ
 `FederationSync` depends on trait abstractions, not concrete types:
 
 ```rust
-// In hkask-ports:
+// In hkask-types:
 pub trait FederationSyncPort: Send + Sync {
     fn query_public_since(&self, cursor: u64, limit: usize) -> Result<Vec<hMem>, FederationSyncError>;
     fn insert_federated(&self, triple: &hMem, source: ReplicaId) -> Result<(), FederationSyncError>;
@@ -4328,7 +4328,7 @@ kask regulation federation thresholds
 ### Phase 1 — Core Sync (MVP)
 - [ ] `hkask-federation` crate with `crdt` module (OR-Set with EAV hashing, LWW-Map, G-Set)
 - [ ] `FederationTransport` trait + `InMemoryFederationTransport` test adapter
-- [ ] `FederationSyncPort` + `FederationRegistryPort` traits in `hkask-ports`
+- [ ] `FederationSyncPort` + `FederationRegistryPort` traits in `hkask-types`
 - [ ] `FederationSync` (run loop, CRDT merge, Regulation emission)
 - [ ] 5 Regulation spans (`CrdtMerge`, `LinkEstablished`, `LinkLost`, `LinkDegraded`, `MemberLeft`)
 - [ ] `Degraded` state and sync timeout detection
@@ -4389,7 +4389,7 @@ kask regulation federation thresholds
 | `crates/hkask-pods/src/curator/semantic_index.rs` | `SemanticIndex` — model for federation index |
 | `crates/hkask-pods/src/curator/semantic_sync.rs` | `CuratorSync` — model for `FederationSync` polling loop |
 | `crates/hkask-memory/src/recall_dedup.rs` | `eav_hash()` — EAV content hashing used as CRDT key |
-| `crates/hkask-ports/src/lib.rs` | Hexagonal port traits (extend with federation ports) |
+| `crates/hkask-types/src/lib.rs` | Hexagonal port traits (extend with federation ports) |
 | `ADDENDUM_MISALIGNMENTS.md` | M1–M8 type/crate fixes |
 | `ADDENDUM_REAUDIT.md` | M9–M15 additional findings |
 | `ADDENDUM_PROTOCOL.md` | Link lifecycle, invitation/revocation protocol |
@@ -5146,23 +5146,23 @@ status: VERIFIED
 
 | Table | Crate | Source File |
 |-------|-------|-------------|
-| `hmems` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `embeddings` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `vec_embeddings` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `reg_records` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `audit_log` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `reg_variety_checkpoint` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `reg_alerts` | `hkask-storage-core` | `src/sql/schema.sql` |
+| `hmems` | `hkask-storage` | `src/sql/schema.sql` |
+| `embeddings` | `hkask-storage` | `src/sql/schema.sql` |
+| `vec_embeddings` | `hkask-storage` | `src/sql/schema.sql` |
+| `reg_records` | `hkask-storage` | `src/sql/schema.sql` |
+| `audit_log` | `hkask-storage` | `src/sql/schema.sql` |
+| `reg_variety_checkpoint` | `hkask-storage` | `src/sql/schema.sql` |
+| `reg_alerts` | `hkask-storage` | `src/sql/schema.sql` |
 | `goals` | `hkask-storage` | `src/goals.rs` |
 | `goal_criteria` | `hkask-storage` | `src/sql/schema.sql` |
 | `goal_artifacts` | `hkask-storage` | `src/sql/schema.sql` |
 | `consent_records` | `hkask-storage::consent_store` | `src/consent_store.rs` |
 | `quarantined_goals` | `hkask-storage` | `src/goals.rs` |
-| `loop_cursors` | `hkask-storage-core` | `src/sql/schema.sql` |
-| `human_users` | `hkask-storage-core` | `src/sql/users.sql` |
-| `userpod_identities` | `hkask-storage-core` | `src/sql/users.sql` |
-| `user_sessions` | `hkask-storage-core` | `src/sql/users.sql` |
-| `invites` | `hkask-storage-core` | `src/sql/users.sql` |
+| `loop_cursors` | `hkask-storage` | `src/sql/schema.sql` |
+| `human_users` | `hkask-storage` | `src/sql/users.sql` |
+| `userpod_identities` | `hkask-storage` | `src/sql/users.sql` |
+| `user_sessions` | `hkask-storage` | `src/sql/users.sql` |
+| `invites` | `hkask-storage` | `src/sql/users.sql` |
 | `wallet_balances` | `hkask-storage` | `src/wallet/mod.rs` |
 | `wallet_transactions` | `hkask-storage` | `src/wallet/mod.rs` |
 | `api_keys` | `hkask-storage` | `src/wallet/mod.rs` |
@@ -5170,7 +5170,7 @@ status: VERIFIED
 | `deposit_addresses` | `hkask-storage` | `src/wallet/mod.rs` |
 | `deposit_references` | `hkask-storage` | `src/wallet/mod.rs` |
 | `kata_history` | `hkask-storage::kata` | `src/kata.rs` |
-| `pod_meta` | `hkask-storage-core` | `src/sql/schema.sql` |
+| `pod_meta` | `hkask-storage` | `src/sql/schema.sql` |
 
 ### Relationships
 

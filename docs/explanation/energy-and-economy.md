@@ -69,7 +69,7 @@ The `WalletBackedBudget` (`crates/hkask-regulation/src/wallet_budget.rs`) extend
 
 #### RJoule: The Currency of Inference
 
-rJoule is defined in `hkask-wallet-types`. The conversion rate is configured via `GAS_PER_RJOULE` — 250,000 gas cycles = 1 rJoule, reflecting the cost differential between cheap local compute and expensive LLM inference. This rate is runtime-adjustable; the Regulation calibration loop in `CalibratedEnergyEstimator` updates it based on observed settlement data.
+rJoule is defined in `hkask-types`. The conversion rate is configured via `GAS_PER_RJOULE` — 250,000 gas cycles = 1 rJoule, reflecting the cost differential between cheap local compute and expensive LLM inference. This rate is runtime-adjustable; the Regulation calibration loop in `CalibratedEnergyEstimator` updates it based on observed settlement data.
 
 The `hkask-wallet` crate (`crates/hkask-wallet/src/lib.rs`) provides the full wallet infrastructure: multi-chain support via `ChainPort` trait (Hedera port is feature-gated), self-custody via HKDF-derived keys, API key issuance, price feeds for fee estimation, and zeroizing wrappers on all secret key material.
 
@@ -140,7 +140,7 @@ hKask's storage layer faces a common tension: the local-first architecture deman
 
 ### Evidence
 
-The `DatabaseDriver` trait (`crates/hkask-database/src/driver.rs`) defines the storage abstraction:
+The `DatabaseDriver` trait (`crates/hkask-storage/src/driver.rs`) defines the storage abstraction:
 
 ```rust
 pub trait DatabaseDriver: Send + Sync {
@@ -159,7 +159,7 @@ Two free functions provide ergonomic query patterns: `query_map()` maps rows to 
 
 #### SQLite: The Local Backend
 
-`SqliteDriver` (`crates/hkask-database/src/sqlite.rs`) wraps an `r2d2::Pool<SqliteConnectionManager>` with WAL mode enabled. Connection pooling via r2d2 enables concurrent read access — each `execute`/`query` acquires a connection from the pool and returns it on completion. The pool is configured with `max_size(4)` and `SqliteConnectionManager` with WAL mode, busy timeout (5000ms), synchronous=NORMAL, and foreign keys ON.
+`SqliteDriver` (`crates/hkask-storage/src/sqlite.rs`) wraps an `r2d2::Pool<SqliteConnectionManager>` with WAL mode enabled. Connection pooling via r2d2 enables concurrent read access — each `execute`/`query` acquires a connection from the pool and returns it on completion. The pool is configured with `max_size(4)` and `SqliteConnectionManager` with WAL mode, busy timeout (5000ms), synchronous=NORMAL, and foreign keys ON.
 
 The driver translates between hKask's type-agnostic `DbValue` enum (`Null`, `Integer`, `Real`, `Text`, `Blob`, `Bool`) and `rusqlite`'s native types. The `acquire_raw()` method provides escape-hatch access to the raw `rusqlite::Connection` for stores that need it — sqlite-vec virtual tables, for instance, do not work through the `DbValue` abstraction.
 
@@ -167,7 +167,7 @@ For testing, `in_memory_driver()` returns an `Arc<dyn DatabaseDriver>` backed by
 
 #### PostgreSQL: The Remote Backend
 
-`PostgresDriver` (`crates/hkask-database/src/postgres.rs`) bridges async `sqlx` to the sync `DatabaseDriver` trait via `tokio::runtime::Handle::block_on`. This has an important constraint: calling from within a tokio context panics with "Cannot start a runtime from within a runtime." Callers must ensure PostgresDriver operations happen from a non-async context or a dedicated thread.
+`PostgresDriver` (`crates/hkask-storage/src/postgres.rs`) bridges async `sqlx` to the sync `DatabaseDriver` trait via `tokio::runtime::Handle::block_on`. This has an important constraint: calling from within a tokio context panics with "Cannot start a runtime from within a runtime." Callers must ensure PostgresDriver operations happen from a non-async context or a dedicated thread.
 
 The driver translates SQLite-style `?N` placeholders to PostgreSQL `$N`. Parameters are serialized to `Option<String>` — PostgreSQL coerces text to the target column type. Row decoding tries integer first (most common), then real, bool, blob, text — matching PostgreSQL's internal type representation.
 
@@ -182,11 +182,11 @@ pub fn from_driver(driver: Arc<dyn DatabaseDriver>) -> Self {
 }
 ```
 
-For file-backed databases, `Database::connect()` (`crates/hkask-storage-core/src/database.rs`) handles this at a lower level. Schema SQL is embedded via `include_str!("sql/schema.sql")` and executed on the first connection from the pool. The embedding dimension is templated (`$DIM` → configured value) at runtime. This means a fresh database file is fully initialized — tables, indexes, foreign keys — the moment the first connection is opened.
+For file-backed databases, `Database::connect()` (`crates/hkask-storage/src/database.rs`) handles this at a lower level. Schema SQL is embedded via `include_str!("sql/schema.sql")` and executed on the first connection from the pool. The embedding dimension is templated (`$DIM` → configured value) at runtime. This means a fresh database file is fully initialized — tables, indexes, foreign keys — the moment the first connection is opened.
 
 #### SQLCipher Encryption
 
-hKask's threat model requires local databases to be encrypted at rest. SQLCipher provides this at the SQLite engine level. The `Database` struct in `hkask-storage-core` manages the encryption lifecycle:
+hKask's threat model requires local databases to be encrypted at rest. SQLCipher provides this at the SQLite engine level. The `Database` struct in `hkask-storage` manages the encryption lifecycle:
 
 1. **Salt generation** — When a database is created, a 16-byte random salt is written to `{path}.salt`.
 2. **Key derivation** — The user's passphrase + salt → Argon2id → 256-bit key. The key is held in memory only during pool construction.
@@ -197,11 +197,11 @@ The `open_or_repair()` function verifies that the database opens with the suppli
 
 #### Column-Level Encryption
 
-Beyond full-database SQLCipher encryption, `hkask-database::encrypt` (`crates/hkask-database/src/encrypt.rs`) provides column-level AES-256-GCM encryption for `DbValue::Text` values. When a passphrase is configured, text values are encrypted before storage and decrypted on retrieval. The format `ENCv1:<base64(nonce || tag || ct)>` enables automatic detection — plaintext passes through unchanged. The key is derived from the passphrase via BLAKE3, not shared with the SQLCipher key. This provides defense-in-depth: even if the database file is decrypted, individually encrypted columns remain opaque without the column-level passphrase.
+Beyond full-database SQLCipher encryption, `hkask-storage::encrypt` (`crates/hkask-storage/src/encrypt.rs`) provides column-level AES-256-GCM encryption for `DbValue::Text` values. When a passphrase is configured, text values are encrypted before storage and decrypted on retrieval. The format `ENCv1:<base64(nonce || tag || ct)>` enables automatic detection — plaintext passes through unchanged. The key is derived from the passphrase via BLAKE3, not shared with the SQLCipher key. This provides defense-in-depth: even if the database file is decrypted, individually encrypted columns remain opaque without the column-level passphrase.
 
 #### Transactions
 
-`TransactionHandle` in `hkask-database` provides RAII-guarded transactions. `driver.transaction()` begins a transaction and returns a guard. If the guard is dropped without calling `.commit()`, the transaction is rolled back. This prevents leaked transactions from leaving the database in an inconsistent state.
+`TransactionHandle` in `hkask-storage` provides RAII-guarded transactions. `driver.transaction()` begins a transaction and returns a guard. If the guard is dropped without calling `.commit()`, the transaction is rolled back. This prevents leaked transactions from leaving the database in an inconsistent state.
 
 ```rust
 let tx = driver.transaction()?;
@@ -424,10 +424,10 @@ The P2 (Affirmative Consent) enforcement on provider selection is noteworthy —
 - `crates/hkask-regulation/src/wallet_budget.rs` — WalletBackedBudget
 - `crates/hkask-regulation/src/calibrated_energy_estimator.rs` — CalibratedEnergyEstimator
 - `crates/hkask-ledger/src/lib.rs` — Double-entry ledger
-- `crates/hkask-database/src/driver.rs` — DatabaseDriver trait
-- `crates/hkask-database/src/sqlite.rs` — SqliteDriver
-- `crates/hkask-database/src/postgres.rs` — PostgresDriver
-- `crates/hkask-database/src/encrypt.rs` — Column-level AES-256-GCM encryption
+- `crates/hkask-storage/src/driver.rs` — DatabaseDriver trait
+- `crates/hkask-storage/src/sqlite.rs` — SqliteDriver
+- `crates/hkask-storage/src/postgres.rs` — PostgresDriver
+- `crates/hkask-storage/src/encrypt.rs` — Column-level AES-256-GCM encryption
 - `mcp-servers/hkask-mcp-training/src/adapter/adapter_store.rs` — AdapterStore + TrainedLoRAAdapter
 - `mcp-servers/hkask-mcp-training/src/adapter/adapter_router/mod.rs` — AdapterRouter + EndpointGuard
 - `mcp-servers/hkask-mcp-training/src/adapter/adapter_port.rs` — AdapterPort trait (6 OCAP-gated methods)

@@ -499,7 +499,7 @@ FlowDef skills have a convergence threshold declared in their manifest. The PDCA
 2. The energy budget is exhausted, OR
 3. The maximum iteration count is reached
 
-Convergence is validated by `FlowDefValidationReport` in `hkask-ports::flowdef_validation`.
+Convergence is validated by `FlowDefValidationReport` in `hkask-types::flowdef_validation`.
 
 ### Gas Consumption
 
@@ -707,7 +707,7 @@ Add to your new crate's `Cargo.toml`:
 [dependencies]
 hkask-mcp = { path = "../../crates/hkask-mcp" }
 hkask-types = { path = "../../crates/hkask-types" }
-hkask-ports = { path = "../../crates/hkask-ports" }
+hkask-types = { path = "../../crates/hkask-types" }
 hkask-inference = { path = "../../crates/hkask-inference" }  # if you need inference
 rmcp = { workspace = true }
 serde = { workspace = true }

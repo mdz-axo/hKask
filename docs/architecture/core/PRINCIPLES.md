@@ -121,7 +121,7 @@ Every artifact in hKask has both a state identity and a process identity — it 
 | **scenarios** | PKO | DC+BIBO | — |
 
 **Bridge locations:**
-- Process axis vocabulary: `crates/hkask-bridge-pko/` (shared crate)
+- Process axis vocabulary: `crates/hkask-bridge-dublincore/` (shared crate)
 - State axis vocabulary: `crates/hkask-bridge-dublincore/` (shared crate)
 - Domain-specific bridges: server-local modules following the `fibo.rs` pattern
 
@@ -152,7 +152,7 @@ System claims must be grounded in traceable, provenance-aware representations.
 4. **No reasoners, no OWL parsing, no graph databases** — bridges are thin vocabulary layers, not ontology engines
 
 **Bridge hierarchy:**
-- **Universal anchors:** `crates/hkask-bridge-pko/` (process axis) + `crates/hkask-bridge-dublincore/` (state axis) — shared vocabulary crates providing the canonical concept constants. Every server depends on both.
+- **Universal anchors:** `crates/hkask-bridge-dublincore/` (process axis) + `crates/hkask-bridge-dublincore/` (state axis) — shared vocabulary crates providing the canonical concept constants. Every server depends on both.
 - **Domain supplements:** Server-local modules (FIBO in companies, GOLEM in replica, CogAT in memory, ML-Schema in training, OMC in media) — layered on top where DC+BIBO's state axis isn't specific enough for a domain. These are supplements, not alternatives.
 
 Bridges use the STAR extraction pattern (seed terms + direct logical entailments, no intermediate hierarchy) from Norouzi et al. (2025). Each bridge module is typically ≤150 lines.

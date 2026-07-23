@@ -27,7 +27,7 @@ Consolidated public API surface for all 45 hKask crates, organized by category. 
 
 ## Foundation Crates
 
-Foundation crates provide the type system, storage, database, memory, Regulation, templates, agents, keystore, MCP, CLI, API, capability, and port abstractions that all downstream crates depend on. Per the Authority DAG, domain crates depend on port traits (hkask-ports) rather than on each other.
+Foundation crates provide the type system, storage, database, memory, Regulation, templates, agents, keystore, MCP, CLI, API, capability, and port abstractions that all downstream crates depend on. Per the Authority DAG, domain crates depend on port traits (hkask-types) rather than on each other.
 
 ### hkask-types
 
@@ -147,7 +147,7 @@ SQLite + SQLCipher storage for hKask.
 | `user_store` | User identity, authentication, and userpod records |
 | `wallet` | `WalletStore` — wallet data persistence |
 
-**Re-exports from hkask-storage-core:** `Database`, `DatabaseError`, `open_database`, `open_or_repair`, `check_passphrase`, `define_driver_store` (macro), `impl_from_db_error` (macro), `sanitize_path`.
+**Re-exports from hkask-storage:** `Database`, `DatabaseError`, `open_database`, `open_or_repair`, `check_passphrase`, `define_driver_store` (macro), `impl_from_db_error` (macro), `sanitize_path`.
 
 **Key Types:** `HMemStore` (episodic memory store, `HMemError`), `RegulationArchive` (weighted event log), `EmbeddingStore` / `StoredEmbedding` / `SimilarityResult` / `EmbeddingError`, `ConsentStore` / `StoredConsentRecord` / `ConsentStoreError`, `EscalationQueue` / `EscalationEntry` / `EscalationBatch` / `EscalationStats` / `EscalationStatus` / `EscalationError`, `GalleryStore` / `GalleryRecord` / `ImageRecord` / `TagRecord` / `GalleryMode` / `GalleryStoreError`, `KataHistoryStore` / `KataHistoryEntry` / `KataHistoryError`, `SovereigntyBoundaryStore` / `SovereigntyBoundaryEntry` / `SovereigntyStoreError`, `BackupArchive` / `BackupMeta` / `MigrationReceipt` / `ArchiveError`, `SqliteGoalRepository` / `QuarantinedGoal` / `GoalRepositoryError`, `TokenRegistryStore`, `WalletStore`.
 
@@ -155,7 +155,7 @@ SQLite + SQLCipher storage for hKask.
 
 ---
 
-### hkask-storage-core
+### hkask-storage
 
 hKask storage foundation — Database, Store trait, lock helpers, path sanitization.
 
@@ -173,7 +173,7 @@ hKask storage foundation — Database, Store trait, lock helpers, path sanitizat
 
 ---
 
-### hkask-database
+### hkask-storage
 
 Database driver abstraction — provider-agnostic SQL execution for hKask storage.
 
@@ -616,7 +616,7 @@ OCAP delegation token system with Ed25519-signed cryptographic attenuation.
 
 ---
 
-### hkask-ports
+### hkask-types
 
 Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and registries.
 
@@ -1184,7 +1184,7 @@ rJoule wallet — self-custody multi-chain deposits, API key issuance, Hinkal pr
 | `manager` | Wallet lifecycle, balance tracking, Regulation integration |
 | `price_feed` | Exchange rate feeds (CoinGecko, EODHD, composite, static) |
 | `signing` | Transaction signing (Ed25519) |
-| `types` | Wallet-specific types re-exported from `hkask-wallet-types` |
+| `types` | Wallet-specific types re-exported from `hkask-types` |
 | `reg_span` | Regulation span emission for wallet events |
 | `hedera` | Hedera chain integration (behind `hedera` feature) |
 
@@ -1196,7 +1196,7 @@ rJoule wallet — self-custody multi-chain deposits, API key issuance, Hinkal pr
 
 ---
 
-### hkask-wallet-types
+### hkask-types
 
 Wallet value types — RJoule, WalletConfig, ChainId, API key types.
 
@@ -1234,7 +1234,7 @@ Dublin Core + BIBO + CiTO vocabulary bridge — shared bibliographic metadata co
 
 ---
 
-### hkask-bridge-pko
+### hkask-bridge-dublincore
 
 PKO (Procedural Knowledge Ontology) bridge — shared by kanban, docproc, and research servers.
 
@@ -1515,7 +1515,7 @@ classDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-REF-001
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-types/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1533,7 +1533,7 @@ status: VERIFIED
 - [Service Layer Class Diagram](../explanation/architecture-patterns.md#service-layer-class-diagram) — Service layer class diagram (hexagonal ports)
 - [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch sequence
 - [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (four patterns, crate-to-loop mapping)
-- [`hkask-codegraph`](../../mcp-servers/hkask-mcp-codegraph/src/codegraph/) — Implementation crate (original design plan absorbed)
+- [`hkask-mcp-codegraph`](../../mcp-servers/hkask-mcp-codegraph/src/codegraph/) — Implementation crate (original design plan absorbed)
 
 
 ### CodeGraph Indexing Pipeline — Flowchart
@@ -1593,7 +1593,7 @@ flowchart TD
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-REF-002
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-types/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1622,7 +1622,7 @@ The pipeline emits tracing events for cybernetic observability:
 - [CodeGraph Type System](#codegraph-type-system) — Type system class diagram
 - [MCP Tool Dispatch Sequence](../explanation/architecture-patterns.md#mcp-tool-dispatch-sequence) — MCP tool dispatch sequence (applies to codegraph tools)
 - [`../architecture/core/hKask-architecture-master.md`](../architecture/core/hKask-architecture-master.md) — Architecture master (crate-to-loop mapping)
-- [`hkask-codegraph`](../../mcp-servers/hkask-mcp-codegraph/src/codegraph/) — Implementation crate (original design plan absorbed)
+- [`hkask-mcp-codegraph`](../../mcp-servers/hkask-mcp-codegraph/src/codegraph/) — Implementation crate (original design plan absorbed)
 
 
 ### CodeGraph Database Schema — ERD
@@ -1688,7 +1688,7 @@ erDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-REF-003
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-types/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1815,7 +1815,7 @@ sequenceDiagram
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-REF-004
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-types/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -1906,7 +1906,7 @@ stateDiagram-v2
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-REF-005
 verified_date: 2026-07-12
-verified_against: crates/hkask-types/src/lib.rs, crates/hkask-ports/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_against: crates/hkask-types/src/lib.rs, crates/hkask-types/src/lib.rs, crates/hkask-mcp/src/lib.rs
 status: VERIFIED
 -->
 
@@ -2490,10 +2490,10 @@ status: VERIFIED
 ## Dependency Rule
 
 ```
-hkask-cli ──→ hkask-tui (uses traits + TuiSession)
+hkask-cli ──→ hkask-repl (uses traits + TuiSession)
 hkask-cli ──→ hkask-repl (implements bridges)
-hkask-repl ──→ hkask-tui (implements traits)
-hkask-tui ──✗→ hkask-cli (PROHIBITED — would be circular)
+hkask-repl ──→ hkask-repl (implements traits)
+hkask-repl ──✗→ hkask-cli (PROHIBITED — would be circular)
 ```
 
 ## Bridge Lifecycle

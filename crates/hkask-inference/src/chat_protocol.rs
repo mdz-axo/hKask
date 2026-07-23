@@ -26,22 +26,16 @@ fn is_true(b: &bool) -> bool {
     *b
 }
 
-/// Skip an `i32` field from serialization when it is zero (the neutral default
-/// for `top_k`). Keeps the request body minimal for providers that reject or
-/// misinterpret non-standard sampling fields.
 fn is_zero_i32(v: &i32) -> bool {
     *v == 0
 }
 
-/// Skip an `f32` field from serialization when it is zero (the neutral default
-/// for `min_p`, `typical_p`, `frequency_penalty`, `presence_penalty`).
 fn is_zero_f32(v: &f32) -> bool {
     *v == 0.0
 }
 
 // ── Request types ────────────────────────────────────────────────────────────
 
-/// OpenAI-compatible chat completion request body.
 #[derive(Debug, Clone, Serialize)]
 pub struct ChatRequest {
     pub model: String,
@@ -65,49 +59,23 @@ pub struct ChatRequest {
     pub n_probs: Option<i32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<bool>,
-    /// Enable thinking/reasoning mode.
-    /// Default true. Set to false for condenser/summarization tasks to prevent
-    /// the model from spending output tokens on internal reasoning.
-    /// Skipped from serialization when true (most models don't need it).
     #[serde(default = "default_enable_thinking", skip_serializing_if = "is_true")]
     pub enable_thinking: bool,
-    /// Qwen3/DeepInfra thinking-mode control, sent as
-    /// `chat_template_kwargs: {"enable_thinking": <bool>}`.
     ///
-    /// DeepInfra ignores the top-level `enable_thinking` field — only the
-    /// `chat_template_kwargs` form actually toggles thinking. Set when
-    /// `disable_thinking` is true so structured-output calls (tagging, triples,
-    /// QA generation) stay fast (~2-4s vs ~90s) and never hit the HTTP timeout
-    /// mid-reasoning. Omitted when thinking is enabled (model default = on).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chat_template_kwargs: Option<serde_json::Value>,
-    /// OpenAI-compatible tool definitions for native function calling.
-    /// When present, the model may return `tool_calls` in its response.
-    /// Skipped from serialization when None/empty to avoid confusing models
-    /// that don't support function calling.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<ChatToolDefinition>>,
-    /// Controls whether the model must call tools.
-    /// - `None` (default): model decides
-    /// - `Some("auto")`: model may call tools
-    /// - `Some("required")`: model must call a tool
-    /// - `Some("none")`: model must not call tools
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<String>,
 }
 
-/// Build messages from a single prompt string (used by `generate()` paths
-/// that haven't been migrated to message arrays yet — condenser, embeddings).
 ///
-/// expect: "The system constructs and validates regulated LLM requests"
-/// pre:  model is non-empty, prompt is non-empty
-/// post: returns ChatRequest with [system?, user] messages and parameters
-#[must_use]
 
 /// Build an OpenAI-compatible chat completion request from an explicit message
 /// array.
 ///
-/// Unlike [`the prompt-string path`], which constructs a `[system?, user]` pair from
+/// Unlike the prompt-string path, which constructs a `[system?, user]` pair from
 /// a single prompt string, this function passes the caller-supplied messages
 /// directly to the provider. This is the correct path for multi-turn chat: each
 /// message carries its own role (`"system"`, `"user"`, `"assistant"`), so the
