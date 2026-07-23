@@ -347,8 +347,8 @@ impl RegulationLoop for MetacognitionLoop {
             }
         }
 
-        // Meta-cybernetic self-management: adjust own thresholds from the
-        // self-quality counters observed this cycle.
-        self.self_calibrate();
+        // Meta-cybernetic self-management: generative-first threshold
+        // self-calibration (LLM template) with Rust safety-rail fallback.
+        self.self_calibrate().await;
     }
 }

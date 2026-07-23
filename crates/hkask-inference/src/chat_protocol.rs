@@ -103,7 +103,6 @@ pub struct ChatRequest {
 /// pre:  model is non-empty, prompt is non-empty
 /// post: returns ChatRequest with [system?, user] messages and parameters
 #[must_use]
-pub fn build_chat_request_from_prompt(
     model: &str,
     prompt: &str,
     params: &LLMParameters,
@@ -594,7 +593,12 @@ pub fn stream_chat_completion(
 > {
     Box::pin(
         futures_util::stream::once(async move {
-            let request = build_chat_request_from_prompt(&model, &prompt, &params, Some(true), None, tools);
+            let mut messages = Vec::with_capacity(2);
+            if let Some(ref sys) = params.system_prompt {
+                messages.push(ChatMessage::system(sys));
+            }
+            messages.push(ChatMessage::user(&prompt));
+            let request = build_chat_request_messages(&model, messages, &params, Some(true), None, tools);
 
             let response = match client
                 .post(format!("{}/v1/chat/completions", base_url))
@@ -730,7 +734,12 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let req = build_chat_request_from_prompt(
+        let mut messages = Vec::with_capacity(2);
+        if let Some(ref sys) = params.system_prompt {
+            messages.push(ChatMessage::system(sys));
+        }
+        messages.push(ChatMessage::user(&prompt));
+        let req = build_chat_request_messages(&model, messages, &params, Some(true), None, tools);
             crate::model_constants::TEST_MODEL_SMALL,
             "Write a sentence.",
             &params,
@@ -772,7 +781,12 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let req = build_chat_request_from_prompt(
+        let mut messages = Vec::with_capacity(2);
+        if let Some(ref sys) = params.system_prompt {
+            messages.push(ChatMessage::system(sys));
+        }
+        messages.push(ChatMessage::user(&prompt));
+        let req = build_chat_request_messages(&model, messages, &params, Some(true), None, tools);
             crate::model_constants::TEST_MODEL_SMALL,
             "Summarize.",
             &params,
@@ -804,7 +818,12 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let req = build_chat_request_from_prompt(
+        let mut messages = Vec::with_capacity(2);
+        if let Some(ref sys) = params.system_prompt {
+            messages.push(ChatMessage::system(sys));
+        }
+        messages.push(ChatMessage::user(&prompt));
+        let req = build_chat_request_messages(&model, messages, &params, Some(true), None, tools);
             crate::model_constants::TEST_MODEL_SMALL,
             "Hello.",
             &params,

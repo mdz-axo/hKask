@@ -139,6 +139,7 @@ pub fn emit_meta_circuit_breaker(sink: &dyn RegulationSink, observer: &WebID, sk
 }
 
 /// Emit a `reg.meta.self_calibration` span recording a self-applied threshold change.
+#[allow(clippy::too_many_arguments)] // emission helper — all primitive fields
 pub fn emit_meta_self_calibration(
     sink: &dyn RegulationSink,
     observer: &WebID,

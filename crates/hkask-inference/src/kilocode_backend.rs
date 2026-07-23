@@ -182,7 +182,12 @@ impl KiloCodeBackend {
 
         Box::pin(
             Box::pin(futures_util::stream::once(async move {
-                let request = build_chat_request_from_prompt(&model, &prompt, &params, Some(true), None, tools);
+                let mut messages = Vec::with_capacity(2);
+                if let Some(ref sys) = params.system_prompt {
+                    messages.push(ChatMessage::system(sys));
+                }
+                messages.push(ChatMessage::user(&prompt));
+                let request = build_chat_request_messages(&model, messages, &params, Some(true), None, tools);
 
                 let response = match client
                     .post(format!("{base_url}/chat/completions"))

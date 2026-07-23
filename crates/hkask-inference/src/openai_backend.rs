@@ -53,9 +53,14 @@ pub async fn openai_compatible_generate(
     auth_prefix: &str,
     provider_code: &str,
 ) -> Result<InferenceResult, InferenceError> {
-    validate_prompt(prompt)?;
-    let tools = tools.map(|t| t.to_vec());
-    let request = build_chat_request_from_prompt(model, prompt, params, Some(false), None, tools);
+    : validate_prompt(prompt)?;
+        let tools = tools.map(|t| t.to_vec());
+        let mut messages = Vec::with_capacity(2);
+        if let Some(ref sys) = params.system_prompt {
+            messages.push(ChatMessage::system(sys));
+        }
+        messages.push(ChatMessage::user(prompt));
+        let request = build_chat_request_messages(model, messages, params, Some(false), None, tools);
 
     let response = client
         .post(format!("{}{}", base_url, chat_path))
