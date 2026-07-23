@@ -486,7 +486,6 @@ impl NonceStore {
             tokens.remove(token); // one-time use
             return valid;
         }
-        }
         false
     }
 

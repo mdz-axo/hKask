@@ -172,6 +172,10 @@ impl TrlTrainer {
 pub enum TrainingHostId {
     /// runpod — Runpod GPU cloud training, pod-based axolotl dispatch
     Runpod,
+    /// deepinfra — DeepInfra dedicated GPU containers with SSH access
+    DeepInfra,
+    /// nebius — Nebius AI Cloud VMs with H100/H200/B200 GPUs
+    Nebius,
 }
 
 impl TrainingHostId {
@@ -180,6 +184,8 @@ impl TrainingHostId {
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "runpod" => Some(Self::Runpod),
+            "deepinfra" => Some(Self::DeepInfra),
+            "nebius" => Some(Self::Nebius),
             _ => None,
         }
     }
