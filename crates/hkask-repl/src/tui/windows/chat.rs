@@ -25,9 +25,10 @@
 //!
 //! # Window Management Slash Commands
 //!
-//! The Chat window can request workspace actions via `drain_action()`.
+//! The Chat window can request workspace actions via `drain_actions()`.
 //! Supported commands: `/open <kind>`, `/close`, `/split h|v`, `/focus`,
-//! `/tab`, `/palette`, `/quit`.
+//! `/tab new|next|prev`, `/quit`. Global keybindings: Ctrl-W (window ops),
+//! Ctrl-T (new tab), Ctrl-Tab/Ctrl-Shift-Tab (tab cycling).
 
 use std::sync::Arc;
 
@@ -153,8 +154,9 @@ pub struct ChatWindow {
     spinner_frame: u8,
     /// Partial streaming text shown during inference
     streaming_partial: String,
-    /// Pending workspace action (drained by Workspace::tick)
-    pending_action: Option<WorkspaceAction>,
+    /// Pending workspace actions (drained by Workspace::tick).
+    /// A Vec so multi-command lines like `/open kanban /split v` work.
+    pending_actions: Vec<WorkspaceAction>,
 }
 
 impl ChatWindow {
@@ -188,7 +190,7 @@ impl ChatWindow {
             inference_state: InferenceState::Idle,
             spinner_frame: 0,
             streaming_partial: String::new(),
-            pending_action: None,
+            pending_actions: Vec::new(),
         }
     }
 
@@ -269,13 +271,68 @@ impl ChatWindow {
             "help" | "?" => {
                 self.add_message(
                     MessageSender::RegAlert,
-                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /curator /export /ask /fusion /thread".into(),
+                    "Commands: /help /quit /clear /model /status /repl /mcp /agent /curator /export /ask /fusion /thread\n             /open <kind> /close /split h|v /focus /tab new|next|prev".into(),
                 );
             }
             "quit" | "exit" => {
-                self.pending_action = Some(WorkspaceAction::Quit);
+                self.pending_actions.push(WorkspaceAction::Quit);
                 self.add_message(MessageSender::RegAlert, "Quitting TUI...".into());
             }
+            "open" => {
+                if let Some(kind_str) = parts.get(1) {
+                    if let Some(kind) = WindowKind::from_str(kind_str) {
+                        self.pending_actions.push(WorkspaceAction::OpenWindow(kind));
+                        self.add_message(
+                            MessageSender::RegAlert,
+                            format!("Opening {} window...", kind.default_title()),
+                        );
+                    } else {
+                        self.add_message(
+                            MessageSender::RegAlert,
+                            format!(
+                                "Unknown window kind: {}. Available: chat kanban companies scenarios",
+                                kind_str
+                            ),
+                        );
+                    }
+                } else {
+                    self.add_message(
+                        MessageSender::RegAlert,
+                        "Available windows: /open chat  /open kanban  /open companies  /open scenarios".into(),
+                    );
+                }
+            }
+            "close" => {
+                self.pending_actions.push(WorkspaceAction::CloseFocused);
+            }
+            "split" => {
+                let dir = match parts.get(1).copied().unwrap_or("") {
+                    "h" | "horizontal" => crate::tui::window::SplitDirection::Horizontal,
+                    _ => crate::tui::window::SplitDirection::Vertical,
+                };
+                self.pending_actions.push(WorkspaceAction::Split(dir));
+            }
+            "focus" => {
+                self.pending_actions.push(WorkspaceAction::FocusNext);
+            }
+            "tab" => match parts.get(1).copied().unwrap_or("") {
+                "new" => {
+                    let name = parts.get(2).map(|s| s.to_string());
+                    self.pending_actions.push(WorkspaceAction::NewTab(name));
+                }
+                "next" => {
+                    self.pending_actions.push(WorkspaceAction::NextTab);
+                }
+                "prev" => {
+                    self.pending_actions.push(WorkspaceAction::PrevTab);
+                }
+                _ => {
+                    self.add_message(
+                        MessageSender::RegAlert,
+                        "Usage: /tab new [name] | /tab next | /tab prev".into(),
+                    );
+                }
+            },
             "clear" => {
                 self.messages.clear();
                 self.scroll_offset = 0;
@@ -472,7 +529,7 @@ impl ChatWindow {
                 let result = self.bridge.handle_command(primary);
                 self.add_message(MessageSender::RegAlert, result.text);
                 if result.should_quit {
-                    self.pending_action = Some(WorkspaceAction::Quit);
+                    self.pending_actions.push(WorkspaceAction::Quit);
                 }
             }
         }
@@ -692,8 +749,8 @@ impl Window for ChatWindow {
         }
     }
 
-    fn drain_action(&mut self) -> Option<WorkspaceAction> {
-        self.pending_action.take()
+    fn drain_actions(&mut self) -> Vec<WorkspaceAction> {
+        std::mem::take(&mut self.pending_actions)
     }
 }
 
@@ -816,7 +873,10 @@ impl ChatWindow {
         } else {
             final_spans.push(Span::styled(
                 if self.mode == TuiMode::Chat {
-                    format!("{}>> ", crate::display::model_abbrev(self.bridge.model_name()))
+                    format!(
+                        "{}>> ",
+                        crate::display::model_abbrev(self.bridge.model_name())
+                    )
                 } else {
                     self.mode.prompt_prefix().to_string()
                 },

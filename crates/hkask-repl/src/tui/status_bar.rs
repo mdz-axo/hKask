@@ -123,7 +123,7 @@ impl StatusBar {
 
         if self.show_hints {
             spans.push(Span::styled(
-                "  ^Q quit  ^T tab  ^P palette",
+                "  ^Q quit  ^W window  ^T tab",
                 ratatui::style::Style::default().fg(Color::DarkGray),
             ));
         }

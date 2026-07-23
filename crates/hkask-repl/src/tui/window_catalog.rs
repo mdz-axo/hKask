@@ -5,12 +5,12 @@ use std::sync::Arc;
 use crate::tui::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
 use crate::tui::window::{Window, WindowId, WindowKind};
 use crate::tui::windows::chat::ChatWindow;
+use crate::tui::windows::companies::CompaniesWindow;
+use crate::tui::windows::kanban::KanbanWindow;
+use crate::tui::windows::scenarios::ScenariosWindow;
 
 pub fn window_kind_from_title(title: &str) -> Option<WindowKind> {
-    match title {
-        "Chat" => Some(WindowKind::Chat),
-        _ => None,
-    }
+    WindowKind::from_str(title)
 }
 
 /// All bridge dependencies for window construction.
@@ -44,5 +44,8 @@ pub(crate) fn create_window(
             }
             Box::new(w)
         }
+        WindowKind::Kanban => Box::new(KanbanWindow::new(id, bridge)),
+        WindowKind::Companies => Box::new(CompaniesWindow::new(id, bridge)),
+        WindowKind::Scenarios => Box::new(ScenariosWindow::new(id, bridge)),
     }
 }

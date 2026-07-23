@@ -1,6 +1,8 @@
 //! Escalation domain types: thresholds, triggers, severity, alerts, and policy.
 //! Pure-data module — no dependencies on external crates beyond std.
 
+use std::sync::Arc;
+
 /// Default variety deficit threshold for escalation.
 pub(crate) const DEFAULT_ESCALATION_VARIETY_DEFICIT: u64 = 100;
 
@@ -58,12 +60,14 @@ pub struct EscalationAlert {
 /// Encapsulates escalation threshold logic — independently testable.
 /// Algedonic: Warning at threshold/2, Critical at threshold.
 pub struct EscalationPolicy {
-    thresholds: EscalationThresholds,
+    thresholds: Arc<std::sync::RwLock<EscalationThresholds>>,
 }
 
 impl EscalationPolicy {
     pub(crate) fn new(thresholds: EscalationThresholds) -> Self {
-        Self { thresholds }
+        Self {
+            thresholds: Arc::new(std::sync::RwLock::new(thresholds)),
+        }
     }
 
     /// Check all escalation conditions, return active alerts.
@@ -84,8 +88,12 @@ impl EscalationPolicy {
         bot_failures: u64,
     ) -> Vec<EscalationAlert> {
         let mut alerts = Vec::new();
+        let t = self
+            .thresholds
+            .read()
+            .expect("escalation thresholds lock poisoned");
 
-        let variety_threshold = self.thresholds.variety_deficit as f64;
+        let variety_threshold = t.variety_deficit as f64;
         if variety_deficit > variety_threshold {
             alerts.push(EscalationAlert {
                 trigger: EscalationTrigger::VarietyDeficit,
@@ -102,8 +110,8 @@ impl EscalationPolicy {
             });
         }
 
-        let critical_alerts_threshold = self.thresholds.critical_alerts as f64;
-        if critical_alerts >= self.thresholds.critical_alerts as u64 {
+        let critical_alerts_threshold = t.critical_alerts as f64;
+        if critical_alerts >= t.critical_alerts as u64 {
             alerts.push(EscalationAlert {
                 trigger: EscalationTrigger::CriticalAlerts,
                 value: critical_alerts as f64,
@@ -112,8 +120,8 @@ impl EscalationPolicy {
             });
         }
 
-        let bot_failures_threshold = self.thresholds.bot_failures as f64;
-        if bot_failures >= self.thresholds.bot_failures as u64 {
+        let bot_failures_threshold = t.bot_failures as f64;
+        if bot_failures >= t.bot_failures as u64 {
             alerts.push(EscalationAlert {
                 trigger: EscalationTrigger::BotFailures,
                 value: bot_failures as f64,
@@ -123,6 +131,24 @@ impl EscalationPolicy {
         }
 
         alerts
+    }
+
+    /// Read the current thresholds (for self-calibration old/new reporting).
+    #[must_use]
+    pub fn thresholds(&self) -> EscalationThresholds {
+        self.thresholds
+            .read()
+            .expect("escalation thresholds lock poisoned")
+            .clone()
+    }
+
+    /// Replace the thresholds — used by metacognition self-management to
+    /// adjust the Curator's own sensitivity from observed decision quality.
+    pub fn set_thresholds(&self, thresholds: EscalationThresholds) {
+        *self
+            .thresholds
+            .write()
+            .expect("escalation thresholds lock poisoned") = thresholds;
     }
 }
 

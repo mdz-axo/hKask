@@ -318,7 +318,12 @@ impl CuratorContext {
         let target = directive.agent_target();
         self.self_quality.record_directive();
         if let Some(sink) = self.regulation_sink() {
-            emit_meta_directive(sink, self.handle.curator_id(), variant, target.as_ref());
+            emit_meta_directive(
+                sink.as_ref(),
+                self.handle.curator_id(),
+                variant,
+                target.as_ref(),
+            );
         }
 
         if let Some(ref tx) = self.curator_directive_tx

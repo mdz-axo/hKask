@@ -2,9 +2,10 @@
 //!
 //! Provides a multi-window, split-pane terminal interface modelled on
 //! Zed's workspace architecture: a binary tree of splits hosts stateful
-//! Window implementations, with keyboard-driven focus, resize, and tab
-//! management. The workspace now hosts a single Chat window (the REPL
-//! interface); the workspace tree, tabs, and status bar remain.
+//! Window implementations, with keyboard-driven focus, split, close, and
+//! tab management. Windows can be opened via slash commands (/open kanban)
+//! or keybindings (Ctrl-W prefix sub-mode). Each MCP-backed window (Kanban,
+//! Companies, Scenarios) runs inference scoped to its MCP server's tools.
 //!
 //! # Architecture
 //!

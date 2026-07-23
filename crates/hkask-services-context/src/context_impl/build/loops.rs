@@ -7,7 +7,7 @@ use super::foundation::Foundation;
 use crate::reg_store_slo_provider::RegStoreSloProvider;
 use hkask_regulation::DEFAULT_SET_POINT_CALIBRATION_INTERVAL;
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};
-use hkask_types::{LedgerStoragePort, escalation::EscalationPort};
+use hkask_types::{LedgerStoragePort, escalation::EscalationPort, event::RegulationSink};
 use std::path::PathBuf;
 use tokio::sync::RwLock;
 
@@ -159,7 +159,8 @@ pub(super) async fn build_loops(
             Arc::clone(&f.regulation_store) as Arc<dyn LedgerStoragePort>,
         )
         .with_a2a(a2a_runtime.clone())
-        .with_consent_manager(Arc::clone(&f.consent_manager)),
+        .with_consent_manager(Arc::clone(&f.consent_manager))
+        .with_regulation_sink(Arc::clone(&f.regulation_store) as Arc<dyn RegulationSink>),
     );
     // Clone before move into CuratorAgent — stored in LoopWiring for late-binding
     // ManifestExecutor wiring after MCP pods are built.

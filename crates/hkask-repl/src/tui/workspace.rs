@@ -11,17 +11,19 @@ use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
+use ratatui::text::Span;
 use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
-use crate::tui::bridges::{with_bridges, workspace_bridge_setter};
 use crate::tui::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
 use crate::tui::status_bar::StatusBar;
 use crate::tui::tab::Tab;
-use crate::tui::window::{Window, WindowId, WindowKind, WorkspaceAction};
+use crate::tui::window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
 
+/// Binary split tree. Leaves hold windows directly; internal nodes
+/// split the area horizontally or vertically with a ratio.
 pub enum SplitNode {
-    Leaf(Option<Box<dyn Window>>),
+    Leaf(Box<dyn Window>),
     Horizontal {
         left: Box<SplitNode>,
         right: Box<SplitNode>,
@@ -37,8 +39,7 @@ pub enum SplitNode {
 impl std::fmt::Debug for SplitNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SplitNode::Leaf(Some(w)) => f.debug_tuple("Leaf").field(&w.id()).finish(),
-            SplitNode::Leaf(None) => f.debug_tuple("Leaf").field(&"empty").finish(),
+            SplitNode::Leaf(w) => f.debug_tuple("Leaf").field(&w.id()).finish(),
             SplitNode::Horizontal { ratio, .. } => {
                 f.debug_struct("H").field("ratio", ratio).finish()
             }
@@ -50,8 +51,7 @@ impl std::fmt::Debug for SplitNode {
 impl SplitNode {
     fn collect_ids(&self, out: &mut Vec<WindowId>) {
         match self {
-            SplitNode::Leaf(Some(w)) => out.push(w.id()),
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Leaf(w) => out.push(w.id()),
             SplitNode::Horizontal { left, right, .. } => {
                 left.collect_ids(out);
                 right.collect_ids(out);
@@ -69,24 +69,21 @@ impl SplitNode {
         ids
     }
 
-    pub fn window_kind(&self, target: WindowId) -> Option<crate::tui::window::WindowKind> {
+    pub fn window_kind(&self, target: WindowId) -> Option<WindowKind> {
         match self {
-            SplitNode::Leaf(Some(w)) if w.id() == target => Some(w.kind()),
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Leaf(w) if w.id() == target => Some(w.kind()),
             SplitNode::Horizontal { left, right, .. } => left
                 .window_kind(target)
                 .or_else(|| right.window_kind(target)),
             SplitNode::Vertical { top, bottom, .. } => top
                 .window_kind(target)
                 .or_else(|| bottom.window_kind(target)),
-            _ => None,
         }
     }
 
     pub fn contains_window(&self, target: WindowId) -> bool {
         match self {
-            SplitNode::Leaf(Some(w)) => w.id() == target,
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Leaf(w) => w.id() == target,
             SplitNode::Horizontal { left, right, .. } => {
                 left.contains_window(target) || right.contains_window(target)
             }
@@ -98,21 +95,112 @@ impl SplitNode {
 
     fn find_leaf_mut(&mut self, target: WindowId) -> Option<&mut Box<dyn Window>> {
         match self {
-            SplitNode::Leaf(Some(w)) if w.id() == target => Some(w),
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Leaf(w) if w.id() == target => Some(w),
             SplitNode::Horizontal { left, right, .. } => left
                 .find_leaf_mut(target)
                 .or_else(|| right.find_leaf_mut(target)),
             SplitNode::Vertical { top, bottom, .. } => top
                 .find_leaf_mut(target)
                 .or_else(|| bottom.find_leaf_mut(target)),
-            _ => None,
+        }
+    }
+
+    /// Find the leaf matching `target`, take ownership of its window,
+    /// and replace the entire node with `replacement`. Returns the old
+    /// window so the caller can re-insert it into a new split.
+    fn replace_leaf(
+        &mut self,
+        target: WindowId,
+        replacement: SplitNode,
+    ) -> Option<Box<dyn Window>> {
+        match self {
+            SplitNode::Leaf(w) if w.id() == target => {
+                let old = std::mem::replace(self, replacement);
+                match old {
+                    SplitNode::Leaf(w) => Some(w),
+                    _ => unreachable!(),
+                }
+            }
+            SplitNode::Horizontal { left, right, .. } => left
+                .replace_leaf(target, replacement.clone())
+                .or_else(|| right.replace_leaf(target, replacement)),
+            SplitNode::Vertical { top, bottom, .. } => top
+                .replace_leaf(target, replacement.clone())
+                .or_else(|| bottom.replace_leaf(target, replacement)),
+        }
+    }
+
+    /// Close the window with `target` id. If this leaf is a child of a
+    /// split, the split collapses to the surviving sibling. Returns
+    /// `true` if a window was closed.
+    fn close_window(&mut self, target: WindowId) -> bool {
+        match self {
+            SplitNode::Leaf(w) if w.id() == target => true,
+            SplitNode::Leaf(_) => false,
+            SplitNode::Horizontal { left, right, .. } => {
+                if left.close_window(target) {
+                    // If left is now a leaf matching target, it was the
+                    // closed one — collapse to right.
+                    if matches!(&**left, SplitNode::Leaf(w) if w.id() == target) {
+                        let _ = std::mem::replace(
+                            self,
+                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
+                                WindowId(Uuid::nil()),
+                            ))),
+                        );
+                        *self = std::mem::replace(
+                            right.as_mut(),
+                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
+                                WindowId(Uuid::nil()),
+                            ))),
+                        );
+                    }
+                    true
+                } else if right.close_window(target) {
+                    if matches!(&**right, SplitNode::Leaf(w) if w.id() == target) {
+                        *self = std::mem::replace(
+                            left.as_mut(),
+                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
+                                WindowId(Uuid::nil()),
+                            ))),
+                        );
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+            SplitNode::Vertical { top, bottom, .. } => {
+                if top.close_window(target) {
+                    if matches!(&**top, SplitNode::Leaf(w) if w.id() == target) {
+                        *self = std::mem::replace(
+                            bottom.as_mut(),
+                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
+                                WindowId(Uuid::nil()),
+                            ))),
+                        );
+                    }
+                    true
+                } else if bottom.close_window(target) {
+                    if matches!(&**bottom, SplitNode::Leaf(w) if w.id() == target) {
+                        *self = std::mem::replace(
+                            top.as_mut(),
+                            SplitNode::Leaf(Box::new(PlaceholderWindow::new(
+                                WindowId(Uuid::nil()),
+                            ))),
+                        );
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
         }
     }
 
     fn render(&self, f: &mut Frame, area: Rect, focused_id: Option<WindowId>) {
         match self {
-            SplitNode::Leaf(Some(w)) => {
+            SplitNode::Leaf(w) => {
                 let focused = focused_id == Some(w.id());
                 let bs = if focused {
                     Style::default().fg(Color::Cyan)
@@ -127,11 +215,9 @@ impl SplitNode {
                 f.render_widget(block, area);
                 w.render(f, inner, focused);
             }
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
             SplitNode::Horizontal { left, right, ratio } => {
                 let left_w = ((area.width as f32) * ratio).round() as u16;
                 let right_w = area.width.saturating_sub(left_w);
-                // Guard: tiny areas with extreme ratios can produce zero-width panes.
                 if left_w < 2 || right_w < 2 {
                     return;
                 }
@@ -149,7 +235,6 @@ impl SplitNode {
             SplitNode::Vertical { top, bottom, ratio } => {
                 let top_h = ((area.height as f32) * ratio).round() as u16;
                 let bottom_h = area.height.saturating_sub(top_h);
-                // Guard: tiny areas with extreme ratios can produce zero-height panes.
                 if top_h < 2 || bottom_h < 2 {
                     return;
                 }
@@ -165,8 +250,7 @@ impl SplitNode {
 
     fn handle_key(&mut self, key: KeyEvent, focused_id: Option<WindowId>) -> bool {
         match self {
-            SplitNode::Leaf(Some(w)) => focused_id == Some(w.id()) && w.handle_key(key),
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Leaf(w) => focused_id == Some(w.id()) && w.handle_key(key),
             SplitNode::Horizontal { left, right, .. } => {
                 left.handle_key(key, focused_id) || right.handle_key(key, focused_id)
             }
@@ -178,8 +262,7 @@ impl SplitNode {
 
     fn tick(&mut self) {
         match self {
-            SplitNode::Leaf(Some(w)) => w.tick(),
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
+            SplitNode::Leaf(w) => w.tick(),
             SplitNode::Horizontal { left, right, .. } => {
                 left.tick();
                 right.tick();
@@ -193,10 +276,9 @@ impl SplitNode {
 
     fn titles(&self, out: &mut HashMap<WindowId, String>) {
         match self {
-            SplitNode::Leaf(Some(w)) => {
+            SplitNode::Leaf(w) => {
                 out.insert(w.id(), w.title().to_string());
             }
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
             SplitNode::Horizontal { left, right, .. } => {
                 left.titles(out);
                 right.titles(out);
@@ -207,18 +289,70 @@ impl SplitNode {
             }
         }
     }
+
+    /// Find and refocus a singleton window of `kind` if one exists.
+    /// Returns the window's id if found.
+    fn find_by_kind(&self, kind: WindowKind) -> Option<WindowId> {
+        match self {
+            SplitNode::Leaf(w) if w.kind() == kind => Some(w.id()),
+            SplitNode::Horizontal { left, right, .. } => {
+                left.find_by_kind(kind).or_else(|| right.find_by_kind(kind))
+            }
+            SplitNode::Vertical { top, bottom, .. } => {
+                top.find_by_kind(kind).or_else(|| bottom.find_by_kind(kind))
+            }
+        }
+    }
+}
+
+/// Minimal placeholder window used during tree surgery.
+/// It is immediately replaced by the real window or sibling subtree.
+struct PlaceholderWindow {
+    id: WindowId,
+}
+
+impl PlaceholderWindow {
+    fn new(id: WindowId) -> Self {
+        Self { id }
+    }
+}
+
+impl Window for PlaceholderWindow {
+    fn id(&self) -> WindowId {
+        self.id
+    }
+    fn title(&self) -> &str {
+        ""
+    }
+    fn kind(&self) -> WindowKind {
+        WindowKind::Chat
+    }
+    fn render(&self, _f: &mut Frame, _area: Rect, _is_focused: bool) {}
+    fn handle_key(&mut self, _key: KeyEvent) -> bool {
+        false
+    }
+}
+
+/// Keymap prefix-mode state for Ctrl-W subcommands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum KeymapState {
+    /// Normal — no prefix active.
+    Normal,
+    /// Waiting for the next key after Ctrl-W (window operations).
+    AwaitWindow,
 }
 
 pub struct Workspace {
     tabs: Vec<Tab>,
     active_tab: usize,
     focused_window: Option<WindowId>,
-    /// Whether the session should quit (set by Ctrl+Q).
+    /// Whether the session should quit (set by Ctrl+Q or /quit).
     pub should_quit: bool,
     system_bridge: Arc<dyn SystemBridge>,
     repl_bridge: Arc<dyn ReplBridge>,
     bridges: WorkspaceBridges,
     status_bar: StatusBar,
+    keymap_state: KeymapState,
 }
 
 #[derive(Default)]
@@ -251,11 +385,7 @@ impl Workspace {
         let chat =
             crate::tui::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
 
-        // Default layout: single Chat window filling the workspace.
-        // The Chat window defaults to Curator mode (P12.1 dual-presence),
-        // so the user interacts with the Curator daemon by default and
-        // opens other windows via slash commands or the command palette.
-        let root = SplitNode::Leaf(Some(chat));
+        let root = SplitNode::Leaf(chat);
         let tab = Tab::new("Chat".to_string(), root);
 
         let mut status_bar = StatusBar::new();
@@ -272,6 +402,7 @@ impl Workspace {
             repl_bridge: repl,
             bridges,
             status_bar,
+            keymap_state: KeymapState::Normal,
         }
     }
 
@@ -281,7 +412,6 @@ impl Workspace {
     );
 
     /// Create a minimal workspace for testing — single Chat window.
-    /// Uses the provided bridge for all window data. No splits.
     pub fn new_test(system: Arc<dyn SystemBridge>, repl: Arc<dyn ReplBridge>) -> Self {
         let model = system.model_name().to_string();
         let chat_id = WindowId(Uuid::new_v4());
@@ -289,7 +419,7 @@ impl Workspace {
         let factory_ctx = bridges.to_window_bridges(system.clone(), repl.clone());
         let chat =
             crate::tui::window_catalog::create_window(WindowKind::Chat, chat_id, &factory_ctx);
-        let root = SplitNode::Leaf(Some(chat));
+        let root = SplitNode::Leaf(chat);
         let tab = Tab::new("Test".to_string(), root);
 
         let mut status_bar = StatusBar::new();
@@ -306,25 +436,24 @@ impl Workspace {
             repl_bridge: repl,
             bridges,
             status_bar,
+            keymap_state: KeymapState::Normal,
         }
     }
 
-    /// Get the currently focused window ID.
+    // ── Accessors ───────────────────────────────────────────────────
+
     pub fn focused_window(&self) -> Option<WindowId> {
         self.focused_window
     }
 
-    /// Number of windows in the active tab's split tree.
     pub fn window_count(&self) -> usize {
         self.root().window_ids().len()
     }
 
-    /// Number of open tabs.
     pub fn tab_count(&self) -> usize {
         self.tabs.len()
     }
 
-    /// Index of the currently active tab.
     pub fn active_tab_index(&self) -> usize {
         self.active_tab
     }
@@ -348,8 +477,6 @@ impl Workspace {
         let status_h = 1u16;
         let content_h = area.height.saturating_sub(tab_h).saturating_sub(status_h);
 
-        // Guard: tiny terminals may have zero content height after subtracting
-        // tab + status bars. Rendering into zero area panics ratatui.
         if content_h == 0 {
             return;
         }
@@ -386,7 +513,6 @@ impl Workspace {
     }
 
     fn render_status(&self, f: &mut Frame, area: Rect) {
-        // Update status from bridge each frame
         let mut titles = HashMap::new();
         self.root().titles(&mut titles);
 
@@ -407,16 +533,249 @@ impl Workspace {
     }
 
     /// Handle global keybindings. Returns true if the event was consumed.
-    /// These are keys that work regardless of which window is focused.
+    ///
+    /// Supports a Ctrl-W prefix sub-mode for window operations (vim-style):
+    ///   Ctrl-W v = split vertical, Ctrl-W s = split horizontal,
+    ///   Ctrl-W c = close, Ctrl-W w = cycle focus,
+    ///   Ctrl-W h/j/k/l = directional focus (future)
     pub fn handle_global_key(&mut self, key: KeyEvent) -> bool {
         use crossterm::event::{KeyCode, KeyModifiers};
+
+        // ── Prefix sub-mode: waiting for the key after Ctrl-W ──
+        if self.keymap_state == KeymapState::AwaitWindow {
+            self.keymap_state = KeymapState::Normal;
+            match key.code {
+                KeyCode::Char('v') => {
+                    self.apply_action(WorkspaceAction::Split(SplitDirection::Vertical));
+                    return true;
+                }
+                KeyCode::Char('s') | KeyCode::Char('h') => {
+                    self.apply_action(WorkspaceAction::Split(SplitDirection::Horizontal));
+                    return true;
+                }
+                KeyCode::Char('c') | KeyCode::Char('q') => {
+                    self.apply_action(WorkspaceAction::CloseFocused);
+                    return true;
+                }
+                KeyCode::Char('w') | KeyCode::Tab => {
+                    self.apply_action(WorkspaceAction::FocusNext);
+                    return true;
+                }
+                _ => return false,
+            }
+        }
 
         match (key.modifiers, key.code) {
             (KeyModifiers::CONTROL, KeyCode::Char('q')) => {
                 self.should_quit = true;
                 true
             }
+            (KeyModifiers::CONTROL, KeyCode::Char('w')) => {
+                self.keymap_state = KeymapState::AwaitWindow;
+                true
+            }
+            (KeyModifiers::CONTROL, KeyCode::Char('t')) => {
+                self.apply_action(WorkspaceAction::NewTab(None));
+                true
+            }
+            (KeyModifiers::CONTROL, KeyCode::Tab) => {
+                self.apply_action(WorkspaceAction::NextTab);
+                true
+            }
+            (KeyModifiers::CONTROL | KeyModifiers::SHIFT, KeyCode::BackTab) => {
+                self.apply_action(WorkspaceAction::PrevTab);
+                true
+            }
             _ => false,
+        }
+    }
+
+    // ── Window management ────────────────────────────────────────────
+
+    /// Dispatch a workspace action. Called from `tick()` (drained from
+    /// windows) and from `handle_global_key` (keybindings).
+    fn apply_action(&mut self, action: WorkspaceAction) {
+        match action {
+            WorkspaceAction::Quit => self.should_quit = true,
+            WorkspaceAction::OpenWindow(kind) => self.open_window(kind),
+            WorkspaceAction::CloseFocused => self.close_focused(),
+            WorkspaceAction::Split(dir) => self.split_focused(dir),
+            WorkspaceAction::FocusNext => self.focus_next(),
+            WorkspaceAction::FocusPrev => self.focus_prev(),
+            WorkspaceAction::NewTab(name) => self.new_tab(name),
+            WorkspaceAction::NextTab => self.next_tab(),
+            WorkspaceAction::PrevTab => self.prev_tab(),
+        }
+    }
+
+    /// Open a window of `kind`. If the kind is a singleton and already
+    /// exists in any tab, refocus it. Otherwise, split the focused window
+    /// vertically and place the new window below (ratio 0.5).
+    fn open_window(&mut self, kind: WindowKind) {
+        // Singleton refocus: if this kind already exists, just focus it.
+        if !kind.allows_multiple() {
+            for (i, tab) in self.tabs.iter().enumerate() {
+                if let Some(id) = tab.root.find_by_kind(kind) {
+                    self.active_tab = i;
+                    self.focus_window(id);
+                    return;
+                }
+            }
+        }
+
+        let new_id = WindowId(Uuid::new_v4());
+        let new_win = self.create_window_of_kind(kind, new_id);
+
+        let Some(focused) = self.focused_window else {
+            // No focused window — replace root with a split.
+            let old_root = std::mem::replace(
+                self.root_mut(),
+                SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil())))),
+            );
+            *self.root_mut() = SplitNode::Vertical {
+                top: Box::new(old_root),
+                bottom: Box::new(SplitNode::Leaf(new_win)),
+                ratio: 0.5,
+            };
+            self.focus_window(new_id);
+            return;
+        };
+
+        // Take the focused leaf out and replace it with a vertical split.
+        let placeholder = SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil()))));
+        let old_leaf = self.root_mut().replace_leaf(focused, placeholder);
+        if let Some(old) = old_leaf {
+            *self.root_mut() = SplitNode::Vertical {
+                top: Box::new(SplitNode::Leaf(old)),
+                bottom: Box::new(SplitNode::Leaf(new_win)),
+                ratio: 0.5,
+            };
+            self.focus_window(new_id);
+        }
+    }
+
+    /// Split the focused window in `dir`. The existing window stays;
+    /// a new Chat window fills the other half.
+    fn split_focused(&mut self, dir: SplitDirection) {
+        let Some(focused) = self.focused_window else {
+            return;
+        };
+
+        let new_id = WindowId(Uuid::new_v4());
+        let new_win = self.create_window_of_kind(WindowKind::Chat, new_id);
+
+        let placeholder = SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil()))));
+        let old_leaf = self.root_mut().replace_leaf(focused, placeholder);
+        if let Some(old) = old_leaf {
+            let new_node = match dir {
+                SplitDirection::Horizontal => SplitNode::Horizontal {
+                    left: Box::new(SplitNode::Leaf(old)),
+                    right: Box::new(SplitNode::Leaf(new_win)),
+                    ratio: 0.5,
+                },
+                SplitDirection::Vertical => SplitNode::Vertical {
+                    top: Box::new(SplitNode::Leaf(old)),
+                    bottom: Box::new(SplitNode::Leaf(new_win)),
+                    ratio: 0.5,
+                },
+            };
+            *self.root_mut() = new_node;
+            self.focus_window(new_id);
+        }
+    }
+
+    /// Close the focused window. The split collapses to the surviving
+    /// sibling. If this is the last window in the tab, the tab closes
+    /// (or is replaced with a fresh Chat if it's the only tab).
+    fn close_focused(&mut self) {
+        let Some(focused) = self.focused_window else {
+            return;
+        };
+
+        // Check can_close
+        let can_close = self
+            .root()
+            .find_leaf_mut(focused)
+            .is_some_and(|w| w.can_close());
+        if !can_close {
+            return;
+        }
+
+        let count = self.root().window_ids().len();
+        if count <= 1 {
+            // Last window in tab.
+            if self.tabs.len() > 1 {
+                self.close_tab(self.active_tab);
+            } else {
+                // Only tab — replace with a fresh Chat.
+                let chat_id = WindowId(Uuid::new_v4());
+                let chat = self.create_window_of_kind(WindowKind::Chat, chat_id);
+                *self.root_mut() = SplitNode::Leaf(chat);
+                self.focused_window = Some(chat_id);
+            }
+            return;
+        }
+
+        // Close and collapse.
+        let closed = self.root_mut().close_window(focused);
+        if closed {
+            // Focus the first remaining window.
+            if let Some(&first) = self.root().window_ids().first() {
+                self.focus_window(first);
+            } else {
+                self.focused_window = None;
+            }
+        }
+    }
+
+    /// Create a new tab with a fresh Chat window.
+    fn new_tab(&mut self, name: Option<String>) {
+        let chat_id = WindowId(Uuid::new_v4());
+        let chat = self.create_window_of_kind(WindowKind::Chat, chat_id);
+        let tab_name = name.unwrap_or_else(|| format!("Tab {}", self.tabs.len() + 1));
+        let tab = Tab::new(tab_name, SplitNode::Leaf(chat));
+        self.tabs.push(tab);
+        self.active_tab = self.tabs.len() - 1;
+        self.focused_window = Some(chat_id);
+    }
+
+    /// Close the tab at `idx`. Refuses the last tab.
+    fn close_tab(&mut self, idx: usize) {
+        if self.tabs.len() <= 1 || idx >= self.tabs.len() {
+            return;
+        }
+        self.tabs.remove(idx);
+        if self.active_tab >= self.tabs.len() {
+            self.active_tab = self.tabs.len() - 1;
+        }
+        if let Some(&first) = self.root().window_ids().first() {
+            self.focused_window = Some(first);
+        } else {
+            self.focused_window = None;
+        }
+    }
+
+    fn next_tab(&mut self) {
+        if self.tabs.len() <= 1 {
+            return;
+        }
+        self.active_tab = (self.active_tab + 1) % self.tabs.len();
+        if let Some(&first) = self.root().window_ids().first() {
+            self.focused_window = Some(first);
+        }
+    }
+
+    fn prev_tab(&mut self) {
+        if self.tabs.len() <= 1 {
+            return;
+        }
+        self.active_tab = if self.active_tab == 0 {
+            self.tabs.len() - 1
+        } else {
+            self.active_tab - 1
+        };
+        if let Some(&first) = self.root().window_ids().first() {
+            self.focused_window = Some(first);
         }
     }
 
@@ -445,7 +804,6 @@ impl Workspace {
         }
     }
 
-    /// Create a window of the given kind without adding it to the tree.
     fn create_window_of_kind(&self, kind: WindowKind, id: WindowId) -> Box<dyn Window> {
         let ctx = self
             .bridges
@@ -468,11 +826,8 @@ impl Workspace {
         }
     }
 
-    // ── Tick ─────────────────────────────────────────────────────────
-
     // ── Layout persistence ────────────────────────────────────────────
 
-    /// Extract the current layout into a serializable form.
     pub fn extract_layout(&self) -> crate::tui::layout::SavedLayout {
         let tabs: Vec<crate::tui::layout::SavedTab> = self
             .tabs
@@ -491,12 +846,11 @@ impl Workspace {
 
     fn extract_split(node: &SplitNode) -> crate::tui::layout::SavedSplit {
         match node {
-            SplitNode::Leaf(Some(window)) => {
+            SplitNode::Leaf(window) => {
                 crate::tui::layout::SavedSplit::Leaf(crate::tui::layout::SavedLeaf {
                     kind: crate::tui::layout::kind_to_string(window.kind()),
                 })
             }
-            SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
             SplitNode::Horizontal { left, right, ratio } => {
                 crate::tui::layout::SavedSplit::Horizontal {
                     left: Box::new(Self::extract_split(left)),
@@ -514,7 +868,6 @@ impl Workspace {
         }
     }
 
-    /// Build a window from a saved leaf kind.
     fn build_window(&self, kind: crate::tui::layout::SavedLeaf) -> Box<dyn Window> {
         let wk = crate::tui::layout::string_to_kind(&kind.kind);
         let new_id = WindowId(uuid::Uuid::new_v4());
@@ -524,7 +877,7 @@ impl Workspace {
     fn restore_split(&self, saved: &crate::tui::layout::SavedSplit) -> SplitNode {
         match saved {
             crate::tui::layout::SavedSplit::Leaf(leaf) => {
-                SplitNode::Leaf(Some(self.build_window(leaf.clone())))
+                SplitNode::Leaf(self.build_window(leaf.clone()))
             }
             crate::tui::layout::SavedSplit::Horizontal { left, right, ratio } => {
                 SplitNode::Horizontal {
@@ -543,8 +896,6 @@ impl Workspace {
         }
     }
 
-    /// Restore the workspace from a saved layout.
-    /// Replaces all tabs and windows with those from the saved layout.
     pub fn restore_layout(&mut self, layout: &crate::tui::layout::SavedLayout) {
         if !layout.is_valid() {
             return;
@@ -566,14 +917,13 @@ impl Workspace {
         }
     }
 
+    // ── Tick ─────────────────────────────────────────────────────────
+
     pub fn tick(&mut self) {
         self.root_mut().tick();
-        // Drain window actions (only Quit now — window management removed).
         let actions = collect_actions(self.root_mut());
         for action in actions {
-            match action {
-                WorkspaceAction::Quit => self.should_quit = true,
-            }
+            self.apply_action(action);
         }
         self.status_bar.gas_remaining = self.system_bridge.gas_remaining();
         self.status_bar.gas_cap = self.system_bridge.gas_cap();
@@ -594,12 +944,9 @@ impl Workspace {
 fn collect_actions(node: &mut SplitNode) -> Vec<WorkspaceAction> {
     let mut actions = Vec::new();
     match node {
-        SplitNode::Leaf(Some(w)) => {
-            if let Some(action) = w.drain_action() {
-                actions.push(action);
-            }
+        SplitNode::Leaf(w) => {
+            actions.extend(w.drain_actions());
         }
-        SplitNode::Leaf(None) => unreachable!("Leaf must contain a window"),
         SplitNode::Horizontal { left, right, .. } => {
             actions.extend(collect_actions(left));
             actions.extend(collect_actions(right));
