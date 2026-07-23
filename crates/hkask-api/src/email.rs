@@ -360,3 +360,132 @@ impl hkask_regulation::AlertEmailSink for CuratorAlertEmailSink {
         });
     }
 }
+
+// Inbound command parsing (S4) + polling task (S7)
+
+/// A parsed command from an inbound email reply.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EmailCommand {
+    Resolve { escalation_id: String },
+    Dismiss { escalation_id: String },
+    Unknown,
+}
+
+/// Parse an email body for a command verb (case-insensitive, first match wins).
+#[must_use]
+pub fn parse_command(body: &str) -> EmailCommand {
+    for line in body.lines() {
+        let line = line.trim().to_lowercase();
+        if let Some(rest) = line.strip_prefix("resolve ") {
+            return EmailCommand::Resolve {
+                escalation_id: rest.trim().to_string(),
+            };
+        }
+        if let Some(rest) = line.strip_prefix("dismiss ") {
+            return EmailCommand::Dismiss {
+                escalation_id: rest.trim().to_string(),
+            };
+        }
+    }
+    EmailCommand::Unknown
+}
+
+/// Check if a sender is authorized (P12). Reads `HKASK_AUTHORIZED_EMAILS`.
+#[must_use]
+pub fn is_authorized_sender(from: &str) -> bool {
+    let allowlist = std::env::var("HKASK_AUTHORIZED_EMAILS").unwrap_or_default();
+    !allowlist.is_empty() && allowlist.split(',').any(|e| e.trim() == from)
+}
+
+/// Spawn a background IMAP poller that calls `handler` per received email.
+pub fn spawn_inbox_poller<F>(interval_secs: u64, handler: F)
+where
+    F: Fn(InboundEmail, EmailCommand) + Send + Sync + 'static,
+{
+    tokio::spawn(async move {
+        let interval = std::time::Duration::from_secs(interval_secs);
+        loop {
+            tokio::time::sleep(interval).await;
+            match fetch_unread().await {
+                Ok(messages) => {
+                    for msg in messages {
+                        let authorized = is_authorized_sender(&msg.from);
+                        let cmd = parse_command(&msg.body);
+                        if authorized {
+                            handler(msg, cmd);
+                        } else {
+                            tracing::warn!(target = "reg.email.received", from = %msg.from, "Unauthorized sender - command ignored (P12)");
+                        }
+                    }
+                }
+                Err(EmailError::NotConfigured(_)) => {}
+                Err(e) => {
+                    tracing::warn!(target = "reg.email.received", error = %e, "IMAP poll failed")
+                }
+            }
+        }
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_command_resolve() {
+        assert_eq!(
+            parse_command("resolve abc-123"),
+            EmailCommand::Resolve {
+                escalation_id: "abc-123".into()
+            }
+        );
+    }
+
+    #[test]
+    fn parse_command_dismiss() {
+        assert_eq!(
+            parse_command("dismiss xyz-789"),
+            EmailCommand::Dismiss {
+                escalation_id: "xyz-789".into()
+            }
+        );
+    }
+
+    #[test]
+    fn parse_command_case_insensitive() {
+        assert_eq!(
+            parse_command("RESOLVE ID-1"),
+            EmailCommand::Resolve {
+                escalation_id: "id-1".into()
+            }
+        );
+    }
+
+    #[test]
+    fn parse_command_multiline_body() {
+        let body = "Thanks for the alert.\n\nresolve esc-42\nLet me know when done.";
+        assert_eq!(
+            parse_command(body),
+            EmailCommand::Resolve {
+                escalation_id: "esc-42".into()
+            }
+        );
+    }
+
+    #[test]
+    fn parse_command_unknown() {
+        assert_eq!(
+            parse_command("Hello, just checking in."),
+            EmailCommand::Unknown
+        );
+        assert_eq!(parse_command(""), EmailCommand::Unknown);
+    }
+
+    #[test]
+    fn email_mode_display() {
+        assert_eq!(EmailMode::Invite.to_string(), "invite");
+        assert_eq!(EmailMode::Alert.to_string(), "alert");
+        assert_eq!(EmailMode::Notification.to_string(), "notification");
+        assert_eq!(EmailMode::Command.to_string(), "command");
+    }
+}
