@@ -4457,6 +4457,7 @@ dependencies = [
  "chrono",
  "crossterm",
  "dirs",
+ "futures-util",
  "hkask-capability",
  "hkask-communication",
  "hkask-inference",

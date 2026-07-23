@@ -7,7 +7,7 @@
 //! `run_turn_loop` via the `TurnSink` trait. Behavioral dependencies
 //! (inference, gas, tools, threads) are injected via `TurnDeps`.
 
-use hkask_services_chat::TokenUsage;
+use hkask_services_chat::{TokenUsage, TurnResult};
 
 use super::ReplState;
 use super::TalkMode;

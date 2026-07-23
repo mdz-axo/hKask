@@ -1,5 +1,5 @@
-//! Escalation domain types: thresholds, triggers, severity, alerts, and policy.
-//! Pure-data module — no dependencies on external crates beyond std.
+//! Escalation domain types: thresholds, triggers, alerts, and policy.
+//! Severity is reused from `hkask_types::curator::EscalationSeverity`.
 
 use std::sync::Arc;
 

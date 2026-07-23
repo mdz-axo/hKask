@@ -26,6 +26,7 @@ hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-communication = { path = "../hkask-communication", optional = true }
 tokio.workspace = true
+futures-util.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
