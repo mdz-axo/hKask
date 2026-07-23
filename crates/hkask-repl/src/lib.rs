@@ -896,28 +896,33 @@ impl crate::tui::ToolInvokeBridge for TuiReplBridge {
                 DelegationAction, DelegationResource, DelegationToken, derive_signing_key,
             };
 
-            let result = {
+            // Extract everything we need under the lock, then release it.
+            let (runtime, principal, agent) = {
                 let s = state.lock().unwrap_or_else(|e| e.into_inner());
-                let runtime = s.service_context.infra().mcp.clone();
-                let principal = s.host.resolve_user_webid();
-                let agent = s.agent_webid;
-                let signing_key = derive_signing_key(a2a.as_bytes());
-                let token = DelegationToken::new(
-                    DelegationResource::Tool,
-                    tool.clone(),
-                    DelegationAction::Execute,
-                    principal,
-                    agent,
-                    &signing_key,
-                );
-                rt.block_on(async {
-                    use hkask_capability::ToolPort;
-                    runtime
-                        .invoke(&server, &tool, args, &token)
-                        .await
-                        .map_err(|e| e.to_string())
-                })
+                (
+                    s.service_context.infra().mcp.clone(),
+                    s.host.resolve_user_webid(),
+                    s.agent_webid,
+                )
             };
+
+            // Now the state lock is released. Build the token and invoke.
+            let signing_key = derive_signing_key(a2a.as_bytes());
+            let token = DelegationToken::new(
+                DelegationResource::Tool,
+                tool.clone(),
+                DelegationAction::Execute,
+                principal,
+                agent,
+                &signing_key,
+            );
+            let result = rt.block_on(async {
+                use hkask_capability::ToolPort;
+                runtime
+                    .invoke(&server, &tool, args, &token)
+                    .await
+                    .map_err(|e| e.to_string())
+            });
             let _ = tx.send(result);
         });
         request

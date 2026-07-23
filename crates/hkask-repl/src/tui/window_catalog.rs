@@ -6,10 +6,8 @@ use crate::tui::repl_bridge::{
     ReplBridge, SessionBridge, SettingsBridge, SystemBridge, ToolInvokeBridge,
 };
 use crate::tui::window::{Window, WindowId, WindowKind};
+use crate::tui::windows::McpScopedWindow;
 use crate::tui::windows::chat::ChatWindow;
-use crate::tui::windows::companies::CompaniesWindow;
-use crate::tui::windows::kanban::KanbanWindow;
-use crate::tui::windows::scenarios::ScenariosWindow;
 
 pub fn window_kind_from_title(title: &str) -> Option<WindowKind> {
     WindowKind::parse_kind(title)
@@ -48,21 +46,42 @@ pub(crate) fn create_window(
             Box::new(w)
         }
         WindowKind::Kanban => {
-            let mut w = KanbanWindow::new(id, bridge);
+            let mut w = McpScopedWindow::new(
+                id,
+                WindowKind::Kanban,
+                "Kanban",
+                "kanban",
+                bridge,
+                "Kanban — task coordination. Type ':tool_name args' for direct tool calls, or a natural language query. Type /help for commands.",
+            );
             if let Some(b) = ctx.tool_invoke_bridge.clone() {
                 w = w.with_tool_invoke_bridge(b);
             }
             Box::new(w)
         }
         WindowKind::Companies => {
-            let mut w = CompaniesWindow::new(id, bridge);
+            let mut w = McpScopedWindow::new(
+                id,
+                WindowKind::Companies,
+                "Companies",
+                "companies",
+                bridge,
+                "Companies — financial data. Type ':tool_name args' for direct tool calls, or a natural language query. Type /help for commands.",
+            );
             if let Some(b) = ctx.tool_invoke_bridge.clone() {
                 w = w.with_tool_invoke_bridge(b);
             }
             Box::new(w)
         }
         WindowKind::Scenarios => {
-            let mut w = ScenariosWindow::new(id, bridge);
+            let mut w = McpScopedWindow::new(
+                id,
+                WindowKind::Scenarios,
+                "Scenarios",
+                "scenarios",
+                bridge,
+                "Scenarios — planning and forecasting. Type ':tool_name args' for direct tool calls, or a natural language query. Type /help for commands.",
+            );
             if let Some(b) = ctx.tool_invoke_bridge.clone() {
                 w = w.with_tool_invoke_bridge(b);
             }

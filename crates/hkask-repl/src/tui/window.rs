@@ -69,76 +69,36 @@ pub enum WindowKind {
 }
 
 impl WindowKind {
-    /// (kind, title, description, allows_multiple, is_mcp_tabbed)
-    ///
-    /// `allows_multiple` = true means more than one instance can exist
-    /// (useful for Chat). Singleton kinds refocus if already open.
-    ///
-    /// `is_mcp_tabbed` = true means the window handles Tab internally
-    /// rather than letting the workspace cycle focus.
-    pub(crate) const META: &[(WindowKind, &str, &str, bool, bool)] = &[
-        (
-            WindowKind::Chat,
-            "Chat",
-            "AI chat with your userpod agent (default: Chat mode)",
-            true,
-            false,
-        ),
-        (
-            WindowKind::Kanban,
-            "Kanban",
-            "Kanban board and task coordination",
-            false,
-            false,
-        ),
-        (
-            WindowKind::Companies,
-            "Companies",
-            "Company financial data and profiles",
-            false,
-            false,
-        ),
-        (
-            WindowKind::Scenarios,
-            "Scenarios",
-            "Scenario planning and forecast tracking",
-            false,
-            false,
-        ),
-    ];
-
     pub fn default_title(&self) -> &'static str {
-        Self::META
-            .iter()
-            .find(|(k, ..)| k == self)
-            .map(|(_, t, ..)| *t)
-            .unwrap()
+        match self {
+            Self::Chat => "Chat",
+            Self::Kanban => "Kanban",
+            Self::Companies => "Companies",
+            Self::Scenarios => "Scenarios",
+        }
     }
 
     pub fn description(&self) -> &'static str {
-        Self::META
-            .iter()
-            .find(|(k, ..)| k == self)
-            .map(|(_, _, d, ..)| *d)
-            .unwrap()
+        match self {
+            Self::Chat => "AI chat with your userpod agent (default: Chat mode)",
+            Self::Kanban => "Kanban board and task coordination",
+            Self::Companies => "Company financial data and profiles",
+            Self::Scenarios => "Scenario planning and forecast tracking",
+        }
     }
 
     /// Whether multiple instances of this window kind can exist.
     pub fn allows_multiple(&self) -> bool {
-        Self::META
-            .iter()
-            .find(|(k, ..)| k == self)
-            .map(|(_, _, _, m, _)| *m)
-            .unwrap_or(false)
+        match self {
+            Self::Chat => true,
+            Self::Kanban | Self::Companies | Self::Scenarios => false,
+        }
     }
 
     /// Whether this window handles Tab key internally.
     pub fn uses_internal_tab(&self) -> bool {
-        Self::META
-            .iter()
-            .find(|(k, ..)| k == self)
-            .map(|(_, _, _, _, t)| *t)
-            .unwrap_or(false)
+        // No MCP window currently handles Tab internally.
+        false
     }
 
     /// Parse a kind from a slash-command argument (case-insensitive).
@@ -146,17 +106,13 @@ impl WindowKind {
     /// Accepts both the title ("Chat") and the variant name ("chat").
     pub fn parse_kind(s: &str) -> Option<Self> {
         let lower = s.to_lowercase();
-        Self::META
-            .iter()
-            .find(|(k, title, _, _, _)| {
-                title.to_lowercase() == lower || format!("{:?}", k).to_lowercase() == lower
-            })
-            .map(|(k, ..)| *k)
-    }
-
-    /// All known window kinds (for command palette / `/open` completion).
-    pub fn all() -> Vec<WindowKind> {
-        Self::META.iter().map(|(k, ..)| *k).collect()
+        match lower.as_str() {
+            "chat" => Some(Self::Chat),
+            "kanban" => Some(Self::Kanban),
+            "companies" => Some(Self::Companies),
+            "scenarios" => Some(Self::Scenarios),
+            _ => None,
+        }
     }
 }
 
@@ -209,27 +165,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn meta_covers_all_enum_variants() {
-        // If a new WindowKind variant is added but META isn't updated,
-        // default_title() panics. This test guards against that.
-        let kinds: Vec<WindowKind> = WindowKind::META.iter().map(|(k, ..)| *k).collect();
-        let all = WindowKind::all();
-        assert_eq!(kinds.len(), all.len(), "META and all() disagree");
-        assert!(kinds.len() >= 4, "expected at least 4 window kinds");
-    }
-
-    #[test]
-    fn every_variant_has_metadata() {
-        for (kind, title, desc, _, _) in WindowKind::META {
-            assert!(!title.is_empty(), "{:?} has empty title", kind);
-            assert!(!desc.is_empty(), "{:?} has empty description", kind);
-        }
-    }
-
-    #[test]
-    fn allows_multiple_reads_from_meta() {
+    fn allows_multiple_is_correct() {
         assert!(WindowKind::Chat.allows_multiple());
         assert!(!WindowKind::Kanban.allows_multiple());
+        assert!(!WindowKind::Companies.allows_multiple());
+        assert!(!WindowKind::Scenarios.allows_multiple());
+    }
+
+    #[test]
+    fn default_titles_are_non_empty() {
+        for kind in [
+            WindowKind::Chat,
+            WindowKind::Kanban,
+            WindowKind::Companies,
+            WindowKind::Scenarios,
+        ] {
+            assert!(
+                !kind.default_title().is_empty(),
+                "{:?} has empty title",
+                kind
+            );
+            assert!(
+                !kind.description().is_empty(),
+                "{:?} has empty description",
+                kind
+            );
+        }
     }
 
     #[test]

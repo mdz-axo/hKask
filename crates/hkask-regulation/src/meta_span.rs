@@ -147,6 +147,7 @@ pub fn emit_meta_self_calibration(
     new: u64,
     eff_before: Option<f64>,
     eff_after: Option<f64>,
+    source: &str,
 ) {
     let Some(ns) = SpanNamespace::from_observable(&MetaSpan::SelfCalibration) else {
         tracing::warn!(target: "hkask.meta", "reg.meta.self_calibration namespace not canonical");
@@ -164,6 +165,7 @@ pub fn emit_meta_self_calibration(
         "eff_before": eff_before,
         "eff_after": eff_after,
         "eff_delta": eff_delta,
+        "source": source,
     });
     let event = RegulationRecord::new(*observer, span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {

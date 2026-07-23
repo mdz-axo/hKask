@@ -355,6 +355,8 @@ pub struct Workspace {
     bridges: WorkspaceBridges,
     status_bar: StatusBar,
     keymap_state: KeymapState,
+    /// Countdown (in ticks) until `AwaitWindow` keymap state auto-resets.
+    keymap_timeout: u8,
 }
 
 #[derive(Default)]
@@ -407,6 +409,7 @@ impl Workspace {
             bridges,
             status_bar,
             keymap_state: KeymapState::Normal,
+            keymap_timeout: 0,
         }
     }
 
@@ -442,6 +445,7 @@ impl Workspace {
             bridges,
             status_bar,
             keymap_state: KeymapState::Normal,
+            keymap_timeout: 0,
         }
     }
 
@@ -577,6 +581,7 @@ impl Workspace {
             }
             (KeyModifiers::CONTROL, KeyCode::Char('w')) => {
                 self.keymap_state = KeymapState::AwaitWindow;
+                self.keymap_timeout = 60;
                 true
             }
             (KeyModifiers::CONTROL, KeyCode::Char('t')) => {
@@ -681,6 +686,10 @@ impl Workspace {
         let Some(focused) = self.focused_window else {
             return;
         };
+        // Don't close a window that isn't in the active tab's tree.
+        if !self.root().contains_window(focused) {
+            return;
+        }
 
         let count = self.root().window_ids().len();
         if count <= 1 {
@@ -799,6 +808,10 @@ impl Workspace {
         if self.focused_window == Some(id) {
             return;
         }
+        // Don't focus a window that isn't in the active tab's tree.
+        if !self.root().contains_window(id) {
+            return;
+        }
         if let Some(prev) = self.focused_window
             && let Some(w) = self.root_mut().find_leaf_mut(prev)
         {
@@ -904,6 +917,12 @@ impl Workspace {
     // ── Tick ─────────────────────────────────────────────────────────
 
     pub fn tick(&mut self) {
+        if self.keymap_timeout > 0 {
+            self.keymap_timeout -= 1;
+            if self.keymap_timeout == 0 && self.keymap_state == KeymapState::AwaitWindow {
+                self.keymap_state = KeymapState::Normal;
+            }
+        }
         self.root_mut().tick();
         let actions = collect_actions(self.root_mut());
         for action in actions {

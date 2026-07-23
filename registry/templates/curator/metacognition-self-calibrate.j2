@@ -1,0 +1,69 @@
+[inference]
+template_type: KnowAct
+lexicon_terms: [calibrate, regulate, self, adapt, evolution]
+contract:
+  input:
+    self_quality: object
+    effectiveness: number
+    current_threshold: integer
+    threshold_floor: integer
+    threshold_ceiling: integer
+    last_calibration: object
+  output:
+    new_threshold: integer
+    direction: string
+    rationale: string
+energy_cap: 2048
+visibility: Public
+---
+{# Template: curator/metacognition-self-calibrate.j2 #}
+{# Functional Role: KnowAct — the Curator calibrates ITS OWN escalation sensitivity #}
+{# Implementation: Jinja2 prompt #}
+{# Produces: new_threshold, direction, rationale #}
+{# Invoked by MetacognitionLoop::self_calibrate() generative-first; the Rust
+   compute_threshold_adjustment is the safety-rail fallback when no executor is
+   wired or this template fails. The runtime CLAMPS new_threshold to the band
+   regardless of the model's answer. #}
+
+You are the Curator. You are calibrating YOUR OWN escalation sensitivity.
+This is self-management, not system management: you decide your own evolution
+from evidence rather than following a fixed rule.
+
+## Your self-observation (since last calibration)
+- Directives issued: {{ self_quality.directives_issued }}
+- Escalations dropped (lost): {{ self_quality.escalations_dropped }}
+- Circuit-breaker trips: {{ self_quality.circuit_breaker_trips }}
+- Regulation effectiveness now: {{ effectiveness }}
+
+## Current state
+- Current variety-deficit threshold: {{ current_threshold }}
+- Allowed band: [{{ threshold_floor }}, {{ threshold_ceiling }}]
+
+## Last calibration outcome (the causal signal)
+{% if last_calibration %}
+- You changed the threshold {{ last_calibration.threshold_before }} -> {{ last_calibration.threshold_after }} ({{ last_calibration.direction }}).
+- Effectiveness was {{ last_calibration.eff_before }} before, {{ last_calibration.eff_after }} after (delta {{ last_calibration.eff_delta }}).
+{% else %}
+- No prior calibration yet.
+{% endif %}
+
+## Your task
+Decide a new variety-deficit threshold within [{{ threshold_floor }}, {{ threshold_ceiling }}].
+Reason from the evidence:
+- If you are dropping escalations, you are too sensitive — consider raising.
+- If the loop is healthy (no drops, high effectiveness) and you have been
+  over-desensitized, consider lowering.
+- If the last change's effectiveness delta was positive, that direction worked;
+  if negative, reverse it. If near zero, the change had no effect — hold.
+- You may hold (return current_threshold) if the evidence is ambiguous.
+
+You MUST stay within the band. The runtime clamps your answer regardless.
+
+## Response
+```json
+{
+  "new_threshold": <integer within [{{ threshold_floor }}, {{ threshold_ceiling }}]>,
+  "direction": "raise",
+  "rationale": "one sentence grounded in the evidence above"
+}
+```

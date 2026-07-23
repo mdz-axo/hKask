@@ -24,7 +24,7 @@ use crate::tui::repl_bridge::{
     ToolInvokeBridge,
 };
 use crate::tui::text_cursor;
-use crate::tui::window::{WindowId, WindowKind, WorkspaceAction};
+use crate::tui::window::{Window, WindowId, WindowKind, WorkspaceAction};
 
 /// A message in the MCP window's conversation log.
 #[derive(Debug, Clone)]
@@ -135,10 +135,9 @@ impl McpScopedState {
 
         self.add_message(McpSender::User, input.clone());
 
-        // If a tool invoke bridge is available, try to interpret the input
-        // as a direct tool call. If it doesn't look like a tool command,
-        // fall back to scoped inference (LLM round-trip).
-        if self.tool_invoke_bridge.is_some() && self.try_direct_tool_invoke(&input) {
+        // Direct tool calls are opt-in via a ':' sigil prefix. Anything
+        // else falls through to scoped inference (LLM round-trip).
+        if input.starts_with(':') && self.try_direct_tool_invoke(&input) {
             return;
         }
 
@@ -147,16 +146,13 @@ impl McpScopedState {
     }
 
     /// Try to interpret `input` as a direct MCP tool call.
-    /// Format: `tool_name arg1=value1 arg2=value2` or `tool_name {json}`
-    /// Returns true if a tool invocation was started.
+    /// The caller has already verified a ':' prefix is present.
+    /// Format (after ':'): `tool_name arg1=value1 arg2=value2` or `tool_name {json}`
     fn try_direct_tool_invoke(&mut self, input: &str) -> bool {
-        let parts: Vec<&str> = input.splitn(2, ' ').collect();
-        if parts.is_empty() {
-            return false;
-        }
+        // Strip the ':' sigil; the caller guarantees it is present.
+        let rest = &input[1..];
+        let parts: Vec<&str> = rest.splitn(2, ' ').collect();
         let tool_name = parts[0];
-        // Don't intercept if it looks like a natural language query
-        // (heuristic: if the first word is a known tool prefix for this server).
         let full_name = format!("{}/{}", self.mcp_server, tool_name);
         let args_str = parts.get(1).copied().unwrap_or("");
 
@@ -187,6 +183,7 @@ impl McpScopedState {
         };
 
         let Some(ref bridge) = self.tool_invoke_bridge else {
+            // No bridge configured — fall through to scoped inference.
             return false;
         };
         let req = bridge.start_mcp_tool_invoke(&self.mcp_server, tool_name, args);
@@ -448,12 +445,22 @@ impl McpScopedState {
 
 /// Format a JSON tool result for display in the TUI.
 /// Pretty-prints objects/arrays, shows scalars inline.
+/// Recursion is capped at depth 5 and output is truncated to 5000 chars
+/// to prevent stack overflow and UI flooding from deeply nested or huge results.
 fn format_json_result(value: &serde_json::Value) -> String {
-    match value {
+    format_json_result_depth(value, 0)
+}
+
+fn format_json_result_depth(value: &serde_json::Value, depth: u8) -> String {
+    if depth > 5 {
+        return "[...]".to_string();
+    }
+    let result = match value {
         serde_json::Value::String(s) => {
-            // Try to parse the string as JSON (MCP tools often return JSON-as-string)
-            if let Ok(inner) = serde_json::from_str::<serde_json::Value>(s) {
-                return format_json_result(&inner);
+            if depth < 5 {
+                if let Ok(inner) = serde_json::from_str::<serde_json::Value>(s) {
+                    return format_json_result_depth(&inner, depth + 1);
+                }
             }
             s.clone()
         }
@@ -461,5 +468,71 @@ fn format_json_result(value: &serde_json::Value) -> String {
             serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
         }
         _ => value.to_string(),
+    };
+    // Truncate very long output.
+    const MAX_LEN: usize = 5000;
+    if result.len() > MAX_LEN {
+        format!("{}…", &result[..MAX_LEN])
+    } else {
+        result
+    }
+}
+
+/// A concrete `Window` backed by `McpScopedState`.
+///
+/// Thin wrapper that delegates every `Window` method to the shared
+/// `McpScopedState`. Replaces the former per-server `KanbanWindow`,
+/// `CompaniesWindow`, and `ScenariosWindow` newtypes.
+pub struct McpScopedWindow {
+    state: McpScopedState,
+}
+
+impl McpScopedWindow {
+    pub fn new(
+        id: WindowId,
+        kind: WindowKind,
+        title: &str,
+        mcp_server: &str,
+        bridge: Arc<dyn ReplBridge>,
+        welcome: &str,
+    ) -> Self {
+        Self {
+            state: McpScopedState::new(id, kind, title, mcp_server, bridge, welcome),
+        }
+    }
+
+    pub fn with_tool_invoke_bridge(mut self, bridge: Arc<dyn ToolInvokeBridge>) -> Self {
+        self.state = self.state.with_tool_invoke_bridge(bridge);
+        self
+    }
+}
+
+impl Window for McpScopedWindow {
+    fn id(&self) -> WindowId {
+        self.state.id
+    }
+
+    fn title(&self) -> &str {
+        &self.state.title
+    }
+
+    fn kind(&self) -> WindowKind {
+        self.state.kind
+    }
+
+    fn render(&self, f: &mut Frame, area: Rect, is_focused: bool) {
+        self.state.render(f, area, is_focused);
+    }
+
+    fn handle_key(&mut self, key: KeyEvent) -> bool {
+        self.state.handle_key(key)
+    }
+
+    fn tick(&mut self) {
+        self.state.tick();
+    }
+
+    fn drain_actions(&mut self) -> Vec<WorkspaceAction> {
+        self.state.drain_actions()
     }
 }

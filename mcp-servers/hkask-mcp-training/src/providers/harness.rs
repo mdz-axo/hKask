@@ -118,6 +118,17 @@ impl HarnessAdapter for AxolotlHarness {
                 "val_set_size",
                 p.advanced.eval_split_ratio.map(|value| value.to_string()),
             ),
+            (
+                "gradient_checkpointing",
+                p.advanced.gradient_checkpointing.clone(),
+            ),
+            (
+                "flash_attention",
+                p.advanced
+                    .attn_implementation
+                    .as_ref()
+                    .map(|attn| (attn == "flash_attention_2").to_string()),
+            ),
         ] {
             if let Some(value) = value {
                 context.insert(key.to_string(), serde_json::json!(value));
@@ -129,6 +140,15 @@ impl HarnessAdapter for AxolotlHarness {
                 serde_json::json!(opt.weight_decay),
             );
         }
+
+        // Wire optimization fields from TrainingParams to the template context.
+        // These fields exist in the struct but were not previously passed to the
+        // template, causing the template to use hardcoded defaults.
+        context.insert("bf16".to_string(), serde_json::json!(p.advanced.bf16));
+        context.insert(
+            "sample_packing".to_string(),
+            serde_json::json!(p.sequence.sample_packing),
+        );
 
         let template_root = std::env::var_os("HKASK_TEMPLATE_ROOT")
             .map(PathBuf::from)

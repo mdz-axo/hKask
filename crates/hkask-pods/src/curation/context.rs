@@ -91,6 +91,11 @@ pub struct CuratorContext {
     /// executor is constructed after MCP pods, but CuratorContext must
     /// exist before them. Set via `set_manifest_executor()`.
     manifest_executor: RwLock<Option<Arc<ManifestExecutor>>>,
+    /// Skill registry index for building the skill catalog. Late binding —
+    /// set via `set_registry_index()` after the registry is initialized.
+    /// Used by the epistemic routing consumer to invoke skill-router with
+    /// a full skill catalog when low-confidence escalations are detected.
+    registry_index: RwLock<Option<Arc<dyn hkask_types::RegistryIndex>>>,
     /// Consent manager for P2 sovereignty checks. Optional because some
     /// CuratorContext users (standalone CLI metacognition) do not have
     /// a consent store. When present, the Curation Loop uses it to gate
@@ -128,6 +133,7 @@ impl CuratorContext {
             self_quality: Arc::new(SelfQuality::default()),
             a2a_port: None,
             manifest_executor: RwLock::new(None),
+            registry_index: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
             consent_manager: None,
         }
@@ -158,6 +164,7 @@ impl CuratorContext {
             self_quality: Arc::new(SelfQuality::default()),
             a2a_port: None,
             manifest_executor: RwLock::new(None),
+            registry_index: RwLock::new(None),
             pending_communication: Arc::new(RwLock::new(Vec::new())),
             consent_manager: None,
         }
@@ -288,6 +295,24 @@ impl CuratorContext {
     /// cloning the `Arc`.
     pub async fn has_manifest_executor(&self) -> bool {
         self.manifest_executor.read().await.is_some()
+    }
+
+    /// Late-binding setter: attach a RegistryIndex after construction.
+    ///
+    /// Used by the epistemic routing consumer to build the skill catalog
+    /// for skill-router invocation when low-confidence escalations are detected.
+    ///
+    /// pre:  `registry` is a valid `Arc<dyn RegistryIndex>`.
+    /// post: `registry_index` is set to `Some(registry)`.
+    pub async fn set_registry_index(&self, registry: Arc<dyn hkask_types::RegistryIndex>) {
+        *self.registry_index.write().await = Some(registry);
+    }
+
+    /// Access the RegistryIndex for building skill catalogs.
+    ///
+    /// Returns None if no registry has been set yet (late binding).
+    pub(crate) async fn registry_index(&self) -> Option<Arc<dyn hkask_types::RegistryIndex>> {
+        self.registry_index.read().await.clone()
     }
 
     /// Issue a CuratorDirective through the direct channel to Cybernetics.

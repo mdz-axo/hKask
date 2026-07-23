@@ -1181,11 +1181,17 @@ mod tests {
         use crate::huggingface::{TrainingArtifact, TrainingArtifacts};
         use crate::providers::types::*;
 
+        let mut params = TrainingParams::default();
+        params.lora.init_lora_weights = Some(LoraInit::Eva);
+        params.optimization.gradient_accumulation_steps = 16;
+        params.optimization.lr_scheduler = Some("cosine".to_string());
+        params.sequence.sequence_len = Some(4096);
+
         let job = TrainingJob {
             id: "test-job-123".to_string(),
             dataset_path: std::path::PathBuf::from("/tmp/dataset.jsonl"),
             base_model: "Qwen/Qwen3.5-9B".to_string(),
-            params: TrainingParams::default(),
+            params,
             status: TrainingJobStatus::Queued,
             created_at: chrono::Utc::now(),
             host: TrainingHostId::Runpod,

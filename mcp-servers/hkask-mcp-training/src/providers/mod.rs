@@ -219,6 +219,49 @@ mod tests {
         assert!(path.to_string_lossy().contains("job-123"));
     }
 
+    /// expect: Optimization fields from TrainingParams appear in the rendered YAML.
+    /// [P2] Motivating: User Sovereignty — operators can control flash attention,
+    /// gradient checkpointing, bf16, and sample packing via TrainingParams.
+    #[test]
+    fn axolotl_harness_wires_optimization_fields() {
+        let mut params = TrainingParams::default();
+        params.lora.init_lora_weights = Some(types::LoraInit::Eva);
+        params.optimization.gradient_accumulation_steps = 4;
+        params.optimization.lr_scheduler = Some("cosine".to_string());
+        params.sequence.sequence_len = Some(4096);
+        params.advanced.bf16 = true;
+        params.advanced.gradient_checkpointing = Some("true".to_string());
+        params.advanced.attn_implementation = Some("flash_attention_2".to_string());
+        params.sequence.sample_packing = true;
+
+        let job = TrainingJob::new(
+            std::path::PathBuf::from("/tmp/train.jsonl"),
+            "Qwen/Qwen3.5-9B".to_string(),
+            params,
+            TrainingHostId::Runpod,
+            TrainingHarnessId::Axolotl,
+        );
+
+        let yaml = AxolotlHarness.render_config(&job).expect("render config");
+
+        assert!(
+            yaml.contains("bf16: true"),
+            "bf16 must be wired from TrainingParams"
+        );
+        assert!(
+            yaml.contains("gradient_checkpointing: true"),
+            "gradient_checkpointing must be wired from TrainingParams"
+        );
+        assert!(
+            yaml.contains("flash_attention: true"),
+            "flash_attention must be true when attn_implementation is flash_attention_2"
+        );
+        assert!(
+            yaml.contains("sample_packing: true"),
+            "sample_packing must be wired from TrainingParams"
+        );
+    }
+
     /// expect: The Capabilities Researcher job renders every operator-selected Axolotl setting.
     /// [P2] Motivating: User Sovereignty — the submitted job must match the declared training config.
     /// pre: A training job contains the canonical EVA LoRA parameters.

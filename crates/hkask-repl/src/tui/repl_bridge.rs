@@ -136,7 +136,7 @@ pub trait SettingsBridge: Send + Sync {
 
 /// Full bridge — chat/inference + all monitoring methods.
 ///
-/// Used by ChatWindow, CuratorWindow, ScenariosWindow, and status windows.
+/// Used by ChatWindow, CuratorWindow, McpScopedWindow, and status windows.
 /// Inference is async (start → poll) to avoid blocking the TUI event loop.
 /// Monitoring methods mirror `SystemBridge` so a single `Arc<dyn ReplBridge>`
 /// suffices for windows that need both.

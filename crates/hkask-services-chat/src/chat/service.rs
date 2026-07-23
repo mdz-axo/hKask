@@ -390,17 +390,33 @@ impl ChatService {
         )
         .await
         .map_err(|_elapsed| ServiceError::ModelService {
-            kind: ErrorKind::ServiceUnavailable,
-            source: None,
-            message: "Inference call timed out after 120s".to_string(),
-            retryable: true,
-        })?
-        .map_err(|e| ServiceError::ModelService {
-            kind: ErrorKind::BadRequest,
-            source: None,
-            message: e.to_string(),
-            retryable: false,
-        })?;
+            : ServiceError::ModelService {
+                        kind: ErrorKind::ServiceUnavailable,
+                        source: None,
+                        message: "Inference call timed out after 120s".to_string(),
+                        retryable: true,
+                    })?
+                    .map_err(|e| {
+                        // Classify by error type: connection/circuit/generation errors are
+                        // transient (retryable); model/json errors are client-side (not retryable).
+                        let (kind, retryable) = match &e {
+                            InferenceError::Connection(_) | InferenceError::CircuitOpen(_) => {
+                                (ErrorKind::ServiceUnavailable, true)
+                            }
+                            InferenceError::Generation(_) => {
+                                (ErrorKind::ServiceUnavailable, true)
+                            }
+                            InferenceError::Model(_) | InferenceError::Json(_) | InferenceError::VisionUnsupported(_) => {
+                                (ErrorKind::BadRequest, false)
+                            }
+                        };
+                        ServiceError::ModelService {
+                            kind,
+                            source: None,
+                            message: e.to_string(),
+                            retryable,
+                        }
+                    })?;
 
         let response_span = Span::new(
             SpanNamespace::new("reg.chat").expect("canonical namespace: reg.chat"),

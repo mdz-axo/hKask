@@ -42,6 +42,19 @@ templates:
       MetacognitionLoop::act() when escalations are batched and
       ManifestExecutor is available.
 
+  - id: curator/metacognition-self-calibrate
+    name: "Curator self-calibration — generate own escalation threshold"
+    path: metacognition-self-calibrate.j2
+    type: KnowAct
+    status: wired
+    description: >
+      The Curator generates its own threshold adjustment from self-quality
+      evidence and the last calibration effectiveness delta. Invoked by
+      MetacognitionLoop::self_calibrate() generative-first; the Rust
+      compute_threshold_adjustment is the safety-rail fallback when no
+      ManifestExecutor is wired or the template fails. Output clamped to the
+      bounded band.
+
   - id: curator/system_state_gather
     name: "Gather and synthesize current system state"
     path: system_state_gather.j2
