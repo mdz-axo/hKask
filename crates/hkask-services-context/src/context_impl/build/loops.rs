@@ -193,45 +193,6 @@ pub(super) async fn build_loops(
     ));
     loop_system.register_loop(storage_guard).await;
 
-        "HKASK_FEDERATION_ENABLED",
-    )
-    .as_deref()
-        == Ok("1")
-    {
-        let local_replica = system_webid.to_string();
-                local_replica.clone(),
-            ));
-            local_replica.clone(),
-            Arc::clone(&transport),
-            Arc::clone(&f.reg_event_sink),
-        ));
-        let pool = f.db.sqlite_pool().map_err(|e| ServiceError::Domain {
-            kind: ErrorKind::BadRequest,
-            domain: DomainKind::Storage,
-            source: None,
-            message: format!("SQLite pool: {e}"),
-        })?;
-        let mem_driver = Arc::new(SqliteDriver::new(pool));
-        let h_mem_store = HMemStore::from_driver(mem_driver);
-        let semantic_index = Arc::new(std::sync::Mutex::new(SemanticIndex::new(h_mem_store)));
-            Arc::new(SemanticIndexSyncPort::new(Arc::clone(&semantic_index)));
-            local_replica.clone(),
-            Arc::clone(&transport),
-            sync_port,
-            link_manager,
-            Arc::clone(&f.reg_event_sink),
-        ));
-        // Spawn background sync loop. The task is owned by the runtime and
-        // stops when runtime shutdown aborts spawned tasks.
-        tokio::spawn(async move { fed_sync_clone.run().await });
-        Some(dispatch)
-    } else {
-        None
-    };
-
-
-    }
-
     // Snapshot + Backup loops — keep concrete GixCasAdapter for pod-directory ops
     let gix_adapter: Arc<hkask_git_cas::GixCasAdapter> =
         match hkask_git_cas::GixCasAdapter::from_env() {

@@ -37,8 +37,8 @@ Three things sit between the user and a model:
 2. **MCP servers** — 16 built-in Model Context Protocol servers (research,
    memory, codegraph, media, filesystem, regulation, …) exposed as tools
    through `rmcp`.[^mcp]
-3. **Inference routing** — one router across 9 providers (Cline, DeepInfra,
-   fal.ai, KiloCode, Ollama, OpenAI, OpenRouter, Runpod, Together), with
+3. **Inference routing** — one router across 8 providers (Cline, DeepInfra,
+   fal.ai, KiloCode, Ollama, OpenRouter, Runpod, Together), with
    fusion, circuit breakers, and per-call gas accounting.
 
 Everything else in the codebase - pods, federation, Matrix, wallet, ledger,

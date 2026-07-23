@@ -85,13 +85,6 @@ pub enum Commands {
         #[command(subcommand)]
         action: BackupAction,
     },
-
-    /// Federation lifecycle — cross-server curator sync
-    Federation {
-        #[command(subcommand)]
-        action: FederationAction,
-    },
-
     /// Token issuance and management (OCAP credential provisioning)
     Token {
         #[command(subcommand)]
@@ -201,7 +194,6 @@ impl Commands {
             Commands::Sovereignty { .. } => "sovereignty",
             Commands::Git { .. } => "git",
             Commands::Backup { .. } => "backup",
-            Commands::Federation { .. } => "federation",
             Commands::Token { .. } => "token",
             Commands::UserPod { .. } => "userpod",
             Commands::Keystore { .. } => "keystore",

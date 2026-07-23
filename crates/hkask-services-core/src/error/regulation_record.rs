@@ -44,10 +44,6 @@ impl ServiceError {
                     "error",
                     serde_json::json!({ "message": message }),
                 ),
-                    "reg.federation.sync",
-                    "error",
-                    serde_json::json!({ "message": message }),
-                ),
                 DomainKind::Inference => (
                     "reg.inference",
                     "error",

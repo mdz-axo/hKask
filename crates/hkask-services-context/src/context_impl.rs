@@ -32,7 +32,6 @@ use hkask_pods::InferenceLoop;
 use hkask_pods::LoopScheduler;
 use hkask_pods::consent::ConsentManager;
 use hkask_pods::curation::SemanticIndex;
-use hkask_pods::curation::sync_port::SemanticIndexSyncPort;
 use hkask_pods::curator_agent::CuratorAgent;
 use hkask_pods::pod::ActivePods;
 use hkask_regulation::types::loops::CuratorHandle;

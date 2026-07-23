@@ -195,63 +195,6 @@ pub enum TokenAction {
     },
 }
 
-/// Federation lifecycle — cross-server curator sync, invite, pause, revoke.
-#[derive(Debug, Subcommand)]
-pub enum FederationAction {
-    Invite {
-        /// Replica ID for the remote server (e.g., "curator.hkask.example.com")
-        #[arg(long)]
-        peer_replica: String,
-        /// Domain of the remote hKask server
-        #[arg(long)]
-        peer_server_domain: String,
-        /// Matrix homeserver domain for the remote Conduit
-        #[arg(long)]
-        peer_matrix_domain: String,
-        /// Matrix user ID for the remote curator
-        #[arg(long)]
-        peer_curator_matrix_id: String,
-        /// Optional invitation message
-        #[arg(long)]
-        message: Option<String>,
-    },
-    Accept {
-        /// Replica ID of the inviter
-        #[arg()]
-        invitation_id: String,
-    },
-    Reject {
-        /// Replica ID of the inviter
-        #[arg()]
-        invitation_id: String,
-        #[arg(long)]
-        reason: Option<String>,
-    },
-    /// Pause sync with a peer (security measure)
-    Pause {
-        #[arg()]
-        peer_replica: String,
-        #[arg(long)]
-        reason: String,
-    },
-    /// Resume sync with a paused peer
-    Resume {
-        #[arg()]
-        peer_replica: String,
-    },
-    /// Permanently revoke a member
-    Revoke {
-        #[arg()]
-        peer_replica: String,
-        #[arg(long)]
-        reason: String,
-    },
-    Leave {
-        #[arg(long)]
-        reason: String,
-    },
-    Dissolve {
-        #[arg(long)]
         reason: String,
     },
     Status,
