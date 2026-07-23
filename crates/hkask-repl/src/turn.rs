@@ -221,15 +221,6 @@ fn run_turn_loop(
                 break;
             }
         };
-        let chat_response = match chat_result {
-            Ok(r) => r,
-            Err(e) => {
-                sink.status(&format!("  \x1b[31mInference error:\x1b[0m {}", e));
-                gas_guard.release();
-                inference_error = true;
-                break;
-            }
-        };
 
         // Capture the message array from the result — this is our growing array.
         let mut current_messages = chat_response.messages;

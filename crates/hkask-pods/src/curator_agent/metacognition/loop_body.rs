@@ -36,7 +36,12 @@ pub(super) struct PendingCalibration {
     pub(super) threshold_after: u64,
     /// Whether this calibration raised the threshold (vs. lowered).
     pub(super) raised: bool,
-    /// Regulation effectiveness measured at the time the calibration was applied.
+    /// Escalation drop count at the time the calibration was applied — the
+    /// PRIMARY causal signal (lever-controlled). The close-out measures the
+    /// delta: did the threshold change reduce drops?
+    pub(super) dropped_before: u64,
+    /// Regulation effectiveness at apply time — SECONDARY signal from a
+    /// different loop. Retained for offline GEPA, not used for runtime judgment.
     pub(super) eff_before: f64,
     /// Decision source: "generative" (LLM template) or "fallback" (Rust rail).
     pub(super) source: &'static str,

@@ -55,6 +55,10 @@ weight_decay: {{ weight_decay | default(0.01) }}
 max_grad_norm: {{ max_grad_norm | default(0.3) }}
 optim: {{ optim | default("adamw_8bit") }}
 
+# Checkpoint resume — /workspace persists across pod restarts (RunPod docs).
+# Axolotl auto-resumes from the last checkpoint if the pod restarts mid-training.
+auto_resume_from_checkpoints: true
+
 # Eval — preserve an explicit operator-selected split; use 0.05 only when
 # the accepted TrainingParams leaves the value unspecified.
 val_set_size: {{ val_set_size | default(0.05) }}
