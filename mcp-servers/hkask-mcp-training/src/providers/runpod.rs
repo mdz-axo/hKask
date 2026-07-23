@@ -590,11 +590,11 @@ pub fn generate_install_script(
     script.push_str("HARNESS_CMD=\"");
     script.push_str(train_command);
     script.push_str("\"\n");
-    script.push_str("if command -v axolotl \u0026\u0026 [ \"$(basename \"$HARNESS_CMD\")\" = \"axolotl\" ]; then\n");
+    script.push_str("if command -v axolotl && [ \"$(basename \"$HARNESS_CMD\")\" = \"axolotl\" ]; then\n");
     script.push_str("    echo 'Axolotl already installed — skipping pip install (preserving GPU PyTorch)'\n");
-    script.push_str("elif command -v ludwig \u0026\u0026 [ \"$(basename \"$HARNESS_CMD\")\" = \"ludwig\" ]; then\n");
+    script.push_str("elif command -v ludwig && [ \"$(basename \"$HARNESS_CMD\")\" = \"ludwig\" ]; then\n");
     script.push_str("    echo 'Ludwig already installed — skipping pip install (preserving GPU PyTorch)'\n");
-    script.push_str("elif [ \"$(basename \"$HARNESS_CMD\")\" = \"python\" ] \u0026\u0026 python -c 'import trl' 2>/dev/null; then\n");
+    script.push_str("elif [ \"$(basename \"$HARNESS_CMD\")\" = \"python\" ] && python -c 'import trl' 2>/dev/null; then\n");
     script.push_str("    echo 'TRL already installed — skipping pip install (preserving GPU PyTorch)'\n");
     script.push_str("else\n");
     script.push_str("    echo 'Installing harness packages...'\n");
