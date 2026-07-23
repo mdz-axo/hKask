@@ -96,6 +96,7 @@ pub struct CyberneticsLoop {
     event_sink: Option<Arc<dyn RegulationSink>>,
     /// Direct alerts channel: Cybernetics → Curation (CurationInput).
     alerts_tx: Option<mpsc::UnboundedSender<CurationInput>>,
+    alert_email_sink: Option<Arc<dyn crate::algedonic::AlertEmailSink>>,
     /// Direct tool consumption channel: GovernedTool → Cybernetics.
     /// Direct curator directive channel: Curation → Cybernetics.
     curator_directive_rx: Option<Arc<RwLock<mpsc::UnboundedReceiver<CuratorDirective>>>>,
@@ -189,6 +190,7 @@ impl CyberneticsLoop {
             dampener,
             event_sink: None,
             alerts_tx: None,
+            alert_email_sink: None,
             slo_provider: None,
             curator_directive_rx: None,
             loop_quality: RwLock::new(LoopMetrics::default()),
@@ -222,6 +224,19 @@ impl CyberneticsLoop {
     #[must_use = "builder methods must be chained or assigned"]
     pub fn with_alerts_channel(mut self, tx: mpsc::UnboundedSender<CurationInput>) -> Self {
         self.alerts_tx = Some(tx);
+        self
+    }
+
+    /// Wire the last-resort alert email sink — sends algedonic alerts via email
+    /// when the live channel and persistence are both unavailable.
+    ///
+    /// post: returns Self for chaining
+    #[must_use = "builder methods must be chained or assigned"]
+    pub fn with_alert_email_sink(
+        mut self,
+        sink: Arc<dyn crate::algedonic::AlertEmailSink>,
+    ) -> Self {
+        self.alert_email_sink = Some(sink);
         self
     }
 
@@ -1159,8 +1174,21 @@ impl RegulationLoop for CyberneticsLoop {
                         } else {
                             tracing::info!(target: "reg.alert", deficit = deficit, threshold = threshold, "Algedonic alert persisted to RegulationArchive (Curator inbox unavailable)");
                         }
+                    } else if let Some(ref email_sink) = self.alert_email_sink {
+                        email_sink.send_alert_email(&alert);
+                        tracing::info!(
+                            target: "reg.alert",
+                            deficit = deficit,
+                            threshold = threshold,
+                            "Algedonic alert sent via email fallback"
+                        );
                     } else {
-                        tracing::error!(target: "reg.alert", deficit = deficit, threshold = threshold, "CRITICAL: Algedonic alert LOST — neither live channel nor event_sink connected. Feedback loop closure broken.");
+                        tracing::error!(
+                            target: "reg.alert",
+                            deficit = deficit,
+                            threshold = threshold,
+                            "CRITICAL: Algedonic alert LOST - no live channel, event_sink, or email sink"
+                        );
                     }
                 }
             }

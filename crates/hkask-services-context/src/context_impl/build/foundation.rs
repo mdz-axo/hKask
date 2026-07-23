@@ -21,6 +21,9 @@ pub(super) struct Foundation {
     pub gas_event_store: Arc<dyn LedgerStoragePort>,
     /// Concrete regulation record store for SLO evaluation and Regulation queries.
     pub regulation_store: Arc<RegulationArchive>,
+    /// Last-resort alert email sink — injected by the API layer to close the
+    /// algedonic feedback loop via email when live channel and archive are down.
+    pub alert_email_sink: Option<Arc<dyn hkask_regulation::AlertEmailSink>>,
 }
 
 pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundation, ServiceError> {
@@ -153,5 +156,6 @@ pub(super) async fn build_foundation(config: &ServiceConfig) -> Result<Foundatio
         reg_event_sink: reg_event_sink.clone(),
         gas_event_store,
         regulation_store: gas_store,
+        alert_email_sink: None,
     })
 }

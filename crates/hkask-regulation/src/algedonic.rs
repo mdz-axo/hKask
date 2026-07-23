@@ -45,6 +45,17 @@ pub struct RuntimeAlert {
     pub message: String,
 }
 
+/// Sink for sending algedonic alerts via email as a last-resort loop closure
+/// when the live channel and persistence are both unavailable.
+///
+/// Implementations should be non-blocking — spawn async work internally
+/// rather than blocking the cybernetics loop.
+pub trait AlertEmailSink: Send + Sync + std::fmt::Debug {
+    /// Send an alert email. Non-blocking — implementations should spawn
+    /// async work rather than blocking the caller.
+    fn send_alert_email(&self, alert: &RuntimeAlert);
+}
+
 impl RuntimeAlert {
     /// Create an alert using binary thresholds. Returns None if domain is empty
     /// or threshold is 0.

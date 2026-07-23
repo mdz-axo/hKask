@@ -23,6 +23,32 @@ pub enum EmailError {
 /// Result type for email operations.
 pub type EmailResult<T> = std::result::Result<T, EmailError>;
 
+/// Interaction mode for curator email — tags each message with its cybernetic purpose.
+///
+/// Each mode closes a different feedback loop:
+/// - `Invite` — outbound, one-way (onboarding)
+/// - `Alert` — outbound algedonic, closes S1→S5 when the live channel is dead
+/// - `Notification` — outbound periodic digest (escalations + reg status)
+/// - `Command` — inbound reply → curator MCP tool call (human-in-the-loop)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmailMode {
+    Invite,
+    Alert,
+    Notification,
+    Command,
+}
+
+impl std::fmt::Display for EmailMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Invite => write!(f, "invite"),
+            Self::Alert => write!(f, "alert"),
+            Self::Notification => write!(f, "notification"),
+            Self::Command => write!(f, "command"),
+        }
+    }
+}
+
 /// Shared HTTP client for MXroute API calls.
 fn email_client() -> &'static reqwest::Client {
     use std::sync::OnceLock;
@@ -39,7 +65,7 @@ fn email_client() -> &'static reqwest::Client {
 /// - HKASK_CURATOR_EMAIL — from address (default: HKASK_SMTP_USERNAME)
 ///
 /// Returns Ok(()) on success, Err(message) on failure.
-pub async fn send_email(to: &str, subject: &str, body: &str) -> EmailResult<()> {
+pub async fn send_email(to: &str, subject: &str, body: &str, mode: EmailMode) -> EmailResult<()> {
     let server = std::env::var("HKASK_MXROUTE_SERVER")
         .map_err(|_| EmailError::NotConfigured("HKASK_MXROUTE_SERVER not set".into()))?;
     let username = std::env::var("HKASK_SMTP_USERNAME")
@@ -84,6 +110,7 @@ pub async fn send_email(to: &str, subject: &str, body: &str) -> EmailResult<()> 
         target = "reg.email.sent",
         to = %to,
         subject = %subject,
+        mode = %mode,
         "REG"
     );
     Ok(())
@@ -144,7 +171,7 @@ pub async fn send_invite_email(
         invite_code = invite_code,
     );
 
-    send_email(to_email, &subject, &body).await
+    send_email(to_email, &subject, &body, EmailMode::Invite).await
 }
 
 // ── Inbound (IMAP) ─────────────────────────────────────────────────────

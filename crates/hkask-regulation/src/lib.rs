@@ -55,7 +55,7 @@ pub(crate) mod wallet_energy_estimator; // Loop 6 — wallet-aware energy estima
 pub mod wallet_gas_calibrator;
 pub mod wallet_manager;
 pub mod well;
-pub use algedonic::RuntimeAlert;
+pub use algedonic::{AlertEmailSink, RuntimeAlert};
 pub use api_metering::{
     ApiMeter, ApiMeteringAlert, ApiRequestSpan, EndpointWeight, RateLimitStatus, endpoint_weight,
 };

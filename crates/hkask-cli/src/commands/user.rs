@@ -538,7 +538,7 @@ pub(crate) fn create_invite(
                 .map_err(|e| ServiceError::Domain {
                     kind: ErrorKind::BadRequest,
                     domain: DomainKind::Infrastructure,
-                    source: Some(Box::new(std::io::Error::other(e.to_string()))),
+                    source: Some(Box::new(e)),
                     message: "Email send failed".into(),
                 })
         })?;

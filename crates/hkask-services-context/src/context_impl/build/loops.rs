@@ -65,6 +65,11 @@ pub(super) async fn build_loops(
                 DEFAULT_SET_POINT_CALIBRATION_INTERVAL,
             )
             .with_seam_watcher();
+    let cybernetics_loop = if let Some(ref sink) = f.alert_email_sink {
+        cybernetics_loop.with_alert_email_sink(Arc::clone(sink))
+    } else {
+        cybernetics_loop
+    };
     let cybernetics_loop = Arc::new(RwLock::new(cybernetics_loop));
     loop_system
         .register_loop(Arc::clone(&cybernetics_loop) as Arc<dyn RegulationLoop>)

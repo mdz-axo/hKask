@@ -28,10 +28,22 @@ impl AgentService {
     /// 7. Inference port (optional, based on config)
     /// 8. Memory adapters (episodic + semantic)
     pub async fn build(config: ServiceConfig) -> Result<Self, ServiceError> {
+        Self::build_with_email(config, None).await
+    }
+
+    /// Assemble all shared infrastructure with an optional alert email sink.
+    ///
+    /// The sink closes the algedonic feedback loop via email when the live
+    /// channel and archive persistence are both unavailable.
+    pub async fn build_with_email(
+        config: ServiceConfig,
+        alert_email_sink: Option<Arc<dyn hkask_regulation::AlertEmailSink>>,
+    ) -> Result<Self, ServiceError> {
         let system_webid = WebID::from_persona(config.user_name.as_bytes());
 
         // ── Foundation: database, stores, Regulation, seam watcher ──────────────
         let mut foundation = foundation::build_foundation(&config).await?;
+        foundation.alert_email_sink = alert_email_sink;
 
         // ── Loops: cybernetics, inference, episodic, semantic, curation ──
         let loops = loops::build_loops(&config, &mut foundation, system_webid).await?;
