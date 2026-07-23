@@ -644,22 +644,23 @@ pub enum ProviderError {
 
 // ── TrainingHost trait ────────────────────────────────────────────────────
 //
-/// Pluggable training host — where a training job runs.
-///
-/// ARCHITECTURAL REQUIREMENT: Every pod MUST be debuggable. The `status`
-/// method returns `PodStatus` with SSH connection info, IP, uptime, and GPU
-/// type. Pods without public SSH access are useless for debugging and
-/// must not be deployed.
-///
-/// The old trait returned bare `TrainingJobStatus` — no SSH info, no pod
-/// details, no way to debug. That design caused repeated money-wasting
-/// failures where pods ran for 30+ minutes with no way to inspect them.
-/// This trait fixes that by requiring full visibility.
-///
-/// The `completion_metadata` and `adapter_weight_path` methods have been
-/// REMOVED. Completion is detected via the HuggingFace manifest
-/// (`check_completion_manifest` in `TrainingServer`). Adapter paths come
-/// from the manifest's `adapter.repository` field.
+// Pluggable training host — where a training job runs.
+//
+// ARCHITECTURAL REQUIREMENT: Every pod MUST be debuggable. The `status`
+// method returns `PodStatus` with SSH connection info, IP, uptime, and GPU
+// type. Pods without public SSH access are useless for debugging and
+// must not be deployed.
+//
+// The old trait returned bare `TrainingJobStatus` — no SSH info, no pod
+// details, no way to debug. That design caused repeated money-wasting
+// failures where pods ran for 30+ minutes with no way to inspect them.
+// This trait fixes that by requiring full visibility.
+//
+// The `completion_metadata` and `adapter_weight_path` methods have been
+// REMOVED. Completion is detected via the HuggingFace manifest
+// (`check_completion_manifest` in `TrainingServer`). Adapter paths come
+// from the manifest's `adapter.repository` field.
+//
 // ── PodStatus ─────────────────────────────────────────────────────────────
 
 /// Rich pod status returned by `TrainingHost::status`. Includes everything

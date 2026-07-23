@@ -1,9 +1,15 @@
-//! Curator email delivery — sends invites, notifications, and alerts via MXroute HTTP API.
+//! Curator email interaction — bidirectional via MXroute.
 //!
-//! Uses MXroute's SMTP API at smtpapi.mxroute.com — no SMTP library needed.
-//! Also provides the foundation for userpod email access (future: per-userpod credentials).
+//! Outbound: SMTP API at smtpapi.mxroute.com (invites, alerts, notifications).
+//! Inbound: IMAP port 993 SSL (command replies, same credentials as SMTP).
 //!
-//! expect: "The Curator can send email on behalf of the server"
+//! Interaction modes (`EmailMode`): Invite, Alert, Notification, Command.
+//! Each mode closes a different cybernetic feedback loop.
+//!
+//! P12 auth: inbound commands require sender allowlist (`HKASK_AUTHORIZED_EMAILS`)
+//! and a one-time nonce token (`NonceStore`) issued in outbound alert emails.
+//!
+//! expect: "The Curator can send and receive email on behalf of the server"
 
 /// Errors that can occur during email delivery.
 #[derive(Debug, thiserror::Error)]
@@ -329,10 +335,7 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
                 .and_then(|env| env.subject.as_deref())
                 .map(|s| String::from_utf8_lossy(s).into_owned())
                 .unwrap_or_default();
-            let body = msg
-                .body()
-                .map(|b| extract_text_body(b))
-                .unwrap_or_default();
+            let body = msg.body().map(|b| extract_text_body(b)).unwrap_or_default();
 
             tracing::info!(
                 target = "reg.email.received",
@@ -356,7 +359,9 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
             .map_err(|e| EmailError::Imap(format!("store seen: {e}")))?;
     }
 
-    if let Err(e) = session.logout().await { tracing::debug!(target: "reg.email.received", error = %e, "IMAP logout failed (non-critical)"); }
+    if let Err(e) = session.logout().await {
+        tracing::debug!(target: "reg.email.received", error = %e, "IMAP logout failed (non-critical)");
+    }
     Ok(messages)
 }
 
@@ -376,7 +381,10 @@ impl CuratorAlertEmailSink {
     pub fn from_env() -> Self {
         let alert_recipient = std::env::var("HKASK_ALERT_EMAIL")
             .unwrap_or_else(|_| std::env::var("HKASK_SMTP_USERNAME").unwrap_or_default());
-        Self { alert_recipient, nonce_store: None }
+        Self {
+            alert_recipient,
+            nonce_store: None,
+        }
     }
 
     /// Create from env, returning `None` when no recipient is configured.
@@ -387,7 +395,10 @@ impl CuratorAlertEmailSink {
         if recipient.is_empty() {
             return None;
         }
-        Some(std::sync::Arc::new(Self { alert_recipient: recipient, nonce_store: None }))
+        Some(std::sync::Arc::new(Self {
+            alert_recipient: recipient,
+            nonce_store: None,
+        }))
     }
 
     /// Create from env with a shared nonce store for P12 token auth.
@@ -400,7 +411,10 @@ impl CuratorAlertEmailSink {
         if recipient.is_empty() {
             return None;
         }
-        Some(std::sync::Arc::new(Self { alert_recipient: recipient, nonce_store: Some(nonce) }))
+        Some(std::sync::Arc::new(Self {
+            alert_recipient: recipient,
+            nonce_store: Some(nonce),
+        }))
     }
 }
 
@@ -447,14 +461,19 @@ pub struct NonceStore {
 
 impl std::fmt::Debug for NonceStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("NonceStore").field("ttl", &self.ttl).finish_non_exhaustive()
+        f.debug_struct("NonceStore")
+            .field("ttl", &self.ttl)
+            .finish_non_exhaustive()
     }
 }
 
 impl NonceStore {
     /// Create a store with a token TTL (e.g. 24h).
     pub fn new(ttl: std::time::Duration) -> Self {
-        Self { tokens: std::sync::Mutex::new(std::collections::HashMap::new()), ttl }
+        Self {
+            tokens: std::sync::Mutex::new(std::collections::HashMap::new()),
+            ttl,
+        }
     }
 
     /// Issue a one-time token. Returns the token string to include in an email.
@@ -484,8 +503,14 @@ impl NonceStore {
 /// A parsed command from an inbound email reply.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EmailCommand {
-    Resolve { escalation_id: String, token: Option<String> },
-    Dismiss { escalation_id: String, token: Option<String> },
+    Resolve {
+        escalation_id: String,
+        token: Option<String>,
+    },
+    Dismiss {
+        escalation_id: String,
+        token: Option<String>,
+    },
     Unknown,
 }
 
@@ -522,9 +547,15 @@ pub fn parse_command(body: &str) -> EmailCommand {
     if !found_command {
         EmailCommand::Unknown
     } else if is_resolve {
-        EmailCommand::Resolve { escalation_id, token }
+        EmailCommand::Resolve {
+            escalation_id,
+            token,
+        }
     } else {
-        EmailCommand::Dismiss { escalation_id, token }
+        EmailCommand::Dismiss {
+            escalation_id,
+            token,
+        }
     }
 }
 
@@ -541,8 +572,7 @@ pub fn spawn_inbox_poller<F>(
     interval_secs: u64,
     nonce_store: Option<std::sync::Arc<NonceStore>>,
     handler: F,
-)
-where
+) where
     F: Fn(InboundEmail, EmailCommand) + Send + Sync + 'static,
 {
     tokio::spawn(async move {
@@ -652,14 +682,13 @@ pub fn wire_inbox_poller(
 mod tests {
     use super::*;
 
-    // Placeholder — real tests below.
-
     #[test]
     fn parse_command_resolve() {
         assert_eq!(
             parse_command("resolve abc-123"),
             EmailCommand::Resolve {
-                escalation_id: "abc-123".into()
+                escalation_id: "abc-123".into(),
+                token: None
             }
         );
     }
@@ -669,7 +698,8 @@ mod tests {
         assert_eq!(
             parse_command("dismiss xyz-789"),
             EmailCommand::Dismiss {
-                escalation_id: "xyz-789".into()
+                escalation_id: "xyz-789".into(),
+                token: None
             }
         );
     }
@@ -679,7 +709,8 @@ mod tests {
         assert_eq!(
             parse_command("RESOLVE ID-1"),
             EmailCommand::Resolve {
-                escalation_id: "id-1".into()
+                escalation_id: "id-1".into(),
+                token: None
             }
         );
     }
@@ -690,7 +721,8 @@ mod tests {
         assert_eq!(
             parse_command(body),
             EmailCommand::Resolve {
-                escalation_id: "esc-42".into()
+                escalation_id: "esc-42".into(),
+                token: None
             }
         );
     }
@@ -705,10 +737,66 @@ mod tests {
     }
 
     #[test]
+    fn parse_command_with_token() {
+        let body = "resolve esc-99\ntoken:550e8400-e29b-41d4-a716-446655440000";
+        assert_eq!(
+            parse_command(body),
+            EmailCommand::Resolve {
+                escalation_id: "esc-99".into(),
+                token: Some("550e8400-e29b-41d4-a716-446655440000".into()),
+            }
+        );
+    }
+
+    #[test]
+    fn parse_command_token_before_command() {
+        let body = "token:abc-123\nresolve esc-1";
+        assert_eq!(
+            parse_command(body),
+            EmailCommand::Resolve {
+                escalation_id: "esc-1".into(),
+                token: Some("abc-123".into()),
+            }
+        );
+    }
+
+    #[test]
     fn email_mode_display() {
         assert_eq!(EmailMode::Invite.to_string(), "invite");
         assert_eq!(EmailMode::Alert.to_string(), "alert");
         assert_eq!(EmailMode::Notification.to_string(), "notification");
         assert_eq!(EmailMode::Command.to_string(), "command");
+    }
+
+    #[test]
+    fn nonce_store_issue_and_verify() {
+        let store = NonceStore::new(std::time::Duration::from_secs(3600));
+        let token = store.issue();
+        assert!(store.verify(&token), "freshly issued token should verify");
+    }
+
+    #[test]
+    fn nonce_store_one_time_use() {
+        let store = NonceStore::new(std::time::Duration::from_secs(3600));
+        let token = store.issue();
+        assert!(store.verify(&token), "first use should succeed");
+        assert!(!store.verify(&token), "second use should fail (consumed)");
+    }
+
+    #[test]
+    fn nonce_store_rejects_unknown() {
+        let store = NonceStore::new(std::time::Duration::from_secs(3600));
+        assert!(
+            !store.verify("nonexistent-token"),
+            "unknown token should fail"
+        );
+    }
+
+    #[test]
+    fn nonce_store_rejects_expired() {
+        let store = NonceStore::new(std::time::Duration::from_millis(1));
+        let token = store.issue();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        assert!(!store.verify(&token), "expired token should fail");
     }
 }
