@@ -476,7 +476,12 @@ fn format_json_result_depth(value: &serde_json::Value, depth: u8) -> String {
     // Truncate very long output.
     const MAX_LEN: usize = 5000;
     if result.len() > MAX_LEN {
-        format!("{}…", &result[..MAX_LEN])
+        // Find a safe UTF-8 boundary at or before MAX_LEN.
+        let mut end = MAX_LEN;
+        while !result.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!("{}…", &result[..end])
     } else {
         result
     }
@@ -538,5 +543,254 @@ impl Window for McpScopedWindow {
 
     fn drain_actions(&mut self) -> Vec<WorkspaceAction> {
         self.state.drain_actions()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tui::test_util::MockReplBridge;
+    use std::sync::atomic::{AtomicU8, Ordering};
+
+    /// A mock ToolInvokeBridge that captures the last invocation.
+    struct CapturingToolBridge {
+        last_server: std::sync::Mutex<String>,
+        last_tool: std::sync::Mutex<String>,
+        last_args: std::sync::Mutex<serde_json::Value>,
+        call_count: AtomicU8,
+    }
+
+    impl CapturingToolBridge {
+        fn new() -> Self {
+            Self {
+                last_server: std::sync::Mutex::new(String::new()),
+                last_tool: std::sync::Mutex::new(String::new()),
+                last_args: std::sync::Mutex::new(serde_json::json!({})),
+                call_count: AtomicU8::new(0),
+            }
+        }
+
+        fn last_tool(&self) -> String {
+            self.last_tool.lock().unwrap().clone()
+        }
+
+        fn last_args(&self) -> serde_json::Value {
+            self.last_args.lock().unwrap().clone()
+        }
+    }
+
+    impl ToolInvokeBridge for CapturingToolBridge {
+        fn start_mcp_tool_invoke(
+            &self,
+            server: &str,
+            tool: &str,
+            args: serde_json::Value,
+        ) -> McpInvokeRequestId {
+            *self.last_server.lock().unwrap() = server.to_string();
+            *self.last_tool.lock().unwrap() = tool.to_string();
+            *self.last_args.lock().unwrap() = args;
+            self.call_count.fetch_add(1, Ordering::Relaxed);
+            McpInvokeRequestId::new()
+        }
+        fn poll_mcp_tool_invoke(&self, _request: McpInvokeRequestId) -> McpInvokeState {
+            McpInvokeState::Idle
+        }
+    }
+
+    fn make_state(server: &str) -> McpScopedState {
+        let bridge: Arc<dyn ReplBridge> = Arc::new(MockReplBridge {
+            agent_name: "test".into(),
+            model_name: "test".into(),
+        });
+        McpScopedState::new(
+            WindowId(uuid::Uuid::new_v4()),
+            WindowKind::Kanban,
+            "Kanban",
+            server,
+            bridge,
+            "test",
+        )
+    }
+
+    fn make_state_with_bridge(server: &str) -> (McpScopedState, Arc<CapturingToolBridge>) {
+        let bridge: Arc<dyn ReplBridge> = Arc::new(MockReplBridge {
+            agent_name: "test".into(),
+            model_name: "test".into(),
+        });
+        let tool_bridge = Arc::new(CapturingToolBridge::new());
+        let mut state = McpScopedState::new(
+            WindowId(uuid::Uuid::new_v4()),
+            WindowKind::Kanban,
+            "Kanban",
+            server,
+            bridge,
+            "test",
+        );
+        state = state.with_tool_invoke_bridge(tool_bridge.clone() as Arc<dyn ToolInvokeBridge>);
+        (state, tool_bridge)
+    }
+
+    #[test]
+    fn sigil_prefix_triggers_tool_invoke() {
+        let (mut state, tool_bridge) = make_state_with_bridge("kanban");
+        state.input = ":kanban_board_list".into();
+        state.cursor_pos = state.input.len();
+        state.send_input();
+        assert!(
+            state.pending_invoke.is_some(),
+            "pending_invoke should be set"
+        );
+        assert!(
+            state.pending_request.is_none(),
+            "pending_request should NOT be set"
+        );
+        assert_eq!(tool_bridge.last_tool(), "kanban_board_list");
+        assert_eq!(tool_bridge.last_args(), serde_json::json!({}));
+    }
+
+    #[test]
+    fn non_sigil_falls_through_to_scoped_inference() {
+        let (mut state, _) = make_state_with_bridge("kanban");
+        state.input = "list my boards".into();
+        state.cursor_pos = state.input.len();
+        state.send_input();
+        assert!(
+            state.pending_request.is_some(),
+            "pending_request should be set"
+        );
+        assert!(
+            state.pending_invoke.is_none(),
+            "pending_invoke should NOT be set"
+        );
+    }
+
+    #[test]
+    fn sigil_with_key_value_args() {
+        let (mut state, tool_bridge) = make_state_with_bridge("kanban");
+        state.input = ":kanban_task_create board=main title=fix-bug priority=3".into();
+        state.cursor_pos = state.input.len();
+        state.send_input();
+        assert!(state.pending_invoke.is_some());
+        assert_eq!(tool_bridge.last_tool(), "kanban_task_create");
+        let args = tool_bridge.last_args();
+        assert_eq!(args["board"], serde_json::json!("main"));
+        assert_eq!(args["title"], serde_json::json!("fix-bug"));
+        assert_eq!(args["priority"], serde_json::json!(3));
+    }
+
+    #[test]
+    fn sigil_with_json_args() {
+        let (mut state, tool_bridge) = make_state_with_bridge("kanban");
+        state.input = ":kanban_task_create {\"board\": \"main\", \"count\": 5}".into();
+        state.cursor_pos = state.input.len();
+        state.send_input();
+        assert!(state.pending_invoke.is_some());
+        assert_eq!(tool_bridge.last_tool(), "kanban_task_create");
+        let args = tool_bridge.last_args();
+        assert_eq!(args["board"], serde_json::json!("main"));
+        assert_eq!(args["count"], serde_json::json!(5));
+    }
+
+    #[test]
+    fn sigil_with_bool_arg() {
+        let (mut state, tool_bridge) = make_state_with_bridge("kanban");
+        state.input = ":kanban_board_list active=true archived=false".into();
+        state.cursor_pos = state.input.len();
+        state.send_input();
+        let args = tool_bridge.last_args();
+        assert_eq!(args["active"], serde_json::json!(true));
+        assert_eq!(args["archived"], serde_json::json!(false));
+    }
+
+    #[test]
+    fn sigil_with_float_arg() {
+        let (mut state, tool_bridge) = make_state_with_bridge("companies");
+        state.input = ":stock_quote symbol=AAPL threshold=3.14".into();
+        state.cursor_pos = state.input.len();
+        state.send_input();
+        let args = tool_bridge.last_args();
+        assert_eq!(args["symbol"], serde_json::json!("AAPL"));
+        assert!(args["threshold"].is_f64());
+    }
+
+    #[test]
+    fn no_tool_bridge_falls_through_to_inference() {
+        let mut state = make_state("kanban");
+        state.input = ":kanban_board_list".into();
+        state.cursor_pos = state.input.len();
+        state.send_input();
+        // Without tool_invoke_bridge, the ':' prefix try returns false,
+        // and the input falls through to scoped inference.
+        assert!(
+            state.pending_request.is_some(),
+            "should fall through to inference"
+        );
+        assert!(state.pending_invoke.is_none());
+    }
+
+    #[test]
+    fn slash_command_intercepted_before_sigil() {
+        let (mut state, _) = make_state_with_bridge("kanban");
+        state.input = "/help".into();
+        state.cursor_pos = state.input.len();
+        state.send_input();
+        assert!(state.pending_invoke.is_none());
+        assert!(state.pending_request.is_none());
+        // Should have added a help message
+        assert!(state.messages.len() >= 2);
+    }
+
+    #[test]
+    fn format_json_simple_string() {
+        let result = format_json_result(&serde_json::json!("hello"));
+        assert_eq!(result, "hello");
+    }
+
+    #[test]
+    fn format_json_object() {
+        let result = format_json_result(&serde_json::json!({"key": "value"}));
+        assert!(result.contains("\"key\""));
+        assert!(result.contains("\"value\""));
+    }
+
+    #[test]
+    fn format_json_nested_string_parses() {
+        let inner = serde_json::json!({"nested": true});
+        let wrapped = serde_json::Value::String(inner.to_string());
+        let result = format_json_result(&wrapped);
+        assert!(result.contains("nested"));
+        assert!(result.contains("true"));
+    }
+
+    #[test]
+    fn format_json_recursion_capped() {
+        // Create a deeply nested string-within-string: "\"\\\"...\\\"\""
+        let mut val = serde_json::json!({"a": 1});
+        for _ in 0..10 {
+            val = serde_json::Value::String(val.to_string());
+        }
+        let result = format_json_result(&val);
+        // Should hit depth cap and return "[...]" at some point
+        assert!(result.contains("[...]") || result.len() < 100);
+    }
+
+    #[test]
+    fn format_json_truncates_long_output() {
+        // Create a very large JSON object
+        let mut map = serde_json::Map::new();
+        for i in 0..1000 {
+            map.insert(
+                format!("key_{i}"),
+                serde_json::json!(format!("value_{}", i)),
+            );
+        }
+        let val = serde_json::Value::Object(map);
+        let result = format_json_result(&val);
+        assert!(
+            result.len() <= 5003,
+            "output should be truncated (got {})",
+            result.len()
+        ); // ≤5000 safe UTF-8 boundary + "…" (3 bytes)
+        assert!(result.ends_with('…'));
     }
 }

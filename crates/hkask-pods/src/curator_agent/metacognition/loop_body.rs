@@ -1229,6 +1229,7 @@ mod self_calibrate_tests {
     }
 }
 
+#[cfg(test)]
 mod epistemic_routing_tests {
     use super::*;
     use hkask_regulation::RegulationLedger;
@@ -1296,7 +1297,6 @@ mod epistemic_routing_tests {
 
     #[tokio::test]
     async fn no_executor_degrades_gracefully() {
-        let mc = make_loop();
         // Set a skill catalog but no manifest executor — should still
         // degrade gracefully (catalog without executor is useless).
         let context = Arc::new(CuratorContext::new(

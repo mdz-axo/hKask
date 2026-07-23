@@ -150,14 +150,14 @@ async fn smoke_test_training_completion() {
     //   - Training (10 samples, 1 epoch): ~2-5 min
     //   - Manifest upload: ~30 sec
     //   Total: ~10-20 min
-    // Timeout: 30 min (safety margin)
-    let timeout = tokio::time::Instant::now() + tokio::time::Duration::from_secs(1800);
+    // Timeout: 45 min (pip install can take 20+ min on a fresh pod)
+    let timeout = tokio::time::Instant::now() + tokio::time::Duration::from_secs(2700);
     let mut last_status = String::new();
     let mut poll_count = 0u32;
 
     loop {
         if tokio::time::Instant::now() >= timeout {
-            eprintln!("\nTIMEOUT after 30 minutes. Last status: {last_status}");
+            eprintln!("\nTIMEOUT after 45 minutes. Last status: {last_status}");
             eprintln!("Cancelling pod to stop billing...");
             let cancel_req: hkask_mcp_training::types::TrainCancelRequest =
                 serde_json::from_value(serde_json::json!({"job_id": job_id}))

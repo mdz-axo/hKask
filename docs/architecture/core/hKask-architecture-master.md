@@ -3806,7 +3806,7 @@ When MCP client support is added:
 
 # hKask Federation v2 — Curator-CRDT Federation Design
 
-> **⚠ DEPRECATED (removed for now).** The `hkask-federation` crate has been removed from the workspace. This design is retained as a historical/archival reference for a possible future revival. It is not current architecture; do not treat the crate references below as live.
+> **⚠ DEPRECATED (removed for now).** The federation crate has been removed from the workspace. This design is retained as a historical/archival reference for a possible future revival. It is not current architecture; do not treat the crate references below as live.
 
 **Purpose:** Complete design for federating hKask servers through curator-to-curator CRDT sync, merged user/agent registries, federated Matrix conduits, and separate skill registries. Incorporates all findings from the five-addendum audit cycle.
 

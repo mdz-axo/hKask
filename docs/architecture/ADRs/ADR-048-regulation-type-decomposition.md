@@ -34,7 +34,7 @@ mds_categories: [lifecycle]
 
 2. **Domain enums:** Each domain crate defines its own span enum implementing `ObservableSpan`:
    - `WalletSpan` (hkask-wallet, 14 variants)
-   - `FederationSpan` (hkask-federation, 19 variants)
+   - `FederationSpan` (removed federation crate, 19 variants — deprecated)
    - Subsystem enums in hkask-regulation: `ContractSpan`, `SeamSpan`, `SloSpan`, `QaSpan`, `AcpSpan`, `ClassifySpan`, `InfraSpan`
 
 3. **Single registry:** `CANONICAL_NAMESPACES` (133 entries in event.rs) is the authoritative list of all valid namespace strings. `SpanNamespace::new()` and `::parse()` validate against it. `SpanNamespace::from_observable()` bridges domain enums to the validated namespace.
@@ -113,7 +113,7 @@ grep -rn 'RegulationSpan::' crates/ --include='*.rs' | grep -v 'reg_span\|reg.rs
 - `crates/hkask-types/src/reg.rs` — Core `RegulationSpan` enum (7 variants)
 - `crates/hkask-regulation/src/` — Domain span enums (contract_span, seam_span, slo_span, qa_span, acp_span, classify_span, infra_span)
 - `crates/hkask-wallet/src/reg_span.rs` — `WalletSpan`
-- `crates/hkask-federation/src/reg_span.rs` — `FederationSpan`
+- ~~federation crate~~ (removed/deprecated) — `FederationSpan`
 
 ---
 

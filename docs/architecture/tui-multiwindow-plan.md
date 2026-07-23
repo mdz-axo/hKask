@@ -93,16 +93,16 @@ d28f2521). A single generic method replaces 15 traits + a 1218-line adapter.
 ## Remaining Follow-Up Items
 
 ### Documentation
-- `docs/explanation/tui-architecture.md` is comprehensively stale — describes the deleted 16-window/15-bridge architecture with references to non-existent files (`tui_bridges.rs`, `mcp_tabbed.rs`, `terminal.rs`). Needs a full rewrite.
+- ~~`docs/explanation/tui-architecture.md` is comprehensively stale~~ ✅ Rewritten (2026-07-23)
 
-### Test Coverage Gaps
-- `mcp_scoped.rs` has no test module — `:` sigil parsing, JSON/key=value arg parsing, and `try_direct_tool_invoke` logic are untested
-- Keymap timeout decrement in `tick()` is untested
-- `McpInvokeError` mapping from `ToolPortError` in `lib.rs` is untested
-- Cross-tab focus guard in `focus_window` is untested
+### Test Coverage
+- ~~`mcp_scoped.rs` has no test module~~ ✅ Added 18 tests (`:` sigil parsing, JSON/key=value/bool/float args, `format_json_result` recursion cap + truncation)
+- ~~Keymap timeout untested~~ ✅ Added `keymap_timeout_resets_await_window` test
+- ~~Cross-tab focus guard untested~~ ✅ Added `focus_window_rejects_cross_tab_target` and `close_focused_rejects_cross_tab_target` tests
+- `McpInvokeError` mapping from `ToolPortError` in `lib.rs` remains untested (requires runtime mock)
 
 ### Minor
-- Status bar hint omits `Ctrl+Tab`/`Ctrl+Shift+Tab` for tab cycling
+- ~~Status bar hint omits `Ctrl+Tab`/`Ctrl+Shift+Tab`~~ — accepted as expected (one-line display can't show all bindings)
 
 - [x] Verify `SavedLayout`/`SavedLeaf` handles new window kinds (string-based, already generic)
 - [x] Test layout save/restore with multi-window splits (`extract_layout_contains_new_kinds`)
@@ -149,6 +149,6 @@ d28f2521). A single generic method replaces 15 traits + a 1218-line adapter.
 | MCP windows available | 0 | 3 (Kanban, Companies, Scenarios) | ≥3 ✅ |
 | Direct MCP tool invocation | 0 | 1 (ToolInvokeBridge trait + impl) | ≥1 ✅ |
 | Status bar hint accuracy | 40% | 100% | 100% ✅ |
-| Tests passing | 105 | 120 | 105+ ✅ |
-| New tests added | 0 | 15 | ≥10 ✅ |
-| Pre-existing bugs fixed | — | 3 (missing Arc import, missing tools param, duplicate PendingCalibration) | — |
+| Tests passing | 105 | 137 | 105+ ✅ |
+| New tests added | 0 | 32 | ≥10 ✅ |
+| Pre-existing bugs fixed | — | 5 (missing Arc import, missing tools param, duplicate PendingCalibration, broken chat_protocol, broken service.rs) | — |

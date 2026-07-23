@@ -1130,4 +1130,107 @@ mod tests {
         assert!(ws.handle_global_key(ctrl_t));
         assert_eq!(ws.tab_count(), 2);
     }
+
+    #[test]
+    fn keymap_timeout_resets_await_window() {
+        let mut ws = make_workspace();
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+        // Ctrl-W enters prefix mode
+        let ctrl_w = KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL);
+        assert!(ws.handle_global_key(ctrl_w));
+
+        // Tick 61 times (timeout is 60) — should auto-reset to Normal
+        for _ in 0..61 {
+            ws.tick();
+        }
+
+        // Now 'v' should NOT trigger a split (prefix mode was reset)
+        let v_key = KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE);
+        ws.handle_global_key(v_key);
+        assert_eq!(
+            ws.window_count(),
+            1,
+            "split should not have occurred after timeout"
+        );
+    }
+
+    #[test]
+    fn focus_prev_cycles_backward() {
+        let mut ws = make_workspace();
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        let kanban_id = ws.focused_window().unwrap();
+
+        // Cycle forward to Chat
+        ws.apply_action(WorkspaceAction::FocusNext);
+        assert_ne!(ws.focused_window(), Some(kanban_id));
+
+        // Cycle backward should return to Kanban
+        ws.apply_action(WorkspaceAction::FocusPrev);
+        assert_eq!(ws.focused_window(), Some(kanban_id));
+    }
+
+    #[test]
+    fn focus_window_rejects_cross_tab_target() {
+        let mut ws = make_workspace();
+
+        // Create a second tab with a Kanban window
+        ws.apply_action(WorkspaceAction::NewTab(None));
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        let kanban_id = ws.focused_window().unwrap();
+
+        // Switch back to tab 0 (which has only Chat)
+        ws.apply_action(WorkspaceAction::PrevTab);
+        assert_eq!(ws.active_tab_index(), 0);
+        let chat_id = ws.focused_window().unwrap();
+
+        // Try to focus the Kanban window from tab 1 — should be rejected
+        ws.focus_window(kanban_id);
+        assert_eq!(
+            ws.focused_window(),
+            Some(chat_id),
+            "focus should NOT change to a window in another tab"
+        );
+    }
+
+    #[test]
+    fn close_focused_rejects_cross_tab_target() {
+        let mut ws = make_workspace();
+
+        // Create a second tab with Kanban
+        ws.apply_action(WorkspaceAction::NewTab(None));
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        let kanban_id = ws.focused_window().unwrap();
+        assert_eq!(ws.window_count(), 2); // Chat + Kanban in tab 1
+
+        // Switch back to tab 0
+        ws.apply_action(WorkspaceAction::PrevTab);
+        assert_eq!(ws.active_tab_index(), 0);
+
+        // Stash the kanban_id into focused_window (simulating stale state)
+        ws.focused_window = Some(kanban_id);
+
+        // close_focused should NOT close anything (kanban_id is not in tab 0)
+        ws.apply_action(WorkspaceAction::CloseFocused);
+        assert_eq!(ws.window_count(), 1, "tab 0 should still have 1 window");
+    }
+
+    #[test]
+    fn ctrl_w_p_cycles_focus_prev() {
+        let mut ws = make_workspace();
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        let kanban_id = ws.focused_window().unwrap();
+
+        // Cycle forward to Chat
+        ws.apply_action(WorkspaceAction::FocusNext);
+
+        // Ctrl-W p should cycle back to Kanban
+        let ctrl_w = KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL);
+        assert!(ws.handle_global_key(ctrl_w));
+        let p_key = KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE);
+        assert!(ws.handle_global_key(p_key));
+        assert_eq!(ws.focused_window(), Some(kanban_id));
+    }
 }
