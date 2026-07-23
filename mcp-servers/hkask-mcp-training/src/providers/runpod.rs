@@ -1074,17 +1074,17 @@ impl TrainingHost for RunpodHost {
             .as_u64()
             .unwrap_or(0);
         if let Ok(mut uptimes) = self.last_uptime.lock() {
-            if let Some(&prev) = uptimes.get(job_id) {
-                if current_uptime < prev {
-                    tracing::warn!(
-                        target: "reg.training.checkpoint.resume",
-                        job_id = %job_id,
-                        pod_id = %pod_id,
-                        prev_uptime_secs = prev,
-                        new_uptime_secs = current_uptime,
-                        "Pod restarted — Axolotl will auto-resume from checkpoint"
-                    );
-                }
+            if let Some(&prev) = uptimes.get(job_id)
+                && current_uptime < prev
+            {
+                tracing::warn!(
+                    target: "reg.training.checkpoint.resume",
+                    job_id = %job_id,
+                    pod_id = %pod_id,
+                    prev_uptime_secs = prev,
+                    new_uptime_secs = current_uptime,
+                    "Pod restarted — Axolotl will auto-resume from checkpoint"
+                );
             }
             uptimes.insert(job_id.to_string(), current_uptime);
         }

@@ -1,7 +1,7 @@
 ---
 title: "hKask Architecture Master"
 audience: [architects, developers, contributors]
-last_updated: 2026-07-21
+last_updated: 2026-07-23
 version: "0.31.0"
 status: "Active"
 domain: "Cross-cutting"
@@ -16,7 +16,11 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 **Binary:** `kask`  
 **Crate prefix:** `hkask-`
 
-**What it is:** A single hKask install deploys on a cloud server (Kubernetes / K3s) and serves a group of users. Each user gets exactly one userpod - a sovereign container with their own identity, encrypted memory, capabilities, and consent boundary within the shared install - plus AI skills (`.agents/skills/`), 16 MCP servers, and multi-provider LLM access. The deployment unit is the install; the sovereignty unit is the userpod (1:1 per user). Per-userpod SQLCipher, OCAP dual gate, and visibility gating keep each user's data structurally isolated even within a shared install.
+**What it is:** A single hKask install deploys on a cloud server (Kubernetes / K3s) and serves a group of users. Each user gets exactly one userpod - a sovereign container with its own identity, encrypted memory, capabilities, and consent boundary within the shared install - plus AI skills (`.agents/skills/`), 16 MCP servers, and multi-provider LLM access. The deployment unit is the install; the sovereignty unit is the userpod (1:1 per user). Per-userpod SQLCipher, OCAP dual gate, and visibility gating keep each user's data structurally isolated even within a shared install.
+
+**The architecture in one paragraph:** Four irreducible patterns compose into a single cybernetic whole. **(A) The Skills Model** — 52 PDCA skill loops compose 89 registry manifests + 391 Jinja2 templates (WordAct / FlowDef / KnowAct / RenderAct) into iterative cycles that converge on a quality threshold; selection intelligence lives in the templates and the LLM, not in Rust. **(B) The Regulation Feedback Loop** — the autonomic nervous system: every operation emits a `reg.*` span, `VarietyTracker` enforces Ashby's Law, `AlgedonicManager` escalates on deficit, and `SetPointCalibrator` self-tunes the set-points (Conant-Ashby closure). **(C) Cybernetic Mediation** — the Curator (VSM S4 — Intelligence) is the system's *regulator, not an autonomous agent*: it observes, assesses, escalates *to the user*, and calibrates Regulation, but never bypasses OCAP and never removes the human from the loop. **(D) Sovereign Identity & Memory** — each userpod is architecturally grounded in the five invariants of a W3C Solid Pod (Pattern D.1): WebID-grounded identity, self-contained per-pod SQLCipher storage, capability-based access (OCAP dual gate), interoperable linked-data triples (`hMem`), and the pod IS the deployment unit. An install shares infrastructure, never userpod data — data isolation is structural, not row-level, and the pod is a portable encrypted archive the user owns.
+
+Three things sit between the user and a model: **skills** (the soft layer that turns prompts into processes), **MCP servers** (16 tool surfaces via `rmcp`), and **inference routing** (one `InferenceRouter` across 8 providers — Cline, DeepInfra, fal.ai, KiloCode, Ollama, OpenRouter, Runpod, Together — with 2-letter prefix routing, multi-model fusion, per-provider circuit breakers, and rJoule gas accounting). Everything else — pods, federation, Matrix, wallet, ledger, regulation, keystore — exists to keep each user's session **sovereign** within the shared install.
 
 **Primary user story:** A user runs `kask tui` (locally, or via the cloud server's xterm.js/WSS surface). On first run, onboarding creates their single userpod (identity, passphrase, provider key, model). Subsequent runs drop straight into a chat session with skills, MCP tools, and multi-provider inference - under their own userpod's authority and consent.
 
@@ -383,8 +387,8 @@ graph TD
 ```
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-MASTER-001
-verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
+verified_date: 2026-07-23
+verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs, crates/hkask-inference/src/config.rs (ProviderId: 8), registry/templates/ (89 manifests, 391 .j2), .agents/skills/ (52)
 status: VERIFIED
 -->
 
@@ -1587,40 +1591,52 @@ Detailed lookup tables and diagrams in `reference/`:
 
 ```
 docs/architecture/
-├── hKask-architecture-master.md                # THIS FILE (index + 4 patterns, absorbed: loop, energy, self-healing, pod, curator, TUI)
-├── ADRs/ADR-043-database-driver.md                  # Database driver abstraction (pending move to ADRs/)
-├── database-providers.md                       # Database provider comparison
-├── matrix-integration-architecture.md          # Matrix transport, Conduit
-├── well-wallet-architecture.md                 # Wallet architecture
+├── tui-multiwindow-plan.md                    # TUI multi-window workspace plan
 ├── core/
-│   ├── magna-carta.md                          # Foundation (4 principles)
-│   ├── PRINCIPLES.md                           # P1-P12 incl. dual-axis framework
-│   ├── MDS.md                                  # 5 categories, 12 tools
-│   ├── TESTING_DISCIPLINE.md                   # Testing + QA operations
-│   ├── FUNCTIONAL_SPECIFICATION.md             # AgentService functional spec (absorbed Regulation-DOMAIN-SPECIFICATION)
-│   ├── CROSS_REFERENCE_QA.md                   # Cross-reference quality assurance
-│   └── TEMPLATE_AUTHORSHIP.md                  # Template authorship conventions
-├── ADRs/
-│   ├── _TEMPLATE.md                            # ADR template
-│   ├── ADR-031-consolidation-authorization.md  # Active
-│   ├── ADR-035-userpod-server-mode.md        # Active
-│   ├── ADR-036-gix-migration.md                # Active
-│   ├── ADR-037-blake3-content-addressing.md    # Active
-│   ├── ADR-041-dynamic-model-discovery.md      # Active
-│   ├── ADR-042-port-promotion-rule.md          # Active
-│   ├── ADR-058-eliminate-nested-runtime-panics.md  # Active
-│   ├── ADR-044-ledger-wallet-separation.md     # Active
-│   ├── ADR-045-cli-bootstrap-strategy.md       # Active
-│   ├── ADR-046-repl-extraction-path.md         # Active
-│   ├── ADR-047-storage-modularization.md       # Active
-│   └── ADR-048-regulation-type-decomposition.md       # Active
+│   ├── hKask-architecture-master.md           # THIS FILE (index + 4 patterns + merged sections)
+│   ├── magna-carta.md                         # Foundation (4 sovereignty principles P1–P4)
+│   ├── PRINCIPLES.md                          # P1–P12 incl. dual-axis framework
+│   ├── MDS.md                                 # 5 categories, 12 tools
+│   ├── TESTING_DISCIPLINE.md                  # Testing + QA operations
+│   ├── FUNCTIONAL_SPECIFICATION.md            # AgentService functional spec
+│   ├── scenarios-companies-bridge.md          # Scenarios ↔ Companies MCP bridge
+│   └── toyota-kata-cybernetic-mapping.md       # Kata ↔ cybernetic mapping
+├── mandates/
+│   └── P12-authenticated-host-mandate.md      # Authenticated host mandate (P12)
+└── ADRs/
+    ├── _TEMPLATE.md                           # ADR template
+    ├── ADR-031-consolidation-authorization.md # Consolidation authorization (master passphrase)
+    ├── ADR-035-userpod-server-mode.md         # UserPod server mode (Chat/Server, daemon socket)
+    ├── ADR-036-gix-migration.md               # Migration to gix (pure-Rust git)
+    ├── ADR-037-blake3-content-addressing.md   # BLAKE3 content addressing
+    ├── ADR-041-dynamic-model-discovery.md     # Dynamic model discovery via provider catalog
+    ├── ADR-042-port-promotion-rule.md         # Port trait location — promotion rule
+    ├── ADR-043-database-driver.md             # Database driver abstraction
+    ├── ADR-044-ledger-wallet-separation.md     # Ledger accounting ↔ wallet operations
+    ├── ADR-045-cli-bootstrap-strategy.md       # CLI bootstrap — DB init, first-run
+    ├── ADR-046-repl-extraction-path.md        # REPL extraction into standalone crate
+    ├── ADR-047-storage-modularization.md      # Storage crate modularization
+    ├── ADR-048-regulation-type-decomposition.md  # RegulationSpan → 7 variants + domain enums
+    ├── ADR-049-ledger-database-driver-compliance.md  # Ledger DB driver compliance
+    ├── ADR-050-ontology-anchored-embedding.md # Ontology-anchored embedding
+    ├── ADR-051-sqlite-vector-storage-optimization.md  # SQLite vector storage optimization
+    ├── ADR-052-embedding-vector-search-scaling.md  # Embedding vector search scaling
+    ├── ADR-053-corpus-input-guard-toggle.md    # Corpus input guard toggle
+    ├── ADR-054-services-core-foundation-scope.md  # services-core foundation scope
+    ├── ADR-055-per-provider-circuit-breaker.md # Per-provider circuit breakers
+    ├── ADR-056-ashby-aligned-loop-regulation.md  # Ashby-aligned loop regulation
+    ├── ADR-057-cybernetic-naming-ontology.md   # Cybernetic naming ontology
+    ├── ADR-058-eliminate-nested-runtime-panics.md  # Eliminate nested runtime panics
+    ├── ADR-059-tool-calls-deserialization-fix.md  # Tool-calls deserialization fix
+    ├── ADR-060-memory-recall-dedup-single-layer.md  # Memory recall dedup (single layer)
+    └── qwen36-chat-template-thinking-bug.md    # Qwen3 chat-template thinking bug (post-mortem)
 ```
 
-**Active on disk (2026-07-09):** 8 core files + 5 root files + 13 ADRs = 26 documents.
+**Active on disk (2026-07-23):** 8 core files + 1 root file + 1 mandate + 25 ADRs (ADR-031..060 + template + post-mortem) = 35 documents.
 
-**Merged into this document (2026-06-24):** loop-architecture.md, energy-gas-payments-api-keys.md, self-healing.md, provider-intelligence.md. Pod and Curator content absorbed from SOLID_POD_ISOMORPHISM, MULTI_POD_ARCHITECTURE, and hKask-Curator-persona.
+**Merged into this document:** Database Providers, Matrix Integration, Well & Wallet, Scenarios–Companies Bridge, Federation v2, Storage Schema ERD, Multi-User Data Model, Database Driver, Companies MCP routing/forecast/portfolio, and Scenario Forecasting Pipeline — all inlined as `## … (Merged from …)` sections below. Earlier absorptions (2026-06-24): loop-architecture, energy-gas-payments-api-keys, self-healing, provider-intelligence; Pod and Curator content from SOLID_POD_ISOMORPHISM, MULTI_POD_ARCHITECTURE, and hKask-Curator-persona.
 
-**Directories consolidated (2026-06-24):** `reference/`, `specs/`, `mandates/` no longer exist. Content absorbed or archived.
+**Directories consolidated (2026-06-24):** `reference/`, `specs/` no longer exist as separate dirs under `architecture/` — content absorbed or archived. `mandates/` retained (P12 mandate).
 
 ---
 

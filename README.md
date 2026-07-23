@@ -77,13 +77,13 @@ flowchart TD
         Executor["ManifestExecutor<br/>select - populate - execute"]
         Mcp["16 MCP servers<br/>rmcp dispatch"]
         Guard["hkask-guard<br/>LLM boundary scan"]
-        Router["Inference router<br/>9 providers"]
+        Router["Inference router<br/>8 providers + fusion"]
     end
 
     subgraph Soft["Soft layer - YAML + Jinja2 (mutable, the thread)"]
-        Manifests["88 manifests<br/>FlowDef: choice/escalate/abort"]
-        Templates["387 Jinja2 templates<br/>WordAct + KnowAct + RenderAct"]
-        Skills["51 skills<br/>PDCA loops, convergence"]
+        Manifests["89 manifests<br/>FlowDef: choice/escalate/abort"]
+        Templates["391 Jinja2 templates<br/>WordAct + KnowAct + RenderAct"]
+        Skills["52 skills<br/>PDCA loops, convergence"]
     end
 
     Surface --> Tui
@@ -96,7 +96,7 @@ flowchart TD
     Mcp --> Guard
     Guard --> Router
     Executor --> Router
-    Router --> Providers["9 LLM/media providers<br/>Cline, DeepInfra, fal.ai, ..."]
+    Router --> Providers["8 LLM/media providers<br/>Cline, DeepInfra, fal.ai, KiloCode,<br/>Ollama, OpenRouter, Runpod, Together"]
 
     subgraph PerUser["Per-userpod sovereignty (one per user)"]
         Pod["hkask-pods userpod<br/>identity, WebID"]
@@ -133,10 +133,78 @@ flowchart TD
 
 <!-- DIAGRAM_ALIGNMENT
 id: DIAG-README-001
-verified_date: 2026-07-21
-verified_against: Cargo.toml (workspace members); crates/hkask-cli/src/cli/mod.rs (Commands enum); crates/hkask-inference/src/ (9 backends); registry/templates/ (88 manifests, 387 .j2); .agents/skills/ (51); mcp-servers/ (16)
+verified_date: 2026-07-23
+verified_against: Cargo.toml (workspace members: 39 crates + 16 MCP = 55); crates/hkask-cli/src/cli/mod.rs (Commands enum: 21 subcommands); crates/hkask-inference/src/config.rs (ProviderId: 8 backends); registry/templates/ (89 manifests, 391 .j2); .agents/skills/ (52); mcp-servers/ (16)
 status: VERIFIED
 -->
+
+---
+
+## The Architecture — Four Essential Patterns
+
+hKask is governed by **four irreducible patterns** that compose into a single
+cybernetic whole. Remove any one and the system collapses into a qualitatively
+different — and non-viable — system. The full treatment lives in the
+[Architecture Master](docs/architecture/core/hKask-architecture-master.md);
+this is the one-page synthesis.[^arch-master]
+
+### Pattern A — Skills Model (WordAct / FlowDef / KnowAct / RenderAct)
+
+A template type system that governs how hKask composes behavior. Where other
+systems give you a prompt, hKask gives you a **process**: 52 PDCA skill loops
+that iterate until they converge on a quality threshold, exhaust their energy
+budget, or escalate to the user. Selection intelligence lives in the Jinja2
+templates and the LLM — **not in Rust** (P3 Generative Space). The Rust kernel
+is a fixed loom; the YAML/Jinja2 is the mutable thread.
+
+### Pattern B — Regulation Feedback Loop
+
+The autonomic nervous system: every tool call, inference, and memory operation
+emits a `reg.*` span. `VarietyTracker` counts behavioral diversity (Ashby's
+Law); `AlgedonicManager` fires on deficit; `SetPointCalibrator` self-tunes the
+set-points, closing the Conant-Ashby loop. Not passive monitoring — active
+regulation.
+
+### Pattern C — Cybernetic Mediation (Curator + 7R7)
+
+The **Curator** is the system's cybernetic mediator (VSM S4 — Intelligence),
+**not an autonomous agent**. It observes, assesses, escalates *to the user*, and
+tunes Regulation set-points — but it never bypasses OCAP, never acts without
+capability tokens, and never removes the human from the loop. Exactly one
+Curator per install (singleton invariant). The 7R7 listener is a dumb pipe by
+design: transport moves messages; agents decide what they mean.
+
+### Pattern D — Sovereign Identity & Memory (UserPod)
+
+The human user gets a single **userpod** — a sovereign container with its own
+identity, encrypted memory, capabilities, and consent boundary. The userpod is
+**not an autonomous agent**; it is the user's sovereign surface through which
+skills, tools, and inference act under the user's authority and consent.
+
+#### Sovereignty Grounded in the Solid Pod Isomorphism
+
+The userpod is architecturally grounded in the five invariants that define a
+W3C **Solid Pod**: (1) WebID-grounded identity, (2) self-contained storage
+(per-userpod SQLCipher file), (3) capability-based access control (OCAP dual
+gate), (4) interoperable data as linked-data triples (`hMem`), (5) the pod IS
+the deployment unit (`PodDeployment` owns its storage, Regulation, and tools).
+
+This isomorphism is the structural guarantee of Magna Carta P1 (User
+Sovereignty): an install shares infrastructure, **never userpod data**. Data
+isolation is structural (one encrypted database per userpod), not row-level.
+Backup is a portable encrypted archive — export from one server, upload to
+another. The pod is portable; the user owns it.
+
+### Inference Routing
+
+One `InferenceRouter` across **8 providers** (Cline, DeepInfra, fal.ai,
+KiloCode, Ollama, OpenRouter, Runpod, Together). Model names carry a two-letter
+prefix (`DI/`, `FA/`, `TG/`, `RP/`, `OR/`, `KC/`, `OM/`, `CL/`) that routes to
+the correct backend; unprefixed names use the configured default. Each backend
+is gated on configuration (an API key), not reachability — unavailable providers
+are silently skipped. **Fusion** orchestrates multi-model deliberation (panel →
+synthesis/judge modes) provider-agnostically. Per-provider circuit breakers and
+rJoule gas accounting bound every call.
 
 ---
 
@@ -144,9 +212,9 @@ status: VERIFIED
 
 | # | Anchor | Implementation |
 |---|--------|----------------|
-| 1 | **User sovereignty** | OCAP capability tokens, SQLCipher-at-rest, OS keychain, private/public gating — Magna Carta P1–P4[^magna-carta] |
-| 2 | **Skills & composition** | 51 PDCA skill loops compose 88 registry manifests + 387 Jinja2 templates into iterative cycles — the soft layer that offloads selection intelligence to the LLM[^skills-model] |
-| 3 | **Tools** | 16 MCP servers + inference router over 9 LLM/media providers[^mcp] |
+| 1 | **User sovereignty** | Solid Pod isomorphism — per-userpod WebID, SQLCipher-at-rest, OCAP dual gate, OS keychain, private/public gating — Magna Carta P1–P4. The install shares infrastructure, never userpod data. |
+| 2 | **Skills & composition** | 52 PDCA skill loops compose 89 registry manifests + 391 Jinja2 templates into iterative cycles — the soft layer that offloads selection intelligence to the LLM[^skills-model] |
+| 3 | **Tools** | 16 MCP servers + inference router over 8 LLM/media providers with fusion and per-provider circuit breakers[^mcp] |
 | 4 | **Regulation** | `reg.*` span registry, variety counters, algedonic escalation — the cybernetic nervous system[^regulation] |
 | 5 | **Economy** | rJoule gas accounting (1 rJ = 250 000 gas cycles), double-entry ledger, per-call circuit breakers |
 
@@ -156,14 +224,14 @@ status: VERIFIED
 
 hKask distinguishes two layers that other systems conflate:
 
-- **Templates** (387 Jinja2 `.j2`) — one-shot prompt executions. What Claude,
+- **Templates** (391 Jinja2 `.j2`) — one-shot prompt executions. What Claude,
   ChatGPT, and most agent platforms call "skills." In hKask these are raw
   material: render once, return output, exit. Critically, **selection
   intelligence lives in the templates and the LLM, not in Rust** (P3 Generative
   Space) — the Rust kernel is a fixed loom; the Jinja2/YAML is the mutable thread
   that directs platform functions and absorbs complexity that would otherwise
   bloat the binary.
-- **Skills** (51 PDCA loops) — iterative cycles that compose templates into
+- **Skills** (52 PDCA loops) — iterative cycles that compose templates into
   search, learning, and implementation loops. A skill has a `manifest.yaml`
   with `convergence.threshold > 0`, a `gas.cap`, and a `loop` action. It runs
   until it converges on a quality threshold, exhausts its energy budget, or
@@ -180,43 +248,41 @@ The template type system spans four roles - the cognitive-act triad plus a non-i
 
 | Layer | Format | Count | Behavior |
 |-------|--------|-------|----------|
-| Templates | `*.j2` (Jinja2) | 387 | One-shot: render → return output. Selection intelligence lives here, not in Rust (P3 Generative Space) |
-| Skill manifests | `manifest.yaml` | 88 | FlowDef contracts, convergence, gas budget |
-| Skills | `.agents/skills/` | 51 | PDCA loops: compose → iterate → converge \| max_out \| escalate |
+| Templates | `*.j2` (Jinja2) | 391 | One-shot: render → return output. Selection intelligence lives here, not in Rust (P3 Generative Space) |
+| Skill manifests | `manifest.yaml` | 89 | FlowDef contracts, convergence, gas budget |
+| Skills | `.agents/skills/` | 52 | PDCA loops: compose → iterate → converge \| max_out \| escalate |
 
-The canonical source of truth for every skill is its **registry crate**
-(`registry/templates/<name>/manifest.yaml` + `*.j2`). The `SKILL.md` file in
-`.agents/skills/` is a generated companion for the Zed coding agent, not a
-co-equal artifact.[^skills-model]
+> The canonical source of truth for every skill is its **registry crate**
+> (`registry/templates/<name>/manifest.yaml` + `*.j2`). The `SKILL.md` file in
+> `.agents/skills/` is a generated companion for the Zed coding agent, not a
+> co-equal artifact.[^skills-model]
 
 ---
 
 ## Crate Structure
 
-53 core crates + 16 MCP servers = 69 workspace members (excluding fuzz).
+39 core crates + 16 MCP servers = 55 workspace members (excluding fuzz).
 
 ### Foundation
 | Crate | Purpose |
 |-------|--------|
 | `hkask-types` | ID types, regulation-record, vocabulary, visibility, Regulation spans |
-| `hkask-storage-core` | Storage foundation — `Database`, `Store` trait, locks, path sanitization |
-| `hkask-storage` | SQLite + SQLCipher, triples, embeddings, blobs |
-| `hkask-database` | Provider-agnostic database driver (SQLite, PostgreSQL) |
+| `hkask-storage` | SQLite + SQLCipher, triples, embeddings, blobs (`Store` trait, locks, path sanitization) |
 | `hkask-memory` | Semantic / episodic pipelines (consolidation: episodic → semantic) |
 | `hkask-regulation` | Cybernetic nervous system — `reg.*` spans, loops, variety |
 | `hkask-templates` | Registry, vocabulary, cascade, resolver |
-| `hkask-pods` | Pod identity, WebID, bot/userpod, Curator persona |
+| `hkask-pods` | Pod identity, WebID, bot/userpod, Curator persona, `PodDeployment` |
 | `hkask-keystore` | OS keychain, AES-256-GCM |
 | `hkask-mcp` | MCP runtime, dispatch, security |
+| `hkask-mcp-server` | MCP server framework + shared utilities for the 16 servers |
 | `hkask-capability` | OCAP delegation tokens |
-| `hkask-ports` | Hexagonal port traits |
-| `hkask-cli` | CLI — 22 subcommands + REPL host |
+| `hkask-cli` | CLI — 21 subcommands + REPL host |
 | `hkask-api` | HTTP API, utoipa OpenAPI |
 
 ### Infrastructure
 | Crate | Purpose |
 |-------|--------|
-| `hkask-inference` | Inference router — 9 provider backends, fusion, circuit breakers, fal.ai workflow DAGs |
+| `hkask-inference` | Inference router — 8 provider backends, 2-letter prefix routing, fusion, per-provider circuit breakers, fal.ai workflow DAGs, dynamic model discovery |
 | `hkask-communication` | Matrix transport, agent registry, 7R7 listener |
 | `hkask-condenser` | Context condensation engine |
 | `hkask-acp` | Agent Client Protocol — IDE integration |
@@ -250,19 +316,12 @@ co-equal artifact.[^skills-model]
 | Crate | Purpose |
 |-------|--------|
 | `hkask-wallet` | rJoule wallet — self-custody deposits, API key issuance |
-| `hkask-wallet-types` | Wallet value types and data structures |
 | `hkask-ledger` | Double-entry accounting ledger (cost, crypto, securities) |
-
-### Ontology & Interface
-| Crate | Purpose |
-|-------|--------|
-| `hkask-federation` | Cross-instance federation protocol (opt-in) |
 
 ### Ontology Bridges
 | Crate | Purpose |
 |-------|--------|
 | `hkask-bridge-dublincore` | Dublin Core + BIBO + CiTO (bibliographic metadata, citations) |
-| `hkask-bridge-pko` | Procedural Knowledge Ontology (procedures, steps, executions, feedback) |
 
 ### MCP Servers (16)
 `hkask-mcp-codegraph` · `hkask-mcp-communication` · `hkask-mcp-companies` ·
@@ -278,13 +337,13 @@ co-equal artifact.[^skills-model]
 
 | Metric | Value |
 |--------|-------|
-| Core crates | 53 |
+| Core crates | 39 |
 | MCP servers | 16 |
-| Workspace members (excl. fuzz) | 69 |
-| Skills | 51 PDCA loops (88 registry manifests, 387 Jinja2 templates) |
-| Jinja2 templates | 387 (WordAct + KnowAct + RenderAct; selection intelligence offloaded to the LLM) |
-| Skill manifests | 88 (FlowDef: select - populate - execute, convergence, gas budget) |
-| CLI subcommands | 22 (`kask tui` is the primary entry point) |
+| Workspace members (excl. fuzz) | 55 |
+| Skills | 52 PDCA loops (89 registry manifests, 391 Jinja2 templates) |
+| Jinja2 templates | 391 (WordAct + KnowAct + RenderAct; selection intelligence offloaded to the LLM) |
+| Skill manifests | 89 (FlowDef: select - populate - execute, convergence, gas budget) |
+| CLI subcommands | 21 (`kask tui` is the primary entry point) |
 | Inference providers | 8 (Cline, DeepInfra, fal.ai, KiloCode, Ollama, OpenRouter, Runpod, Together) |
 | Codegraph MCP tools | 11 (query, traverse, impact, analysis, context, structure, stats, reindex, feedback, embed, dead_code) |
 | QA pipeline | Fuzz triage, mutation analysis, autonomous script runner |
@@ -297,9 +356,9 @@ co-equal artifact.[^skills-model]
 The primary entry point is `kask tui`, which embeds the REPL inside a ratatui
 workspace. `kask serve` exposes the HTTP API; `kask daemon` runs the Unix-socket
 auth + Regulation monitor. The remaining subcommands are administrative
-(`pod`, `mcp`, `sovereignty`, `git`, `backup`, `federation`, `token`,
-`userpod`, `keystore`, `skill`, `doctor`, `onboard`, `settings`, `init`,
-`export`, `wallet`, `matrix`, `repair`, `deploy`).
+(`pod`, `mcp`, `sovereignty`, `git`, `backup`, `token`, `userpod`, `keystore`,
+`skill`, `doctor`, `onboard`, `settings`, `init`, `export`, `wallet`, `matrix`,
+`repair`, `deploy`).
 
 ```bash
 # Verification
@@ -352,7 +411,7 @@ tutorials, how-to guides, reference, and explanation.[^diataxis] The portal at
 | Layer | Technology | Mutability |
 |-------|------------|------------|
 | Hard (kernel) | Rust | Fixed, stable |
-| Soft (material) | YAML, Jinja2, Markdown | Mutable, evolving (88 manifests, 387 templates) |
+| Soft (material) | YAML, Jinja2, Markdown | Mutable, evolving (89 manifests, 391 templates) |
 
 Rust is the loom. YAML/Jinja2 is the thread. The users direct the weaving; the LLM renders the thread into action.
 
@@ -377,7 +436,7 @@ no gradients/effects. Full design principles →
 
 ---
 
-[^arch-master]: `docs/architecture/core/hKask-architecture-master.md` — "Primary user story" (v0.31.0).
+[^arch-master]: `docs/architecture/core/hKask-architecture-master.md` — "Primary user story" and "The Four Essential Patterns" (v0.31.0). The one-page synthesis is in [§ The Architecture — Four Essential Patterns](#the-architecture--four-essential-patterns) above.
 [^skills-model]: `docs/architecture/core/hKask-architecture-master.md` § Pattern A - The Skills Model (WordAct / FlowDef / KnowAct / RenderAct; RenderAct is the non-inference render layer).
 [^mcp]: [Model Context Protocol specification](https://modelcontextprotocol.io/); runtime via the [`rmcp`](https://crates.io/crates/rmcp) crate.
 [^magna-carta]: `docs/reference/magna-carta.md` — four inviolable sovereignty principles (P1–P4).
