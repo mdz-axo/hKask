@@ -3884,6 +3884,7 @@ dependencies = [
  "hkask-types",
  "llm-guard",
  "rand 0.9.4",
+ "tokio",
  "tracing",
  "zeroize",
 ]

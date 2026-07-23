@@ -275,7 +275,7 @@ impl InferencePort for GuardedInferencePort {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hkask_guard::GuardConfig;
+    use crate::GuardConfig;
     use hkask_types::template::LLMParameters;
 
     struct EchoPort;
