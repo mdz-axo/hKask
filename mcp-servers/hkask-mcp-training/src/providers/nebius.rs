@@ -12,7 +12,6 @@
 //! The operator can always SSH in to inspect logs, debug failures, and monitor
 //! training progress in real time.
 
-use crate::providers::harness::HarnessAdapter;
 use crate::providers::types::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -131,6 +130,8 @@ runcmd:
                 "compute",
                 "disk",
                 "create",
+                "--parent-id",
+                &self.project_id,
                 "--name",
                 &disk_name,
                 "--size-gibibytes",
@@ -157,6 +158,8 @@ runcmd:
                 "compute",
                 "instance",
                 "create",
+                "--parent-id",
+                &self.project_id,
                 "--name",
                 &vm_name,
                 "--resources-platform",
@@ -230,7 +233,7 @@ runcmd:
             &[
                 "status",
                 "network_interfaces",
-                0,
+                "0",
                 "public_ip_address",
                 "address",
             ],

@@ -265,7 +265,9 @@ pub(crate) fn estimate_training_cost_urj(
     base_model: &str,
 ) -> u64 {
     let base_per_epoch: u64 = match host {
-        TrainingHostId::Runpod => 500_000, // ~$0.50/epoch
+        TrainingHostId::Runpod => 500_000,    // ~$0.50/epoch
+        TrainingHostId::DeepInfra => 300_000, // ~$0.30/epoch (cheaper H100)
+        TrainingHostId::Nebius => 650_000,    // ~$0.65/epoch
     };
     let size_mult = extract_model_size_multiplier(base_model);
     base_per_epoch * (num_epochs as u64) * size_mult

@@ -12,7 +12,6 @@
 //! The operator can always SSH in to inspect logs, debug failures, and monitor
 //! training progress in real time.
 
-use crate::providers::harness::HarnessAdapter;
 use crate::providers::types::*;
 use serde_json::json;
 use std::collections::HashMap;
