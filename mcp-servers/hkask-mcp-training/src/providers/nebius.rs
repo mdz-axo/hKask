@@ -250,13 +250,15 @@ runcmd:
             );
         }
 
+        let is_public_ip = !public_ip.is_empty();
+
         Ok(PodStatus {
             status,
             pod_id: vm_id,
             ssh_command,
             ip: public_ip,
             ssh_port: 22,
-            is_public_ip: !public_ip.is_empty(),
+            is_public_ip,
             uptime_seconds: 0,
             gpu_type: self.gpu_platform.clone(),
             fail_reason: None,
