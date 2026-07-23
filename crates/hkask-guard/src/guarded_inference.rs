@@ -17,7 +17,7 @@
 //! trait already route through the guarded `generate` path when the inner
 //! backend doesn't override streaming.
 
-use crate::{ContentGuard, GuardOutput};
+use crate::ContentGuard;
 use futures_util::{Future, Stream};
 use hkask_types::{
     ChatMessage, ChatToolDefinition, InferenceError, InferencePort, InferenceResult,
@@ -66,10 +66,14 @@ impl InferencePort for GuardedInferencePort {
             return Box::pin(async { Err(InferenceError::Generation(msg)) });
         }
         let cleaned = scan.output.content(prompt).to_string();
+        let parameters = parameters.clone();
+        let tools = tools.map(|t| t.to_vec());
         let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
-            let mut result = inner.generate(&cleaned, parameters, tools).await?;
+            let mut result = inner
+                .generate(&cleaned, &parameters, tools.as_deref())
+                .await?;
             let out = guard.scan_output(&result.text);
             if out.output.is_modified() {
                 result.text = out.output.content(&result.text).to_string();
@@ -92,11 +96,13 @@ impl InferencePort for GuardedInferencePort {
         }
         let cleaned = scan.output.content(prompt).to_string();
         let model = model_override.map(str::to_string);
+        let parameters = parameters.clone();
+        let tools = tools.map(|t| t.to_vec());
         let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
             let mut result = inner
-                .generate_with_model(&cleaned, parameters, model.as_deref(), tools)
+                .generate_with_model(&cleaned, &parameters, model.as_deref(), tools.as_deref())
                 .await?;
             let out = guard.scan_output(&result.text);
             if out.output.is_modified() {
@@ -113,7 +119,7 @@ impl InferencePort for GuardedInferencePort {
         model_override: Option<&str>,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-:       for msg in messages {
+        for msg in messages {
             let scan = self.guard.scan_input(&msg.content);
             if !scan.passed {
                 let msg_text = reject_msg(&scan.violations);
@@ -127,12 +133,14 @@ impl InferencePort for GuardedInferencePort {
             }
         }
         let model = model_override.map(str::to_string);
+        let parameters = parameters.clone();
+        let tools = tools.map(|t| t.to_vec());
         let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         let messages = messages.to_vec();
         Box::pin(async move {
             let mut result = inner
-                .generate_with_messages(&messages, parameters, model.as_deref(), tools)
+                .generate_with_messages(&messages, &parameters, model.as_deref(), tools.as_deref())
                 .await?;
             let out = guard.scan_output(&result.text);
             if out.output.is_modified() {
@@ -155,10 +163,11 @@ impl InferencePort for GuardedInferencePort {
             return Box::pin(async { Err(InferenceError::Generation(msg)) });
         }
         let cleaned = scan.output.content(prompt).to_string();
+        let parameters = parameters.clone();
         let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         Box::pin(async move {
-            let mut results = inner.generate_n(&cleaned, parameters, n).await?;
+            let mut results = inner.generate_n(&cleaned, &parameters, n).await?;
             for result in &mut results {
                 let out = guard.scan_output(&result.text);
                 if out.output.is_modified() {
@@ -183,12 +192,13 @@ impl InferencePort for GuardedInferencePort {
         }
         let cleaned = scan.output.content(prompt).to_string();
         let model = model_override.map(str::to_string);
+        let parameters = parameters.clone();
         let guard = Arc::clone(&self.guard);
         let inner = Arc::clone(&self.inner);
         let images = images.to_vec();
         Box::pin(async move {
             let mut result = inner
-                .generate_vision(&cleaned, &images, parameters, model.as_deref())
+                .generate_vision(&cleaned, &images, &parameters, model.as_deref())
                 .await?;
             let out = guard.scan_output(&result.text);
             if out.output.is_modified() {
@@ -244,7 +254,7 @@ impl InferencePort for GuardedInferencePort {
         model_override: Option<&str>,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
-:       for msg in messages {
+        for msg in messages {
             let scan = self.guard.scan_input(&msg.content);
             if !scan.passed {
                 let msg_text = reject_msg(&scan.violations);
