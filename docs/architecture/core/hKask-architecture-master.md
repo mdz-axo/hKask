@@ -3806,6 +3806,8 @@ When MCP client support is added:
 
 # hKask Federation v2 — Curator-CRDT Federation Design
 
+> **⚠ DEPRECATED (removed for now).** The `hkask-federation` crate has been removed from the workspace. This design is retained as a historical/archival reference for a possible future revival. It is not current architecture; do not treat the crate references below as live.
+
 **Purpose:** Complete design for federating hKask servers through curator-to-curator CRDT sync, merged user/agent registries, federated Matrix conduits, and separate skill registries. Incorporates all findings from the five-addendum audit cycle.
 
 ---
@@ -4149,14 +4151,14 @@ pub struct FederationHealthModel {
 ### 6.1 Dependency Direction
 
 ```
-CLI/API/MCP → hkask-services-core → hkask-pods → hkask-federation
+CLI/API/MCP → hkask-services-core → hkask-pods → (federation: DEPRECATED, removed)
                                    ↓                  ↓
                               hkask-pods     hkask-types (traits)
                                    ↓                  ↓
                               hkask-regulation         hkask-types
 ```
 
-### 6.2 `hkask-federation` Crate Structure (Consolidated — DM-1 Resolution)
+### 6.2 Federation Crate Structure (Consolidated — DM-1 Resolution) — DEPRECATED, removed
 
 | Module | Contents | Public Items (est.) |
 |--------|----------|---------------------|
@@ -4326,7 +4328,7 @@ kask regulation federation thresholds
 ## 11. Implementation Phases
 
 ### Phase 1 — Core Sync (MVP)
-- [ ] `hkask-federation` crate with `crdt` module (OR-Set with EAV hashing, LWW-Map, G-Set)
+- [ ] ~~federation crate~~ (DEPRECATED — removed) with `crdt` module (OR-Set with EAV hashing, LWW-Map, G-Set)
 - [ ] `FederationTransport` trait + `InMemoryFederationTransport` test adapter
 - [ ] `FederationSyncPort` + `FederationRegistryPort` traits in `hkask-types`
 - [ ] `FederationSync` (run loop, CRDT merge, Regulation emission)

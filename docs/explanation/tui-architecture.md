@@ -1,134 +1,157 @@
----
-title: "Terminal UI Architecture"
-audience: [architects, developers, maintainers]
-last_updated: 2026-07-20
-version: "0.31.0"
-status: "Active"
-domain: "Terminal UI"
-mds_categories: [composition, lifecycle, trust]
----
+# TUI Architecture
 
-# Terminal UI Architecture
+**Last updated:** 2026-07-23 · **Version:** v0.31.0
 
-The `hkask-repl` crate is a Ratatui presentation surface. It owns workspace state, rendering, key routing, window-local state, and presentation-facing bridge traits. `hkask-repl` owns the production adapter, `TuiReplBridge`, because it can reach inference, MCP, storage, wallet, and service state without reversing the dependency direction into the UI crate. The CLI owns launch policy and selects either the TUI or line REPL.
+## Overview
 
-For operating instructions, see [Agents and Pods](../how-to/install-and-configure.md#using-the-terminal-ui). For the public type inventory, see the [API reference](../reference/api-reference.md#tui-window-trait-hierarchy).
+The hKask TUI is a multi-window, split-pane terminal interface modelled on
+Zed's workspace architecture. A binary tree of splits hosts stateful `Window`
+implementations, with keyboard-driven focus, split, close, and tab management.
+Windows are opened via slash commands (`/open kanban`) or keybindings
+(`Ctrl-W` prefix sub-mode).
 
-## Runtime boundary
+## Architecture
 
-The boundary follows a ports-and-adapters shape: presentation code defines the capabilities it consumes, while an outer runtime supplies implementations.[^cockburn-hexagonal] The current implementation uses one required `SystemBridge`, one required `ReplBridge`, and 15 optional domain data bridges. Optional bridges permit degraded startup, but a window must not present missing or failed data as authoritative empty state.
-
-```mermaid
-sequenceDiagram
-    participant CLI as hkask-cli
-    participant REPL as hkask-repl
-    participant Bridge as TuiReplBridge
-    participant Session as TuiSession
-    participant Workspace
-    participant Window
-    participant Service as Service or MCP
-
-    CLI->>REPL: run_tui(launch arguments)
-    REPL->>REPL: init_repl_state()
-    REPL->>Bridge: construct from ReplState
-    REPL->>Session: new(SystemBridge, ReplBridge)
-    REPL->>Session: inject optional domain bridges
-    Session->>Workspace: restore validated layout
-    loop event and tick cycle
-        Session->>Workspace: render or handle key
-        Workspace->>Window: render, handle_key, tick
-        Window->>Bridge: query or start inference
-        Bridge->>Service: invoke owning service
-        Service-->>Bridge: result
-        Bridge-->>Window: presentation data
-    end
-    Session->>Workspace: extract layout on quit
+```text
+TuiSession
+  └── Workspace
+        ├── Tab bar (rendered only if >1 tab)
+        ├── SplitNode tree (binary splits)
+        │     ├── Leaf: Box<dyn Window>
+        │     ├── Horizontal { left, right, ratio }
+        │     └── Vertical   { top, bottom, ratio }
+        └── StatusBar (global, 1 line)
 ```
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-TUI-005
-verified_date: 2026-07-20
-verified_against: crates/hkask-cli/src/commands/tui.rs:16-92, crates/hkask-repl/src/lib.rs:285-374, crates/hkask-repl/src/tui/src/lib.rs:73-227, crates/hkask-repl/src/tui/src/workspace.rs:280-409, crates/hkask-repl/src/tui/src/window_catalog.rs:48-240
-reference_sources: cockburn-hexagonal
-status: VERIFIED
--->
 
-### Ownership and invariants
+### Key files
 
-| Concern | Current owner | Required invariant |
-|---------|---------------|--------------------|
-| Terminal lifecycle | `TuiSession` | Alternate-screen/raw-mode state is restored on every exit path. |
-| Workspace structure | `Workspace` | At least one valid tab exists; `active_tab` indexes it. |
-| Window metadata and construction | `WindowKind::META` + `window_catalog` | Every kind has metadata and a factory arm. |
-| Layout persistence | `layout` + `Workspace` | Only version 1, known window kinds, valid active tabs, and split ratios in `0.1..=0.9` are restored. |
-| Inference execution | `TuiReplBridge` | A completion is delivered only to the window/request that started it. |
-| Domain data | Owning service through a bridge | Missing, failed, loading, and empty states remain distinguishable. |
+| File | Role |
+|---|---|
+| `crates/hkask-repl/src/tui/mod.rs` | `TuiSession` — owns terminal, event loop, layout restore/save |
+| `crates/hkask-repl/src/tui/workspace.rs` | `Workspace` + `SplitNode` tree — split, close, focus, tab ops |
+| `crates/hkask-repl/src/tui/window.rs` | `Window` trait, `WindowKind`, `WorkspaceAction`, `SplitDirection` |
+| `crates/hkask-repl/src/tui/window_catalog.rs` | `create_window()` factory — maps `WindowKind` to concrete impl |
+| `crates/hkask-repl/src/tui/repl_bridge.rs` | Bridge traits: `SystemBridge`, `ReplBridge`, `SettingsBridge`, `SessionBridge`, `ToolInvokeBridge` |
+| `crates/hkask-repl/src/tui/layout.rs` | `SavedLayout`/`SavedSplit`/`SavedTab` JSON persistence |
+| `crates/hkask-repl/src/tui/tab.rs` | `Tab { name, root: SplitNode }` |
+| `crates/hkask-repl/src/tui/status_bar.rs` | `StatusBar` — model, gas, Regulation, context |
+| `crates/hkask-repl/src/tui/windows/chat.rs` | `ChatWindow` — primary AI interaction surface |
+| `crates/hkask-repl/src/tui/windows/mcp_scoped.rs` | `McpScopedWindow` + `McpScopedState` — shared base for all MCP-backed windows |
 
-The layout invariant is enforced before workspace mutation. Invalid persisted layouts leave the default workspace intact. The splash screen does not save layout; persistence occurs only on normal event-loop exit.
+## Window kinds
 
-## Current implementation status
+4 window kinds are implemented:
 
-This table records observed implementation behavior, not intended future behavior.
+| Kind | Title | MCP Server | Singleton | Description |
+|---|---|---|---|---|
+| `Chat` | Chat | — | No (multiple allowed) | AI chat with inference + curator modes |
+| `Kanban` | Kanban | `kanban` | Yes | Task coordination via `hkask-mcp-kata-kanban` |
+| `Companies` | Companies | `companies` | Yes | Financial data via `hkask-mcp-companies` |
+| `Scenarios` | Scenarios | `scenarios` | Yes | Scenario planning via `hkask-mcp-scenarios` |
 
-| Area | Status | Evidence |
-|------|--------|----------|
-| Window catalog | Implemented: 16 kinds | `crates/hkask-repl/src/tui/src/window.rs:18-265` |
-| Domain bridge surface | Implemented: 15 optional traits | `crates/hkask-repl/src/tui/src/bridges/mod.rs:7-37` |
-| MCP-tabbed behavior | Implemented by 11 windows; Scenarios uses custom section keys | `crates/hkask-repl/src/tui/src/windows/`, `crates/hkask-repl/src/tui/src/window.rs:219-224` |
-| Layout validation | Implemented | `crates/hkask-repl/src/tui/src/layout.rs:49-112` |
-| Configuration snapshot | Recursive-lock defect removed | `crates/hkask-repl/src/tui_bridges.rs:40-63` |
-| Inference routing | Implemented: request-owned receiver and stream state; one active request per window | `crates/hkask-repl/src/tui/src/repl_bridge.rs`, `crates/hkask-repl/src/lib.rs`, `crates/hkask-repl/src/tui/src/mcp_tabbed.rs` |
-| Render isolation | Degraded: domain bridge calls still execute on the TUI event-loop thread; the timed `tick` cache experiment was reverted because it did not provide asynchronous isolation | `crates/hkask-repl/src/tui/src/windows/` |
-| Domain-state fidelity | Partial: Backup and Wallet use explicit `Unavailable/Ready/Failed` snapshots; pod scan failure is optional rather than fabricated | `crates/hkask-repl/src/tui/src/bridges/backup.rs`, `crates/hkask-repl/src/tui/src/bridges/wallet.rs`, `crates/hkask-repl/src/tui/src/repl_bridge.rs` |
-| Text editing | Implemented: shared UTF-8 byte-boundary cursor operations cover Chat, Curator, Terminal, and Editor | `crates/hkask-repl/src/tui/src/text_cursor.rs` |
-| Terminal creation | Implemented: PTY and shell failures render an unavailable state instead of panicking | `crates/hkask-repl/src/tui/src/windows/terminal.rs` |
-| Window lifecycle policy | Implemented: singleton kinds refocus; `Ctrl+W` closes closeable focused leaves; persistent Logo is protected | `crates/hkask-repl/src/tui/src/workspace.rs` |
-| TUI fallback | Implemented: initialized `ReplState` is recovered for line-REPL fallback | `crates/hkask-repl/src/lib.rs` |
+`WindowKind` uses direct `match` expressions for `default_title`, `description`,
+`allows_multiple`, and `parse_kind` — the compiler enforces exhaustiveness when
+new variants are added.
 
-## Adversarial architecture review
+### Adding a new MCP window
 
-The review applies the deletion test before proposing a new abstraction: a module is justified only when deleting it causes non-trivial complexity to reappear in callers.[^ousterhout-design] Each open recommendation also names evidence that could disprove it.
+1. Add a `WindowKind` variant + match arms (~6 lines in `window.rs`)
+2. Add a factory arm in `window_catalog.rs` using `McpScopedWindow::new(...)` (~8 lines)
+3. No new files needed — `McpScopedWindow` is the generic window for any MCP server
 
-| Priority | Observed problem (`IS`) | Smallest next component (`OUGHT`) | Essentialist / skeptical challenge |
-|----------|-------------------------|-----------------------------------|------------------------------------|
-| Resolved P0 | Inference previously used one destructive global completion slot. | `InferenceRequestId` now owns receiver and streaming state; two-window routing is regression-tested. | No event bus was added; one request map proved sufficient. |
-| Resolved P0 | MCP windows previously discarded scoped completions. | Shared `McpTabbedWindow` helpers bind and poll window-owned requests. | Generalization followed a working Training vertical test. |
-| Open P1 | Domain/service calls can block the event-loop thread. | Measure user-visible latency before changing architecture; do not move synchronous calls from `render` to `tick` and call that isolation. | The timed cache experiment was rejected and reverted because `tick` runs on the same thread. |
-| Partial P1 | Service failures and empty data were conflated. | Backup, Wallet, and pod scanning now preserve unavailability; migrate another domain only when consequence or evidence warrants it. | Snapshot enums are domain-local, not a generic status framework. |
-| Resolved P1 | Unicode input could create invalid UTF-8 byte indices. | A private byte-boundary cursor module serves four input surfaces with multibyte regressions. | Extraction occurred only after duplication was confirmed in four callers. |
-| Resolved P1 | PTY setup panicked on recoverable failures. | Fallible PTY setup renders a terminal-unavailable message. | The window factory remains unchanged. |
-| Resolved P2 | `can_close` and `allows_multiple` had no actuator. | Workspace operations now enforce both contracts. | Metadata is retained because behavior and tests now depend on it. |
-| Resolved P2 | TUI failure repeated REPL initialization. | Fallback recovers the existing `ReplState` and enters the extracted line loop. | No application-runtime abstraction was introduced. |
+The remaining 12 MCP servers (memory, research, communication, media, docproc,
+training, replica, skill, filesystem, codegraph, regulation, condenser) can each
+get a window by following this 14-line pattern.
 
-### Pragmatic component order
+## MCP window architecture
 
-Each component is intended to be independently testable and revertible:
+`McpScopedWindow` is a single concrete `Window` impl backed by `McpScopedState`.
+It supports two input paths:
 
-1. ✅ Reproduce two-producer inference overwrite.
-2. ✅ Define the minimum request ownership type.
-3. ✅ Route ordinary Chat completion by owner.
-4. ✅ Route MCP scoped completion by owner.
-5. ✅ Enforce one active request per window.
-6. ✅ Counted repeated render-bound calls; no latency claim was established.
-7. ❌ Rejected and reverted timed per-window caches.
-8. ⏳ Measure user-visible event-loop latency before proposing another implementation.
-9. ⏳ If blocking is confirmed, compare explicit refresh, genuine background execution, and disabling live views.
-10. ✅ Add multibyte regressions.
-11. ✅ Repair all four known editor paths.
-12. ✅ Extract shared cursor behavior after duplication was demonstrated.
-13. ✅ Make PTY construction fallible.
-14. ✅ Render terminal unavailability without ending the session.
-15. ✅ Enforce lifecycle metadata contracts.
-16. ✅ Reuse initialized state during line-REPL fallback.
-17. ⏳ Add explicit domain snapshots only where failures remain consequential and currently indistinguishable.
+1. **Direct tool invocation** (`:tool_name args`) — calls the MCP tool directly
+   via `ToolInvokeBridge`, bypassing the LLM. Fast, structured JSON results.
+   Preserves OCAP governance (DelegationToken), gas accounting, Regulation spans.
+2. **Scoped inference** (natural language) — runs inference scoped to the MCP
+   server's tools via `start_scoped_inference`. The LLM acts as an intermediary
+   that calls the appropriate MCP tools.
 
-This ordering treats the UI as a regulator: sensing must preserve fidelity, decisions must identify their owning request, actions must not block the sensing loop, and effects must return through a closed feedback path.[^conant-ashby]
+The `ToolInvokeBridge` trait is separate from `ReplBridge` (keeping each ≤7
+items). The implementation calls `McpRuntime::invoke(server, tool, args, &token)`
+through the same governance membrane as the inference loop. The async start/poll
+pattern (`start_mcp_tool_invoke` / `poll_mcp_tool_invoke`) mirrors
+`start_inference` / `poll_inference` to avoid blocking the TUI event loop.
 
-## Why the current bridge split remains
+## Bridge traits
 
-The bridge boundary survives the deletion test. Removing it would force Ratatui windows to depend directly on REPL state, MCP wire schemas, storage locks, and service implementations; test doubles would then need to recreate those dependencies. Request-owned inference now represents multiple windows without a global event bus. Remaining friction is domain-specific: repeated getters can encourage render-time calls, and some infallible return types still erase disturbances.
+| Trait | Surface | Used by |
+|---|---|---|
+| `SystemBridge` | 9 methods (read-only monitoring) | `Workspace` tick |
+| `ReplBridge` | 6 methods (inference + monitoring) | `ChatWindow`, `McpScopedWindow` |
+| `SettingsBridge` | 4 methods (model/settings mutation) | `ChatWindow` (optional) |
+| `SessionBridge` | 3 methods (agent/session state) | `ChatWindow` (optional) |
+| `ToolInvokeBridge` | 2 methods (direct MCP tool calls) | `McpScopedWindow` (optional) |
 
-A single monolithic “TUI service” is therefore not recommended. Continue with measured, domain-local snapshots one vertical path at a time.
+All traits are implemented by `TuiReplBridge` in `crates/hkask-repl/src/lib.rs`.
+Test mocks are in `crates/hkask-repl/src/tui/test_util.rs`.
 
-[^cockburn-hexagonal]: Cockburn, A. (2005). *Hexagonal architecture*. https://alistair.cockburn.us/hexagonal-architecture/.
-[^ousterhout-design]: Ousterhout, J. (2018). *A Philosophy of Software Design*. Yaknyam Press. https://web.stanford.edu/~ouster/cgi-bin/book.php.
-[^conant-ashby]: Conant, R. C., & Ashby, W. R. (1970). Every good regulator of a system must be a model of that system. *International Journal of Systems Science, 1*(2), 89–97. https://doi.org/10.1080/00207727008920220.
+## Keybindings
+
+| Key | Action |
+|---|---|
+| `Ctrl+Q` | Quit |
+| `Ctrl+W v` | Split vertical (side-by-side) |
+| `Ctrl+W s` | Split horizontal (stacked) |
+| `Ctrl+W c` | Close focused pane |
+| `Ctrl+W w` | Cycle focus next |
+| `Ctrl+W p` | Cycle focus prev |
+| `Ctrl+T` | New tab |
+| `Ctrl+Tab` | Next tab |
+| `Ctrl+Shift+Tab` | Previous tab |
+
+## Slash commands (TUI-only)
+
+| Command | Action |
+|---|---|
+| `/open <kind>` | Open window as split from focused |
+| `/close` | Close focused window |
+| `/split h\|v` | Split focused window |
+| `/focus` | Cycle focus next |
+| `/tab new [name]` | Create new tab |
+| `/tab next\|prev` | Switch tabs |
+
+In MCP windows, `:tool_name args` invokes a tool directly; all other non-slash
+input goes to scoped LLM inference.
+
+## Layout persistence
+
+Layouts are saved per-userpod to `~/.config/hkask/userpods/<name>/tui_layout.json`.
+The `SavedLayout` structure stores tabs, split trees (with ratios), and window
+kinds by title string. On restore, `WindowKind::parse_kind` maps titles back to
+enum variants. Unknown kinds fall back to `Chat` (defense-in-depth; `is_valid`
+rejects unknown kinds before this fallback is reached).
+
+## WorkspaceAction flow
+
+Windows emit `WorkspaceAction` values via `drain_actions()` (returning `Vec` for
+multi-action-per-tick support). The `Workspace::tick()` method collects all
+actions, then dispatches them through `apply_action()`. This separation ensures
+windows cannot mutate the split tree directly — they request structural changes
+through the action channel, and the workspace executes them.
+
+## Design decisions
+
+- **`Leaf(Box<dyn Window>)`** — not `Leaf(Option<...>)`. Eliminates `unreachable!`
+  guards. Requires a `PlaceholderWindow` during tree surgery (one synchronous
+  line, never observed by render/tick/layout).
+- **By-value tree ops** (`replace_leaf_with_split`, `remove_window` take `self`)
+  — functional-persistent style, necessary because `&mut self` cannot move out
+  of `&mut T` without a replacement value.
+- **`McpScopedWindow` as single generic type** — no per-server window files.
+  Adding a new MCP window is 14 lines (enum variant + factory arm).
+- **`McpInvokeError` structured enum** — not `String`. Maps `ToolPortError`
+  variants to `ToolNotFound` / `Server`. Aligns with the project's
+  `No Result<_, String>` CI gate.
+- **No directional focus (Ctrl-W h/j/k/l)** — cycle focus is sufficient for the
+  realistic pane count (2-4 panes in a terminal). Directional focus would add
+  ~80 lines + a render-sidecar map for marginal value. Fails the essentialist
+  deletion test.

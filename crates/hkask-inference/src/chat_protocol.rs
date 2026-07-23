@@ -69,7 +69,6 @@ pub struct ChatRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<String>,
 }
-
 ///
 
 /// Build an OpenAI-compatible chat completion request from an explicit message

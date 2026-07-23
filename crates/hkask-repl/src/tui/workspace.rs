@@ -326,6 +326,11 @@ impl Window for PlaceholderWindow {
     fn title(&self) -> &str {
         ""
     }
+    /// Returns `Chat` — this is safe because the placeholder lives for one
+    /// synchronous line during tree surgery and is never observed by
+    /// `find_by_kind`, `render`, `tick`, or `extract_layout`. Chat is the
+    /// only `allows_multiple` kind, so singleton searches never match it.
+    /// If a new `find_by_kind` call is added during surgery, revisit this.
     fn kind(&self) -> WindowKind {
         WindowKind::Chat
     }
@@ -547,8 +552,8 @@ impl Workspace {
     ///
     /// Supports a Ctrl-W prefix sub-mode for window operations (vim-style):
     ///   Ctrl-W v = split vertical, Ctrl-W s = split horizontal,
-    ///   Ctrl-W c = close, Ctrl-W w = cycle focus,
-    ///   Ctrl-W h/j/k/l = directional focus (future)
+    ///   Ctrl-W c = close, Ctrl-W w = cycle focus next,
+    ///   Ctrl-W p = cycle focus prev
     pub fn handle_global_key(&mut self, key: KeyEvent) -> bool {
         use crossterm::event::{KeyCode, KeyModifiers};
 
@@ -560,7 +565,7 @@ impl Workspace {
                     self.apply_action(WorkspaceAction::Split(SplitDirection::Vertical));
                     return true;
                 }
-                KeyCode::Char('s') | KeyCode::Char('h') => {
+                KeyCode::Char('s') => {
                     self.apply_action(WorkspaceAction::Split(SplitDirection::Horizontal));
                     return true;
                 }
@@ -570,6 +575,10 @@ impl Workspace {
                 }
                 KeyCode::Char('w') | KeyCode::Tab => {
                     self.apply_action(WorkspaceAction::FocusNext);
+                    return true;
+                }
+                KeyCode::Char('p') | KeyCode::Char('W') => {
+                    self.apply_action(WorkspaceAction::FocusPrev);
                     return true;
                 }
                 _ => return false,

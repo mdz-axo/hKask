@@ -1228,3 +1228,86 @@ mod self_calibrate_tests {
         assert!(adj.raised);
     }
 }
+
+mod epistemic_routing_tests {
+    use super::*;
+    use hkask_regulation::RegulationLedger;
+    use hkask_types::curator::CuratorHandle;
+    use hkask_types::{BotID, EscalationID, InfrastructureError, TemplateID};
+    use hkask_types::escalation::{EscalationBatch, EscalationEntry};
+
+    /// No-op EscalationPort for testing — all operations succeed with empty results.
+    struct NoopEscalationPort;
+
+    impl hkask_types::ports::escalation::EscalationPort for NoopEscalationPort {
+        fn list_pending(&self) -> Result<Vec<EscalationEntry>, InfrastructureError> {
+            Ok(Vec::new())
+        }
+        fn get(&self, _id: &str) -> Result<Option<EscalationEntry>, InfrastructureError> {
+            Ok(None)
+        }
+        fn resolve(&self, _id: &str, _resolved_by: &str) -> Result<(), InfrastructureError> {
+            Ok(())
+        }
+        fn dismiss(&self, _id: &str, _dismissed_by: &str) -> Result<(), InfrastructureError> {
+            Ok(())
+        }
+        fn persist_batch(&self, _batch: &EscalationBatch) -> Result<(), InfrastructureError> {
+            Ok(())
+        }
+        fn add(
+            &self,
+            _template_id: TemplateID,
+            _bot_id: BotID,
+            _output: String,
+            _confidence: f64,
+            _retry_count: u32,
+            _error_context: String,
+        ) -> Result<EscalationID, InfrastructureError> {
+            Ok(EscalationID::new())
+        }
+    }
+
+    fn make_loop() -> MetacognitionLoop {
+        let context = Arc::new(CuratorContext::new(
+            CuratorHandle::system(),
+            Arc::new(RegulationLedger::default()),
+            None,
+            Arc::new(NoopEscalationPort) as Arc<dyn hkask_types::ports::escalation::EscalationPort>,
+        ));
+        MetacognitionLoop::new(context, MetacognitionConfig::default())
+    }
+
+    #[tokio::test]
+    async fn empty_signals_returns_immediately() {
+        let mc = make_loop();
+        // Should complete without error — no signals to route.
+        mc.route_epistemic_escalations(&[]).await;
+    }
+
+    #[tokio::test]
+    async fn no_skill_catalog_degrades_gracefully() {
+        let mc = make_loop();
+        // No skill catalog set and no manifest executor — should return
+        // without invoking any template or panicking.
+        let signals = vec![(0.2, "test low-confidence output".to_string())];
+        mc.route_epistemic_escalations(&signals).await;
+    }
+
+    #[tokio::test]
+    async fn no_executor_degrades_gracefully() {
+        let mc = make_loop();
+        // Set a skill catalog but no manifest executor — should still
+        // degrade gracefully (catalog without executor is useless).
+        let context = Arc::new(CuratorContext::new(
+            CuratorHandle::system(),
+            Arc::new(RegulationLedger::default()),
+            None,
+            Arc::new(NoopEscalationPort) as Arc<dyn hkask_types::ports::escalation::EscalationPort>,
+        ));
+        context.set_skill_catalog(vec![]).await;
+        let mc = MetacognitionLoop::new(context, MetacognitionConfig::default());
+        let signals = vec![(0.3, "another low-confidence output".to_string())];
+        mc.route_epistemic_escalations(&signals).await;
+    }
+}
