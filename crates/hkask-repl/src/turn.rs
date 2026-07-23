@@ -727,18 +727,18 @@ mod tests {
         fn is_seeded(&self) -> bool {
             self.seeded
         }
-        : usize) -> Option<String> {
-                    None
-                }
-                fn thread_history_messages(&self, _: usize) -> Option<Vec<hkask_types::ChatMessage>> {
-                    None
-                }
-                fn append_turn(&mut self, _: &str, _: &str, _: &str) {}
-                fn mark_seeded(&mut self) {
-                    self.seeded = true;
-                    self.mark_seeded_count += 1;
-                }
-            }
+        fn thread_history(&self, _: usize) -> Option<String> {
+            None
+        }
+        fn thread_history_messages(&self, _: usize) -> Option<Vec<hkask_types::ChatMessage>> {
+            None
+        }
+        fn append_turn(&mut self, _: &str, _: &str, _: &str) {}
+        fn mark_seeded(&mut self) {
+            self.seeded = true;
+            self.mark_seeded_count += 1;
+        }
+    }
 
     fn turn_result(text: &str, tools: Vec<ToolCall>) -> TurnResult {
         use hkask_types::StructuredToolCall;
