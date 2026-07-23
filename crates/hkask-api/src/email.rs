@@ -198,7 +198,10 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
         .await
         .map_err(|e| EmailError::Imap(format!("tls handshake: {e}")))?;
 
-    let client = async_imap::Client::new(tls_stream);
+    // async-imap uses futures-ecosystem AsyncRead/AsyncWrite; tokio-rustls
+    // provides tokio-ecosystem traits. The compat adapter bridges them.
+    use tokio_util::compat::TokioAsyncReadCompatExt;
+    let client = async_imap::Client::new(tls_stream.compat());
     let mut session = client
         .login(&username, &password)
         .await
