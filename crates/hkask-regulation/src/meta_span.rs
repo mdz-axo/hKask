@@ -138,35 +138,57 @@ pub fn emit_meta_circuit_breaker(sink: &dyn RegulationSink, observer: &WebID, sk
     }
 }
 
+/// Data for a `reg.meta.self_calibration` span emission.
+///
+/// Carries TWO signals:
+/// - `signal_before/after` — the PRIMARY causal signal (escalation drop count),
+///   lever-controlled by the threshold. This is what the runtime loop judges on.
+/// - `eff_before/after` — the SECONDARY signal (regulation_effectiveness), a
+///   higher-order system metric from a different loop. Retained for offline GEPA
+///   trajectory analysis but NOT used for runtime self-calibration judgments.
+pub struct CalibrationSpan<'a> {
+    pub metric: &'a str,
+    pub old: u64,
+    pub new: u64,
+    pub signal_before: Option<f64>,
+    pub signal_after: Option<f64>,
+    pub eff_before: Option<f64>,
+    pub eff_after: Option<f64>,
+    pub source: &'a str,
+}
+
 /// Emit a `reg.meta.self_calibration` span recording a self-applied threshold change.
-#[allow(clippy::too_many_arguments)] // emission helper — all primitive fields
+/// The span records both the primary signal (drop count delta — lever-controlled)
+/// and the secondary signal (effectiveness delta — retained for offline GEPA).
 pub fn emit_meta_self_calibration(
     sink: &dyn RegulationSink,
     observer: &WebID,
-    metric: &str,
-    old: u64,
-    new: u64,
-    eff_before: Option<f64>,
-    eff_after: Option<f64>,
-    source: &str,
+    data: &CalibrationSpan,
 ) {
     let Some(ns) = SpanNamespace::from_observable(&MetaSpan::SelfCalibration) else {
         tracing::warn!(target: "hkask.meta", "reg.meta.self_calibration namespace not canonical");
         return;
     };
     let span = Span::new(ns, MetaSpan::SelfCalibration.path());
-    let eff_delta = match (eff_before, eff_after) {
+    let signal_delta = match (data.signal_before, data.signal_after) {
+        (Some(b), Some(a)) => Some(a - b),
+        _ => None,
+    };
+    let eff_delta = match (data.eff_before, data.eff_after) {
         (Some(b), Some(a)) => Some(a - b),
         _ => None,
     };
     let observation = serde_json::json!({
-        "metric": metric,
-        "old": old,
-        "new": new,
-        "eff_before": eff_before,
-        "eff_after": eff_after,
+        "metric": data.metric,
+        "old": data.old,
+        "new": data.new,
+        "signal_before": data.signal_before,
+        "signal_after": data.signal_after,
+        "signal_delta": signal_delta,
+        "eff_before": data.eff_before,
+        "eff_after": data.eff_after,
         "eff_delta": eff_delta,
-        "source": source,
+        "source": data.source,
     });
     let event = RegulationRecord::new(*observer, span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
