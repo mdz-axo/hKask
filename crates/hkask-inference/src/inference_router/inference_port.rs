@@ -210,6 +210,31 @@ impl InferencePort for InferenceRouter {
         })
     }
 
+    // pre:  messages is non-empty; parameters are valid; model_override may be None
+    // post: Ok(InferenceResult) when resolved provider backend is configured;
+    //       Err(Connection) when resolved provider backend is None
+    fn generate_with_messages(
+        &self,
+        messages: &[ChatMessage],
+        parameters: &LLMParameters,
+        model_override: Option<&str>,
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Pin<
+        Box<dyn std::future::Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>,
+    > {
+        let Some(governance) = self.governance.clone() else {
+            return self.generate_ungoverned_messages(messages, parameters, model_override, tools);
+        };
+        let messages = messages.to_vec();
+        let parameters = parameters.clone();
+        let model_override = model_override.map(str::to_string);
+        let tools = tools.map(<[ChatToolDefinition]>::to_vec);
+        Box::pin(async move {
+            self.generate_governed_messages(governance, messages, parameters, model_override, tools)
+                .await
+        })
+    }
+
     // pre:  prompt is non-empty; parameters are valid
     // post: Stream of Ok(InferenceStreamChunk) when resolved provider backend is configured;
     //       Stream of Err(Connection) when resolved provider backend is None

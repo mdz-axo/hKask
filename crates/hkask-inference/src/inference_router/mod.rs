@@ -18,7 +18,7 @@ use hkask_regulation::{CyberneticsLoop, GasCost};
 use hkask_types::event::{CyclePhase, RegulationRecord, Span, SpanNamespace};
 use hkask_types::regulation::RegulationSpan;
 use hkask_types::template::LLMParameters;
-use hkask_types::{ChatToolDefinition, InferenceError, InferenceResult};
+use hkask_types::{ChatMessage, ChatToolDefinition, InferenceError, InferenceResult};
 use hkask_types::{RegulationSink, WebID};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -288,6 +288,118 @@ impl InferenceRouter {
             actual,
             status,
             "inference gas settled"
+        );
+        result
+    }
+
+    /// Multi-turn variant of `generate_governed` — accepts an explicit message
+    /// array. Performs the same gas estimation, reservation, and settlement as
+    /// `generate_governed`, but delegates to `generate_ungoverned_messages`.
+    async fn generate_governed_messages(
+        &self,
+        governance: InferenceGovernance,
+        messages: Vec<ChatMessage>,
+        parameters: LLMParameters,
+        model_override: Option<String>,
+        tools: Option<Vec<ChatToolDefinition>>,
+    ) -> Result<InferenceResult, InferenceError> {
+        let estimated = GasCost(u64::from(parameters.max_tokens.max(1)));
+        let model = model_override.as_deref().unwrap_or("default");
+
+        let cybernetics = governance.cybernetics.read().await;
+        if !cybernetics.can_proceed(&governance.agent, estimated).await {
+            return Err(InferenceError::Generation(
+                "Energy budget exceeded for inference call".into(),
+            ));
+        }
+        cybernetics
+            .reserve_gas(&governance.agent, estimated)
+            .await
+            .map_err(|error| {
+                InferenceError::Generation(format!("Gas reservation failed: {error}"))
+            })?;
+        drop(cybernetics);
+
+        let invoked = RegulationRecord::new(
+            governance.agent,
+            Span::new(
+                SpanNamespace::try_from(RegulationSpan::Inference).expect("canonical span"),
+                "invoked",
+            ),
+            CyclePhase::Sense,
+            serde_json::json!({
+                "model": model,
+                "estimated_cost": estimated.0,
+                "max_tokens": parameters.max_tokens,
+                "messages": messages.len(),
+                "settled": false,
+            }),
+            0,
+        );
+        if let Err(error) = governance.event_sink.persist(&invoked) {
+            warn!(target: "reg.inference", %error, "failed to persist inference invocation");
+        }
+
+        let result = self
+            .generate_ungoverned_messages(
+                &messages,
+                &parameters,
+                model_override.as_deref(),
+                tools.as_deref(),
+            )
+            .await;
+        let actual = if result.is_ok() {
+            estimated.0
+        } else {
+            estimated.0 / 2
+        };
+
+        if let Err(error) = governance
+            .cybernetics
+            .read()
+            .await
+            .settle_gas(&governance.agent, estimated, GasCost(actual))
+            .await
+        {
+            warn!(target: "reg.inference", %error, "failed to settle inference gas");
+        }
+
+        let (status, error, tokens_used) = match &result {
+            Ok(response) => ("success", None, Some(response.usage.total_tokens)),
+            Err(error) => ("failure", Some(error.to_string()), None),
+        };
+        let completed = RegulationRecord::new(
+            governance.agent,
+            Span::new(
+                SpanNamespace::try_from(RegulationSpan::Inference).expect("canonical span"),
+                "completed",
+            ),
+            CyclePhase::Act,
+            serde_json::json!({
+                "model": model,
+                "estimated_cost": estimated.0,
+                "actual_cost": actual,
+                "status": status,
+                "error": error,
+                "tokens_used": tokens_used,
+                "messages": messages.len(),
+                "settled": true,
+            }),
+            0,
+        )
+        .with_parent(invoked.id);
+        if let Err(error) = governance.event_sink.persist(&completed) {
+            warn!(target: "reg.inference", %error, "failed to persist inference outcome");
+        }
+
+        info!(
+            target: "reg.inference",
+            agent = ?governance.agent,
+            model,
+            reserved = estimated.0,
+            actual,
+            status,
+            "inference gas settled (messages)"
         );
         result
     }
