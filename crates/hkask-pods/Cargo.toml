@@ -22,7 +22,6 @@ thiserror.workspace = true
 tracing.workspace = true
 tokio.workspace = true
 uuid.workspace = true
-blake3.workspace = true
 zeroize.workspace = true
 rusqlite.workspace = true
 tokio-util.workspace = true
