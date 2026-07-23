@@ -496,6 +496,15 @@ impl MetacognitionLoop {
                     Some(effectiveness),
                 );
             }
+            info!(
+                target: MC_TARGET,
+                raised = p.raised,
+                eff_before = p.eff_before,
+                eff_after = effectiveness,
+                threshold_before = p.threshold_before,
+                threshold_after = p.threshold_after,
+                "Closed out pending calibration with effectiveness measurement"
+            );
         }
 
         let Some(adj) = compute_threshold_adjustment(

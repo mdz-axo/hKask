@@ -490,51 +490,51 @@ fn generate_install_script(
         .unwrap_or_default();
 
     // Render the training config using the selected harness.
-    let (config_filename, config_content, pip_packages, train_command, _version_info) = match harness
-    {
-        TrainingHarnessId::Axolotl => {
-            let yaml = crate::providers::AxolotlHarness
-                .render_config(job)
-                .map_err(|e| {
-                    ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}"))
-                })?;
-            (
-                "config.yml",
-                yaml,
-                "pip install --no-cache-dir axolotl huggingface_hub",
-                "axolotl train /workspace/config.yml",
-                "axolotl",
-            )
-        }
-        TrainingHarnessId::Trl => {
-            let script = crate::providers::TrlHarness
-                .render_config(job)
-                .map_err(|e| {
-                    ProviderError::InvalidConfig(format!("Failed to render TRL script: {e}"))
-                })?;
-            (
-                "train.py",
-                script,
-                "pip install --no-cache-dir trl==1.8.0 peft==0.19.0 transformers==5.9.0 bitsandbytes accelerate liger-kernel huggingface_hub",
-                "python /workspace/train.py",
-                "trl==1.8.0 peft==0.19.0 transformers==5.9.0",
-            )
-        }
-        TrainingHarnessId::Ludwig => {
-            let yaml = crate::providers::LudwigHarness
-                .render_config(job)
-                .map_err(|e| {
-                    ProviderError::InvalidConfig(format!("Failed to render Ludwig YAML: {e}"))
-                })?;
-            (
-                "model.yaml",
-                yaml,
-                "pip install --no-cache-dir ludwig huggingface_hub",
-                "ludwig train --config /workspace/model.yaml",
-                "ludwig",
-            )
-        }
-    };
+    let (config_filename, config_content, pip_packages, train_command, _version_info) =
+        match harness {
+            TrainingHarnessId::Axolotl => {
+                let yaml = crate::providers::AxolotlHarness
+                    .render_config(job)
+                    .map_err(|e| {
+                        ProviderError::InvalidConfig(format!("Failed to render axolotl YAML: {e}"))
+                    })?;
+                (
+                    "config.yml",
+                    yaml,
+                    "pip install --no-cache-dir axolotl huggingface_hub",
+                    "axolotl train /workspace/config.yml",
+                    "axolotl",
+                )
+            }
+            TrainingHarnessId::Trl => {
+                let script = crate::providers::TrlHarness
+                    .render_config(job)
+                    .map_err(|e| {
+                        ProviderError::InvalidConfig(format!("Failed to render TRL script: {e}"))
+                    })?;
+                (
+                    "train.py",
+                    script,
+                    "pip install --no-cache-dir trl==1.8.0 peft==0.19.0 transformers==5.9.0 bitsandbytes accelerate liger-kernel huggingface_hub",
+                    "python /workspace/train.py",
+                    "trl==1.8.0 peft==0.19.0 transformers==5.9.0",
+                )
+            }
+            TrainingHarnessId::Ludwig => {
+                let yaml = crate::providers::LudwigHarness
+                    .render_config(job)
+                    .map_err(|e| {
+                        ProviderError::InvalidConfig(format!("Failed to render Ludwig YAML: {e}"))
+                    })?;
+                (
+                    "model.yaml",
+                    yaml,
+                    "pip install --no-cache-dir ludwig huggingface_hub",
+                    "ludwig train --config /workspace/model.yaml",
+                    "ludwig",
+                )
+            }
+        };
 
     // Generate the install script. We build it with push_str to avoid
     // format! brace-escaping issues with bash ${VAR} references.
@@ -634,13 +634,17 @@ fn generate_install_script(
     script.push_str(&format!("cat > \"{}\" <<MANIFEST\n", local_manifest_path));
     script.push_str("{\n");
     script.push_str(&format!("    \"job_id\": \"{}\",\n", job.id));
-    script.push_str(&format!("    \"status\": \"${TRAINING_STATUS}\",\n"));
+    script.push_str("    \"status\": \"${TRAINING_STATUS}\",\n");
     // Dataset SHA256 from the env var set by submit().
     script.push_str("    \"dataset_sha256\": \"${HKASK_EXPECTED_DATASET_SHA256:-}\",\n");
     script.push_str("    \"adapter\": {\n");
     script.push_str(&format!(
         "        \"repository\": \"{}\",\n",
-        if model_repo.is_empty() { "" } else { model_repo.as_str() }
+        if model_repo.is_empty() {
+            ""
+        } else {
+            model_repo.as_str()
+        }
     ));
     script.push_str("        \"revision\": \"main\",\n");
     script.push_str("        \"path\": \"adapter_model.safetensors\",\n");
@@ -671,7 +675,7 @@ fn generate_install_script(
             "    --commit-message \"hKask completion manifest: {}\" || \\\n",
             job.id
         ));
-        script.push_str("    echo 'WARNING: Manifest upload failed' \u00262\n");
+        script.push_str("    echo 'WARNING: Manifest upload failed' >&2\n");
     }
     script.push('\n');
 
@@ -1169,6 +1173,83 @@ mod tests {
         assert_eq!(
             RunpodHost::escape_graphql_string("path\\to\\file"),
             "path\\\\to\\\\file"
+        );
+    }
+
+    #[test]
+    fn install_script_includes_manifest_write_and_upload() {
+        use crate::huggingface::{TrainingArtifact, TrainingArtifacts};
+        use crate::providers::types::*;
+
+        let job = TrainingJob {
+            id: "test-job-123".to_string(),
+            dataset_path: std::path::PathBuf::from("/tmp/dataset.jsonl"),
+            base_model: "Qwen/Qwen3.5-9B".to_string(),
+            params: TrainingParams::default(),
+            status: TrainingJobStatus::Queued,
+            created_at: chrono::Utc::now(),
+            host: TrainingHostId::Runpod,
+            harness: TrainingHarnessId::Axolotl,
+            owner: None,
+            skill_name: None,
+            estimated_cost_urj: 0,
+            artifacts: Some(TrainingArtifacts {
+                dataset: TrainingArtifact {
+                    repository: "org/dataset".to_string(),
+                    revision: "main".to_string(),
+                    path: "dataset.jsonl".to_string(),
+                    sha256: "abc123".to_string(),
+                },
+                model_repository: "org/model-repo".to_string(),
+                completion_manifest_path: "jobs/test-job-123/completion-manifest.json".to_string(),
+            }),
+        };
+
+        let script = generate_install_script(&job, TrainingHarnessId::Axolotl)
+            .expect("generate install script");
+
+        // Manifest is written locally to /workspace/completion.json
+        assert!(
+            script.contains("cat > \"/workspace/completion.json\""),
+            "script must write manifest to /workspace/completion.json"
+        );
+        // Manifest is uploaded to HuggingFace
+        assert!(
+            script.contains("huggingface-cli upload"),
+            "script must upload manifest to HuggingFace"
+        );
+        assert!(
+            script.contains("jobs/test-job-123/completion-manifest.json"),
+            "script must upload manifest to the correct HF repo path"
+        );
+        // Manifest includes required fields for CompletionManifest struct
+        assert!(
+            script.contains("\"job_id\""),
+            "manifest must include job_id"
+        );
+        assert!(
+            script.contains("\"status\""),
+            "manifest must include status"
+        );
+        assert!(
+            script.contains("\"dataset_sha256\""),
+            "manifest must include dataset_sha256"
+        );
+        assert!(
+            script.contains("\"adapter\""),
+            "manifest must include adapter"
+        );
+        assert!(
+            script.contains("\"finished_at\""),
+            "manifest must include finished_at"
+        );
+        assert!(
+            script.contains("\"base_model\""),
+            "manifest must include base_model"
+        );
+        assert!(
+            script.contains("\"training_duration_secs\""),
+            "manifest must include training_duration_secs"
         );
     }
 

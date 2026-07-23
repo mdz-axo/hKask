@@ -112,12 +112,14 @@ d28f2521). A single generic method replaces 15 traits + a 1218-line adapter.
 
 ## Metrics
 
-| Metric | Before | After (Phases 1–4) | Target |
+| Metric | Before | After (All Phases) | Target |
 |---|---|---|---|
 | WindowKind variants | 1 | 4 | ≥4 ✅ |
 | WorkspaceAction variants | 1 | 8 | ≥6 ✅ |
-| Functional slash window commands | 0 | 5 (/open /close /split /focus /tab) | ≥4 ✅ |
+| Functional slash window commands | 0 | 5 (/open /close /split /focus /tab) | ≥5 ✅ |
 | MCP windows available | 0 | 3 (Kanban, Companies, Scenarios) | ≥3 ✅ |
+| Direct MCP tool invocation | 0 | 1 (ToolInvokeBridge trait + impl) | ≥1 ✅ |
 | Status bar hint accuracy | 40% | 100% | 100% ✅ |
-| Tests passing | 105 | 105 | 105+ ✅ |
-| Pre-existing bugs fixed | — | 2 (missing `Arc` import, missing `tools` param) | — |
+| Tests passing | 105 | 120 | 105+ ✅ |
+| New tests added | 0 | 15 | ≥10 ✅ |
+| Pre-existing bugs fixed | — | 3 (missing Arc import, missing tools param, duplicate PendingCalibration) | — |

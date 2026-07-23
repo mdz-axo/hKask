@@ -848,7 +848,7 @@ impl TrainingServer {
 
                     let mut result = json!({
                         "job_id": job_id,
-                        "status": serde_json::to_value(&status).unwrap_or_default(),
+                        "status": serde_json::to_value(status).unwrap_or_default(),
                     });
 
                     // Persist status update
@@ -904,7 +904,7 @@ impl TrainingServer {
                                             training_duration_secs: manifest.training_duration_secs,
                                             tokens_processed: None,
                                         }),
-                                        Some(&weight_path),
+                                        Some(std::path::Path::new(&weight_path)),
                                     );
                                     match self.adapter_store.store(&adapter).map_err(|e| {
                                         McpToolError::internal(format!("Adapter store error: {e}"))
