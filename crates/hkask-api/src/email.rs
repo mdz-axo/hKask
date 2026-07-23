@@ -377,11 +377,6 @@ pub struct CuratorAlertEmailSink {
 }
 
 impl CuratorAlertEmailSink {
-        Self {
-            alert_recipient,
-            nonce_store: None,
-        }
-    }
 
     /// Create from env, returning `None` when no recipient is configured.
     pub fn try_from_env() -> Option<std::sync::Arc<dyn hkask_regulation::AlertEmailSink>> {
@@ -474,6 +469,7 @@ impl NonceStore {
 
     /// Issue a one-time token. Returns the token string to include in an email.
     pub fn issue(&self) -> String {
+        self.cleanup_expired();
         let token = uuid::Uuid::new_v4().to_string();
         self.tokens
             .lock()
@@ -490,7 +486,16 @@ impl NonceStore {
             tokens.remove(token); // one-time use
             return valid;
         }
+        }
         false
+    }
+
+    /// Remove expired tokens. Called automatically by `issue()` to prevent
+    /// unbounded growth from tokens that are never verified (e.g. alert emails
+    /// that the recipient ignores).
+    fn cleanup_expired(&self) {
+        let ttl = self.ttl;
+        self.tokens.lock().expect("nonce store not poisoned").retain(|_, issued_at| issued_at.elapsed() < ttl);
     }
 }
 
@@ -696,6 +701,7 @@ async fn send_digest(escalations: &hkask_storage::EscalationQueue, recipient: &s
         }
     };
     let count = pending.len();
+    if pending.is_empty() { return Ok(()); }
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M UTC");
 
     let mut rows = String::new();
@@ -709,7 +715,7 @@ async fn send_digest(escalations: &hkask_storage::EscalationQueue, recipient: &s
 
     let subject = format!("[hKask Digest] {count} pending escalation(s)");
     let body = format!(
-        "<h2>hKask Escalation Digest</h2><p><b>{count}</b> pending escalation(s) as of {now}</p><table border='1' cellpadding='6' style='border-collapse:collapse'><tr><th>ID</th><th>Output</th><th>Created</th></tr>{rows}</table>{truncated}<p style='color:#8b949e;font-size:0.8rem'>To resolve an escalation, reply to an alert email with: resolve Reply with: resolve &lt;id&gt; token:&lt;your-token&gt;lt;idReply with: resolve &lt;id&gt; token:&lt;your-token&gt;gt;</p>"
+        "<h2>hKask Escalation Digest</h2><p><b>{count}</b> pending escalation(s) as of {now}</p><table border='1' cellpadding='6' style='border-collapse:collapse'><tr><th>ID</th><th>Output</th><th>Created</th></tr>{rows}</table>{truncated}<p style='color:#8b949e;font-size:0.8rem'>To resolve an escalation, reply to an alert email with: resolve &lt;id&gt;</p>"
     );
     send_email(recipient, &subject, &body, EmailMode::Notification).await
 }
