@@ -281,9 +281,11 @@ runcmd:
             }
         };
 
-        // Stop the VM (stops compute billing, keeps disk for inspection)
+        // Delete the VM and its managed disks (stops all billing — compute + storage).
+        // We use delete instead of stop because stop leaves the disk running
+        // (storage charges continue). Delete cleans up everything.
         let _ = self
-            .run_cli(&["compute", "instance", "stop", "--id", &vm_id])
+            .run_cli(&["compute", "instance", "delete", "--id", &vm_id])
             .await;
 
         if let Ok(mut map) = self.vms.lock() {
@@ -293,7 +295,7 @@ runcmd:
         tracing::info!(
             target: "hkask.training.nebius.cancel",
             job_id = %job_id, vm_id = %vm_id,
-            "Nebius VM stopped (compute billing stopped, disk retained)"
+            "Nebius VM deleted (all billing stopped)"
         );
         Ok(())
     }

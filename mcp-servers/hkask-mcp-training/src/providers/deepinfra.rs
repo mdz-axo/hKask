@@ -221,6 +221,12 @@ runcmd:
             );
         }
 
+        // Compute uptime from start_ts (Unix timestamp) when the container is running.
+        let uptime_seconds = result["start_ts"].as_i64().map(|start| {
+            let now = chrono::Utc::now().timestamp();
+            (now - start).max(0) as u64
+        }).unwrap_or(0);
+
         if !ssh_command.is_empty() {
             if let Ok(mut ssh_map) = self.ssh_commands.lock() {
                 ssh_map.insert(job_id.to_string(), ssh_command.clone());
@@ -239,7 +245,7 @@ runcmd:
             ip: ip.to_string(),
             ssh_port: 22,
             is_public_ip: !ip.is_empty(),
-            uptime_seconds: 0, // DeepInfra API doesn't expose uptime
+            uptime_seconds, // computed from start_ts
             gpu_type: self.gpu_config.clone(),
             fail_reason,
         })
