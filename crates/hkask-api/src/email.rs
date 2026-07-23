@@ -368,6 +368,7 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
 #[derive(Debug)]
 pub struct CuratorAlertEmailSink {
     alert_recipient: String,
+    nonce_store: Option<std::sync::Arc<NonceStore>>,
 }
 
 impl CuratorAlertEmailSink {
@@ -375,7 +376,7 @@ impl CuratorAlertEmailSink {
     pub fn from_env() -> Self {
         let alert_recipient = std::env::var("HKASK_ALERT_EMAIL")
             .unwrap_or_else(|_| std::env::var("HKASK_SMTP_USERNAME").unwrap_or_default());
-        Self { alert_recipient }
+        Self { alert_recipient, nonce_store: None }
     }
 
     /// Create from env, returning `None` when no recipient is configured.
@@ -386,9 +387,20 @@ impl CuratorAlertEmailSink {
         if recipient.is_empty() {
             return None;
         }
-        Some(std::sync::Arc::new(Self {
-            alert_recipient: recipient,
-        }))
+        Some(std::sync::Arc::new(Self { alert_recipient: recipient, nonce_store: None }))
+    }
+
+    /// Create from env with a shared nonce store for P12 token auth.
+    pub fn try_from_env_with_nonce(
+        nonce: std::sync::Arc<NonceStore>,
+    ) -> Option<std::sync::Arc<dyn hkask_regulation::AlertEmailSink>> {
+        let recipient = std::env::var("HKASK_ALERT_EMAIL")
+            .or_else(|_| std::env::var("HKASK_SMTP_USERNAME"))
+            .ok()?;
+        if recipient.is_empty() {
+            return None;
+        }
+        Some(std::sync::Arc::new(Self { alert_recipient: recipient, nonce_store: Some(nonce) }))
     }
 }
 
@@ -404,8 +416,13 @@ impl hkask_regulation::AlertEmailSink for CuratorAlertEmailSink {
         let threshold = alert.threshold;
         let message = alert.message.clone();
         let subject = format!("[hKask Alert] {domain} variety deficit {deficit}/{threshold}");
+        let token = self.nonce_store.as_ref().map(|s| s.issue());
+        let token_line = token
+            .as_ref()
+            .map(|t| format!("<p style='margin-top:16px'><b>To respond, reply with your command and:</b> token:{t}</p>"))
+            .unwrap_or_default();
         let body = format!(
-            "<h2>Algedonic Alert</h2>\n<p><b>Domain:</b> {domain}</p>\n<p><b>Deficit:</b> {deficit} / {threshold}</p>\n<p><b>Message:</b> {message}</p>\n<p style='color:#8b949e;font-size:0.8rem'>Sent by the hKask Curator cybernetics loop</p>"
+            "<h2>Algedonic Alert</h2>\n<p><b>Domain:</b> {domain}</p>\n<p><b>Deficit:</b> {deficit} / {threshold}</p>\n<p><b>Message:</b> {message}</p>{token_line}\n<p style='color:#8b949e;font-size:0.8rem'>Sent by the hKask Curator cybernetics loop</p>"
         );
         tokio::spawn(async move {
             if let Err(e) = send_email(&recipient, &subject, &body, EmailMode::Alert).await {
@@ -415,33 +432,100 @@ impl hkask_regulation::AlertEmailSink for CuratorAlertEmailSink {
     }
 }
 
-// Inbound command parsing (S4) + polling task (S7)
+// ── Nonce store (P12 token auth) ──────────────────────────────────────────
+
+/// In-memory one-time token store for P12 email command auth.
+///
+/// The alert email sink issues a token (included in the alert body). The
+/// inbox poller verifies the token from the reply. Tokens are one-time use
+/// and expire after `ttl`. This prevents spoofed-email command injection —
+/// an attacker would need to intercept the alert email to obtain a valid token.
+pub struct NonceStore {
+    tokens: std::sync::Mutex<std::collections::HashMap<String, std::time::Instant>>,
+    ttl: std::time::Duration,
+}
+
+impl std::fmt::Debug for NonceStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NonceStore").field("ttl", &self.ttl).finish_non_exhaustive()
+    }
+}
+
+impl NonceStore {
+    /// Create a store with a token TTL (e.g. 24h).
+    pub fn new(ttl: std::time::Duration) -> Self {
+        Self { tokens: std::sync::Mutex::new(std::collections::HashMap::new()), ttl }
+    }
+
+    /// Issue a one-time token. Returns the token string to include in an email.
+    pub fn issue(&self) -> String {
+        let token = uuid::Uuid::new_v4().to_string();
+        self.tokens
+            .lock()
+            .expect("nonce store not poisoned")
+            .insert(token.clone(), std::time::Instant::now());
+        token
+    }
+
+    /// Verify and consume a token. Returns `true` if valid and not expired.
+    pub fn verify(&self, token: &str) -> bool {
+        let mut tokens = self.tokens.lock().expect("nonce store not poisoned");
+        if let Some(issued_at) = tokens.get(token) {
+            let valid = issued_at.elapsed() < self.ttl;
+            tokens.remove(token); // one-time use
+            return valid;
+        }
+        false
+    }
+}
+
+// ── Inbound command parsing (S4) + polling task (S7) ───────────────────────
 
 /// A parsed command from an inbound email reply.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EmailCommand {
-    Resolve { escalation_id: String },
-    Dismiss { escalation_id: String },
+    Resolve { escalation_id: String, token: Option<String> },
+    Dismiss { escalation_id: String, token: Option<String> },
     Unknown,
 }
 
-/// Parse an email body for a command verb (case-insensitive, first match wins).
+/// Parse an email body for a command verb and optional nonce token.
+///
+/// Supported verbs (case-insensitive, first match wins):
+/// - `resolve <id>` — resolve an escalation
+/// - `dismiss <id>` — dismiss an escalation as not actionable
+/// - `token:<uuid>` — nonce token for P12 auth (may appear on any line)
 #[must_use]
 pub fn parse_command(body: &str) -> EmailCommand {
+    let mut token = None;
+    let mut found_command = false;
+    let mut escalation_id = String::new();
+    let mut is_resolve = false;
+
     for line in body.lines() {
         let line = line.trim().to_lowercase();
-        if let Some(rest) = line.strip_prefix("resolve ") {
-            return EmailCommand::Resolve {
-                escalation_id: rest.trim().to_string(),
-            };
+        if let Some(rest) = line.strip_prefix("token:") {
+            token = Some(rest.trim().to_string());
         }
-        if let Some(rest) = line.strip_prefix("dismiss ") {
-            return EmailCommand::Dismiss {
-                escalation_id: rest.trim().to_string(),
-            };
+        if !found_command {
+            if let Some(rest) = line.strip_prefix("resolve ") {
+                escalation_id = rest.trim().to_string();
+                is_resolve = true;
+                found_command = true;
+            } else if let Some(rest) = line.strip_prefix("dismiss ") {
+                escalation_id = rest.trim().to_string();
+                found_command = true;
+            }
         }
     }
-    EmailCommand::Unknown
+
+    if !found_command {
+        EmailCommand::Unknown
+    } else if is_resolve {
+        EmailCommand::Resolve { escalation_id, token }
+    } else {
+        EmailCommand::Dismiss { escalation_id, token }
+    }
 }
 
 /// Check if a sender is authorized (P12). Reads `HKASK_AUTHORIZED_EMAILS`.
@@ -452,7 +536,12 @@ pub fn is_authorized_sender(from: &str) -> bool {
 }
 
 /// Spawn a background IMAP poller that calls `handler` per received email.
-pub fn spawn_inbox_poller<F>(interval_secs: u64, handler: F)
+/// When `nonce_store` is provided, commands without a valid token are rejected.
+pub fn spawn_inbox_poller<F>(
+    interval_secs: u64,
+    nonce_store: Option<std::sync::Arc<NonceStore>>,
+    handler: F,
+)
 where
     F: Fn(InboundEmail, EmailCommand) + Send + Sync + 'static,
 {
@@ -465,10 +554,21 @@ where
                     for msg in messages {
                         let authorized = is_authorized_sender(&msg.from);
                         let cmd = parse_command(&msg.body);
-                        if authorized {
+                        let nonce_ok = match (&nonce_store, &cmd) {
+                            (Some(store), EmailCommand::Resolve { token: Some(t), .. })
+                            | (Some(store), EmailCommand::Dismiss { token: Some(t), .. }) => {
+                                store.verify(t)
+                            }
+                            (Some(_), EmailCommand::Resolve { token: None, .. })
+                            | (Some(_), EmailCommand::Dismiss { token: None, .. }) => false,
+                            _ => true,
+                        };
+                        if authorized && nonce_ok {
                             handler(msg, cmd);
-                        } else {
+                        } else if !authorized {
                             tracing::warn!(target = "reg.email.received", from = %msg.from, "Unauthorized sender - command ignored (P12)");
+                        } else if !nonce_ok {
+                            tracing::warn!(target = "reg.email.received", from = %msg.from, "Invalid or missing nonce token - command rejected (P12)");
                         }
                     }
                 }
@@ -485,14 +585,19 @@ where
 /// the governance layer (resolve/dismiss escalations). The poller is a no-op
 /// when IMAP is not configured.
 ///
+/// Pass `Some(nonce_store)` to require P12 nonce-token auth on inbound commands.
 /// Call after `AgentService::build_with_email()` returns.
-pub fn wire_inbox_poller(ctx: &hkask_services_context::AgentService, poll_interval_secs: u64) {
+pub fn wire_inbox_poller(
+    ctx: &hkask_services_context::AgentService,
+    poll_interval_secs: u64,
+    nonce_store: Option<std::sync::Arc<NonceStore>>,
+) {
     let escalations = std::sync::Arc::clone(&ctx.governance().escalations);
     let events = ctx.governance().events.clone();
     let userpod = ctx.config().user_name.clone();
 
-    spawn_inbox_poller(poll_interval_secs, move |msg, cmd| match cmd {
-        EmailCommand::Resolve { escalation_id } => {
+    spawn_inbox_poller(poll_interval_secs, nonce_store, move |msg, cmd| match cmd {
+        EmailCommand::Resolve { escalation_id, .. } => {
             match hkask_services_context::governance::resolve_direct(
                 &escalations,
                 &events,
@@ -513,7 +618,7 @@ pub fn wire_inbox_poller(ctx: &hkask_services_context::AgentService, poll_interv
                 ),
             }
         }
-        EmailCommand::Dismiss { escalation_id } => {
+        EmailCommand::Dismiss { escalation_id, .. } => {
             match hkask_services_context::governance::dismiss_direct(
                 &escalations,
                 &events,
@@ -543,7 +648,6 @@ pub fn wire_inbox_poller(ctx: &hkask_services_context::AgentService, poll_interv
         }
     });
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;

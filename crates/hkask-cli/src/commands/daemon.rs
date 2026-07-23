@@ -72,7 +72,8 @@ async fn run_daemon() -> Result<(), CliError> {
 
     // Try build — if wallet fails, retry with in-memory config (wallet is
     // optional for the daemon; the DB is not).
-    let ctx = match hkask_services_context::AgentService::build_with_email(config, hkask_api::email::CuratorAlertEmailSink::try_from_env()).await {
+    let nonce = std::sync::Arc::new(hkask_api::email::NonceStore::new(std::time::Duration::from_secs(86400)));
+    let ctx = match hkask_services_context::AgentService::build_with_email(config, hkask_api::email::CuratorAlertEmailSink::try_from_env_with_nonce(nonce.clone())).await {
         Ok(ctx) => ctx,
         Err(e) => {
             tracing::warn!(target: "hkask.daemon", error = %e, "Build with env config failed, retrying in-memory");
@@ -88,7 +89,7 @@ async fn run_daemon() -> Result<(), CliError> {
             })?
         }
     };
-    hkask_api::email::wire_inbox_poller(&ctx, 60);
+    hkask_api::email::wire_inbox_poller(&ctx, 60, Some(nonce));
 
     // Start the loop system
     ctx.ledger().loops.start().await;

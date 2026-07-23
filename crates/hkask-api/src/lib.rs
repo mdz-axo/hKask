@@ -104,13 +104,14 @@ impl ApiState {
             hkask_services_core::ServiceConfig::from_env().map_err(|e| ApiError::Internal {
                 message: format!("Failed to resolve service config: {e}"),
             })?;
-        let email_sink = crate::email::CuratorAlertEmailSink::try_from_env();
+        let nonce = std::sync::Arc::new(crate::email::NonceStore::new(std::time::Duration::from_secs(86400)));
+        let email_sink = crate::email::CuratorAlertEmailSink::try_from_env_with_nonce(nonce.clone());
         let ctx = hkask_services_context::AgentService::build_with_email(config, email_sink)
             .await
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to build service context: {e}"),
             })?;
-        crate::email::wire_inbox_poller(&ctx, 60);
+        crate::email::wire_inbox_poller(&ctx, 60, Some(nonce));
         Self::from_service_context(ctx).await
     }
 

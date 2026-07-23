@@ -62,12 +62,12 @@ impl TrainingServer {
                     }
 
                     // Fetch recent log lines via SSH for real-time visibility.
-                    if !pod_status.ssh_command.is_empty() && status == TrainingJobStatus::Running {
-                        if let Some(logs) = crate::providers::types::fetch_pod_logs(
+                    if !pod_status.ssh_command.is_empty() && status == TrainingJobStatus::Running
+                        && let Some(logs) = crate::providers::types::fetch_pod_logs(
                             &pod_status.ssh_command, 20
-                        ).await {
-                            result["recent_logs"] = json!(logs);
-                        }
+                        ).await
+                    {
+                        result["recent_logs"] = json!(logs);
                     }
 
                     // Persist status update

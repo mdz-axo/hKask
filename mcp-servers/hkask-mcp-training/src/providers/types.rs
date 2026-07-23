@@ -643,7 +643,7 @@ pub enum ProviderError {
 }
 
 // ── TrainingHost trait ────────────────────────────────────────────────────
-
+//
 /// Pluggable training host — where a training job runs.
 ///
 /// ARCHITECTURAL REQUIREMENT: Every pod MUST be debuggable. The `status`
@@ -660,6 +660,7 @@ pub enum ProviderError {
 /// REMOVED. Completion is detected via the HuggingFace manifest
 /// (`check_completion_manifest` in `TrainingServer`). Adapter paths come
 /// from the manifest's `adapter.repository` field.
+// ── PodStatus ─────────────────────────────────────────────────────────────
 
 /// Rich pod status returned by `TrainingHost::status`. Includes everything
 /// an operator needs to monitor, debug, and SSH into a running pod.
