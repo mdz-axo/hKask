@@ -181,6 +181,46 @@ All three hosts share:
 - Completion manifest — written to `/workspace/completion.json`, uploaded to HuggingFace
 - SSH access — every pod/VM/container gets a public IP and SSH
 
+## B200 + Axolotl Compatibility (Researched 2026-07-23)
+
+NVIDIA B200 (Blackwell, compute capability sm_100) requires specific software:
+
+| Component | Required Version | Notes |
+|---|---|---|
+| PyTorch | 2.9.1+ | Standard PyPI PyTorch may lack sm_100 kernels. NGC containers have custom builds. |
+| CUDA | 13.0 | CUDA 12.8 cannot compile for sm_103a (B300). CUDA 13.0 avoids JIT overhead on B200. |
+| Axolotl | latest | Officially supports Blackwell. Docker: `axolotlai/axolotl-uv:main-py3.11-cu130-2.9.1` |
+| Unsloth | latest | Supports B200/B40/GB100/GB102. |
+
+### Critical Risk: pip install Overwriting GPU PyTorch
+
+On pre-built GPU images (e.g. DeepInfra's `di-cont-ubuntu-torch:latest`),
+PyTorch may be a custom NVIDIA build with sm_100 kernel support. Running
+`pip install axolotl` pulls in standard PyTorch from PyPI, which **overwrites**
+the custom build and causes:
+
+```
+CUDA error: no kernel image is available for execution on the device
+```
+
+**Mitigation** (implemented in `generate_install_script`):
+- The install script checks if the harness is already installed (`command -v axolotl`,
+  `python -c 'import trl'`, etc.) before running pip install
+- If already present, pip install is skipped to preserve the GPU-specific PyTorch
+- If not present, pip install proceeds (fresh VM/image case)
+
+### DeepInfra Image Unknowns
+
+The `di-cont-ubuntu-torch:latest` image contents are **unverified**:
+- Unknown PyTorch version (may or may not have sm_100 kernels)
+- Unknown CUDA version (may be 12.x or 13.0)
+- Unknown if axolotl is pre-installed
+
+**Recommendation**: SSH into a running DeepInfra B200 container and check:
+- `python -c 'import torch; print(torch.__version__, torch.cuda.get_device_capability())'`
+- `nvidia-smi --query-gpu=driver_version --format=csv,noheader`
+- `pip list | grep -E 'torch|axolotl|trl'`
+
 ## OxiCUDA — DEPRECATED
 
 OxiCUDA is not a real option. The repo is unverified, the claims are
