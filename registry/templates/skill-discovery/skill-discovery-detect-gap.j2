@@ -9,7 +9,7 @@ lexicon_terms:
 contract:
   input:
     task_patterns: array
-    existing_skills: array
+    skill_catalog: array
   output:
     gap_list: array
     priority_ranking: array
@@ -38,12 +38,12 @@ These are the task patterns the agent commonly encounters:
 {{ task_patterns | tojson }}
 ```
 
-## Existing Skills
+## Skill Catalog
 
 These are the skills currently available in the corpus:
 
 ```json
-{{ existing_skills | tojson }}
+{{ skill_catalog | tojson }}
 ```
 
 ## Gap Classification Taxonomy

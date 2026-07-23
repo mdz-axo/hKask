@@ -37,7 +37,9 @@ templates:
     description: >
       DO phase — single producer: slice vertically AND write tasks in one step.
       Each task carries slice_id/feature_path, acceptance criteria, verification,
-      dependencies, files, and scope (XS/S/M/L/XL). The PDCA loop re-enters here
+      dependencies, files, scope (XS/S/M/L/XL), and skill_match_query (a natural-language
+      capability description consumed by skill-router when the skill_catalog input is
+      provided). The PDCA loop re-enters here
       so refinement directives are task-addressable and re-slicing + re-writing
       happen together. Merges the former slice + write-tasks steps to fix the
       grain-mismatch (mirrors diataxis-diagram's single generate producer).

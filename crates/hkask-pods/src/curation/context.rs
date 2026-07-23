@@ -6,7 +6,6 @@ use crate::ports::EscalationPort;
 use hkask_regulation::RegulationLedger;
 use hkask_regulation::types::loops::CommunicationEvent;
 use hkask_templates::ManifestExecutor;
-use hkask_types::DataCategory;
 use hkask_types::LedgerStoragePort;
 use hkask_types::curator::{CuratorDirective, CuratorHandle};
 use std::sync::Arc;
@@ -204,42 +203,27 @@ impl CuratorContext {
         self.manifest_executor.read().await.is_some()
     }
 
-    /// Issue a CuratorDirective through the OCAP-gated channel.
+    /// Issue a CuratorDirective through the direct channel to Cybernetics.
     ///
     /// Curation (Loop 5) governs Cybernetics (Loop 6) per the authority DAG,
     /// so Curator directives MUST NOT be dampened by a Cybernetics dampener.
     /// Dampening is applied at the Cybernetics receipt boundary instead.
     ///
-    /// **OCAP Verification (Magna Carta Curator Responsibility #1):**
-    /// Every directive issuance verifies the CuratorHandle's write capability
-    /// before sending. Directives that fail OCAP verification are refused —
-    /// this is the Magna Carta enforcement gate at the directive boundary.
+    /// The CuratorHandle is a structural singleton — only `CuratorHandle::system()`
+    /// can construct it, so every `CuratorContext` holds the one authorized handle.
+    /// There is no runtime OCAP gate here: authority is enforced by construction
+    /// (the singleton invariant), not by an always-pass check.
     ///
     /// When no channel is configured (e.g., standalone CLI), this is a no-op.
     ///
     /// expect: "The system regulates agent behavior through cybernetic feedback"
-    /// \[P9\] Motivating: Homeostatic Self-Regulation — OCAP-gated directive issuance
-    /// \[P4\] Constraining: Clear Boundaries — directives require write capability
-    /// pre:  `directive` is a valid `CuratorDirective`; `self.handle` is a
-    ///       valid `CuratorHandle`.
-    /// post: If the handle lacks write capability, the directive is refused
-    ///       and an error is logged. Otherwise, if `curator_directive_tx` is
-    ///       `Some`, the directive is sent; logs a warning if the send fails.
-    ///       If `curator_directive_tx` is `None`, this is a no-op.
+    /// \[P9\] Motivating: Homeostatic Self-Regulation — direct directive channel
+    /// \[P4\] Constraining: Clear Boundaries — authority enforced by singleton construction
+    /// pre:  `directive` is a valid `CuratorDirective`; `self.handle` is the
+    ///       singleton `CuratorHandle`.
+    /// post: If `curator_directive_tx` is `Some`, the directive is sent; logs
+    ///       a warning if the send fails. If `None`, this is a no-op.
     pub async fn issue_directive(&self, directive: CuratorDirective) {
-        // Magna Carta Curator Responsibility #1: OCAP verification.
-        // The CuratorHandle must prove write capability before any directive
-        // issuance. This is a structural gate — the singleton handle is always
-        // authorized — but the check exists as a contract boundary.
-        if !self.handle.can_write(&DataCategory::Public) {
-            tracing::error!(
-                target: "curator.context",
-                directive = directive.variant_name(),
-                "OCAP verification failed: CuratorHandle lacks write capability. Directive refused."
-            );
-            return;
-        }
-
         if let Some(ref tx) = self.curator_directive_tx
             && let Err(e) = tx.send(directive)
         {

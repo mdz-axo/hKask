@@ -219,6 +219,7 @@ Respond with a JSON object:
 - Every task must have acceptance criteria AND a verification step.
 - Every task must declare its dependencies (or "None").
 - Dependency order must be respected: a task may not precede a task it depends on.
+- If skill_catalog is provided, every task must include a skill_match_query field describing the capability need. If skill_catalog is not provided, omit skill_match_query.
 - Do not execute arbitrary Python code in Jinja2 expressions (sandboxed execution).
 - Preserve the original prompt structure and formatting.
 - Handle missing variables gracefully (leave as-is or use default if specified).

@@ -16,6 +16,7 @@ contract:
     tool_selection: array
     next_experiment: object
     rationale: string
+    skill_match_queries: array
 energy_cap: 6144
 visibility: Public
 ---
@@ -180,6 +181,17 @@ Return JSON only:
     "measurement": "Check if results include expected caller names",
     "success_criteria": "At least 3 callers returned"
   },
-  "rationale": "Evidence-based explanation of why these adjustments are warranted"
+  "rationale": "Evidence-based explanation of why these adjustments are warranted",
+  "skill_match_queries": [
+    {
+      "obstacle": "knowledge_gap about module structure",
+      "query": "query a code graph for symbol callers and dependencies",
+      "reason": "No available tool covers code structure analysis; skill-router may find an installed skill that does"
+    }
+  ]
 }
 ```
+
+### skill_match_queries
+
+When an obstacle requires a capability that no available tool provides, emit a `skill_match_query` entry. The orchestrator feeds these to skill-router for matching against the installed skill catalog. Omit if all obstacles are addressed by available tools.

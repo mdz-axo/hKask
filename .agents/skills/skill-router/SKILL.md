@@ -68,6 +68,9 @@ flowchart TD
 - Uncovered capabilities feed `skill-discovery` as gap signals (coverage/feature gaps).
 - `skill-discovery` installs new skills → the catalog grows → future `skill-router` calls have better coverage.
 
+**Orchestrator responsibility — building skill_catalog:**
+The `skill_catalog` input array is built by the orchestrator (agent runtime), not by any template. Each entry should contain: `name`, `description`, `template_type`, `lexicon_terms` (extracted from `registry/templates/*/manifest.yaml`), and `when_to_use` (extracted from the "## When to Use" section of each skill's `SKILL.md`). The `when_to_use` field is not a structured manifest field — it is prose extracted from the SKILL.md companion. This avoids a schema migration across 50+ manifests while giving skill-router the trigger-condition text it needs for the trigger-alignment scoring dimension.
+
 **Distinct from skill-discovery:**
 - `skill-router` matches tasks to EXISTING skills (routing).
 - `skill-discovery` acquires NEW skills (curation: gap → search → evaluate → install).

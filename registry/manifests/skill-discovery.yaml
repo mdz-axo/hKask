@@ -39,9 +39,9 @@ inputs:
     type: array
     description: "Task patterns requiring coverage"
     required: false
-  - name: existing_skills
+  - name: skill_catalog
     type: array
-    description: "Current registry skills"
+    description: "Installed skill catalog (same array passed to skill-router and skill-discovery-search)"
     required: false
   - name: candidate_skill_content
     type: string
@@ -58,7 +58,7 @@ steps:
     timeout_seconds: 60
     input_mapping:
       task_patterns: "{{ task_patterns | default([]) }}"
-      existing_skills: "{{ existing_skills | default([]) }}"
+      skill_catalog: "{{ skill_catalog | default([]) }}"
 
   - ordinal: 2
     action: select

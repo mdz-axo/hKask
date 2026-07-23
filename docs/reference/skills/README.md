@@ -83,7 +83,7 @@ last-verified-against: "91bfc585c"
 
 ---
 
-## Meta & Maintenance (4 skills)
+## Meta & Maintenance (6 skills)
 
 | Skill | Type | Purpose | Artifacts |
 |-------|------|---------|----------|
@@ -91,6 +91,8 @@ last-verified-against: "91bfc585c"
 | `skill-logic-audit` | Skill | Audit .j2 template logic against stated goals | `registry/manifests/skill-logic-audit.yaml` · `registry/templates/skill-logic-audit/` |
 | `skill-bundler` | Skill | Compose multiple skills into a cohesive bundle | `registry/manifests/skill-bundler.yaml` · `registry/templates/skill-bundler/` |
 | `handoff` | Skill | Session handoff — capture what was done, what remains | `registry/manifests/handoff.yaml` · `registry/templates/handoff/` |
+| `skill-discovery` | Skill | Acquire NEW skills: detect capability gaps, search catalog, evaluate candidates, guide installation | `registry/manifests/skill-discovery.yaml` · `registry/templates/skill-discovery/` |
+| `skill-router` | Skill | Route tasks to installed skills: ranked fit-scored recommendations + uncovered capability gap signals | `registry/templates/skill-router/manifest.yaml` · `registry/templates/skill-router/` |
 
 ---
 
@@ -123,8 +125,8 @@ last-verified-against: "91bfc585c"
 | Core Development | 9 | Skills |
 | Reasoning & Analysis | 8 | Skills |
 | Kata & Coaching | 4 skills + 1 composition | Skills + Composition |
-| Meta & Maintenance | 4 | Skills |
+| Meta & Maintenance | 6 | Skills |
 | Specialized | 12 skills + 1 template | Skills + Template |
-| **Catalogued here** | **46 skills + 2 templates + 1 bundle** | **49 capabilities** |
+| **Catalogued here** | **48 skills + 2 templates + 1 bundle** | **51 capabilities** |
 
 > **Filesystem reality:** `registry/templates/` contains 79 FlowDef manifests across 81 template directories; `.agents/skills/` contains 48 SKILL.md directories (46 skills + 2 templates). The kata bundle is a registry manifest composing kata-coaching, kata-improvement, and kata-starter — not a separate `.agents/skills/` directory.

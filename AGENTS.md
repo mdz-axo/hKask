@@ -15,6 +15,7 @@
 | **Reasoning & Analysis** | Agent-autonomous / ensemble | P1 · P3 · P12 (sovereignty, consent, identity) | `pragmatic-semantics`, `sequential-inquiry`, `falsifiability`, `metacognition` |
 | **Kata & Coaching** | Ensemble / coaching loop | P4 (clear boundaries) | `kata` (bundle), `kata-improvement`, `kata-coaching`, `improv` |
 | **Meta & Maintenance** | Agent-autonomous (self-improvement) | P1 · P12 | `skill-maintenance`, `skill-logic-audit`, `gpa-evolution`, `handoff` |
+| **Routing & Curation** | Agent-autonomous (skill matching) | P5 · P12 | `skill-router`, `skill-discovery` |
 | **Security & Posture** | Agent-autonomous (runtime) | P5–P8 · P12 | `kali-audit`, `supply-chain-sentinel`, `runtime-posture-monitor`, `attack-taxonomy-mapper` |
 | **Training** | Pre-flight (before training job) | P3.1 · P5 · P8 · P12 | `lora-training` |
 
@@ -34,6 +35,8 @@
 - `bug-hunt` / `diagnose` — Exploration and debugging.
 - `kali-audit` / `supply-chain-sentinel` — Security posture.
 - `lora-training` — PEFT method selection + math-contract gates (pre-flight before training job).
+- `skill-router` — Match tasks to installed skills (fit-scored recommendations).
+- `skill-discovery` — Detect capability gaps, search catalog, evaluate candidates, guide installation.
 
 ### Ensemble / Coaching (Multi-agent interaction)
 - `kata` bundle, `kata-coaching`, `improv` — Toyota Kata dialogues.
@@ -87,6 +90,8 @@ Only #1 partially CI-gated; #2–#4 enforced by review.
 | LoRA/QLoRA training config audit | `lora-training` | `tdd` (training-loop code) |
 | RunPod training pod creation | [`docs/how-to/runpod-lora-training-guide.md`](docs/how-to/runpod-lora-training-guide.md) | `lora-training` (config audit) |
 | Self-improvement / prompt evolution | `metacognition` | `gpa-evolution` (post-convergence) |
+| Skill matching for a task | `skill-router` | `skill-discovery` (if gaps found) |
+| Capability gap detection | `skill-discovery` | `skill-router` (after new skill installed) |
 | Multi-agent coaching | `kata-coaching` | `improv` (interaction grammar) |
 | Session handoff | `handoff` | — |
 

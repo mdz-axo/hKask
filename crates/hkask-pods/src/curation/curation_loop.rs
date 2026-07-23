@@ -38,6 +38,44 @@ const CUR_TARGET: &str = "curation.loop";
 /// an inline magic number so it is auditable and overridable in future config.
 const DEFAULT_ESCALATION_BUDGET_OVERRIDE: u64 = 5000;
 
+/// Typed reason for a Curation `Escalate` action.
+///
+/// Replaces magic-string matching in `act()` — the canonical strings live
+/// here as `as_str()`, so the producer (`compute()`) and consumer (`act()`)
+/// share one source of truth and typos surface at compile time.
+enum CurationEscalationReason {
+    AlgedonicEventsExceeded,
+    PendingEscalationsExist,
+    ConsolidationCandidatesExist,
+    GoalsStale,
+    GoalsExpired,
+    Other,
+}
+
+impl CurationEscalationReason {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::AlgedonicEventsExceeded => "algedonic_events_exceeded",
+            Self::PendingEscalationsExist => "pending_escalations_exist",
+            Self::ConsolidationCandidatesExist => "consolidation_candidates_exist",
+            Self::GoalsStale => "goals_stale",
+            Self::GoalsExpired => "goals_expired",
+            Self::Other => "",
+        }
+    }
+
+    fn from_reason(s: &str) -> Self {
+        match s {
+            "algedonic_events_exceeded" => Self::AlgedonicEventsExceeded,
+            "pending_escalations_exist" => Self::PendingEscalationsExist,
+            "consolidation_candidates_exist" => Self::ConsolidationCandidatesExist,
+            "goals_stale" => Self::GoalsStale,
+            "goals_expired" => Self::GoalsExpired,
+            _ => Self::Other,
+        }
+    }
+}
+
 /// Curation Loop — pure regulatory observer.
 ///
 /// Reads from the RegulationRecord store and produces `CuratorDirective`s through
@@ -474,7 +512,7 @@ impl RegulationLoop for CurationLoop {
                         LoopId::Cybernetics,
                         hkask_regulation::types::loops::ActionType::Escalate,
                         hkask_regulation::types::loops::RegulatoryActionParams::reason(
-                            "algedonic_events_exceeded",
+                            CurationEscalationReason::AlgedonicEventsExceeded.as_str(),
                         ),
                     ));
                 }
@@ -483,7 +521,7 @@ impl RegulationLoop for CurationLoop {
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
                         hkask_regulation::types::loops::RegulatoryActionParams::reason(
-                            "pending_escalations_exist",
+                            CurationEscalationReason::PendingEscalationsExist.as_str(),
                         ),
                     ));
                 }
@@ -493,7 +531,7 @@ impl RegulationLoop for CurationLoop {
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
                         hkask_regulation::types::loops::RegulatoryActionParams::reason(
-                            "consolidation_candidates_exist",
+                            CurationEscalationReason::ConsolidationCandidatesExist.as_str(),
                         ),
                     ));
                 }
@@ -502,7 +540,7 @@ impl RegulationLoop for CurationLoop {
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
                         hkask_regulation::types::loops::RegulatoryActionParams::reason(
-                            "goals_stale",
+                            CurationEscalationReason::GoalsStale.as_str(),
                         ),
                     ));
                 }
@@ -511,7 +549,7 @@ impl RegulationLoop for CurationLoop {
                         LoopId::Curation,
                         hkask_regulation::types::loops::ActionType::Escalate,
                         hkask_regulation::types::loops::RegulatoryActionParams::reason(
-                            "goals_expired",
+                            CurationEscalationReason::GoalsExpired.as_str(),
                         ),
                     ));
                 }
@@ -526,16 +564,19 @@ impl RegulationLoop for CurationLoop {
     async fn act(&self, actions: &[RegulatoryAction]) {
         for action in actions {
             tracing::info!(target: CUR_TARGET, action_type = ?action.action_type, target_loop = %action.target, "Curation Loop regulatory action");
-            let directive = match action.action_type {
-                hkask_regulation::types::loops::ActionType::Escalate
-                    if action.parameters.reason == "algedonic_events_exceeded" =>
-                {
+            let reason = CurationEscalationReason::from_reason(&action.parameters.reason);
+            let directive = match (action.action_type, reason) {
+                (
+                    hkask_regulation::types::loops::ActionType::Escalate,
+                    CurationEscalationReason::AlgedonicEventsExceeded,
+                ) => {
                     tracing::warn!(target: CUR_TARGET, "Algedonic events exceeded threshold — Curation reviewing");
                     None
                 }
-                hkask_regulation::types::loops::ActionType::Escalate
-                    if action.parameters.reason == "consolidation_candidates_exist" =>
-                {
+                (
+                    hkask_regulation::types::loops::ActionType::Escalate,
+                    CurationEscalationReason::ConsolidationCandidatesExist,
+                ) => {
                     tracing::info!(
                         target: CUR_TARGET,
                         "Consolidation candidates exist — attempting auto-consolidation"
@@ -543,9 +584,10 @@ impl RegulationLoop for CurationLoop {
                     self.try_auto_consolidate().await;
                     continue;
                 }
-                hkask_regulation::types::loops::ActionType::Escalate
-                    if action.parameters.reason == "pending_escalations_exist" =>
-                {
+                (
+                    hkask_regulation::types::loops::ActionType::Escalate,
+                    CurationEscalationReason::PendingEscalationsExist,
+                ) => {
                     // Process pending escalations from the queue
                     match self.context.escalation_port().list_pending() {
                         Ok(entries) if !entries.is_empty() => {
@@ -588,9 +630,9 @@ impl RegulationLoop for CurationLoop {
                     }
                     continue;
                 }
-                hkask_regulation::types::loops::ActionType::Escalate => {
-                    // Other escalations go through the escalation queue
-                    // (handled by CuratorContext internally)
+                (hkask_regulation::types::loops::ActionType::Escalate, _) => {
+                    // Other escalations (goals_stale, goals_expired, unknown)
+                    // go through the escalation queue (handled by CuratorContext internally)
                     None
                 }
                 _ => None,

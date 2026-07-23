@@ -16,6 +16,7 @@ contract:
     high_level_rules: array
     failure_patterns: array
     success_patterns: array
+    capability_gaps: array
 energy_cap: 5120
 visibility: Public
 ---
@@ -79,6 +80,17 @@ Return JSON only:
     "rule 2: ..."
   ],
   "failure_patterns": ["pattern that appears across multiple trajectories"],
-  "success_patterns": ["pattern that correlates with good outcomes"]
+  "success_patterns": ["pattern that correlates with good outcomes"],
+  "capability_gaps": [
+    {
+      "gap": "No method available for X",
+      "trajectory_indices": [0, 2],
+      "task_pattern": "The task pattern that exposed the gap"
+    }
+  ]
 }
 ```
+
+### capability_gaps
+
+When reflection identifies that a failure was caused by lacking a method, skill, or approach (not just a prompt issue), emit a `capability_gaps` entry. The orchestrator feeds these to skill-discovery's detect-gap phase as `task_patterns`. Omit if no failures were caused by missing capabilities.

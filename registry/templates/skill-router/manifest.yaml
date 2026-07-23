@@ -33,6 +33,9 @@ templates:
       are gap signals consumed by skill-discovery's detect-gap phase.
       Emits coverage_assessment: full (≥1 skill at fit ≥0.8), partial
       (best fit 0.4–0.79), or none (best fit <0.4).
+    generates_spans:
+      - reg.skill.routing.matched
+      - reg.skill.routing.uncovered
 
   - id: skill-router/skill-router-convergence-check
     name: "Compute convergence metric for iterative skill routing refinement"

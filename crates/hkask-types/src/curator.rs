@@ -31,12 +31,6 @@ pub struct CuratorHandle {
 }
 
 impl CuratorHandle {
-    pub fn new_test() -> Self {
-        Self {
-            curator_id: WebID::new(),
-        }
-    }
-
     /// Create the system CuratorHandle using the system WebID.
     ///
     /// The Curator is a singleton — the user's counterpart in `kask chat`.

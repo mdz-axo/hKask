@@ -48,3 +48,4 @@ Respond with a JSON object containing:
 - success_criterion: what result confirms your prediction
 - learning_commitment: what you commit to learning regardless of outcome
 - when_to_check: how quickly you can see the result
+- skill_match_query: natural-language description of the skill capability this experiment needs (e.g., 'debug a race condition in async Rust'). Consumed by skill-router when the orchestrator routes experiments to installed skills. Omit if no specific skill is needed.

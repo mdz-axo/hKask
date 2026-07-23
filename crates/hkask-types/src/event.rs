@@ -284,6 +284,15 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.skill.manifest.unparseable",
     "reg.skill.manifest.absent",
     "reg.skill.manifest.unreadable",
+    // Routing: skill-to-task matching (skill-router)
+    "reg.skill.routing",
+    "reg.skill.routing.matched",
+    "reg.skill.routing.uncovered",
+    // Discovery: capability gap detection and candidate evaluation (skill-discovery)
+    "reg.skill.discovery",
+    "reg.skill.discovery.gap_detected",
+    "reg.skill.discovery.searched",
+    "reg.skill.discovery.evaluated",
     // ── SLO ──
     "reg.slo.evaluated",
     // ── Sovereignty ──
