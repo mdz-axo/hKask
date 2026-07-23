@@ -503,13 +503,14 @@ impl ChatService {
             params.bypass_fusion = chat_bypass;
 
             // --- Phase 2: Stream tokens ---
-            let tools_ref = req.tools.as_deref();
-            let mut stream = prepared.inference_port.generate_stream_with_model(
-                &prepared.prompt,
-                &params,
-                Some(&prepared.model),
-                tools_ref,
-            );
+            : Stream tokens ---
+                        let tools_ref = req.tools.as_deref();
+                        let mut stream = prepared.inference_port.generate_stream_with_messages(
+                            &prepared.messages,
+                            &params,
+                            Some(&prepared.model),
+                            tools_ref,
+                        );
 
             let mut full_text = String::new();
             let mut usage = None;
