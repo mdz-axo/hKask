@@ -140,18 +140,19 @@ pub struct TrainingHostConfig {
 
 impl Default for TrainingHostConfig {
     fn default() -> Self {
-        // Auto-detect: if DI_API_KEY is set, use DeepInfra (cheapest H100).
-        // If NEBIUS_PROJECT_ID is set, use Nebius. Otherwise Runpod.
-        let host =
-            if std::env::var("DI_API_KEY").is_ok() && std::env::var("RUNPOD_API_KEY").is_err() {
-                TrainingHostId::DeepInfra
-            } else if std::env::var("NEBIUS_PROJECT_ID").is_ok()
-                && std::env::var("RUNPOD_API_KEY").is_err()
-            {
-                TrainingHostId::Nebius
-            } else {
-                TrainingHostId::Runpod
-            };
+        // Auto-detect: prefer DeepInfra (B200, cheapest dedicated GPU),
+        // then Nebius (H100), then Runpod (H100) as fallback.
+        // HKASK_TRAINING_HOST overrides this selection.
+        // This matches the auto-detection in lib.rs::run().
+        let host = if let Ok(h) = std::env::var("HKASK_TRAINING_HOST") {
+            TrainingHostId::from_str(&h).unwrap_or(TrainingHostId::Runpod)
+        } else if std::env::var("DI_API_KEY").is_ok() {
+            TrainingHostId::DeepInfra
+        } else if std::env::var("NEBIUS_PROJECT_ID").is_ok() {
+            TrainingHostId::Nebius
+        } else {
+            TrainingHostId::Runpod
+        };
         Self {
             host,
             runpod_api_key: String::new(),

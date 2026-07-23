@@ -33,11 +33,9 @@ pub struct NebiusHost {
     /// Path to nebius CLI binary.
     nebius_cli: String,
     /// job_id -> VM ID mapping.
-    vms: Arc<Mutex<HashMap<String, String>>>,
-    /// job_id -> VM name mapping.
-    vm_names: Arc<Mutex<HashMap<String, String>>>,
+    vms: Arc<Mutex<HashMap<String, String>>,
     /// job_id -> SSH command.
-    ssh_commands: Arc<Mutex<HashMap<String, String>>>,
+    ssh_commands: Arc<Mutex<HashMap<String, String>>,
 }
 
 impl NebiusHost {
@@ -63,7 +61,6 @@ impl NebiusHost {
             image_family,
             nebius_cli,
             vms: Arc::new(Mutex::new(HashMap::new())),
-            vm_names: Arc::new(Mutex::new(HashMap::new())),
             ssh_commands: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -184,9 +181,6 @@ runcmd:
         if let Ok(mut map) = self.vms.lock() {
             map.insert(job.id.clone(), vm_id.clone());
         }
-        if let Ok(mut map) = self.vm_names.lock() {
-            map.insert(job.id.clone(), vm_name.clone());
-        }
 
         tracing::info!(
             target: "hkask.training.nebius.submit",
@@ -262,7 +256,7 @@ runcmd:
             ssh_command,
             ip: public_ip,
             ssh_port: 22,
-            is_public_ip: true, // Nebius auto-assigns public IPs
+            is_public_ip: !public_ip.is_empty(),
             uptime_seconds: 0,
             gpu_type: self.gpu_platform.clone(),
             fail_reason: None,

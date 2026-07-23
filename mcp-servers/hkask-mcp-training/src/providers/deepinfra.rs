@@ -6,7 +6,10 @@
 //!
 //! API: https://api.deepinfra.com/v1/containers
 //! Auth: Bearer token (DI_API_KEY)
-//! Billing: Per-minute, H100 at $1.79/hr (cheapest H100 available)
+//! Billing: Per-minute, B200 at $3.69/hr (dedicated GPU, 180GB HBM3e)
+//! GPU configs: 1xB200-180GB, 8xB200-180GB
+//! Note: DeepInfra offers B200 GPUs only (not H100). B200 is NVIDIA Blackwell,
+//!       faster than H100 for training workloads.
 //!
 //! ARCHITECTURAL REQUIREMENT: Every container gets a public IP and SSH access.
 //! The operator can always SSH in to inspect logs, debug failures, and monitor
@@ -20,7 +23,7 @@ use std::sync::{Arc, Mutex};
 /// DeepInfra GPU container configuration.
 pub struct DeepInfraHost {
     api_key: String,
-    /// GPU config string (e.g. "1xH100-80GB", "1xB200-180GB").
+    /// GPU config string (e.g. "1xB200-180GB", "8xB200-180GB").
     gpu_config: String,
     /// Container image (e.g. "di-cont-ubuntu-torch:latest").
     container_image: String,

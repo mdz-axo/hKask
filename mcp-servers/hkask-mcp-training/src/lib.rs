@@ -296,9 +296,10 @@ pub async fn run(
     daemon_client: Option<hkask_mcp_server::DaemonClient>,
 ) -> Result<(), hkask_mcp_server::McpError> {
     // Host selection: auto-detect from env vars, or use HKASK_TRAINING_HOST.
-    // DeepInfra is preferred when DI_API_KEY is set (cheapest H100 at $1.79/hr).
-    // Nebius is used when NEBIUS_PROJECT_ID is set.
-    // Runpod is the fallback when RUNPOD_API_KEY is set.
+    // DeepInfra is preferred when DI_API_KEY is set (B200 at $3.69/hr).
+    // Nebius is used when NEBIUS_PROJECT_ID is set (H100 at $3.85/hr).
+    // Runpod is the fallback when RUNPOD_API_KEY is set (H100 at $2.39/hr).
+    // This matches TrainingHostConfig::default() in providers/mod.rs.
     let host_id = std::env::var("HKASK_TRAINING_HOST")
         .ok()
         .and_then(|h| TrainingHostId::from_str(&h))

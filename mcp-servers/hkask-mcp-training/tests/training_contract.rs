@@ -141,6 +141,7 @@ impl TrainingHost for MockTrainingHost {
             is_public_ip: false,
             uptime_seconds: 0,
             gpu_type: "mock".to_string(),
+            fail_reason: None,
         })
     }
     async fn cancel(&self, _job_id: &str) -> Result<(), ProviderError> {

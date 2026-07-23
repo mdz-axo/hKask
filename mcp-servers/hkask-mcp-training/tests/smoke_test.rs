@@ -97,7 +97,7 @@ async fn smoke_test_training_completion() {
     // ── 0. Detect host ────────────────────────────────────────────────────
     let host_id = detect_host();
     let host_label = match host_id {
-        TrainingHostId::DeepInfra => "DeepInfra ($1.79/hr H100, pre-built PyTorch)",
+        TrainingHostId::DeepInfra => "DeepInfra ($3.69/hr B200-180GB, pre-built PyTorch)",
         TrainingHostId::Nebius => "Nebius ($3.85/hr H100, $2.15/hr preemptible)",
         TrainingHostId::Runpod => "Runpod ($2.39/hr H100, pip install required)",
     };
