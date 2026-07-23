@@ -19,7 +19,7 @@
 //! - G-D2: Eval protocol (advisory in preflight — Vicuna/MMLU not trustworthy)
 //! - G-D3: Lemon-pick analysis (advisory in preflight — report failure cases)
 //! - G-F1: Intruder dimension check (advisory in preflight — requires Python PEFT)
-//! - G-H1: Harness-method compatibility (axolotl=SFT; trl=SFT/DPO/KTO/ORPO/Reward; ludwig=SFT/DPO/KTO/ORPO/GRPO)
+//! - G-H1: Harness-method compatibility (axolotl=SFT/DPO/KTO/ORPO/GRPO/RM/FullFT via rl:; trl=SFT/DPO/KTO/ORPO/Reward; ludwig=SFT/DPO/KTO/ORPO/GRPO)
 //!
 //! Gates NOT enforced (require runtime instrumentation in Python/training loop):
 //! - G-Q3: Gradient flow (needs backward pass — A.grad and B.grad must be non-None)
@@ -429,8 +429,9 @@ fn validate_no_silent_upcast(params: &TrainingParams, findings: &mut Vec<Validat
 /// This is the runtime enforcement point for the `lora-training` skill's
 /// G-H1 audit gate (see `registry/templates/lora-training/audit-config.j2`).
 ///
-/// - harness=axolotl → SFT only (no preference optimization). If a TRL trainer
-///   is selected, refuse — axolotl cannot run TRL trainers.
+/// - harness=axolotl → SFT, DPO, KTO, ORPO, GRPO, GDPO, RM, Full FT via `rl:`
+///   parameter. If a TRL trainer is selected, warn — trl_trainer is TRL-specific
+///   and Axolotl ignores it (Axolotl uses its own `rl:` config parameter).
 /// - harness=trl → All trainers (SFT, DPO, KTO, ORPO, Reward) are supported.
 /// - harness=None → not_evaluated (runtime defaults to axolotl).
 ///
@@ -452,15 +453,18 @@ fn validate_harness_compatibility(params: &TrainingParams, findings: &mut Vec<Va
             }
         }
         Some(TrainingHarnessId::Axolotl) => {
-            // Axolotl supports SFT only. If a TRL trainer is selected, refuse —
-            // axolotl cannot run TRL trainers.
+            // Axolotl supports the full training spectrum (SFT, DPO, KTO, ORPO,
+            // GRPO, GDPO, RM, Full FT) via its `rl:` config parameter. However,
+            // trl_trainer is a TRL-specific concept — Axolotl ignores it and uses
+            // its own method selection. Warn (not refuse) so the operator knows
+            // the trl_trainer will be dropped.
             if params.trl_trainer.is_some() {
                 findings.push(ValidationFinding {
                     gate_id: "G-H1",
-                    severity: ValidationSeverity::Refuse,
-                    message: "harness=axolotl with trl_trainer set — axolotl cannot run TRL trainers (axolotl supports SFT only)".to_string(),
-                    source: "TRL trainer taxonomy — https://huggingface.co/docs/trl/index",
-                    remediation: "Set harness=trl to use TRL trainers, or remove trl_trainer for axolotl SFT".to_string(),
+                    severity: ValidationSeverity::Warn,
+                    message: "harness=axolotl with trl_trainer set — trl_trainer is TRL-specific and Axolotl ignores it (Axolotl uses rl: in its YAML for method selection)".to_string(),
+                    source: "Axolotl docs — https://docs.axolotl.ai/docs/rlhf.html",
+                    remediation: "Remove trl_trainer when using harness=axolotl; Axolotl selects training method via rl: in the rendered config".to_string(),
                 });
             }
         }
@@ -839,16 +843,23 @@ mod tests {
     }
 
     #[test]
-    fn axolotl_with_trl_trainer_refuses_gh1() {
-        // axolotl cannot run TRL trainers — must refuse.
+    fn axolotl_with_trl_trainer_warns_gh1() {
+        // axolotl ignores trl_trainer (uses its own rl: parameter) — warn, not refuse.
         let mut params = default_params();
         params.harness = Some(TrainingHarnessId::Axolotl);
-        params.trl_trainer = Some(TrlTrainer::Sft);
+        params.trl_trainer = Some(TrlTrainer::Dpo);
         let findings = validate_training_params(&params);
         assert!(
             findings
                 .iter()
-                .any(|f| f.gate_id == "G-H1" && f.severity == ValidationSeverity::Refuse)
+                .any(|f| f.gate_id == "G-H1" && f.severity == ValidationSeverity::Warn),
+            "Axolotl with trl_trainer should warn, not refuse"
+        );
+        assert!(
+            !findings
+                .iter()
+                .any(|f| f.gate_id == "G-H1" && f.severity == ValidationSeverity::Refuse),
+            "Axolotl with trl_trainer should NOT refuse — Axolotl supports the full training spectrum via rl:"
         );
     }
 

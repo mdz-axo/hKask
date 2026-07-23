@@ -96,9 +96,11 @@ This skill does not train, load, initialize, merge, or evaluate models.
    as `operator_requested` and validate compatibility. If both are absent,
    select based on adapter_purpose and dataset_format_hint. The three harnesses
    have distinct capability profiles:
-   - **Axolotl** (YAML, SFT-only): mature, single-file config, the runtime
-     default for instruction adapters. Cannot render advanced PEFT initializers
-     (PiSSA, CorDA, LoftQ) or preference optimization trainers.
+   - **Axolotl** (YAML, SFT + DPO + KTO + ORPO + GRPO + GDPO + RM + Full FT):
+     mature, single-file config, the runtime default for instruction adapters.
+     Uses `rl:` parameter for preference tuning and GRPO. Supports advanced PEFT
+     initializers via `peft_init_lora_weights`. Cannot render TRL-specific
+     trainers (trl_trainer is ignored — warn, not refuse).
    - **TRL** (Python, SFT + preference): HF-native, supports SFTTrainer,
      DPOTrainer, KTOTrainer, ORPOTrainer, RewardTrainer. Best for
      assistant_only_loss, packing strategies, VLMs, and preference

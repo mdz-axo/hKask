@@ -7,6 +7,7 @@
 //! This keeps port types (`Arc<dyn InferencePort>`, etc.) out of the
 //! test layer — tests construct `TurnInput` from strings and numbers.
 
+use std::pin::Pin;
 use std::sync::Arc;
 
 use hkask_capability::ToolPort;

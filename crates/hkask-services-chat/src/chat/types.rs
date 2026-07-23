@@ -181,6 +181,7 @@ pub struct TurnRequest {
 }
 
 /// Result of a single-agent turn from `ChatService::execute_turn()`.
+#[derive(Debug, Clone)]
 pub struct TurnResult {
     /// The final response text (after persona filtering)
     pub text: String,

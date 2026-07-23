@@ -33,17 +33,18 @@ Three harnesses are supported. Each has a distinct capability profile.
 |---|---|---|---|
 | Config format | YAML | Python script | YAML (declarative) |
 | SFT | ✅ | ✅ (SFTTrainer) | ✅ (trainer.type: finetune) |
-| DPO | ❌ | ✅ (DPOTrainer) | ✅ (trainer.type: dpo) |
-| KTO | ❌ | ✅ (KTOTrainer) | ✅ (trainer.type: kto) |
-| ORPO | ❌ | ✅ (ORPOTrainer) | ✅ (trainer.type: orpo) |
-| Reward modeling | ❌ | ✅ (RewardTrainer) | ❌ |
-| GRPO (reward-model-free RLHF) | ❌ | ❌ (deferred — requires vLLM) | ✅ (trainer.type: grpo) |
-| Advanced PEFT initializers (PiSSA, CorDA, LoftQ) | ❌ | ✅ (via PEFT) | ✅ (native in config) |
+| DPO | ✅ (rl: dpo) | ✅ (DPOTrainer) | ✅ (trainer.type: dpo) |
+| KTO | ✅ (rl: kto) | ✅ (KTOTrainer) | ✅ (trainer.type: kto) |
+| ORPO | ✅ (rl: orpo) | ✅ (ORPOTrainer) | ✅ (trainer.type: orpo) |
+| Reward modeling | ✅ (rl: reward_model) | ✅ (RewardTrainer) | ❌ |
+| GRPO (reward-model-free RLHF) | ✅ (rl: grpo) | ✅ (GRPOTrainer, requires vLLM) | ✅ (trainer.type: grpo) |
+| Advanced PEFT initializers (PiSSA, CorDA, LoftQ) | ✅ (via peft_init_lora_weights) | ✅ (via PEFT) | ✅ (native in config) |
 | EVA initializer | ✅ (via peft_init_lora_weights) | ✅ (via PEFT) | ✅ (native in config) |
 | assistant_only_loss | ❌ | ✅ | ❌ |
-| Packing strategies (bfd/bfd_split/wrapped) | ❌ | ✅ | ❌ |
-| VLM support | ❌ | ✅ | ✅ |
-| Chunked cross-entropy | ❌ | ✅ | ❌ |
+| Packing strategies (bfd/bfd_split/wrapped) | ✅ (sample_packing) | ✅ | ❌ |
+| VLM support | ✅ | ✅ | ✅ |
+| Chunked cross-entropy | ✅ (cut_cross_entropy) | ✅ | ❌ |
+| Full fine-tuning | ✅ (adapter: qlora or none) | ✅ | ✅ |
 | Runtime default | ✅ (when harness=undetermined) | ❌ | ❌ |
 
 Harness selection is driven by the G6 gate (harness capability) in the
@@ -111,7 +112,7 @@ Only apply if QLoRA mode selected (G2).
 
 | Gate | ID | Assertion | Source |
 |------|----|-----------|--------|
-| Harness-method compatibility | G-H1 | Selected harness supports the selected method/trainer. axolotl=SFT only; trl=SFT/DPO/KTO/ORPO/Reward; ludwig=SFT/DPO/KTO/ORPO/GRPO + advanced PEFT initializers (PiSSA, EVA, CorDA, LoftQ). | TRL trainer taxonomy — huggingface.co/docs/trl/index; Ludwig — ludwig.ai/latest/configuration/ |
+| Harness-method compatibility | G-H1 | Selected harness supports the selected method/trainer. axolotl=SFT/DPO/KTO/ORPO/GRPO/GDPO/RM/FullFT (via rl:); trl=SFT/DPO/KTO/ORPO/Reward; ludwig=SFT/DPO/KTO/ORPO/GRPO + advanced PEFT initializers (PiSSA, EVA, CorDA, LoftQ). trl_trainer is TRL-specific — warn (not refuse) when set with axolotl or ludwig. | Axolotl — https://docs.axolotl.ai/docs/rlhf.html; TRL — huggingface.co/docs/trl/index; Ludwig — ludwig.ai/latest/configuration/ |
 
 ## Convergence Metric Weights
 
