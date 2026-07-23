@@ -372,12 +372,16 @@ impl RunpodHost {
             "name: \"{}\"",
             Self::escape_graphql_string(&pod_name)
         ));
-        // The SDK always emits imageName; when a template is used instead of a
-        // bare image, imageName is the empty string and templateId carries the
-        // image + startup script.
+        // Image: when a templateId is provided, use empty imageName so RunPod
+        // uses the template's image. When no template, use the docker image.
+        let image_name = if !spec.template_id.is_empty() {
+            "" // template provides the image
+        } else {
+            spec.docker_image
+        };
         fields.push(format!(
             "imageName: \"{}\"",
-            Self::escape_graphql_string(spec.docker_image)
+            Self::escape_graphql_string(image_name)
         ));
         fields.push("cloudType: ALL".to_string());
         fields.push("startSsh: true".to_string());

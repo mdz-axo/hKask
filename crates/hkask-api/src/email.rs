@@ -221,8 +221,13 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
 
     let mut messages = Vec::new();
     if !uids.is_empty() {
+        let uid_set = uids
+            .iter()
+            .map(|u| u.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
         let mut fetch_stream = session
-            .uid_fetch(uids, "(UID ENVELOPE BODY.PEEK[TEXT])")
+            .uid_fetch(&uid_set, "(UID ENVELOPE BODY.PEEK[TEXT])")
             .await
             .map_err(|e| EmailError::Imap(format!("fetch: {e}")))?;
 
@@ -234,26 +239,31 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
         {
             let uid = msg.uid.unwrap_or(0);
             let from = msg
-                .envelope
-                .as_ref()
+                .envelope()
                 .and_then(|env| env.from.as_ref())
                 .and_then(|addrs| addrs.first())
-                .and_then(|a| {
-                    a.mailbox
-                        .as_ref()
-                        .and_then(|mb| String::from_utf8(mb.to_vec()).ok())
+                .map(|a| {
+                    let mailbox = a
+                        .mailbox
+                        .as_deref()
+                        .map(|m| String::from_utf8_lossy(m).into_owned())
+                        .unwrap_or_default();
+                    let host = a
+                        .host
+                        .as_deref()
+                        .map(|h| String::from_utf8_lossy(h).into_owned())
+                        .unwrap_or_default();
+                    format!("{mailbox}@{host}")
                 })
                 .unwrap_or_default();
             let subject = msg
-                .envelope
-                .as_ref()
-                .and_then(|env| env.subject.as_ref())
-                .and_then(|s| String::from_utf8(s.to_vec()).ok())
+                .envelope()
+                .and_then(|env| env.subject.as_deref())
+                .map(|s| String::from_utf8_lossy(s).into_owned())
                 .unwrap_or_default();
             let body = msg
-                .body
-                .as_ref()
-                .and_then(|b| String::from_utf8(b.to_vec()).ok())
+                .body()
+                .map(|b| String::from_utf8_lossy(b).into_owned())
                 .unwrap_or_default();
 
             tracing::info!(
