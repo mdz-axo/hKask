@@ -42,7 +42,7 @@ impl GuardedInferencePort {
     }
 }
 
-fn reject_msg(violations: &[hkask_guard::GuardViolation]) -> String {
+fn reject_msg(violations: &[crate::GuardViolation]) -> String {
     violations
         .iter()
         .map(|v| format!("{}: {}", v.scanner, v.description))
@@ -68,7 +68,7 @@ impl InferencePort for GuardedInferencePort {
         Box::pin(async move {
             let mut result = inner.generate(&cleaned, parameters, tools).await?;
             let out = guard.scan_output(&result.text);
-            if out.is_modified() {
+            if out.output.is_modified() {
                 result.text = out.output.content(&result.text).to_string();
             }
             Ok(result)
@@ -96,7 +96,7 @@ impl InferencePort for GuardedInferencePort {
                 .generate_with_model(&cleaned, parameters, model.as_deref(), tools)
                 .await?;
             let out = guard.scan_output(&result.text);
-            if out.is_modified() {
+            if out.output.is_modified() {
                 result.text = out.output.content(&result.text).to_string();
             }
             Ok(result)
@@ -131,7 +131,7 @@ impl InferencePort for GuardedInferencePort {
                 .generate_with_messages(&messages, parameters, model.as_deref(), tools)
                 .await?;
             let out = guard.scan_output(&result.text);
-            if out.is_modified() {
+            if out.output.is_modified() {
                 result.text = out.output.content(&result.text).to_string();
             }
             Ok(result)
@@ -157,7 +157,7 @@ impl InferencePort for GuardedInferencePort {
             let mut results = inner.generate_n(&cleaned, parameters, n).await?;
             for result in &mut results {
                 let out = guard.scan_output(&result.text);
-                if out.is_modified() {
+                if out.output.is_modified() {
                     result.text = out.output.content(&result.text).to_string();
                 }
             }
@@ -187,7 +187,7 @@ impl InferencePort for GuardedInferencePort {
                 .generate_vision(&cleaned, &images, parameters, model.as_deref())
                 .await?;
             let out = guard.scan_output(&result.text);
-            if out.is_modified() {
+            if out.output.is_modified() {
                 result.text = out.output.content(&result.text).to_string();
             }
             Ok(result)
