@@ -63,20 +63,24 @@ d28f2521). A single generic method replaces 15 traits + a 1218-line adapter.
 - [x] Add same commands to MCP window `mcp_scoped.rs::handle_slash`
 - [x] Update `/help` text to list new commands
 
-### Phase 5 — Generic MCP Bridge (future enhancement)
+### Phase 5 — Generic MCP Bridge ✅
 
-- [ ] Add `start_mcp_tool_invoke(server, tool, args) -> McpInvokeRequestId` to `ReplBridge`
-- [ ] Add `poll_mcp_tool_invoke(id) -> McpInvokeState` to `ReplBridge`
-- [ ] Implement in `TuiReplBridge` using `ToolPort::invoke` + `DelegationToken` + thread spawn
-- [ ] Add stub to `MockReplBridge`
-- [ ] Upgrade window implementations to use direct tool invocation for structured data display
+- [x] Add `ToolInvokeBridge` trait (separate from `ReplBridge` to stay ≤7 surface)
+- [x] Add `McpInvokeRequestId` and `McpInvokeState` types
+- [x] Implement `start_mcp_tool_invoke` / `poll_mcp_tool_invoke` in `TuiReplBridge` using `ToolPort::invoke` + `DelegationToken` + thread spawn
+- [x] Add `with_tool_invoke_bridge` setter via `with_bridges!` macro
+- [x] Wire `tool_invoke_bridge` through `WorkspaceBridges` → `WindowBridges` → MCP windows
+- [x] Add stub to `MockReplBridge` in `test_util.rs`
+- [x] MCP windows now support direct tool invocation (`tool_name arg=value`) AND scoped inference (natural language)
 
-### Phase 6 — Layout Persistence + Validation
+### Phase 6 — Layout Persistence + Validation ✅
 
 - [x] Verify `SavedLayout`/`SavedLeaf` handles new window kinds (string-based, already generic)
-- [ ] Test layout save/restore with multi-window splits
-- [ ] Integration test: `/open kanban /split v /open companies /close /focus`
-- [ ] `cargo test -p hkask-repl` + `cargo clippy -D warnings`
+- [x] Test layout save/restore with multi-window splits (`extract_layout_contains_new_kinds`)
+- [x] Test layout validation with Kanban, Companies, Scenarios kinds
+- [x] Integration tests: open/close/split/focus/tab operations (12 workspace tests)
+- [x] Keybinding tests: Ctrl-W prefix mode, Ctrl-T new tab
+- [x] `cargo test -p hkask-repl --features tui` — **120 passed, 0 failed**
 
 ## Keybindings
 

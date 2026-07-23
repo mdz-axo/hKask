@@ -161,6 +161,17 @@ impl RegulationLoop for MetacognitionLoop {
             }
         }
 
+        // Collect low-confidence escalation signals for epistemic routing.
+        // The Curator does not have direct access to the skill catalog, so it
+        // emits a reg.meta.escalation span with outcome "epistemic_route" to
+        // signal that a downstream consumer with catalog access should invoke
+        // skill-router with an epistemic_state input to find certainty-finding skills.
+        let low_confidence_signals: Vec<(f64, String)> = escalation_entries
+            .iter()
+            .filter(|e| e.confidence < 0.5 && e.retry_count < 3)
+            .map(|e| (e.confidence, e.output.clone()))
+            .collect();
+
         // Write escalations: batch if concurrent count meets/exceeds threshold, otherwise write individually.
         let threshold = self.config.max_concurrent_escalations;
         if escalation_entries.len() >= threshold {
@@ -311,6 +322,27 @@ impl RegulationLoop for MetacognitionLoop {
                     lost = lost_count,
                     "{} escalation(s) could not be persisted — check escalation queue health",
                     lost_count
+                );
+            }
+        }
+
+        // Emit epistemic routing signals for low-confidence escalations.
+        // Downstream consumers (with skill catalog access) can invoke skill-router
+        // with epistemic_state { confidence, uncertainty_type } to find certainty-
+        // finding skills (metacognition, improv, zoom-out, falsifiability).
+        if let Some(sink) = self.context.regulation_sink() {
+            for (confidence, output) in &low_confidence_signals {
+                emit_meta_escalation(
+                    sink.as_ref(),
+                    self.context.handle().curator_id(),
+                    "epistemic_route",
+                    *confidence,
+                );
+                info!(
+                    target: "reg.curation.escalation",
+                    confidence = *confidence,
+                    output_snippet = %output.chars().take(100).collect::<String>(),
+                    "Low-confidence escalation flagged for epistemic routing — downstream consumer should invoke skill-router with epistemic_state"
                 );
             }
         }

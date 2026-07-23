@@ -343,14 +343,33 @@ pub struct TrainingArtifacts {
     pub completion_manifest_path: String,
 }
 
-/// Evidence written by the training host after adapter publication succeeds.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Evidence written by the training pod after training completes, uploaded to
+/// the private model repository at `jobs/{job_id}/completion-manifest.json`.
+/// Fetched by `training_status` to detect completion (the pod stays RUNNING for
+/// SSH debugging, so RunPod's desiredStatus alone cannot signal completion).
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionManifest {
     pub job_id: String,
+    /// "success" or "failed" — written by the install script.
     pub status: String,
     pub dataset_sha256: String,
     pub adapter: TrainingArtifact,
     pub finished_at: String,
+    /// Base model used for training.
+    #[serde(default)]
+    pub base_model: Option<String>,
+    /// Training harness used (axolotl, trl, ludwig).
+    #[serde(default)]
+    pub harness: Option<String>,
+    /// Training duration in seconds.
+    #[serde(default)]
+    pub training_duration_secs: Option<u64>,
+    /// Final training loss, if available from the harness.
+    #[serde(default)]
+    pub loss: Option<f64>,
+    /// Output directory on the pod where the adapter was saved.
+    #[serde(default)]
+    pub output_dir: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -376,23 +395,20 @@ impl CompletionManifest {
                 "job ID does not match the submitted job".to_string(),
             ));
         }
-        if self.status != "succeeded" {
-            return Err(TrainingArtifactError::InvalidManifest(
-                "status is not succeeded".to_string(),
-            ));
+        if self.status != "success" && self.status != "succeeded" {
+            return Err(TrainingArtifactError::InvalidManifest(format!(
+                "status is not success or succeeded (got: {})",
+                self.status
+            )));
         }
         if self.dataset_sha256 != dataset_sha256 {
             return Err(TrainingArtifactError::InvalidManifest(
                 "dataset hash does not match the submitted dataset".to_string(),
             ));
         }
-        if self.adapter.repository.is_empty()
-            || self.adapter.revision.is_empty()
-            || self.adapter.path.is_empty()
-            || self.adapter.sha256.is_empty()
-        {
+        if self.adapter.repository.is_empty() || self.adapter.path.is_empty() {
             return Err(TrainingArtifactError::InvalidManifest(
-                "adapter reference is incomplete".to_string(),
+                "adapter reference is incomplete (repository and path required)".to_string(),
             ));
         }
         Ok(())
@@ -742,7 +758,7 @@ mod training_artifact_tests {
     fn completion_manifest_requires_matching_job_and_dataset() {
         let manifest = CompletionManifest {
             job_id: "job-1".to_string(),
-            status: "succeeded".to_string(),
+            status: "success".to_string(),
             dataset_sha256: "dataset-hash".to_string(),
             adapter: TrainingArtifact {
                 repository: "owner/models".to_string(),
@@ -751,6 +767,11 @@ mod training_artifact_tests {
                 sha256: "adapter-hash".to_string(),
             },
             finished_at: "2026-07-10T00:00:00Z".to_string(),
+            base_model: Some("Qwen3.5-9B".to_string()),
+            harness: Some("axolotl".to_string()),
+            training_duration_secs: Some(3600),
+            loss: Some(0.123),
+            output_dir: Some("/workspace/outputs/job-1".to_string()),
         };
         assert!(manifest.validate_for("job-1", "dataset-hash").is_ok());
         assert!(manifest.validate_for("job-2", "dataset-hash").is_err());

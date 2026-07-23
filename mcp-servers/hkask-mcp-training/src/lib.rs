@@ -85,7 +85,7 @@ use crate::adapter::expertise::{AdapterLifecycle, Expertise, MdsDomain, Training
 use crate::adapter::{AdapterSource, TrainedLoRAAdapter};
 use crate::adapters::{AdapterMetrics, JobStore};
 use crate::dataset::DatasetPipeline;
-use crate::huggingface::HuggingFaceTraining;
+use crate::huggingface::{CompletionManifest, HuggingFaceTraining};
 use crate::providers::{
     TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
     TrainingJobStatus, create_host,
@@ -245,14 +245,48 @@ impl TrainingServer {
         serde_json::from_value(adapter.expertise.training_source.training_metrics.clone()).ok()
     }
 
-    /// Resolve the adapter weight path for a given adapter ID from the training host.
-    /// Returns `None` for cloud hosts where weights are server-side only.
-    async fn resolve_adapter_path(&self, adapter_id: &str) -> Option<std::path::PathBuf> {
-        self.host
-            .adapter_weight_path(adapter_id)
-            .await
-            .ok()
-            .flatten()
+    /// Check for a completion manifest on HuggingFace to detect whether a
+    /// training job has finished. The pod stays RUNNING (exec sleep infinity)
+    /// so RunPod's desiredStatus alone cannot signal completion. The install
+    /// script writes a manifest to /workspace/completion.json and uploads it
+    /// to HuggingFace at jobs/{job_id}/completion-manifest.json after training.
+    ///
+    /// Returns `Some((status, manifest))` if a manifest was found, or `None`
+    /// if no manifest exists yet (training still in progress or HF not configured).
+    async fn check_completion_manifest(
+        &self,
+        job_id: &str,
+    ) -> Option<(TrainingJobStatus, Option<CompletionManifest>)> {
+        let hf_training = HuggingFaceTraining::from_env().ok()?;
+        let job_store = self.job_store.as_ref()?;
+        let artifacts = job_store.artifacts(job_id).ok().flatten()?;
+
+        match hf_training.fetch_completion_manifest(&artifacts).await {
+            Ok(manifest) => {
+                let status = if manifest.status == "success" || manifest.status == "succeeded" {
+                    TrainingJobStatus::Completed
+                } else {
+                    TrainingJobStatus::Failed
+                };
+                tracing::info!(
+                    target: "hkask.training.completion.detected",
+                    job_id = %job_id,
+                    manifest_status = %manifest.status,
+                    detected_status = ?status,
+                    "Completion detected via HuggingFace manifest"
+                );
+                Some((status, Some(manifest)))
+            }
+            Err(e) => {
+                tracing::debug!(
+                    target: "hkask.training.completion.check",
+                    job_id = %job_id,
+                    error = %e,
+                    "No completion manifest found (training may still be in progress)"
+                );
+                None
+            }
+        }
     }
 
     #[tool(
@@ -798,10 +832,23 @@ impl TrainingServer {
     ) -> String {
         execute_tool(self, "training_status", async {
             match self.host.status(&job_id).await {
-                Ok(status) => {
+                Ok(pod_status) => {
+                    // The pod stays RUNNING (exec sleep infinity for SSH
+                    // debugging), so RunPod's desiredStatus alone cannot signal
+                    // completion. Check for a completion manifest on HuggingFace
+                    // — the install script writes it after training finishes and
+                    // uploads it to jobs/{job_id}/completion-manifest.json.
+                    let (status, manifest) = if pod_status == TrainingJobStatus::Running {
+                        self.check_completion_manifest(&job_id)
+                            .await
+                            .unwrap_or((TrainingJobStatus::Running, None))
+                    } else {
+                        (pod_status, None)
+                    };
+
                     let mut result = json!({
                         "job_id": job_id,
-                        "status": serde_json::to_value(status).unwrap_or_default(),
+                        "status": serde_json::to_value(&status).unwrap_or_default(),
                     });
 
                     // Persist status update
@@ -822,8 +869,9 @@ impl TrainingServer {
                         let adapter: TrainedLoRAAdapter = match self
                             .adapter_store
                             .get_by_id(uuid::Uuid::parse_str(&job_id).unwrap_or_default())
-                            .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
-                        {
+                            .map_err(|e| {
+                                McpToolError::internal(format!("Adapter store error: {e}"))
+                            })? {
                             Some(existing) => {
                                 result["adapter_registered"] = json!(true);
                                 result["adapter_note"] =
@@ -831,100 +879,62 @@ impl TrainingServer {
                                 existing
                             }
                             None => {
-                                // Fresh auto-registration from host completion metadata
-                                match self.host.completion_metadata(&job_id).await {
-                                    Ok(Some(meta)) => {
-                                        // Resolve adapter weight path from the training host
-                                        let weight_path = self.resolve_adapter_path(&job_id).await;
-                                        let adapter = Self::build_trained_adapter(
-                                            job_id.clone(),
-                                            meta.output_name
-                                                .unwrap_or_else(|| format!("adapter-{}", &job_id[..8])),
-                                            meta.base_model.clone(),
-                                            String::new(),
-                                            job_id.clone(),
-                                            chrono::Utc::now().timestamp(),
-                                            0,
-                                            String::new(),
-                                            1,
-                                            Some(AdapterMetrics {
-                                                loss: meta.loss,
-                                                perplexity: None,
-                                                training_duration_secs: meta.training_duration_secs,
-                                                tokens_processed: meta.tokens_processed,
-                                            }),
-                                            weight_path.as_deref(),
-                                        );
-                                        match self
-                                            .adapter_store
-                                            .store(&adapter)
-                                            .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))
-                                        {
-                                            Ok(()) => {
-                                                result["adapter_registered"] = json!(true);
-                                                result["adapter_name"] = json!(adapter.expertise.name);
-                                                result["base_model"] = json!(meta.base_model);
+                                // Fresh auto-registration from the completion manifest
+                                // fetched from HuggingFace. The manifest contains all
+                                // the metadata we need (base_model, loss, duration,
+                                // adapter repository path).
+                                if let Some(ref manifest) = manifest {
+                                    let base_model =
+                                        manifest.base_model.clone().unwrap_or_default();
+                                    let adapter_name = format!("adapter-{}", &job_id[..8]);
+                                    let weight_path = manifest.adapter.repository.clone();
+                                    let adapter = Self::build_trained_adapter(
+                                        job_id.clone(),
+                                        adapter_name,
+                                        base_model.clone(),
+                                        String::new(),
+                                        job_id.clone(),
+                                        chrono::Utc::now().timestamp(),
+                                        0,
+                                        String::new(),
+                                        1,
+                                        Some(AdapterMetrics {
+                                            loss: manifest.loss.map(|v| v as f32),
+                                            perplexity: None,
+                                            training_duration_secs: manifest.training_duration_secs,
+                                            tokens_processed: None,
+                                        }),
+                                        Some(&weight_path),
+                                    );
+                                    match self.adapter_store.store(&adapter).map_err(|e| {
+                                        McpToolError::internal(format!("Adapter store error: {e}"))
+                                    }) {
+                                        Ok(()) => {
+                                            result["adapter_registered"] = json!(true);
+                                            result["adapter_name"] = json!(adapter.expertise.name);
+                                            result["base_model"] = json!(base_model);
+                                            result["adapter_repository"] =
+                                                json!(manifest.adapter.repository);
+                                            result["adapter_path"] = json!(manifest.adapter.path);
 
-                                                // Store adapter weight blob if available locally
-                                                match self.host.adapter_weight_path(&job_id).await {
-                                                    Ok(Some(weight_path)) => {
-                                                        match tokio::fs::read(&weight_path).await {
-                                                            Ok(blob) => {
-                                                                let size = blob.len() as u64;
-                                                                if let Err(e) = self
-                                                                    .adapter_store
-                                                                    .store_blob(adapter.id, &blob)
-                                                                    .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))
-                                                                {
-                                                                    tracing::warn!(
-                                                                        target: "hkask.training.adapter.blob",
-                                                                        adapter_id = %job_id,
-                                                                        error = %e,
-                                                                        "Failed to store adapter blob"
-                                                                    );
-                                                                } else {
-                                                                    result["blob_stored"] = json!(true);
-                                                                    result["blob_size_bytes"] =
-                                                                        json!(size);
-                                                                }
-                                                            }
-                                                            Err(e) => {
-                                                                tracing::warn!(
-                                                                    target: "hkask.training.adapter.blob",
-                                                                    adapter_id = %job_id,
-                                                                    error = %e,
-                                                                    "Failed to read adapter weights"
-                                                                );
-                                                            }
-                                                        }
-                                                    }
-                                                    _ => {
-                                                        result["blob_stored"] = json!(false);
-                                                        result["blob_note"] =
-                                                            json!("No local weights (cloud host)");
-                                                    }
-                                                }
-
-                                                tracing::info!(
-                                                    target: "hkask.training.adapter.created",
-                                                    adapter_id = %job_id,
-                                                    "Adapter auto-registered on completion"
-                                                );
-                                                adapter
-                                            }
-                                            Err(e) => {
-                                                result["adapter_registered"] = json!(false);
-                                                result["adapter_error"] = json!(e.to_string());
-                                                return Ok(result);
-                                            }
+                                            tracing::info!(
+                                                target: "hkask.training.adapter.created",
+                                                adapter_id = %job_id,
+                                                "Adapter auto-registered from completion manifest"
+                                            );
+                                            adapter
+                                        }
+                                        Err(e) => {
+                                            result["adapter_registered"] = json!(false);
+                                            result["adapter_error"] = json!(e.to_string());
+                                            return Ok(result);
                                         }
                                     }
-                                    _ => {
-                                        result["adapter_registered"] = json!(false);
-                                        result["adapter_note"] =
-                                            json!("No completion metadata available");
-                                        return Ok(result);
-                                    }
+                                } else {
+                                    result["adapter_registered"] = json!(false);
+                                    result["adapter_note"] =
+                                        json!("No completion manifest available");
+                                    return Ok(result);
                                 }
                             }
                         };
@@ -945,38 +955,44 @@ impl TrainingServer {
                             if let Some(prev) = self
                                 .adapter_store
                                 .get_previous_by_skill_name(&adapter_skill, adapter.id)
-                                .map_err(|e| McpToolError::internal(format!("Adapter store error: {e}")))?
-                            && let (Some(new_loss), Some(prev_loss)) = (
+                                .map_err(|e| {
+                                    McpToolError::internal(format!("Adapter store error: {e}"))
+                                })?
+                                && let (Some(new_loss), Some(prev_loss)) = (
                                     current_loss,
                                     Self::metrics_from_trained(&prev).and_then(|m| m.loss),
-                                ) {
-                                    let improved = new_loss < prev_loss;
-                                    result["ab_comparison"] = json!({
-                                        "skill_name": adapter_skill,
-                                        "previous_version": prev.version,
-                                        "previous_adapter_name": prev.expertise.name,
-                                        "previous_loss": prev_loss,
-                                        "new_version": adapter.version,
-                                        "new_loss": new_loss,
-                                        "loss_improved": improved,
-                                        "auto_promoted": improved,
-                                    });
-                                    tracing::info!(
-                                        target: "hkask.training.retrain.ab",
-                                        skill = %adapter_skill,
-                                        prev_version = ?prev.version,
-                                        prev_loss = %prev_loss,
-                                        new_loss = %new_loss,
-                                        improved = improved,
-                                        "A/B comparison completed"
-                                    );
-                                }
+                                )
+                            {
+                                let improved = new_loss < prev_loss;
+                                result["ab_comparison"] = json!({
+                                    "skill_name": adapter_skill,
+                                    "previous_version": prev.version,
+                                    "previous_adapter_name": prev.expertise.name,
+                                    "previous_loss": prev_loss,
+                                    "new_version": adapter.version,
+                                    "new_loss": new_loss,
+                                    "loss_improved": improved,
+                                    "auto_promoted": improved,
+                                });
+                                tracing::info!(
+                                    target: "hkask.training.retrain.ab",
+                                    skill = %adapter_skill,
+                                    prev_version = ?prev.version,
+                                    prev_loss = %prev_loss,
+                                    new_loss = %new_loss,
+                                    improved = improved,
+                                    "A/B comparison completed"
+                                );
+                            }
                         }
                     }
 
                     Ok(result)
                 }
-                Err(e) => Err(McpToolError::internal(format!("Status query failed: {}", e))),
+                Err(e) => Err(McpToolError::internal(format!(
+                    "Status query failed: {}",
+                    e
+                ))),
             }
         })
         .await

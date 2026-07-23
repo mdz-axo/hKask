@@ -22,6 +22,22 @@ use crate::pod::CommunicationPosture;
 use super::config::{HealthSnapshot, MC_TARGET, MetacognitionConfig};
 use super::escalation::{DEFAULT_ESCALATION_VARIETY_DEFICIT, EscalationPolicy};
 
+/// A calibration that has been applied but whose effectiveness-after
+/// measurement is still pending. Stored in `pending_calibration` and
+/// closed out on the next `self_calibrate` call with the current
+/// effectiveness as `eff_after`.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct PendingCalibration {
+    /// Threshold value before the calibration was applied.
+    pub(super) threshold_before: u64,
+    /// Threshold value after the calibration was applied.
+    pub(super) threshold_after: u64,
+    /// Whether this calibration raised the threshold (vs. lowered).
+    pub(super) raised: bool,
+    /// Regulation effectiveness measured at the time the calibration was applied.
+    pub(super) eff_before: f64,
+}
+
 /// Metacognition loop — Curator Agent's system governance mechanism.
 pub struct MetacognitionLoop {
     pub(super) context: Arc<CuratorContext>,
@@ -42,6 +58,10 @@ pub struct MetacognitionLoop {
     /// Cycles elapsed since the last threshold RAISE — gates lowering so a
     /// raise is not immediately reversed (anti-oscillation hysteresis).
     pub(super) calibrations_since_raise: std::sync::atomic::AtomicU64,
+    /// The most recent applied calibration awaiting an effectiveness-after
+    /// measurement. Closed out (emitted with eff_after) on the next
+    /// self_calibrate call - the causal record for future learned adjustment.
+    pub(super) pending_calibration: std::sync::Mutex<Option<PendingCalibration>>,
     /// Communication posture — loaded from the agent's persona.
     /// Governs speak/silent decisions and accommodation level.
     pub(super) communication_posture: CommunicationPosture,
@@ -93,6 +113,7 @@ impl MetacognitionLoop {
             last_cal_dropped: std::sync::atomic::AtomicU64::new(0),
             last_cal_directives: std::sync::atomic::AtomicU64::new(0),
             calibrations_since_raise: std::sync::atomic::AtomicU64::new(0),
+            pending_calibration: std::sync::Mutex::new(None),
             communication_posture: posture,
             agent_name,
         }
@@ -454,6 +475,29 @@ impl MetacognitionLoop {
             .unwrap_or(0.0);
         let old = self.escalation_policy.thresholds().variety_deficit;
 
+        // Close out the previous calibration: its effectiveness-after is the
+        // current effectiveness (enough cycles have now elapsed). This emits
+        // the causal record (before/after effectiveness) that a future learner
+        // (e.g. GEPA) uses to judge whether threshold changes improved outcomes.
+        let prev_pending = self
+            .pending_calibration
+            .lock()
+            .expect("pending_calibration lock poisoned")
+            .take();
+        if let Some(p) = prev_pending {
+            if let Some(sink) = self.context.regulation_sink() {
+                emit_meta_self_calibration(
+                    sink.as_ref(),
+                    self.context.handle().curator_id(),
+                    "variety_deficit",
+                    p.threshold_before,
+                    p.threshold_after,
+                    Some(p.eff_before),
+                    Some(effectiveness),
+                );
+            }
+        }
+
         let Some(adj) = compute_threshold_adjustment(
             delta_dropped,
             delta_directives,
@@ -471,6 +515,16 @@ impl MetacognitionLoop {
             self.calibrations_since_raise
                 .store(0, std::sync::atomic::Ordering::Relaxed);
         }
+        // Record this calibration as pending an effectiveness-after measurement.
+        *self
+            .pending_calibration
+            .lock()
+            .expect("pending_calibration lock poisoned") = Some(PendingCalibration {
+            threshold_before: old,
+            threshold_after: adj.new_variety_deficit,
+            raised: adj.raised,
+            eff_before: effectiveness,
+        });
         if let Some(sink) = self.context.regulation_sink() {
             emit_meta_self_calibration(
                 sink.as_ref(),
@@ -478,6 +532,8 @@ impl MetacognitionLoop {
                 "variety_deficit",
                 old,
                 adj.new_variety_deficit,
+                Some(effectiveness),
+                None,
             );
         }
         tracing::info!(

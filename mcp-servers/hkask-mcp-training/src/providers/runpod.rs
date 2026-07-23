@@ -472,11 +472,17 @@ fn generate_install_script(
     harness: TrainingHarnessId,
 ) -> Result<String, ProviderError> {
     let output_dir = format!("/workspace/outputs/{}", job.id);
-    let manifest_path = job
+    // The manifest is written locally to /workspace/completion.json (guaranteed
+    // to work regardless of CWD), then uploaded to HuggingFace at the
+    // artifacts' completion_manifest_path. The local path is always
+    // /workspace/completion.json; the HuggingFace repo path is in
+    // artifacts.completion_manifest_path (e.g. "jobs/{job_id}/completion-manifest.json").
+    let local_manifest_path = "/workspace/completion.json".to_string();
+    let hf_manifest_repo_path = job
         .artifacts
         .as_ref()
         .map(|a| a.completion_manifest_path.clone())
-        .unwrap_or_else(|| "/workspace/completion.json".to_string());
+        .unwrap_or_default();
     let model_repo = job
         .artifacts
         .as_ref()
@@ -484,7 +490,7 @@ fn generate_install_script(
         .unwrap_or_default();
 
     // Render the training config using the selected harness.
-    let (config_filename, config_content, pip_packages, train_command, version_info) = match harness
+    let (config_filename, config_content, pip_packages, train_command, _version_info) = match harness
     {
         TrainingHarnessId::Axolotl => {
             let yaml = crate::providers::AxolotlHarness
@@ -615,29 +621,59 @@ fn generate_install_script(
     }
     script.push('\n');
 
-    // Step 5: Write completion manifest.
+    // Step 5: Write completion manifest locally, then upload to HuggingFace.
+    // The manifest is the ONLY way training_status can detect completion —
+    // the pod stays RUNNING (exec sleep infinity) so RunPod's desiredStatus
+    // alone cannot signal completion. The manifest is uploaded to HuggingFace
+    // at jobs/{job_id}/completion-manifest.json, where training_status fetches it.
     script.push_str(
-        "# ── Step 5: Write completion manifest ───────────────────────────────────────\n",
+        "# ── Step 5: Write completion manifest + upload to HuggingFace ────────────────\n",
     );
-    script.push_str(&format!("cat > \"{}\" <<MANIFEST\n", manifest_path));
+    // Compute adapter SHA256 if the file exists (best-effort).
+    script.push_str("ADAPTER_SHA256=$(sha256sum \"$OUTPUT_DIR/adapter_model.safetensors\" 2>/dev/null | cut -d' ' -f1 || echo \"\")\n");
+    script.push_str(&format!("cat > \"{}\" <<MANIFEST\n", local_manifest_path));
     script.push_str("{\n");
     script.push_str(&format!("    \"job_id\": \"{}\",\n", job.id));
+    script.push_str(&format!("    \"status\": \"${TRAINING_STATUS}\",\n"));
+    // Dataset SHA256 from the env var set by submit().
+    script.push_str("    \"dataset_sha256\": \"${HKASK_EXPECTED_DATASET_SHA256:-}\",\n");
+    script.push_str("    \"adapter\": {\n");
+    script.push_str(&format!(
+        "        \"repository\": \"{}\",\n",
+        if model_repo.is_empty() { "" } else { model_repo.as_str() }
+    ));
+    script.push_str("        \"revision\": \"main\",\n");
+    script.push_str("        \"path\": \"adapter_model.safetensors\",\n");
+    script.push_str("        \"sha256\": \"$ADAPTER_SHA256\"\n");
+    script.push_str("    },\n");
+    script.push_str("    \"finished_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\n");
     script.push_str(&format!("    \"base_model\": \"{}\",\n", job.base_model));
     script.push_str(&format!(
         "    \"harness\": \"{}\",\n",
         format!("{:?}", harness).to_lowercase()
     ));
-    script.push_str("    \"status\": \"${TRAINING_STATUS}\",\n");
     script.push_str("    \"training_duration_secs\": ${TRAINING_DURATION},\n");
-    script.push_str("    \"output_dir\": \"$OUTPUT_DIR\",\n");
-    script.push_str(&format!("    \"versions\": \"{}\",\n", version_info));
-    script.push_str("    \"completed_at\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n");
+    script.push_str("    \"loss\": null,\n");
+    script.push_str("    \"output_dir\": \"$OUTPUT_DIR\"\n");
     script.push_str("}\n");
     script.push_str("MANIFEST\n");
     script.push_str(&format!(
-        "echo '=== Completion manifest written to {}'\n\n",
-        manifest_path
+        "echo '=== Completion manifest written to {}'\n",
+        local_manifest_path
     ));
+    // Upload manifest to HuggingFace so training_status can fetch it.
+    if !model_repo.is_empty() && !hf_manifest_repo_path.is_empty() {
+        script.push_str(&format!(
+            "huggingface-cli upload \"{}\" {} \"{}\" \\\n",
+            model_repo, local_manifest_path, hf_manifest_repo_path
+        ));
+        script.push_str(&format!(
+            "    --commit-message \"hKask completion manifest: {}\" || \\\n",
+            job.id
+        ));
+        script.push_str("    echo 'WARNING: Manifest upload failed' \u00262\n");
+    }
+    script.push('\n');
 
     // Step 6: Keep pod alive for SSH debugging.
     script.push_str(
@@ -1089,7 +1125,10 @@ impl TrainingHost for RunpodHost {
         &self,
         _job_id: &str,
     ) -> Result<Option<CompletionMetadata>, ProviderError> {
-        // Runpod doesn't provide structured training metrics via API.
+        // Completion is detected via the HuggingFace manifest, not via RunPod's
+        // API. The manifest is fetched by TrainingServer::check_completion_manifest.
+        // This method is retained for trait conformance but is not called from
+        // the main completion path.
         Ok(None)
     }
 
@@ -1097,7 +1136,10 @@ impl TrainingHost for RunpodHost {
         &self,
         _adapter_id: &str,
     ) -> Result<Option<PathBuf>, ProviderError> {
-        // Weights are on the Runpod pod — need to be downloaded separately.
+        // Adapter weights are uploaded to HuggingFace by the install script.
+        // The path is recorded from the completion manifest's adapter.repository
+        // field. This method is retained for trait conformance but is not called
+        // from the main completion path.
         Ok(None)
     }
 }

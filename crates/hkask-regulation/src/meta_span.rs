@@ -145,13 +145,26 @@ pub fn emit_meta_self_calibration(
     metric: &str,
     old: u64,
     new: u64,
+    eff_before: Option<f64>,
+    eff_after: Option<f64>,
 ) {
     let Some(ns) = SpanNamespace::from_observable(&MetaSpan::SelfCalibration) else {
         tracing::warn!(target: "hkask.meta", "reg.meta.self_calibration namespace not canonical");
         return;
     };
     let span = Span::new(ns, MetaSpan::SelfCalibration.path());
-    let observation = serde_json::json!({ "metric": metric, "old": old, "new": new });
+    let eff_delta = match (eff_before, eff_after) {
+        (Some(b), Some(a)) => Some(a - b),
+        _ => None,
+    };
+    let observation = serde_json::json!({
+        "metric": metric,
+        "old": old,
+        "new": new,
+        "eff_before": eff_before,
+        "eff_after": eff_after,
+        "eff_delta": eff_delta,
+    });
     let event = RegulationRecord::new(*observer, span, CyclePhase::Act, observation, 0);
     if let Err(e) = sink.persist(&event) {
         tracing::warn!(target: "hkask.meta", error = %e, "Failed to persist reg.meta.self_calibration");

@@ -109,60 +109,58 @@ impl SplitNode {
         }
     }
 
-    /// Take the window out of the leaf matching `target`, replacing it
-    /// with a placeholder. Returns `(old_window, new_tree)`.
-    /// The caller is expected to immediately replace the placeholder.
-    fn take_leaf(self, target: WindowId) -> (Option<Box<dyn Window>>, SplitNode) {
+    /// Replace the leaf matching `target` with a split containing the old
+    /// window and `new_win`. If the target is not found, returns the tree
+    /// unchanged (with `new_win` dropped).
+    fn replace_leaf_with_split(
+        self,
+        target: WindowId,
+        new_win: Box<dyn Window>,
+        dir: SplitDirection,
+    ) -> SplitNode {
         match self {
-            SplitNode::Leaf(w) if w.id() == target => {
-                let placeholder =
-                    SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil()))));
-                (Some(w), placeholder)
-            }
-            SplitNode::Leaf(w) => (None, SplitNode::Leaf(w)),
+            SplitNode::Leaf(w) if w.id() == target => match dir {
+                SplitDirection::Vertical => SplitNode::Vertical {
+                    top: Box::new(SplitNode::Leaf(w)),
+                    bottom: Box::new(SplitNode::Leaf(new_win)),
+                    ratio: 0.5,
+                },
+                SplitDirection::Horizontal => SplitNode::Horizontal {
+                    left: Box::new(SplitNode::Leaf(w)),
+                    right: Box::new(SplitNode::Leaf(new_win)),
+                    ratio: 0.5,
+                },
+            },
+            SplitNode::Leaf(w) => SplitNode::Leaf(w),
             SplitNode::Horizontal { left, right, ratio } => {
-                let (old, left) = left.take_leaf(target);
-                if old.is_some() {
-                    return (
-                        old,
-                        SplitNode::Horizontal {
-                            left: Box::new(left),
-                            right,
-                            ratio,
-                        },
-                    );
-                }
-                let (old, right) = right.take_leaf(target);
-                (
-                    old,
+                if left.contains_window(target) {
                     SplitNode::Horizontal {
-                        left: Box::new(left),
-                        right: Box::new(right),
+                        left: Box::new((*left).replace_leaf_with_split(target, new_win, dir)),
+                        right,
                         ratio,
-                    },
-                )
+                    }
+                } else {
+                    SplitNode::Horizontal {
+                        left,
+                        right: Box::new((*right).replace_leaf_with_split(target, new_win, dir)),
+                        ratio,
+                    }
+                }
             }
             SplitNode::Vertical { top, bottom, ratio } => {
-                let (old, top) = top.take_leaf(target);
-                if old.is_some() {
-                    return (
-                        old,
-                        SplitNode::Vertical {
-                            top: Box::new(top),
-                            bottom,
-                            ratio,
-                        },
-                    );
-                }
-                let (old, bottom) = bottom.take_leaf(target);
-                (
-                    old,
+                if top.contains_window(target) {
                     SplitNode::Vertical {
-                        top: Box::new(top),
-                        bottom: Box::new(bottom),
+                        top: Box::new((*top).replace_leaf_with_split(target, new_win, dir)),
+                        bottom,
                         ratio,
-                    },
-                )
+                    }
+                } else {
+                    SplitNode::Vertical {
+                        top,
+                        bottom: Box::new((*bottom).replace_leaf_with_split(target, new_win, dir)),
+                        ratio,
+                    }
+                }
             }
         }
     }
@@ -634,7 +632,7 @@ impl Workspace {
         let new_win = self.create_window_of_kind(kind, new_id);
 
         let Some(focused) = self.focused_window else {
-            // No focused window — replace root with a split.
+            // No focused window — wrap root in a split.
             let old_root = std::mem::replace(
                 self.root_mut(),
                 SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil())))),
@@ -648,23 +646,14 @@ impl Workspace {
             return;
         };
 
-        // Take the focused leaf out, build a vertical split with the new window.
+        // Replace the focused leaf with a vertical split (old on top, new on bottom).
         let old_root = std::mem::replace(
             self.root_mut(),
             SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil())))),
         );
-        let (old_win, new_root) = old_root.take_leaf(focused);
-        if let Some(old) = old_win {
-            *self.root_mut() = SplitNode::Vertical {
-                top: Box::new(SplitNode::Leaf(old)),
-                bottom: Box::new(SplitNode::Leaf(new_win)),
-                ratio: 0.5,
-            };
-            self.focus_window(new_id);
-        } else {
-            // Target not found — put it back.
-            *self.root_mut() = new_root;
-        }
+        *self.root_mut() =
+            old_root.replace_leaf_with_split(focused, new_win, SplitDirection::Vertical);
+        self.focus_window(new_id);
     }
 
     /// Split the focused window in `dir`. The existing window stays;
@@ -681,25 +670,8 @@ impl Workspace {
             self.root_mut(),
             SplitNode::Leaf(Box::new(PlaceholderWindow::new(WindowId(Uuid::nil())))),
         );
-        let (old_win, new_root) = old_root.take_leaf(focused);
-        if let Some(old) = old_win {
-            let new_node = match dir {
-                SplitDirection::Horizontal => SplitNode::Horizontal {
-                    left: Box::new(SplitNode::Leaf(old)),
-                    right: Box::new(SplitNode::Leaf(new_win)),
-                    ratio: 0.5,
-                },
-                SplitDirection::Vertical => SplitNode::Vertical {
-                    top: Box::new(SplitNode::Leaf(old)),
-                    bottom: Box::new(SplitNode::Leaf(new_win)),
-                    ratio: 0.5,
-                },
-            };
-            *self.root_mut() = new_node;
-            self.focus_window(new_id);
-        } else {
-            *self.root_mut() = new_root;
-        }
+        *self.root_mut() = old_root.replace_leaf_with_split(focused, new_win, dir);
+        self.focus_window(new_id);
     }
 
     /// Close the focused window. The split collapses to the surviving
@@ -969,4 +941,165 @@ fn collect_actions(node: &mut SplitNode) -> Vec<WorkspaceAction> {
         }
     }
     actions
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tui::test_util::mock_bridges;
+
+    fn make_workspace() -> Workspace {
+        let (system, repl) = mock_bridges();
+        Workspace::new_test(system, repl)
+    }
+
+    #[test]
+    fn workspace_starts_with_single_chat_window() {
+        let ws = make_workspace();
+        assert_eq!(ws.window_count(), 1);
+        assert_eq!(ws.tab_count(), 1);
+        assert!(ws.focused_window().is_some());
+    }
+
+    #[test]
+    fn open_window_creates_split() {
+        let mut ws = make_workspace();
+        assert_eq!(ws.window_count(), 1);
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        assert_eq!(ws.window_count(), 2);
+        // New window should be focused
+        let focused = ws.focused_window().unwrap();
+        assert_eq!(ws.root().window_kind(focused), Some(WindowKind::Kanban));
+    }
+
+    #[test]
+    fn open_singleton_refocuses_existing() {
+        let mut ws = make_workspace();
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        assert_eq!(ws.window_count(), 2);
+        let kanban_id = ws.focused_window().unwrap();
+
+        // Focus the chat window
+        ws.apply_action(WorkspaceAction::FocusNext);
+        assert_ne!(ws.focused_window(), Some(kanban_id));
+
+        // Opening Kanban again should refocus, not create a new one
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        assert_eq!(ws.window_count(), 2);
+        assert_eq!(ws.focused_window(), Some(kanban_id));
+    }
+
+    #[test]
+    fn split_focused_doubles_window() {
+        let mut ws = make_workspace();
+        assert_eq!(ws.window_count(), 1);
+        ws.apply_action(WorkspaceAction::Split(SplitDirection::Vertical));
+        assert_eq!(ws.window_count(), 2);
+    }
+
+    #[test]
+    fn close_focused_collapses_split() {
+        let mut ws = make_workspace();
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        assert_eq!(ws.window_count(), 2);
+        ws.apply_action(WorkspaceAction::CloseFocused);
+        assert_eq!(ws.window_count(), 1);
+    }
+
+    #[test]
+    fn close_last_window_replaces_with_chat() {
+        let mut ws = make_workspace();
+        assert_eq!(ws.window_count(), 1);
+        ws.apply_action(WorkspaceAction::CloseFocused);
+        assert_eq!(ws.window_count(), 1);
+        assert!(ws.focused_window().is_some());
+    }
+
+    #[test]
+    fn new_tab_and_switch() {
+        let mut ws = make_workspace();
+        assert_eq!(ws.tab_count(), 1);
+        ws.apply_action(WorkspaceAction::NewTab(None));
+        assert_eq!(ws.tab_count(), 2);
+        assert_eq!(ws.active_tab_index(), 1);
+        ws.apply_action(WorkspaceAction::PrevTab);
+        assert_eq!(ws.active_tab_index(), 0);
+        ws.apply_action(WorkspaceAction::NextTab);
+        assert_eq!(ws.active_tab_index(), 1);
+    }
+
+    #[test]
+    fn focus_next_cycles() {
+        let mut ws = make_workspace();
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        let first = ws.focused_window().unwrap();
+        ws.apply_action(WorkspaceAction::FocusNext);
+        assert_ne!(ws.focused_window(), Some(first));
+        ws.apply_action(WorkspaceAction::FocusNext);
+        assert_eq!(ws.focused_window(), Some(first));
+    }
+
+    #[test]
+    fn open_multiple_windows_and_close() {
+        let mut ws = make_workspace();
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Kanban));
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Companies));
+        assert_eq!(ws.window_count(), 3);
+
+        // Close the focused one (Companies)
+        ws.apply_action(WorkspaceAction::CloseFocused);
+        assert_eq!(ws.window_count(), 2);
+    }
+
+    #[test]
+    fn extract_layout_contains_new_kinds() {
+        let mut ws = make_workspace();
+        ws.apply_action(WorkspaceAction::OpenWindow(WindowKind::Scenarios));
+        let layout = ws.extract_layout();
+        assert!(layout.is_valid());
+        // Should have 2 windows in a vertical split
+        assert_eq!(layout.tabs.len(), 1);
+        // Verify the split contains Chat and Scenarios
+        let tab = &layout.tabs[0];
+        match &tab.root {
+            crate::tui::layout::SavedSplit::Vertical { top, bottom, .. } => {
+                if let crate::tui::layout::SavedSplit::Leaf(ref leaf) = **top {
+                    assert_eq!(leaf.kind, "Chat");
+                } else {
+                    panic!("expected Chat leaf");
+                }
+                if let crate::tui::layout::SavedSplit::Leaf(ref leaf) = **bottom {
+                    assert_eq!(leaf.kind, "Scenarios");
+                } else {
+                    panic!("expected Scenarios leaf");
+                }
+            }
+            other => panic!("expected vertical split, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn ctrl_w_prefix_mode_consumes_next_key() {
+        let mut ws = make_workspace();
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+        // Ctrl-W enters prefix mode
+        let ctrl_w = KeyEvent::new(KeyCode::Char('w'), KeyModifiers::CONTROL);
+        assert!(ws.handle_global_key(ctrl_w));
+
+        // 'v' triggers vertical split
+        let v_key = KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE);
+        assert!(ws.handle_global_key(v_key));
+        assert_eq!(ws.window_count(), 2);
+    }
+
+    #[test]
+    fn ctrl_t_creates_new_tab() {
+        let mut ws = make_workspace();
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        assert_eq!(ws.tab_count(), 1);
+        let ctrl_t = KeyEvent::new(KeyCode::Char('t'), KeyModifiers::CONTROL);
+        assert!(ws.handle_global_key(ctrl_t));
+        assert_eq!(ws.tab_count(), 2);
+    }
 }
