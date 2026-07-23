@@ -12,14 +12,18 @@
 //! routed through `hkask-services` shared config init. The host is fixed
 //! to Runpod (cloud-only, single host).
 
+pub mod deepinfra;
 pub mod harness;
+pub mod nebius;
 pub mod runpod;
 pub mod trl_harness;
 pub mod types;
 
 // ── Re-exports for lib.rs compatibility ──────────────────────────────────
 
+pub use deepinfra::DeepInfraHost;
 pub use harness::{AxolotlHarness, HarnessAdapter, LudwigHarness};
+pub use nebius::NebiusHost;
 pub use runpod::RunpodHost;
 pub use trl_harness::TrlHarness;
 pub use types::{
