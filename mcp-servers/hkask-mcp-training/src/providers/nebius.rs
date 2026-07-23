@@ -33,9 +33,9 @@ pub struct NebiusHost {
     /// Path to nebius CLI binary.
     nebius_cli: String,
     /// job_id -> VM ID mapping.
-    vms: Arc<Mutex<HashMap<String, String>>>
+    vms: Arc<Mutex<HashMap<String, String>>>,
     /// job_id -> SSH command.
-    ssh_commands: Arc<Mutex<HashMap<String, String>>>
+    ssh_commands: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl NebiusHost {
