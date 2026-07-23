@@ -1,6 +1,5 @@
 use crate::TrainingServer;
 use crate::adapters::AdapterMetrics;
-use crate::huggingface::CompletionManifest;
 use crate::providers::TrainingJobStatus;
 use crate::types::TrainStatusRequest;
 use hkask_mcp_server::server::{McpToolError, execute_tool};

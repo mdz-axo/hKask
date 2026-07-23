@@ -2,6 +2,7 @@ use crate::TrainingServer;
 use crate::types::TrainEvaluateRequest;
 use hkask_inference::InferenceRouter;
 use hkask_mcp_server::server::{McpToolError, execute_tool};
+use hkask_types::InferencePort;
 use hkask_types::template::LLMParameters;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::tool;
@@ -269,7 +270,7 @@ impl TrainingServer {
                     // Extract answer letter: first A-D character in the response
                     let predicted = generated
                         .chars()
-                        .find(|c| ('A'..='Z').contains(c))
+                        .find(|c| c.is_ascii_uppercase())
                         .map(|c| c.to_string())
                         .unwrap_or_default();
                     let is_correct = predicted == *expected_answer;

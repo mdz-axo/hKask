@@ -89,18 +89,13 @@ use crate::adapters::{AdapterMetrics, JobStore};
 use crate::dataset::DatasetPipeline;
 use crate::huggingface::{CompletionManifest, HuggingFaceTraining};
 use crate::providers::{
-    TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJob,
-    TrainingJobStatus, create_host,
+    TrainingHarnessId, TrainingHost, TrainingHostConfig, TrainingHostId, TrainingJobStatus,
+    create_host,
 };
-use crate::types::*;
 use hkask_inference::InferenceConfig;
-use hkask_mcp_server::server::McpToolError;
 use hkask_memory::SemanticMemory;
-use hkask_storage::HMem;
-use hkask_types::InferencePort;
-use hkask_types::Visibility;
+
 use rmcp::tool_router;
-use sha2::Digest;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -292,8 +287,6 @@ impl TrainingServer {
 // Tool implementations live in `tools/` submodule — each tool is an
 // `impl TrainingServer` block in its own file. The `#[tool_router]` above
 // registers all `#[tool]` methods across all impl blocks in the crate.
-
-// ── Entry point ───────────────────────────────────────────────────────────
 
 // ── Entry point ───────────────────────────────────────────────────────────
 
