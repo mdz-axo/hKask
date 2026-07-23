@@ -1355,7 +1355,7 @@ ladders. Default stagnation threshold: 5 consecutive ineffective cycles.
 
 The Regulation (Cybernetic Nervous System) emits structured spans across four canonical namespaces — `reg.tool`, `reg.inference`, `reg.agent_pod`, and `reg.curation` — using `tracing::info!(target: "reg.X")` as the emission surface. The `RegulationLedger` subscriber layer collects these spans, constructs `RegulationRecord` records with `SpanParent` relationships for child spans, persists them through the `RegulationSink`, and routes algedonic signals to the `AlgedonicManager`. The `ToolSpanGuard` RAII guard ensures every tool invocation emits a span: explicit `ok()`/`error()` calls emit the appropriate status, and the `Drop` implementation catches forgotten spans with a `"dropped"` outcome.
 
-**Key source:** `crates/hkask-mcp/src/server/tool_span.rs:18-189` (`ToolSpanGuard`), `crates/hkask-regulation/src/runtime.rs:540-615` (`increment_variety`, `check_variety`), `crates/hkask-types/src/event.rs:16-93` (`RegulationRecord`, `parent_event`), `crates/hkask-types/src/event.rs:370-429` (`SpanKind`, namespace mappings).
+**Key source:** `crates/hkask-mcp-server/src/server/tool_span.rs:18-189` (`ToolSpanGuard`), `crates/hkask-regulation/src/runtime.rs:540-615` (`increment_variety`, `check_variety`), `crates/hkask-types/src/event.rs:16-93` (`RegulationRecord`, `parent_event`), `crates/hkask-types/src/event.rs:370-429` (`SpanKind`, namespace mappings).
 
 ### Span Namespace Model
 
@@ -1533,7 +1533,7 @@ status: VERIFIED
 
 | Reference | Description |
 |-----------|-------------|
-| [`ToolSpanGuard`](crates/hkask-mcp/src/server/tool_span.rs:18-189) | RAII span guard with `ok()`, `error()`, `Drop` for forgotten spans |
+| [`ToolSpanGuard`](crates/hkask-mcp-server/src/server/tool_span.rs:18-189) | RAII span guard with `ok()`, `error()`, `Drop` for forgotten spans |
 | [`RegulationLedger`](crates/hkask-regulation/src/runtime.rs:294-299) | Regulation runtime with subscribers and algedonic manager |
 | [`RegulationRecord`](crates/hkask-types/src/event.rs:16-93) | Regulation event with `parent_event` for span parent relationships |
 | [`SpanKind`](crates/hkask-types/src/event.rs:370-429) | Typed span kind enum with canonical namespace/path mapping |

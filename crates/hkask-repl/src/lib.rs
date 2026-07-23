@@ -921,20 +921,7 @@ impl crate::tui::ToolInvokeBridge for TuiReplBridge {
                 runtime
                     .invoke(&server, &tool, args, &token)
                     .await
-                    .map_err(|e| match e {
-                        hkask_capability::ToolPortError::NotFound(_) => {
-                            crate::tui::McpInvokeError::ToolNotFound(tool.clone())
-                        }
-                        hkask_capability::ToolPortError::CapabilityDenied(msg) => {
-                            crate::tui::McpInvokeError::Server(msg)
-                        }
-                        hkask_capability::ToolPortError::EnergyBudgetExceeded(msg) => {
-                            crate::tui::McpInvokeError::Server(msg)
-                        }
-                        hkask_capability::ToolPortError::InvocationFailed(msg) => {
-                            crate::tui::McpInvokeError::Server(msg)
-                        }
-                    })
+                    .map_err(|e| map_tool_port_error(e, &tool))
             });
             let _ = tx.send(result);
         });

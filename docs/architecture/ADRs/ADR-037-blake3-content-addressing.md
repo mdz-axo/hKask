@@ -94,7 +94,7 @@ cargo test -p hkask-memory -- recall_dedup
 
 - [ADR-036: gix Migration](ADR-036-gix-migration.md) — Pure-Rust git backend that calls BLAKE3
 - ADR-038: Eight-Repo CAS Design (archived — superseded by pod-directory backup model)
-- [`crates/hkask-types/src/git_cas/types.rs`](../../../crates/hkask-types/src/git_cas/types.rs) — `ContentHash` newtype
+- [`crates/hkask-types/src/ports/git_cas/types.rs`](../../../crates/hkask-types/src/ports/git_cas/types.rs) — `ContentHash` newtype
 
 ## References
 

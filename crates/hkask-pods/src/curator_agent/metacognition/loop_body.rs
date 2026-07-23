@@ -1231,6 +1231,7 @@ mod self_calibrate_tests {
 
 #[cfg(test)]
 mod epistemic_routing_tests {
+    #![allow(dead_code)]
     use super::*;
     use hkask_regulation::RegulationLedger;
     use hkask_types::curator::CuratorHandle;

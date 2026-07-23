@@ -735,7 +735,7 @@ verified_against: >
   crates/hkask-memory/src/recall_dedup.rs:10-57 (eav_hash, dedup_h_mems, BLAKE3),
   crates/hkask-memory/src/ports.rs:1-216 (EpisodicStoragePort, SemanticStoragePort, StorageRequest, RecallRequest),
   crates/hkask-services-runtime/src/daemon_impl.rs:227-400 (store_experience, generate_narrative),
-  crates/hkask-mcp/src/server/tool_span.rs:78-84 (ExperienceCallback, record_experience trigger)
+  crates/hkask-mcp-server/src/server/tool_span.rs:78-84 (ExperienceCallback, record_experience trigger)
 status: VERIFIED
 -->
 
@@ -751,7 +751,7 @@ status: VERIFIED
 | [`recall_dedup`](crates/hkask-memory/src/recall_dedup.rs:10-57) | BLAKE3 EAV-hash deduplication layer |
 | [`MemoryPorts`](crates/hkask-memory/src/ports.rs:1-216) | Episodic and Semantic storage port traits |
 | [`store_experience` / `generate_narrative`](crates/hkask-services-runtime/src/daemon_impl.rs:227-400) | Daemon-based experience recording and narrative generation |
-| [`ToolSpanGuard` experience callback](crates/hkask-mcp/src/server/tool_span.rs:78-84) | Experience callback wiring for tool span guards |
+| [`ToolSpanGuard` experience callback](crates/hkask-mcp-server/src/server/tool_span.rs:78-84) | Experience callback wiring for tool span guards |
 | [Magna Carta P1](../reference/magna-carta.md#p1-user-sovereignty) | User Sovereignty — episodic memory as sovereign first-person |
 | Consent flow sequence (inlined in `sovereignty-and-ocap.md`) | Consent flow for visibility gating (DIAG-TO-006-CM) |
 | Regulation span emission sequence (inlined in `regulation-and-loops.md`) | Regulation span emission for memory encode spans (DIAG-TO-004) |
