@@ -481,14 +481,20 @@ classDiagram
     class TrainingHost {
         <<interface>>
         +submit(job: TrainingJob) Result~String~
-        +status(job_id: String) Result~TrainingJobStatus~
+        +status(job_id: String) Result~PodStatus~
         +cancel(job_id: String) Result~()~
-        +list_adapters() Result~Vec~String~~
-        +delete_adapter(id: String) Result~()~
-        +completion_metadata(id) Result~Option~CompletionMetadata~~
-        +adapter_weight_path(id) Result~Option~PathBuf~~
-        +download_adapter(id, dest) Result~()~
-        +estimate_cost(job) Result~CostEstimate~
+    }
+
+    class PodStatus {
+        +status: TrainingJobStatus
+        +pod_id: String
+        +ssh_command: String
+        +ip: String
+        +ssh_port: u64
+        +is_public_ip: bool
+        +uptime_seconds: u64
+        +gpu_type: String
+        +fail_reason: Option~String~
     }
 
     class HarnessAdapter {
@@ -508,16 +514,35 @@ classDiagram
         +graphql_query(query, vars) Result~Value~
     }
 
-    class TogetherHost {
+    class DeepInfraHost {
         -api_key: String
-        -base_url: String
+        -gpu_config: String
+        -container_image: String
+        -ssh_public_key: String
+        -client: reqwest::Client
+        -containers: Arc~Mutex~HashMap~~
+    }
+
+    class NebiusHost {
+        -project_id: String
+        -subnet_id: String
+        -ssh_public_key: String
+        -gpu_platform: String
+        -gpu_preset: String
+        -image_family: String
+        -nebius_cli: String
+        -vms: Arc~Mutex~HashMap~~
     }
 
     class AxolotlHarness {
         +render_config(job) Result~String~
     }
 
-    class UnslothHarness {
+    class TrlHarness {
+        +render_config(job) Result~String~
+    }
+
+    class LudwigHarness {
         +render_config(job) Result~String~
     }
 
@@ -574,21 +599,28 @@ classDiagram
 
     class TrainingHostId {
         <<enumeration>>
-        Together
         Runpod
+        DeepInfra
+        Nebius
     }
 
     class TrainingHarnessId {
         <<enumeration>>
         Axolotl
-        Unsloth
+        Trl
+        Ludwig
     }
 
     TrainingHost <|.. RunpodHost : implements
-    TrainingHost <|.. TogetherHost : implements
+    TrainingHost <|.. DeepInfraHost : implements
+    TrainingHost <|.. NebiusHost : implements
     HarnessAdapter <|.. AxolotlHarness : implements
-    HarnessAdapter <|.. UnslothHarness : implements
+    HarnessAdapter <|.. TrlHarness : implements
+    HarnessAdapter <|.. LudwigHarness : implements
     RunpodHost o-- HarnessAdapter : composes
+    DeepInfraHost ..> HarnessAdapter : uses via install script
+    NebiusHost ..> HarnessAdapter : uses via install script
+    TrainingHost ..> PodStatus : returns
     TrainingJob *-- TrainingParams : contains
     TrainingParams *-- LoraParams : contains
     TrainingParams *-- OptimizationParams : contains
@@ -597,18 +629,21 @@ classDiagram
     TrainingJob *-- TrainingHarnessId : has
 ```
 <!-- DIAGRAM_ALIGNMENT
-id: DIAG-TRN-006
-verified_date: 2026-07-12
-verified_against: mcp-servers/hkask-mcp-training/src/adapter/mod.rs, crates/hkask-inference/src/lib.rs
+id: DIAG-TRAIN-006
+verified_date: 2026-07-23
+verified_against: mcp-servers/hkask-mcp-training/src/providers/{types,runpod,deepinfra,nebius,harness,trl_harness}.rs
 status: VERIFIED
 -->
 
 ## Design Notes
 
-- `TrainingHost` is the seam for compute backends — new providers (e.g., Baseten, Modal) add without changing the router
-- `HarnessAdapter` is the seam for training tooling — renders config in the harness's native format (YAML for Axolotl, Python for Unsloth)
-- `RunpodHost` composes a `HarnessAdapter` — the host delegates config generation to the harness
+- `TrainingHost` is the seam for compute backends — three providers (Runpod, DeepInfra, Nebius) implement it
+- `PodStatus` is the rich status type — every pod returns SSH command, IP, uptime, GPU type, and failure reason
+- `HarnessAdapter` is the seam for training tooling — renders config in the harness native format (YAML for Axolotl/Ludwig, Python for TRL)
+- `RunpodHost` composes a `HarnessAdapter` directly; DeepInfra and Nebius use the shared `generate_install_script()` which calls the harness adapter
+- `TrainingHostId` auto-detects from env vars: DeepInfra (DI_API_KEY), then Nebius (NEBIUS_PROJECT_ID), then Runpod (fallback)
 - `TrainingParams` is a deep struct: it contains all hyperparameters as nested sub-structs, giving callers a single entry point
 - `LoraParams` defaults: r=16, alpha=32, dropout=0, 7 target modules (all attention + MLP projections)
 - `TrainingParams` defaults: LR=1e-4, 3 epochs, batch_size=4
+- Every pod/VM/container MUST be debuggable via SSH — empty `ssh_command` is a red flag
 
