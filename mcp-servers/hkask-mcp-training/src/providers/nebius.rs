@@ -265,6 +265,7 @@ runcmd:
             is_public_ip: true, // Nebius auto-assigns public IPs
             uptime_seconds: 0,
             gpu_type: self.gpu_platform.clone(),
+            fail_reason: None,
         })
     }
 

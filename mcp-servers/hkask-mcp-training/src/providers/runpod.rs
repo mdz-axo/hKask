@@ -1173,6 +1173,7 @@ impl TrainingHost for RunpodHost {
             is_public_ip,
             uptime_seconds: current_uptime,
             gpu_type,
+            fail_reason: None,
         };
 
         // Store the full pod status so training_status can include it in the response

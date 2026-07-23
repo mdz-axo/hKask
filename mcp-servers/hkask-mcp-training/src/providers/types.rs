@@ -265,9 +265,9 @@ pub(crate) fn estimate_training_cost_urj(
     base_model: &str,
 ) -> u64 {
     let base_per_epoch: u64 = match host {
-        TrainingHostId::Runpod => 500_000,    // ~$0.50/epoch
-        TrainingHostId::DeepInfra => 300_000, // ~$0.30/epoch (cheaper H100)
-        TrainingHostId::Nebius => 650_000,    // ~$0.65/epoch
+        TrainingHostId::Runpod => 500_000, // ~$0.50/epoch (H100 @ $2.39/hr)
+        TrainingHostId::DeepInfra => 740_000, // ~$0.74/epoch (B200 @ $3.69/hr)
+        TrainingHostId::Nebius => 650_000, // ~$0.65/epoch (H100 @ $3.85/hr)
     };
     let size_mult = extract_model_size_multiplier(base_model);
     base_per_epoch * (num_epochs as u64) * size_mult
@@ -692,6 +692,9 @@ pub struct PodStatus {
     pub uptime_seconds: u64,
     /// GPU type (e.g. "NVIDIA H100 80GB HBM3").
     pub gpu_type: String,
+    /// Provider-specific failure reason when status is Failed (e.g. "out of capacity").
+    /// None when the pod is running or completed normally.
+    pub fail_reason: Option<String>,
 }
 
 #[async_trait::async_trait]

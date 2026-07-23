@@ -137,9 +137,10 @@ runcmd:
             .api_request(reqwest::Method::POST, "containers", Some(body))
             .await?;
 
-        let container_id = result["name"]
+        let container_id = result["container_id"]
             .as_str()
             .or_else(|| result["id"].as_str())
+            .or_else(|| result["name"].as_str())
             .unwrap_or(&container_name)
             .to_string();
 
@@ -195,7 +196,8 @@ runcmd:
             _ => TrainingJobStatus::Running,
         };
 
-        // Extract SSH info — DeepInfra containers get public IPs.
+        // Extract SSH info — DeepInfra containers get public IPs once running.
+        // IP is null when the container is still starting or has failed.
         let ip = result["ip"]
             .as_str()
             .or_else(|| result["ssh_host"].as_str())
@@ -205,6 +207,16 @@ runcmd:
         } else {
             String::new()
         };
+
+        // Extract failure reason when the container failed (e.g. "out of capacity").
+        let fail_reason = result["fail_reason"].as_str().map(|s| s.to_string());
+        if let Some(ref reason) = fail_reason {
+            tracing::warn!(
+                target: "hkask.training.deepinfra.status",
+                job_id = %job_id, fail_reason = %reason,
+                "DeepInfra container failed"
+            );
+        }
 
         if !ssh_command.is_empty() {
             if let Ok(mut ssh_map) = self.ssh_commands.lock() {
@@ -226,6 +238,7 @@ runcmd:
             is_public_ip: !ip.is_empty(),
             uptime_seconds: 0, // DeepInfra API doesn't expose uptime
             gpu_type: self.gpu_config.clone(),
+            fail_reason,
         })
     }
 

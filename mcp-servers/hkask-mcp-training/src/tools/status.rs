@@ -41,6 +41,11 @@ impl TrainingServer {
                         "gpu_type": pod_status.gpu_type,
                     });
 
+                    // Surface failure reason when the pod failed (e.g. "out of capacity").
+                    if let Some(ref reason) = pod_status.fail_reason {
+                        result["fail_reason"] = json!(reason);
+                    }
+
                     // If no public SSH, warn loudly — the operator cannot debug.
                     if !pod_status.ssh_command.is_empty() {
                         tracing::info!(
