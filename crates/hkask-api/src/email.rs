@@ -318,3 +318,45 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
     let _ = session.logout().await;
     Ok(messages)
 }
+
+// ── Alert email sink (S3) ───────────────────────────────────────────────
+
+/// `AlertEmailSink` implementation that sends algedonic alerts via the
+/// curator's email channel. Non-blocking — spawns the async send internally
+/// so the cybernetics loop is never blocked.
+#[derive(Debug)]
+pub struct CuratorAlertEmailSink {
+    alert_recipient: String,
+}
+
+impl CuratorAlertEmailSink {
+    /// Create from env: `HKASK_ALERT_EMAIL` or fall back to `HKASK_SMTP_USERNAME`.
+    pub fn from_env() -> Self {
+        let alert_recipient = std::env::var("HKASK_ALERT_EMAIL")
+            .unwrap_or_else(|_| std::env::var("HKASK_SMTP_USERNAME").unwrap_or_default());
+        Self { alert_recipient }
+    }
+}
+
+impl hkask_regulation::AlertEmailSink for CuratorAlertEmailSink {
+    fn send_alert_email(&self, alert: &hkask_regulation::RuntimeAlert) {
+        if self.alert_recipient.is_empty() {
+            tracing::warn!(target: "reg.alert", "Alert email sink has no recipient");
+            return;
+        }
+        let recipient = self.alert_recipient.clone();
+        let domain = alert.domain.clone();
+        let deficit = alert.deficit;
+        let threshold = alert.threshold;
+        let message = alert.message.clone();
+        let subject = format!("[hKask Alert] {domain} variety deficit {deficit}/{threshold}");
+        let body = format!(
+            "<h2>Algedonic Alert</h2>\n<p><b>Domain:</b> {domain}</p>\n<p><b>Deficit:</b> {deficit} / {threshold}</p>\n<p><b>Message:</b> {message}</p>\n<p style='color:#8b949e;font-size:0.8rem'>Sent by the hKask Curator cybernetics loop</p>"
+        );
+        tokio::spawn(async move {
+            if let Err(e) = send_email(&recipient, &subject, &body, EmailMode::Alert).await {
+                tracing::warn!(target: "reg.alert", error = %e, "Failed to send alert email");
+            }
+        });
+    }
+}
