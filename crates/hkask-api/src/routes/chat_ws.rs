@@ -260,6 +260,7 @@ async fn handle_chat_ws(socket: WebSocket, state: ApiState) {
                                     params_override: None,
                                     tools: mcp_tools.clone(),
                                     thread_messages: None,
+                                    prebuilt_messages: None,
                                 };
 
                                 // Stream the response inline (blocks the loop until done)

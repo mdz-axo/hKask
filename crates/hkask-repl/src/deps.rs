@@ -28,12 +28,15 @@ use super::threads::ThreadRegistry;
 pub struct TurnInput<'a> {
     pub input: &'a str,
     pub iteration: usize,
-    pub tool_results: Option<String>,
     pub agent_override: Option<&'a str>,
-    pub thread_history: Option<String>,
-    /// Typed message array from thread history — when present, used instead of
-    /// `thread_history` string to build multi-turn message arrays for inference.
+    /// Typed message array from thread history for iteration 1.
+    /// When None and `messages` is also None, the executor builds from input only.
     pub thread_messages: Option<Vec<hkask_types::ChatMessage>>,
+    /// Pre-built growing message array for iterations 2+.
+    /// When present, the executor skips preparation and calls inference directly.
+    /// The turn loop appends `assistant(response)` and `user(tool_results)` to
+    /// this array between iterations, maintaining proper role tags.
+    pub messages: Option<Vec<hkask_types::ChatMessage>>,
 }
 
 // ── TurnConfig: loop configuration ───────────────────────────────────
@@ -157,7 +160,7 @@ impl TurnExecutor for ReplTurnExecutor {
             capability_checker: self.ctx.governance().checker.clone(),
             system_webid: *self.ctx.webid(),
             iteration: input.iteration,
-            tool_results: input.tool_results.clone(),
+            tool_results: None,
             auto_condense: settings.auto_condense,
             context_window: settings.model_meta.as_ref().map(|m| m.context_length),
             condenser_model: Some(
@@ -169,7 +172,7 @@ impl TurnExecutor for ReplTurnExecutor {
             condense_pressure_threshold: settings.condense_pressure_threshold,
             condense_saliency_window: settings.condense_saliency_window,
             pre_compress: settings.pre_compress,
-            thread_history: input.thread_history.clone(),
+            thread_history: None,
             thread_messages: input.thread_messages.clone(),
             improv_mode: self.improv_mode.clone(),
             tool_section: String::new(),
@@ -178,6 +181,7 @@ impl TurnExecutor for ReplTurnExecutor {
             } else {
                 Some(self.tool_definitions.clone())
             },
+            prebuilt_messages: input.messages.clone(),
         };
         ChatService::execute_turn(
             &self.ctx,

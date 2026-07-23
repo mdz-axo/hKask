@@ -295,7 +295,54 @@ impl ChatService {
         ctx: &AgentService,
         req: ChatTurnRequest,
     ) -> Result<ChatTurnResponse, ServiceError> {
-        let prepared = Self::prepare_chat(ctx, &req).await?;
+        // When pre-built messages are provided (turn-loop iterations 2+),
+        // skip prepare_chat entirely — the growing message array already
+        // contains the system prompt, thread history, and tool results.
+        // Resolve only the model, inference port, and episodic port.
+        let prepared = if req.prebuilt_messages.is_some() {
+            let messages = req.prebuilt_messages.unwrap();
+            let name = req.userpod_name.as_deref().unwrap_or("Curator");
+            let model = req
+                .model_override
+                .as_deref()
+                .unwrap_or(&ctx.config().default_model)
+                .to_string();
+            let inference: Arc<dyn InferencePort> =
+                match (&req.inference_port_override, ctx.infra().inference.clone()) {
+                    (Some(port), _) => Arc::clone(port),
+                    (None, Some(port)) => port,
+                    (None, None) => {
+                        let inf_ctx = InferenceContext::from_parts(
+                            None,
+                            &model,
+                            ctx.config().inference_config.clone(),
+                        );
+                        InferenceService::resolve_port(&inf_ctx, &model)?
+                    }
+                };
+            let agent_webid = WebID::from_persona_with_namespace(name.as_bytes(), "userpod");
+            let capability_token = ctx.governance().checker.grant_registry(
+                DelegationAction::Execute,
+                req.auth_context.as_ref().map_or(*ctx.webid(), |a| a.webid),
+                agent_webid,
+            );
+            let episodic_port: Arc<dyn EpisodicStoragePort> = req
+                .episodic_storage_override
+                .clone()
+                .unwrap_or_else(|| ctx.infra().episodic.clone());
+            PreparedChat {
+                prompt: String::new(),
+                messages,
+                model,
+                agent_webid,
+                capability_token,
+                inference_port: inference,
+                episodic_port,
+                userpod_name: name.to_string(),
+            }
+        } else {
+            Self::prepare_chat(ctx, &req).await?
+        };
         // Access params_override after prepare_chat returns (prepare_chat only borrows req)
         let params_override = req.params_override;
 
@@ -433,6 +480,7 @@ impl ChatService {
             }),
             finish_reason: result.finish_reason,
             tool_calls: result.tool_calls,
+            messages: prepared.messages.clone(),
         })
     }
 
@@ -503,14 +551,13 @@ impl ChatService {
             params.bypass_fusion = chat_bypass;
 
             // --- Phase 2: Stream tokens ---
-            : Stream tokens ---
-                        let tools_ref = req.tools.as_deref();
-                        let mut stream = prepared.inference_port.generate_stream_with_messages(
-                            &prepared.messages,
-                            &params,
-                            Some(&prepared.model),
-                            tools_ref,
-                        );
+            let tools_ref = req.tools.as_deref();
+            let mut stream = prepared.inference_port.generate_stream_with_messages(
+                &prepared.messages,
+                &params,
+                Some(&prepared.model),
+                tools_ref,
+            );
 
             let mut full_text = String::new();
             let mut usage = None;
@@ -677,6 +724,39 @@ impl ChatService {
         manifest_executor: Option<&hkask_templates::ManifestExecutor>,
         process_manifest: Option<&hkask_templates::BundleManifest>,
     ) -> Result<TurnResult, ServiceError> {
+        // When pre-built messages are provided (turn-loop iterations 2+),
+        // skip manifest cascade, thread history concatenation, auto-condensation,
+        // and tool results injection — all of that is already in the prebuilt
+        // message array. Just pass through to chat() directly.
+        if req.prebuilt_messages.is_some() {
+            let chat_req = ChatTurnRequest {
+                input: req.input.clone(),
+                userpod_name: Some(req.userpod_name.clone()),
+                model_override: Some(req.model.clone()),
+                tool_section: None,
+                api_spec: None,
+                inference_port_override: Some(req.inference_port.clone()),
+                episodic_storage_override: Some(req.episodic_storage.clone()),
+                semantic_storage_override: Some(req.semantic_storage.clone()),
+                auth_context: None,
+                params_override: Some(req.llm_params.clone()),
+                tools: req.tools.clone(),
+                thread_messages: None,
+                prebuilt_messages: req.prebuilt_messages.clone(),
+            };
+            let chat_response = Self::chat(ctx, chat_req).await?;
+            return Ok(TurnResult {
+                text: chat_response.text,
+                usage: chat_response.usage.unwrap_or(TokenUsage {
+                    prompt_tokens: 0,
+                    completion_tokens: 0,
+                    total_tokens: 0,
+                }),
+                structured_tool_calls: chat_response.tool_calls,
+                messages: chat_response.messages,
+            });
+        }
+
         // 1. Execute manifest cascade if the agent has a process manifest.
         let base_input = if let (Some(executor), Some(manifest)) =
             (manifest_executor, process_manifest)
@@ -765,6 +845,7 @@ impl ChatService {
             params_override: Some(req.llm_params.clone()),
             tools: req.tools.clone(),
             thread_messages: req.thread_messages.clone(),
+            prebuilt_messages: None,
         };
         let chat_response = Self::chat(ctx, chat_req).await?;
 
@@ -776,6 +857,7 @@ impl ChatService {
                 total_tokens: 0,
             }),
             structured_tool_calls: chat_response.tool_calls,
+            messages: chat_response.messages,
         })
     }
 }

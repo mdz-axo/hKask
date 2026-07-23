@@ -29,6 +29,7 @@ fn build_chat_context(
         usage: None,
         finish_reason: "error".to_string(),
         tool_calls: vec![],
+        messages: vec![],
     })
 }
 
@@ -77,6 +78,7 @@ async fn finish_stream(
                     usage: None,
                     finish_reason: "error".to_string(),
                     tool_calls: vec![],
+                    messages: vec![],
                 };
             }
         }
@@ -101,6 +103,7 @@ async fn finish_stream(
         }),
         finish_reason: final_finish_reason,
         tool_calls: final_tool_calls,
+        messages: prepared.messages.clone(),
     }
 }
 
@@ -141,6 +144,7 @@ pub async fn chat_with_agent_streaming(
         api_spec: None,
         tools: None,
         thread_messages: None,
+        prebuilt_messages: None,
     };
 
     let prepared = match ChatService::prepare_chat(&ctx, &req).await {
@@ -151,6 +155,7 @@ pub async fn chat_with_agent_streaming(
                 usage: None,
                 finish_reason: "error".to_string(),
                 tool_calls: vec![],
+                messages: vec![],
             };
         }
     };

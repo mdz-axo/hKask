@@ -44,6 +44,10 @@ pub struct ChatTurnResponse {
     pub finish_reason: String,
     /// Structured tool calls when the model supports native function calling.
     pub tool_calls: Vec<StructuredToolCall>,
+    /// The message array used for this inference call.
+    /// On the first iteration this is the array built by `prepare_chat`;
+    /// on subsequent iterations it is the pre-built array passed in.
+    pub messages: Vec<hkask_types::ChatMessage>,
 }
 
 /// Request for a single chat turn.
@@ -87,6 +91,13 @@ pub struct ChatTurnRequest {
     /// This preserves role tags so the provider sees proper conversation structure.
     /// None for single-turn API/CLI calls.
     pub thread_messages: Option<Vec<hkask_types::ChatMessage>>,
+    /// Pre-built message array — when present, `chat()` skips `prepare_chat()`
+    /// and calls `generate_with_messages` directly with these messages.
+    /// Used by the turn loop for iterations 2+ (tool-use continuations) where
+    /// the growing message array already contains the system prompt, thread
+    /// history, assistant responses, and tool results with proper roles.
+    /// None for the first iteration (prepare_chat builds the initial array).
+    pub prebuilt_messages: Option<Vec<hkask_types::ChatMessage>>,
 }
 
 /// Prepared chat context — the result of prompt composition before inference.
@@ -188,6 +199,9 @@ pub struct TurnRequest {
     /// Built from MCP-discovered tools by the REPL at init time.
     /// When present, the model may return structured tool calls.
     pub tools: Option<Vec<ChatToolDefinition>>,
+    /// Pre-built message array for iterations 2+ — when present, skips
+    /// prepare_chat and calls inference directly with these messages.
+    pub prebuilt_messages: Option<Vec<hkask_types::ChatMessage>>,
 }
 
 /// Result of a single-agent turn from `ChatService::execute_turn()`.
@@ -200,6 +214,12 @@ pub struct TurnResult {
     /// Structured tool calls when the model requests tools.
     /// Empty if finish_reason != "tool_calls".
     pub structured_tool_calls: Vec<StructuredToolCall>,
+    /// The message array used for this inference call.
+    /// The turn loop grows this array across iterations by appending
+    /// `assistant(response)` and `user(tool_results)` messages.
+    /// On iteration 1, this is the array built by `prepare_chat`.
+    /// On subsequent iterations, this is the pre-built array passed in.
+    pub messages: Vec<hkask_types::ChatMessage>,
 }
 
 /// Event emitted during a streaming chat turn.
