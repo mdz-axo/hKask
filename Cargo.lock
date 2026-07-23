@@ -3686,6 +3686,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "hkask-capability",
+ "hkask-guard",
  "hkask-inference",
  "hkask-mcp-server",
  "hkask-types",
