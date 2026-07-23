@@ -9,6 +9,7 @@ description = "hKask content safety guard — mandatory input/output scanning fo
 hkask-regulation = { path = "../hkask-regulation" }
 hkask-types = { path = "../hkask-types" }
 llm-guard = "0.2"
+futures-util.workspace = true
 tracing.workspace = true
 rand.workspace = true
 hex.workspace = true

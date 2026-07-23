@@ -3877,6 +3877,7 @@ name = "hkask-guard"
 version = "0.31.0"
 dependencies = [
  "base64",
+ "futures-util",
  "hex",
  "hkask-regulation",
  "hkask-types",

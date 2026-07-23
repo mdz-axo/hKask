@@ -46,8 +46,12 @@
 //!   large-model inference costs. The `llm-guard` rules-tier approach leverages
 //!   similar zero-copy, no-ML principles.
 
+mod guarded_inference;
 mod pipeline;
 mod spotlight;
 
-pub use pipeline::{CanaryToken, ContentGuard, GuardConfig, GuardResult, GuardViolation};
+pub use guarded_inference::GuardedInferencePort;
+pub use pipeline::{
+    CanaryToken, ContentGuard, GuardConfig, GuardOutput, GuardResult, GuardViolation,
+};
 pub use spotlight::{SpotlightMode, Spotlighter};
