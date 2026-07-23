@@ -22,7 +22,6 @@ Consolidated public API surface for all 45 hKask crates, organized by category. 
 | [Infrastructure](#infrastructure-crates) | inference, communication, improv, condenser, codegraph, acp, adapter, test-harness, mcp-cloud-gateway, guard, repl, forecast, storage-guard | 13 |
 | [Service](#service-crates) | services-core, services-context, services-runtime, services-chat, services-compose, services-corpus, services-kata-kanban, services-onboarding, services-skill, services-wallet | 10 |
 | [Wallet/Identity/Ledger](#walletidentityledger) | wallet, wallet-types, ledger | 3 |
-| [Ontology/Interface](#ontologyinterface) | bridge-dublincore, bridge-pko, federation, tui | 4 |
 
 ---
 
@@ -318,7 +317,7 @@ Cybernetic Nervous System for hKask.
 
 `GovernedInference` — Energy-budget-gated, observability-emitting membrane around `InferencePort`. Implements `InferencePort`. Cost estimation: 1 token ≈ 1 gas unit.
 
-`SetPoints` — Homeostatic set-points. Fields include `gas_min_remaining`, `variety_max_deficit`, `error_rate_max`, `connector_latency_max_secs`, `communication_backpressure_threshold`, `seam_coverage_min`, federation thresholds, `dampen_window_secs`, `metacognitive_window_secs`, `override_cooldown_secs`, `outcome_warning_threshold`, `outcome_critical_threshold`, `guard_violation_rate_max`, `max_iterations`, `stagnation_thresholds`.
+`SetPoints` — Homeostatic set-points. Fields include `gas_min_remaining`, `variety_max_deficit`, `error_rate_max`, `connector_latency_max_secs`, `communication_backpressure_threshold`, `seam_coverage_min`, `dampen_window_secs`, `metacognitive_window_secs`, `override_cooldown_secs`, `outcome_warning_threshold`, `outcome_critical_threshold`, `guard_violation_rate_max`, `max_iterations`, `stagnation_thresholds`.
 
 `InferenceThrottleMode` — Enum: `Off`, `Autonomous`, `CuratorMediated { curator_timeout_secs: u64 }`.
 
@@ -406,7 +405,7 @@ Agent pods, ACP, and bot/userpod management for hKask.
 
 **Key Public Types:**
 
-`CuratorAgent` — The persona layer of Curation (Loop 5). Fields: `curation_loop: Arc<CurationLoop>`, `metacognition: Arc<MetacognitionLoop>`, `context: Arc<CuratorContext>`, `link_manager: Option<Arc<dyn FederationDispatch>>`. Singleton invariant.
+`CuratorAgent` — The persona layer of Curation (Loop 5). Fields: `curation_loop: Arc<CurationLoop>`, `metacognition: Arc<MetacognitionLoop>`, `context: Arc<CuratorContext>`. Singleton invariant.
 
 `ConsentManager` — User consent tracking for sovereignty boundaries. Manages grant, revoke, audit, check. Persisted via `ConsentPort`.
 
@@ -533,7 +532,7 @@ CLI commands for hKask.
 
 **Global Flags:** `--verbose`/`-v`, `--json-logs`, `--registry`/`-r` (Optional PathBuf).
 
-**Subcommands (36+ variants in `Commands` enum):** `Chat`, `Template`, `Bot`, `Pod`, `Mcp`, `Sovereignty`, `Goal`, `Git`, `Backup`, `Docs`, `Agent`, `Curator`, `Federation`, `Token`, `UserPod`, `Keystore`, `Bundle`, `Skill`, `Style`, `Kata`, `Kanban`, `Adapter`, `Models`, `Doctor`, `Onboard`, `Settings`, `Consolidate`, `Loops`, `Daemon`, `Test`, `WebSearch`, `Serve` (`api` feature), `Init`, `Export`, `Wallet`, `List`, `Rm`, `Transcript` (`tui` feature), `Matrix`, `Repair`, `Qa`.
+**Subcommands (36+ variants in `Commands` enum):** `Chat`, `Template`, `Bot`, `Pod`, `Mcp`, `Sovereignty`, `Goal`, `Git`, `Backup`, `Docs`, `Agent`, `Curator`, `Token`, `UserPod`, `Keystore`, `Bundle`, `Skill`, `Style`, `Kata`, `Kanban`, `Adapter`, `Models`, `Doctor`, `Onboard`, `Settings`, `Consolidate`, `Loops`, `Daemon`, `Test`, `WebSearch`, `Serve` (`api` feature), `Init`, `Export`, `Wallet`, `List`, `Rm`, `Transcript` (`tui` feature), `Matrix`, `Repair`, `Qa`.
 
 **Environment Variables:** `HKASK_DB_PATH`, `HKASK_DB_PASSPHRASE`, `HKASK_FUSION_JUDGE_MODEL`, `HKASK_FUSION_PANEL_MODELS`, `HKASK_MCP_HOST`, `HKASK_GUARD_TOKEN_LIMIT`.
 
@@ -630,7 +629,6 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 | `embedding` | `EmbeddingGenerationError` |
 | `embedding_port` | `EmbeddingPort`, `StoredEmbedding` |
 | `escalation` | `EscalationPort`, `EscalationEntry`, `EscalationBatch` |
-| `federation` | `FederationDispatch`, `FederationTransport`, `FederationSyncPort`, `FederationMessage`, `FederationDelta`, `FederatedTriple`, `ReplicaId` |
 | `flowdef_validation` | `FlowDefValidationFinding`, `FlowDefValidationReport`, `validate_convergence_field()`, `validate_step_input_mapping()` |
 | `pipeline_manifest` | Pipeline manifest types |
 | `pipeline_runner` | `StepExecutor` trait, `PipelineStep` |
@@ -652,9 +650,6 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 | 4 | `ConsentPort` | `consent_port` | Consent record persistence: `initialize_schema()`, `store()`, `list_active()` |
 | 5 | `EmbeddingPort` | `embedding_port` | Embedding storage: `store()`, `get()`, `search()`, `delete()` |
 | 6 | `EscalationPort` | `escalation` | Escalation lifecycle: `list_pending()`, `get()`, `resolve()`, `dismiss()`, `persist_batch()` |
-| 7 | `FederationTransport` | `federation` | Federation networking: `send()`, `recv()`, `simulate_partition()`, `heal_partition()` |
-| 8 | `FederationSyncPort` | `federation` | Federation sync: `query_public_since()`, `cursor_for()`, `advance_cursor()` |
-| 9 | `FederationDispatch` | `federation` | Federation lifecycle: `register_peer()`, `invite()`, `accept()`, `reject()`, `pause()`, `resume()`, `revoke()`, `leave()`, `dissolve()`, `linked_peers()`, `link_state()` |
 | 10 | `GitCASPort` | `git_cas` | Git content-addressable storage: `put_blob()`, `get_blob()`, `delete_blob()`, snapshot commits |
 | 11 | `InferencePort` | `inference_port` | LLM invocation boundary: `generate()`, `generate_with_model()`, `generate_n()`, `generate_stream()`, `generate_stream_with_model()`, `generate_vision()` |
 | 12 | `StepExecutor` | `pipeline_runner` | Pipeline step execution: `execute(step)` |
@@ -663,9 +658,9 @@ Hexagonal port traits — InferencePort, ToolPort, CircuitBreakerPort, and regis
 | 15 | `ToolPort` | `tool` | Tool governance: `invoke()` (requires `DelegationToken`), `discover_tools()`, `get_tool_info()` |
 | 16 | `WalletBudgetPort` | `wallet_budget_port` | Wallet-backed energy: `gas_to_rjoules()`, `get_encumbrance()`, `emit_key_alert()`, affordability check |
 
-**Key Public Types:** `InferenceStreamChunk`, `ToolInfo`, `ToolPortError` (`CapabilityDenied`, `EnergyBudgetExceeded`, `NotFound`, `InvocationFailed`), `ConsolidationRequest` / `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `DecayConfig`, `FederationMessage`, `FederatedTriple`, `EmbeddingGenerationError`, `StoredEmbedding`.
+**Key Public Types:** `InferenceStreamChunk`, `ToolInfo`, `ToolPortError` (`CapabilityDenied`, `EnergyBudgetExceeded`, `NotFound`, `InvocationFailed`), `ConsolidationRequest` / `ConsolidationOutcome`, `DepletionSignal`, `BackpressureSignal`, `DecayConfig`, `EmbeddingGenerationError`, `StoredEmbedding`.
 
-**Re-exports at Crate Root:** `BackpressureSignal`, `CircuitBreakerPort`, `LedgerObserver`, `LedgerStoragePort`, `ConsolidationOutcome`, `ConsolidationRequest`, `DecayConfig`, `DepletionSignal`, `WeightedEvent`, `EmbeddingGenerationError`, `FlowDefValidationFinding`, `FlowDefValidationReport`, `validate_convergence_field()`, `validate_step_input_mapping()`, `InferencePort`, `InferenceStreamChunk`, `ChatToolDefinition`, `ChatToolFunction`, `InferenceError`, `InferenceResult`, `InferenceUsage`, `StructuredToolCall`, `TokenProb`, `TokenProbability`, `compute_confidence()`, `RegistryEntry`, `RegistryError`, `RegistryIndex`, `Skill`, `SkillRegistryIndex`, `SkillZone`, `ToolInfo`, `ToolPort`, `ToolPortError`, `ReplicaId`, `WalletBudgetError`, `WalletBudgetPort`.
+**Re-exports at Crate Root:** `BackpressureSignal`, `CircuitBreakerPort`, `LedgerObserver`, `LedgerStoragePort`, `ConsolidationOutcome`, `ConsolidationRequest`, `DecayConfig`, `DepletionSignal`, `WeightedEvent`, `EmbeddingGenerationError`, `FlowDefValidationFinding`, `FlowDefValidationReport`, `validate_convergence_field()`, `validate_step_input_mapping()`, `InferencePort`, `InferenceStreamChunk`, `ChatToolDefinition`, `ChatToolFunction`, `InferenceError`, `InferenceResult`, `InferenceUsage`, `StructuredToolCall`, `TokenProb`, `TokenProbability`, `compute_confidence()`, `RegistryEntry`, `RegistryError`, `RegistryIndex`, `Skill`, `SkillRegistryIndex`, `SkillZone`, `ToolInfo`, `ToolPort`, `ToolPortError`, `WalletBudgetError`, `WalletBudgetPort`.
 
 **Feature Flags:** None. Core dependency.
 
@@ -1009,7 +1004,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 | `regulation` | `RegulationContext` — Regulation context (runtime, cybernetics, loops, events, energy, tool_stats) |
 | `reg_store_slo_provider` | `RegStoreSloProvider` — SLO data provider backed by `RegulationArchive` |
 | `governance` | `GovernanceContext` — OCAP, consent, dispatch, A2A, escalations, curation signals |
-| `infra` | `InfraContext` — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas calibration, federation |
+| `infra` | `InfraContext` — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas calibration |
 | `mcp_server_guard` | MCP server guard integration |
 | `storage` | `StorageContext` — registry, goals, agents, users, sovereignty boundaries, wallet store |
 
@@ -1019,7 +1014,7 @@ hKask context service — AgentService, PerAgentMemory, loop construction.
 
 | Field | Type | Purpose |
 |-------|------|---------|
-| `infra` | `InfraContext` | Infrastructure — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas, federation |
+| `infra` | `InfraContext` | Infrastructure — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas |
 | `governance` | `GovernanceContext` | Governance — OCAP, consent, dispatch, A2A, escalations |
 | `ledger` | `RegulationContext` | Regulation — variety sensing, regulation, loops, events, energy estimation |
 | `storage` | `StorageContext` | Storage — registry, goals, agents, users, sovereignty, wallet store |
@@ -1253,28 +1248,6 @@ PKO (Procedural Knowledge Ontology) bridge — shared by kanban, docproc, and re
 
 ---
 
-### hkask-federation
-
-Federation CRDT sync, link lifecycle, and merged registries for hKask.
-
-**Public Modules:**
-
-| Module | Purpose |
-|--------|---------|
-| `crdt` | CRDT implementation for agent state sync |
-| `service` | Federation service — orchestrates link lifecycle and sync operations |
-| `sync` | Sync protocol — message exchange and state reconciliation |
-| `reg_span` | Regulation span emission for federation events |
-
-**Key Public Types:** `FederationDispatch` (trait from `hkask-ports`), `FederationMessage`, `FederationResponse`, `FederationDispatchError`, `FederationLink`, `LinkResolution`, `CrdtSyncResult`, `ReplicaId` (re-exported).
-
-**Link Lifecycle:** Discover → Connect → Sync → Maintain.
-
-**Feature Flags:** None.
-
----
-
-### hkask-repl (tui feature module)
 
 Terminal UI workspace for hKask — multi-window agent interface.
 

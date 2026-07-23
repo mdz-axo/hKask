@@ -156,7 +156,6 @@ pub struct SetPoints {
     pub seam_coverage_min: f64,
     pub fed_sync_latency_warning_ms: u64,
     pub fed_sync_latency_critical_ms: u64,
-    pub fed_crdt_divergence_warning_factor: f64,
     pub fed_link_downtime_warning_secs: u64,
     pub fed_link_downtime_critical_secs: u64,
     /// Maximum pause duration before Regulation escalation (hours). Default: 24.
@@ -232,7 +231,6 @@ pub struct SetPointsConfig {
     pub seam_coverage_min: Option<f64>,
     pub fed_sync_latency_warning_ms: Option<u64>,
     pub fed_sync_latency_critical_ms: Option<u64>,
-    pub fed_crdt_divergence_warning_factor: Option<f64>,
     pub fed_link_downtime_warning_secs: Option<u64>,
     pub fed_link_downtime_critical_secs: Option<u64>,
     pub fed_max_pause_duration_hours: Option<u64>,
@@ -280,7 +278,6 @@ impl Default for SetPoints {
             seam_coverage_min: DEFAULT_SEAM_COVERAGE_MIN,
             fed_sync_latency_warning_ms: 5000,
             fed_sync_latency_critical_ms: 30000,
-            fed_crdt_divergence_warning_factor: 2.0,
             fed_link_downtime_warning_secs: 3600,
             fed_link_downtime_critical_secs: 86400,
             fed_max_pause_duration_hours: 24,
@@ -331,9 +328,6 @@ impl SetPoints {
             fed_sync_latency_critical_ms: config
                 .fed_sync_latency_critical_ms
                 .unwrap_or(defaults.fed_sync_latency_critical_ms),
-            fed_crdt_divergence_warning_factor: config
-                .fed_crdt_divergence_warning_factor
-                .unwrap_or(defaults.fed_crdt_divergence_warning_factor),
             fed_link_downtime_warning_secs: config
                 .fed_link_downtime_warning_secs
                 .unwrap_or(defaults.fed_link_downtime_warning_secs),

@@ -19,15 +19,12 @@
 
 ---
 
-### OQ-2: Federation Documentation Scope ✅
 
 **MDS Category:** Composition  
 **Status:** **Resolved — Active in v0.31.0**  
 **Resolution Date:** 2026-05-29 | **Revision Date:** 2026-06-30
 
-Federation is implemented in v0.31.0 as the `hkask-federation` crate, but is **opt-in infrastructure** post-pivot — not a primary user surface. The primary surface is `kask chat` with skills, MCP servers, and LLM access for human users.
 
-**Rationale:** Federation was initially deferred as exceeding the essential architecture scope. The `hkask-federation` crate provides discovery, resource negotiation, and capability composition across independent hKask instances. Post-pivot (v0.31.0), federation supports the human user's experience rather than being the headline use case; the former `FEDERATION_V2.md` proposal has been withdrawn (content folded into `explanation/federation-and-transport.md`).
 
 ---
 
@@ -196,7 +193,6 @@ Federation is implemented in v0.31.0 as the `hkask-federation` crate, but is **o
 | OQ | Status | Decision | Date |
 |----|--------|----------|------|
 | OQ-1 | Resolved | Remove `kask` CLI surface references | 2026-05-29 |
-| OQ-2 | Resolved | Document federation as deferred | 2026-05-29 |
 | OQ-3 | Resolved | Catalog + per-crate README | 2026-05-29 |
 | OQ-4 | Resolved | Manual Mermaid (current) | 2026-05-29 |
 | OQ-5 | Resolved | CI checks active | 2026-05-29 |

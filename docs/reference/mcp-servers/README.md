@@ -22,7 +22,6 @@ Built-in MCP servers shipped with hKask. Each server is a thin surface over doma
 | Research | `mcp-servers/hkask-mcp-research` | Web search, extraction, browsing, RSS feeds | 17 | `hkask-services-research` |
 | [Skill](skill-server.md) | `mcp-servers/hkask-mcp-skill` | Skill registry access (list, execute) | 3 | — |
 | Training | `mcp-servers/hkask-mcp-training` | LoRA training pipeline | — | — |
-| Communication | `mcp-servers/hkask-mcp-communication` | Federation messaging | — | — |
 | Condenser | `mcp-servers/hkask-mcp-condenser` | Context condensation | — | — |
 
 ## Common Patterns

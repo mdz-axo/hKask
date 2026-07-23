@@ -20,7 +20,7 @@ mds_categories: [domain, composition, trust, lifecycle, curation]
 
 **Primary user story:** A user runs `kask tui` (locally, or via the cloud server's xterm.js/WSS surface). On first run, onboarding creates their single userpod (identity, passphrase, provider key, model). Subsequent runs drop straight into a chat session with skills, MCP tools, and multi-provider inference - under their own userpod's authority and consent.
 
-**What hKask is not:** an agent platform, an agent framework, or a public multi-tenant SaaS. There is no autonomous agent loop by default; the human is in the loop and skills escalate *to the user*, not away from them. The Curator is the system's cybernetic regulator (VSM S4), not an autonomous agent. An install serves a defined group via OAuth + invite - not arbitrary public sign-up. Pods, federation, Matrix, wallet, and ledger are the container's plumbing, not the point.
+**What hKask is not:** an agent platform, an agent framework, or a public multi-tenant SaaS. There is no autonomous agent loop by default; the human is in the loop and skills escalate *to the user*, not away from them. The Curator is the system's cybernetic regulator (VSM S4), not an autonomous agent. An install serves a defined group via OAuth + invite - not arbitrary public sign-up. Pods, Matrix, wallet, and ledger are the container's plumbing, not the point.
 
 ---
 
@@ -126,7 +126,7 @@ Sensor (MCP dispatch, Regulation spans) → Model (VarietyTracker, ν-event stor
 - **Variety is the core metric.** Ashby's Law: `VarietyTracker` counts distinct states per domain over 60s window. Deficit = expected − observed. Drives all escalation.
 - **Energy tracking subsumed rate limiting.** Least action principle as infrastructure: every operation costs gas (action in configuration space). Budget cap = max action per session.
 - **Algedonic pathway is unidirectional.** Cybernetics *signals* Curation via alerts; Curation *regulates* Cybernetics through `CuratorDirective::CalibrateThreshold` on a direct `mpsc` channel → `RegulationLedger::calibrate_threshold()`.
-- **94 canonical Regulation span variants (v0.31.0).** Every dimension observable: tools (16 MCP servers including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, federation (14 spans), QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/regulation.rs` for the authoritative registry.
+- **94 canonical Regulation span variants (v0.31.0).** Every dimension observable: tools (16 MCP servers including Curator), inference, agent pods, gas, curation, sovereignty (5 spans for consent, portability, governance transparency), specs, chat, memory, wallet (10 sub-spans), architecture (seam coverage/drift), contracts (6 spans), ACP (userpod memory, IDE connection), SLOs, kata, skills, QA (4 spans), healing, sessions, backup (3 spans), storage, media, codegraph (2 spans for index staleness and context efficiency), platform metrics (11 spans for PaaP/DORA/SPACE/Loyalty), regulation (4 spans for impact verification, action substitution, action blocking, regulatory plateau detection). See `RegulationSpan` enum in `crates/hkask-types/src/regulation.rs` for the authoritative registry.
 - **Good Regulator contract enforced.** Regulation variety counter IS the regulator's model. `DefaultSpecCurator` detects spec drift (model-reality divergence).
 - **Regulation is policy-driven.** `RegulationPolicy` consolidates `(metric, deviation) → (actions, thresholds)` into a pure-data type. Each `RegulationRule` defines a substitution ladder, stage/block thresholds, and stagnation detection — replacing the former scattered `classify_decision` and `default_substitution_ladder` free functions.
 - **Sensor providers are pluggable (Fermi Extractor pattern).** `Sensor` trait decouples metric sensing from the regulation loop. `SensorRegistry` holds providers; `CyberneticsLoop::sense()` walks them. Current providers: `EnergyBudgetSensor`, `VarietySensor`, `WalletKeyHealthSensor`.
@@ -1591,8 +1591,6 @@ docs/architecture/
 ├── database-providers.md                       # Database provider comparison
 ├── matrix-integration-architecture.md          # Matrix transport, Conduit
 ├── well-wallet-architecture.md                 # Wallet architecture
-├── federation/
-│   └── FEDERATION_V2.md                        # Federation v2 spec
 ├── core/
 │   ├── magna-carta.md                          # Foundation (4 principles)
 │   ├── PRINCIPLES.md                           # P1-P12 incl. dual-axis framework
@@ -1617,7 +1615,7 @@ docs/architecture/
 │   └── ADR-048-regulation-type-decomposition.md       # Active
 ```
 
-**Active on disk (2026-07-09):** 8 core files + 5 root files + 13 ADRs + 1 federation = 27 documents.
+**Active on disk (2026-07-09):** 8 core files + 5 root files + 13 ADRs = 26 documents.
 
 **Merged into this document (2026-06-24):** loop-architecture.md, energy-gas-payments-api-keys.md, self-healing.md, provider-intelligence.md. Pod and Curator content absorbed from SOLID_POD_ISOMORPHISM, MULTI_POD_ARCHITECTURE, and hKask-Curator-persona.
 
@@ -1880,10 +1878,8 @@ matrix.example.com {
 |---------|---------|-------|
 | `server_name` | From `--domain` flag (e.g., `matrix.example.com`) | |
 | `allow_registration` | `true` | Admin can disable after creating human accounts |
-| `allow_federation` | `false` | Opt-in only — admin changes to `true` if needed |
 | `admin_token` | Random 64-char hex string | `hkask-keystore` stores it; `kask matrix register` uses it |
 | `well_known_client` | `https://matrix.example.com` | Conduit serves it, Caddy proxies it |
-| `well_known_server` | `matrix.example.com:443` | Only set if federation enabled |
 | `max_request_size` | `20_000_000` (20 MB) | Conduit default |
 | `db_path` | `/var/lib/conduit/conduit.db` | Docker volume mount |
 | `log_level` | `info` | |
@@ -1900,7 +1896,6 @@ matrix.example.com {
 | **Disk** | ~20 MB binary | ~100 MB + Python deps |
 | **Database** | SQLite (single file) | PostgreSQL (separate service) |
 | **Docker complexity** | 1 container | 2+ containers (Synapse + Postgres) |
-| **Federation support** | Full Matrix 1.18 spec | Full Matrix spec |
 | **Maturity** | Production-ready, growing | Battle-tested, 10+ years |
 | **Rust-native** | Yes — same language as hKask | Python + Rust extensions |
 | **Sidecar total (with Caddy + Hydrogen)** | ~95 MB (Caddy ~20 MB + Conduit ~50 MB + Hydrogen ~5 MB + overhead) | ~700 MB (Synapse ~500 MB + Postgres ~200 MB + Element Web ~200 MB) |
@@ -2393,64 +2388,6 @@ verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.r
 status: VERIFIED
 -->
 
-### 3.4 Agent-to-Agent (A2A) Flow — Cross-Install via Federation
-
-Two agents on different hKask installs communicate. This requires Matrix federation between their respective Conduit homeservers.
-
-```mermaid
-sequenceDiagram
-    participant Cu1 as Curator<br/>(Install A)
-    participant A1 as Agent Alpha<br/>(Install A)
-    participant M1 as MCP Server<br/>(Install A)
-    participant C1 as Conduit<br/>(Install A)
-    participant C2 as Conduit<br/>(Install B)
-    participant M2 as MCP Server<br/>(Install B)
-    participant Cu2 as Curator<br/>(Install B)
-    participant A2 as Agent Beta<br/>(Install B)
-
-    Note over Cu1: Curator activates Alpha
-
-    Cu1->>A1: Activate: "Query Beta for weather data"
-    
-    A1->>A1: execute_turn() → decides to message Beta
-    
-    A1->>M1: send_message(room: #alpha-beta:install-a.example.com,<br/>payload: "Request: weather forecast for Berlin")
-    
-    M1->>C1: PUT /_matrix/client/v3/rooms/{roomId}/send/m.room.message
-    
-    C1->>C2: Federation: PUT /_matrix/federation/v1/send/{txnId}
-    
-    Note over C1,C2: E2EE: message body is Megolm-encrypted.<br/>Homeservers see only ciphertext.
-    
-    C2->>M2: /sync event: message in #alpha-beta:install-b.example.com
-    
-    M2->>M2: Decrypt Megolm → verify sender Ed25519<br/>→ translate to TurnRequest
-    
-    M2->>Cu2: route_turn(beta, TurnRequest { input: "Request: weather forecast for Berlin" })
-    
-    Note over Cu2: Next curation cycle
-    
-    Cu2->>A2: Activate Beta with Alpha's request
-    
-    A2->>A2: execute_turn() → tool call: weather API → inference
-    
-    A2-->>Cu2: Response: "Berlin: 22°C, partly cloudy"
-    
-    Cu2->>M2: send_message(room, response)
-    M2->>C2: PUT /_matrix/client/v3/.../send/m.room.message
-    C2->>C1: Federation send
-    C1->>M1: /sync event: Beta's response
-    M1->>Cu1: route response to Alpha
-    Cu1->>A1: Deliver response
-```
-<!-- DIAGRAM_ALIGNMENT
-id: DIAG-MASTER-012
-verified_date: 2026-07-12
-verified_against: crates/hkask-regulation/src/lib.rs, crates/hkask-mcp/src/lib.rs
-status: VERIFIED
--->
-
-### 3.5 The Inbox/REPL Equivalence
 
 The "inbox" and the "REPL" are the same conversation viewed from different architectural layers:
 
@@ -2656,7 +2593,6 @@ The external server approach. Embedding a homeserver adds:
 - Conduit's entire dependency tree to hKask's build
 - Homeserver lifecycle management to the daemon
 - Database management for the homeserver
-- Federation configuration surface
 
 All of this is complexity hKask doesn't need to own. The sidecar approach keeps Conduit as a separate Docker container, managed by the user, with hKask providing config generation and health-check tooling. This is the brachistochrone — it looks like more pieces (two containers instead of one process) but it's actually the path of least total system action because it avoids entangling homeserver concerns into hKask's domain.
 
@@ -3312,10 +3248,8 @@ Caddy auto-handles TLS, `/.well-known` delegation, and reverse proxying in a sin
 |---------|---------|-------|
 | `server_name` | `matrix.example.com` (from `--domain` flag) | |
 | `allow_registration` | `true` | User can disable after setup |
-| `allow_federation` | `false` | Opt-in only |
 | `admin_token` | Random 64-char hex string | Stored in hkask-keystore |
 | `well_known_client` | `https://matrix.example.com` | |
-| `well_known_server` | `matrix.example.com:443` | Only if federation enabled |
 | `max_request_size` | `20_000_000` (20 MB) | Default Conduit value |
 | `db_path` | `/var/lib/conduit/conduit.db` | Docker volume mount |
 | `log_level` | `info` | |
@@ -3410,7 +3344,6 @@ All are Warning level — E2EE errors are operational noise, not Critical unless
 kask matrix deploy-sidecar --domain matrix.example.com
 # Verify: ~/.config/hkask/sidecar/ contains docker-compose.yml, Caddyfile, conduit.toml
 # Verify: docker-compose.yml references caddy:2-alpine, conduit:0.9.0
-# Verify: conduit.toml has allow_registration=true, allow_federation=false
 # Verify: admin token is 64 hex chars, stored in OS keychain as HKASK_MATRIX_ADMIN_TOKEN
 ```
 
@@ -3868,7 +3801,6 @@ When MCP client support is added:
 
 ---
 
-## Federation V2 (Merged from federation/FEDERATION_V2.md)
 
 
 # hKask Federation v2 — Curator-CRDT Federation Design

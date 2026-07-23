@@ -148,12 +148,8 @@ Phase 2 — HMem CRDT + Tier 2 Event Log (months)
 ├── K8s: N replicas for HMem + Tier 2 stores; leader-follower for Tier 3
 └── New: custom OR-Set crate for HMem, Matrix sync adapter per store tier
 
-Phase 3 — Distributed Agents + Federation (beyond)
 ├── Agents get their own pods with per-agent HMem CRDT stores
-├── Curator federation via Matrix (cross-instance room sync)
-├── OCAP chains span instances via federated trust model
 ├── Per-agent wallet stays agent-local (no cross-pod wallet sync)
-└── New: federated trust model, cross-instance delegation tokens
 ```
 
 ### 1.6 What Changes Per Phase
@@ -168,8 +164,6 @@ Phase 3 — Distributed Agents + Federation (beyond)
 | Sync transport | None (single writer) | Litestream WAL shipping | Matrix rooms (per-tier) | Matrix federation |
 | Deployment | 1 replica, RWO PVC | 1 writer + N readers | N HMem replicas + Tier 3 leader-follower | N curator + M agent pods |
 | K8s scaling | Not supported | Read scaling only | Full horizontal scaling (HMem + Tier 2) | Full horizontal scaling |
-| Federation | N/A | N/A | Same-instance pods | Cross-instance curator sync |
-| OCAP authority | Single root | Single root | Per-instance roots, delegated | Federated trust model |
 
 ---
 
@@ -374,7 +368,6 @@ The **dampener pattern** from the existing Regulation applies: each loop has a m
 | **C — Curator-Mediated Loops** | Wire Curator assessment pipeline for Budget Guard, Variety Deficit, Pod Health Escalation | Phase B | 2–3 weeks |
 | **D — CRDT Prototype** | Custom OR-Set triple store, Matrix sync transport, dual-write with SQLite fallback | Phase C | 4–6 weeks |
 | **E — CRDT Migration** | Replace Litestream with CRDT replication, enable multi-replica K8s deployment | Phase D | 2–3 weeks |
-| **F — Distributed Agents** | Per-agent CRDT stores, curator federation, cross-instance OCAP | Phase E | Beyond current plan horizon |
 
 ---
 

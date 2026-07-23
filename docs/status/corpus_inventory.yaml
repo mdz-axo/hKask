@@ -241,8 +241,6 @@ documents:
         code_artifacts: [crates/hkask-types, crates/hkask-ports, crates/hkask-regulation]
     disposition: keep
 
-  # ── Architecture — Federation ─────────────────────────────────────────────
-  - path: docs/architecture/federation/FEDERATION_V2.md
     category: architecture
     status: Draft
     last_updated: 2026-06-30
@@ -250,7 +248,6 @@ documents:
     mds_categories: [domain, composition, trust, lifecycle, curation]
     staleness_signal: none
     drift_verdict: aligned
-    code_artifacts: [crates/hkask-federation, crates/hkask-communication]
     disposition: keep
 
   # ── Diagrams ──────────────────────────────────────────────────────────────
@@ -434,7 +431,6 @@ documents:
     mds_categories: [domain, composition, trust, curation]
     staleness_signal: none
     drift_verdict: na
-    code_artifacts: [crates/hkask-federation]
     disposition: keep
 
   # ── Specifications ────────────────────────────────────────────────────────

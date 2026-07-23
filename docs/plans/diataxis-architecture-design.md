@@ -90,7 +90,6 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 ### 4.1 Crate API Reference (22 documents)
 
 `docs/reference/api/hkask-types.md` — ID types, RegulationRecord, ObservableSpan, visibility, error types
-`docs/reference/api/hkask-ports.md` — Hexagonal port traits: InferencePort, ToolPort, LedgerObserver, FederationDispatch
 `docs/reference/api/hkask-regulation.md` — RegulationLedger, CyberneticsLoop, GovernedTool, SetPoints, GasBudget
 `docs/reference/api/hkask-mcp.md` — MCP runtime, dispatch, DaemonClient, `bootstrap_mcp_server`, `mcp_server!`
 `docs/reference/api/hkask-mcp-codegraph.md` — Symbol, Edge, IndexPipeline, AssembledContext (10 MCP tools)
@@ -110,7 +109,6 @@ Neutral, complete, descriptive-only. No procedures, no opinions — only what IS
 `docs/reference/api/hkask-improv.md` — ImprovSkill, ImprovMode, ImprovCascade
 `docs/reference/api/hkask-condenser.md` — CondenserEngine, CompressedOutput, health signals
 `docs/reference/api/hkask-communication.md` — MatrixTransport, AgentRegistry, 7R7 listener
-`docs/reference/api/hkask-federation.md` — FederationDispatch, CRDT sync
 `docs/reference/api/hkask-acp.md` — HkaskAcpAgent, AcpError
 
 ### 4.2 Skill/Template/Bundle Registry
@@ -158,7 +156,6 @@ Background, context, design decisions. "This design exists because…"
 | `docs/explanation/database-driver-abstraction.md` | Database driver abstraction — SQLite/SQLCipher/PostgreSQL, connection pooling | Core |
 | `docs/explanation/skill-pdca-model.md` | Skill PDCA model — FlowDef, convergence, gas budget, loop actions | Core |
 | `docs/explanation/loom-and-thread.md` | The Loom and the Thread — Rust vs YAML/Jinja2, fixed vs mutable layers | Core |
-| `docs/explanation/federation-model.md` | Federation model — CRDT sync, link lifecycle, merged registries | Core |
 
 ### 5.2 ADR Archive
 
@@ -220,7 +217,6 @@ docs/
 │   │   ├── hkask-improv.md
 │   │   ├── hkask-condenser.md
 │   │   ├── hkask-communication.md
-│   │   ├── hkask-federation.md
 │   │   └── hkask-acp.md
 │   ├── skills/
 │   │   ├── README.md
@@ -249,7 +245,6 @@ docs/
 │   ├── database-driver-abstraction.md
 │   ├── skill-pdca-model.md
 │   ├── loom-and-thread.md
-│   └── federation-model.md
 ├── architecture/          (existing — ADRs, principles, magna carta)
 ├── diagrams/              (existing — 32 Mermaid diagrams)
 ├── specifications/        (existing — DOCUMENTATION_STANDARDS, REQUIREMENTS, REPL, wallet, salience)

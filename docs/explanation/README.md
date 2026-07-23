@@ -12,7 +12,6 @@ mds_categories: [domain, curation]
 
 Background, context, and reasoning for hKask's design. "This design exists because…"
 
-Seven guides cover architecture patterns, the terminal UI boundary, cybernetic regulation, sovereignty enforcement, federation, resource economics, and cognition.
 
 | Guide | Topics | Domain Tier |
 |-------|-------|-------------|
@@ -20,7 +19,6 @@ Seven guides cover architecture patterns, the terminal UI boundary, cybernetic r
 | [Terminal UI Architecture](tui-architecture.md) | Ratatui workspace ownership, CLI→REPL→TUI bridge wiring, current implementation status, adversarial architecture findings, and componentized improvement order. | Domain supplement |
 | [Regulation and Loops](regulation-and-loops.md) | Regulation homeostatic loop (sense→compare→compute→act→verify), skill PDCA model (FlowDef manifests, convergence contracts), Curator metacognition (CurationLoop + MetacognitionLoop), bug hunting methodology (Weinberg, Beizer, Hendrickson), QA system (YAML manifests, LLM classification, Regulation spans). | Core |
 | [Sovereignty and OCAP](sovereignty-and-ocap.md) | Object Capability MCP dispatch (DelegationToken, GovernedTool 6-step membrane, fail-closed semantics), Diataxis quality review (diagram audit gates, OWASP anchoring). | Core |
-| [Federation and Transport](federation-and-transport.md) | Cross-instance federation protocol, FederationDispatch lifecycle (register→invite→accept→pause→revoke→leave→dissolve), CRDT-based sync, merged registries, sovereignty guarantees. | Core |
 | [Energy and Economy](energy-and-economy.md) | Gas system (GasBudget, Well, WalletManager, rJoule), double-entry ledger, database driver abstraction (SQLite/PostgreSQL, SQLCipher, column-level encryption), LoRA adapter store lifecycle (AdapterStore, AdapterRouter, EndpointLifecycle, provider selection). | Core |
 | [Cognition and Replica](cognition-and-replica.md) | Fusion system design recommendations (multi-model deliberation), scenario forecasting (Schwartz + Tetlock + Chermack pipeline), ν-event semantics (ObservableSpan, RegulationRecord, CANONICAL_NAMESPACES, decay-weighted replay), Companies MCP server (41 tools, DCF valuation, forecast feedback, portfolio ledger). | Core |
 

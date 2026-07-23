@@ -11,7 +11,7 @@ last-verified-against: "a5db25a0"
 
 ## 1. Purpose
 
-Regulation spans are the observability substrate of hKask's Cybernetic Nervous System (Loop 6). Every operation that affects system state — tool invocations, inference calls, gas consumption, contract lifecycle events, federation sync — emits a **span** through the Regulation tracing infrastructure.
+Regulation spans are the observability substrate of hKask's Cybernetic Nervous System (Loop 6). Every operation that affects system state — tool invocations, inference calls, gas consumption, contract lifecycle events — emits a **span** through the Regulation tracing infrastructure.
 
 A **span** is a typed identifier that pins an observation to a canonical dot-separated namespace (e.g., `reg.tool.web_search`). Spans carry an **operation** verb (e.g., `invoked`, `completed`, `reserved`) and optional structured fields. They flow through two paths:
 
@@ -157,15 +157,6 @@ Monitors architectural seam health — the boundaries where Strangler Fig migrat
 
 **Algedonic threshold:** SLO breach escalations are handled by `RegulationLedger` via `reg.slo.breach_escalated` (emitted as a tracing event, not a typed span variant). Severity is `Critical` if the SLO's `Severity` field is `Critical`.
 
-### 3.9 FederationSpan — Federation Operations
-
-**File:** `crates/hkask-federation/src/reg_span.rs`
-
-19 variants covering the full federation lifecycle: `CrdtMerge`, `LinkEstablished`, `LinkLost`, `LinkDegraded`, `MemberLeft`, `InviteSent`, `InviteReceived`, `InviteAccepted`, `InviteRejected`, `InviteExpired`, `LinkPaused`, `LinkResumed`, `MemberRevoked`, `Dissolved`, `RegistrySync`, `ArtifactSync`, `ConduitRoute`, `ConduitRouteLost`, `CrdtConflict`.
-
-All namespaced under `reg.federation.*`. Federation span strings must match `CANONICAL_NAMESPACES` (validated in tests).
-
-### 3.10 WalletSpan — Wallet Operations
 
 **File:** `crates/hkask-wallet/src/reg_span.rs`
 

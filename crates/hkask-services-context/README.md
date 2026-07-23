@@ -14,13 +14,13 @@ Assembles all shared infrastructure into four sub-contexts.
 | `GovernanceContext` | OCAP, consent, dispatch, A2A, escalations, curation |
 | `RegulationContext` | Variety sensing, cybernetics, loops, events, energy |
 | `StorageContext` | Registry, goals, specs, agents, users, sovereignty, wallet |
-| `InfraContext` | Inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas, federation |
+| `InfraContext` | Inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas |
 
 ## AgentService Composition
 
 ```
 AgentService
-├── infra: InfraContext          (11 fields — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas, federation)
+├── infra: InfraContext          (11 fields — inference, memory, MCP, pods, wallet, daemon, matrix, seams, gas)
 ├── governance: GovernanceContext (6 fields — checker, consent, dispatcher, a2a, escalations, curation_tx)
 ├── ledger: RegulationContext    (5 fields — runtime, cybernetics, loops, events, energy)
 ├── storage: StorageContext      (7 fields — registry, goals, specs, agents, users, sovereignty, wallet)
@@ -48,4 +48,4 @@ AgentService
 Directly depends on: `hkask-pods`, `hkask-regulation`, `hkask-mcp`, `hkask-memory`,
 `hkask-storage`, `hkask-templates`, `hkask-types`, `hkask-wallet`, `hkask-wallet-types`,
 `hkask-services-core`, `hkask-services-runtime`, `hkask-services-wallet`,
-`hkask-capability`, `hkask-ports`, `hkask-federation`
+`hkask-capability`, `hkask-ports`, `hkask-`

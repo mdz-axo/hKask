@@ -17,7 +17,7 @@ The CLI does not expose side-doors to MCP tools.
 | `daemon` (start/status/stop), `serve`, `matrix` (deploy/register/status) | Startup |
 | `userpod` (register/login/logout/sessions/list/show/rename/delete/invite) | User lifecycle |
 | `backup`, `git`, `export`, `repair` | Storage admin |
-| `federation`, `token`, `wallet` | Admin |
+| , `token`, `wallet` | Admin |
 | `deploy init --domain` | Remote cluster bootstrap (K3s/Hetzner) |
 | `pod` (export-container, export-k8s) | Deployment artifact generation |
 | `sovereignty verify` | Magna Carta structural audit |

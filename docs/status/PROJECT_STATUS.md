@@ -318,7 +318,6 @@ See [`docs/status/corpus_inventory.yaml`](corpus_inventory.yaml).
 | LOW | Regulation span formal registration in Regulation registry | Deferred — spans emit via tracing, functional but not registered |
 | LOW | `kask matrix listen` (continuous sync for VOIP/real-time) | Deferred until use case exists |
 | v2 | E2EE integration (Olm/Megolm, CryptoStore against hkask-keystore) | Blocked by SQLCipher/SQLite linking conflict |
-| v2 | Cross-installation agent-to-agent communication via federation | Requires E2EE + continuous sync |
 
 ### Citation Audit (2026-06-11)
 
