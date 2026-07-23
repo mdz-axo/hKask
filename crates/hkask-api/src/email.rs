@@ -279,6 +279,13 @@ pub async fn fetch_unread() -> EmailResult<Vec<InboundEmail>> {
                 uid,
             });
         }
+        drop(fetch_stream);
+
+        // Mark fetched messages as seen (PEEK avoided auto-marking during fetch).
+        let _ = session
+            .uid_store(&uid_set, "+FLAGS (\\Seen)")
+            .await
+            .map_err(|e| EmailError::Imap(format!("store seen: {e}")))?;
     }
 
     let _ = session.logout().await;
