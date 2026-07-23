@@ -61,7 +61,6 @@ pub struct ChatRequest {
     pub stream: Option<bool>,
     #[serde(default = "default_enable_thinking", skip_serializing_if = "is_true")]
     pub enable_thinking: bool,
-    ///
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chat_template_kwargs: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -69,7 +68,6 @@ pub struct ChatRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<String>,
 }
-///
 
 /// Build an OpenAI-compatible chat completion request from an explicit message
 /// array.

@@ -442,7 +442,7 @@ fn run_turn_with_state(
         agent_webid: state.agent_webid,
     };
     // Run manifest cascade once before the turn loop (not per-iteration).
-    let effective_input = if let (Some(ref exec), Some(ref manif)) = (
+    let effective_input = if let (Some(exec), Some(manif)) = (
         state.manifest_state.as_ref().map(|c| &c.executor),
         state.manifest_state.as_ref().map(|c| &c.manifest),
     ) {

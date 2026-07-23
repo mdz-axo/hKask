@@ -67,6 +67,27 @@ pub struct TurnConfig {
 #[async_trait::async_trait]
 pub trait TurnExecutor: Send + Sync {
     async fn execute_turn(&self, input: &TurnInput<'_>) -> Result<TurnResult, ServiceError>;
+
+    /// Streaming variant — yields text deltas as they arrive, then a final Done chunk.
+    /// Default: non-streaming (single Done chunk from execute_turn).
+    fn execute_turn_streaming<'a>(
+        &'a self,
+        input: &TurnInput<'a>,
+    ) -> Pin<Box<dyn futures_util::Stream<Item = Result<TurnStreamChunk, ServiceError>> + Send + 'a>> {
+        Box::pin(futures_util::stream::once(async move {
+            let result = self.execute_turn(input).await?;
+            Ok(TurnStreamChunk::Done(result))
+        }))
+    }
+}
+
+/// A chunk from a streaming inference turn.
+#[derive(Debug, Clone)]
+pub enum TurnStreamChunk {
+    /// Incremental text delta from the LLM.
+    Delta(String),
+    /// Final result — contains the complete text, usage, tool calls, and messages.
+    Done(TurnResult),
 }
 
 /// Reserve and settle gas for inference.

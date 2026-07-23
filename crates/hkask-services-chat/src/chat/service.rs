@@ -727,8 +727,8 @@ impl ChatService {
     pub async fn execute_turn(
         ctx: &AgentService,
         req: &TurnRequest,
-        manifest_executor: Option<&hkask_templates::ManifestExecutor>,
-        process_manifest: Option<&hkask_templates::BundleManifest>,
+        _manifest_executor: Option<&hkask_templates::ManifestExecutor>,
+        _process_manifest: Option<&hkask_templates::BundleManifest>,
     ) -> Result<TurnResult, ServiceError> {
         // When pre-built messages are provided (turn-loop iterations 2+),
         // skip manifest cascade, thread history concatenation, auto-condensation,
