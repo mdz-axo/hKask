@@ -113,14 +113,15 @@ impl InferencePort for GuardedInferencePort {
         model_override: Option<&str>,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Future<Output = Result<InferenceResult, InferenceError>> + Send + '_>> {
-        for msg in messages {
+:       for msg in messages {
             let scan = self.guard.scan_input(&msg.content);
             if !scan.passed {
                 let msg_text = reject_msg(&scan.violations);
-                return Box::pin(async {
+                let role = msg.role.clone();
+                return Box::pin(async move {
                     Err(InferenceError::Generation(format!(
                         "role={}: {}",
-                        msg.role, msg_text
+                        role, msg_text
                     )))
                 });
             }
@@ -243,14 +244,15 @@ impl InferencePort for GuardedInferencePort {
         model_override: Option<&str>,
         tools: Option<&[ChatToolDefinition]>,
     ) -> Pin<Box<dyn Stream<Item = Result<InferenceStreamChunk, InferenceError>> + Send + '_>> {
-        for msg in messages {
+:       for msg in messages {
             let scan = self.guard.scan_input(&msg.content);
             if !scan.passed {
                 let msg_text = reject_msg(&scan.violations);
+                let role = msg.role.clone();
                 return Box::pin(futures_util::stream::once(async move {
                     Err(InferenceError::Generation(format!(
                         "role={}: {}",
-                        msg.role, msg_text
+                        role, msg_text
                     )))
                 }));
             }
