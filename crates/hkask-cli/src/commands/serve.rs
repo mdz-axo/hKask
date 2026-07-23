@@ -31,11 +31,13 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
     })?;
 
     // Build AgentService with all shared infrastructure
-    let ctx = hkask_services_context::AgentService::build(config)
+    let email_sink = hkask_api::email::CuratorAlertEmailSink::try_from_env();
+    let ctx = hkask_services_context::AgentService::build_with_email(config, email_sink)
         .await
         .map_err(|e| {
             Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
         })?;
+    hkask_api::email::wire_inbox_poller(&ctx, 60);
 
     // Start API MCP servers on the AgentService's runtime.
     // Derived from hkask_mcp_server::BUILTIN_SERVERS (canonical registry).

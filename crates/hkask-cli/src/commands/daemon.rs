@@ -72,11 +72,11 @@ async fn run_daemon() -> Result<(), CliError> {
 
     // Try build — if wallet fails, retry with in-memory config (wallet is
     // optional for the daemon; the DB is not).
-    let ctx = match hkask_services_context::AgentService::build(config).await {
+    let ctx = match hkask_services_context::AgentService::build_with_email(config, hkask_api::email::CuratorAlertEmailSink::try_from_env()).await {
         Ok(ctx) => ctx,
         Err(e) => {
             tracing::warn!(target: "hkask.daemon", error = %e, "Build with env config failed, retrying in-memory");
-            hkask_services_context::AgentService::build(
+            hkask_services_context::AgentService::build_with_email(
                 hkask_services_core::ServiceConfig::in_memory(),
             )
             .await

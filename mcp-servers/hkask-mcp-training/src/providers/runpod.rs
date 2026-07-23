@@ -391,7 +391,7 @@ impl RunpodHost {
             "imageName: \"{}\"",
             Self::escape_graphql_string(image_name)
         ));
-        fields.push("cloudType: ALL".to_string());
+        fields.push("cloudType: SECURE".to_string());
         fields.push("startSsh: true".to_string());
 
         // Docker args (startup command) — read from RUNPOD_DOCKER_ARGS env var.

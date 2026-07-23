@@ -104,11 +104,13 @@ impl ApiState {
             hkask_services_core::ServiceConfig::from_env().map_err(|e| ApiError::Internal {
                 message: format!("Failed to resolve service config: {e}"),
             })?;
-        let ctx = hkask_services_context::AgentService::build(config)
+        let email_sink = crate::email::CuratorAlertEmailSink::try_from_env();
+        let ctx = hkask_services_context::AgentService::build_with_email(config, email_sink)
             .await
             .map_err(|e| ApiError::Internal {
                 message: format!("Failed to build service context: {e}"),
             })?;
+        crate::email::wire_inbox_poller(&ctx, 60);
         Self::from_service_context(ctx).await
     }
 

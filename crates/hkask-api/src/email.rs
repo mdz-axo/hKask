@@ -440,9 +440,74 @@ where
     });
 }
 
+/// Wire the inbox poller to an `AgentService`, dispatching email commands to
+/// the governance layer (resolve/dismiss escalations). The poller is a no-op
+/// when IMAP is not configured.
+///
+/// Call after `AgentService::build_with_email()` returns.
+pub fn wire_inbox_poller(ctx: &hkask_services_context::AgentService, poll_interval_secs: u64) {
+    let escalations = std::sync::Arc::clone(&ctx.governance().escalations);
+    let events = ctx.governance().events.clone();
+    let userpod = ctx.config().user_name.clone();
+
+    spawn_inbox_poller(poll_interval_secs, move |msg, cmd| match cmd {
+        EmailCommand::Resolve { escalation_id } => {
+            match hkask_services_context::governance::resolve_direct(
+                &escalations,
+                &events,
+                &escalation_id,
+                &userpod,
+            ) {
+                Ok(()) => tracing::info!(
+                    target = "reg.email.received",
+                    from = %msg.from,
+                    id = %escalation_id,
+                    "Escalation resolved via email command"
+                ),
+                Err(e) => tracing::warn!(
+                    target = "reg.email.received",
+                    error = %e,
+                    id = %escalation_id,
+                    "Email resolve command failed"
+                ),
+            }
+        }
+        EmailCommand::Dismiss { escalation_id } => {
+            match hkask_services_context::governance::dismiss_direct(
+                &escalations,
+                &events,
+                &escalation_id,
+                &userpod,
+            ) {
+                Ok(()) => tracing::info!(
+                    target = "reg.email.received",
+                    from = %msg.from,
+                    id = %escalation_id,
+                    "Escalation dismissed via email command"
+                ),
+                Err(e) => tracing::warn!(
+                    target = "reg.email.received",
+                    error = %e,
+                    id = %escalation_id,
+                    "Email dismiss command failed"
+                ),
+            }
+        }
+        EmailCommand::Unknown => {
+            tracing::debug!(
+                target = "reg.email.received",
+                from = %msg.from,
+                "No command parsed from email"
+            );
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Placeholder — real tests below.
 
     #[test]
     fn parse_command_resolve() {
