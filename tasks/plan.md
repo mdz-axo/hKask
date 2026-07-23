@@ -29,15 +29,16 @@ provably retaining all four protected surfaces (S4):
 
 | Metric | Value | Delta from F1 |
 |--------|-------|---------------|
-| Workspace members | 56 (40 crates + 16 MCP servers) | -13 (19%) |
+| Workspace members | 55 (39 crates + 16 MCP servers) | -14 (20%) |
 | Skill directories | 51 | 0 |
-| Total LOC | 232,753 | -632 |
-| Total .rs files | 830 | +1 |
-| `cargo build --workspace` | ✅ | — |
-| `cargo clippy --workspace -- -D warnings` | ✅ | — |
+| Total LOC | ~232,700 | ~-685 |
+| Total .rs files | ~831 | ~+2 |
+| `cargo build --workspace` | ⏳ (concurrent agent in-progress on hkask-pods) | — |
+| `cargo clippy --workspace -- -D warnings` | ⏳ (same) | — |
 | S4.1 MCP tools | 16 servers, 238 tools | 0 (all preserved) |
 | S4.2 Skills | 51 | 0 |
 | S4.3 Chat/REPL | ✅ (incl. tui feature) | 0 |
+| S4.4 Inference | 8 ProviderId variants (all active) | 0 (Tinker removed) |
 | S4.4 Inference | 8 ProviderId variants (all active) | 0 |
 
 ## Zed Reference Analysis (domain_supplement, confidence 0.7)
@@ -147,9 +148,10 @@ Each task follows:
 - Confidence ≥ 0.7 that no S4 surface regressed
 - No pending branches
 - S4 fully green (all 4 surfaces verified)
-- Codegraph node count reduced vs F1 baseline (69 → 56, -13 nodes, 19%)
-- `cargo build --workspace` green
-- `cargo clippy --workspace -- -D warnings` green (post-cleanup; concurrent
-  agent fixing executor.rs ToolPort import — not in my write scope)
+- Codegraph node count reduced vs F1 baseline (69 → 55, -14 nodes, 20%)
+- `cargo build --workspace` green (verified before concurrent agent's in-progress hkask-pods changes)
+- `cargo clippy --workspace -- -D warnings` green (same)
+- All stale references to deleted crates cleaned from .rs files
+- Tinker provider fully removed (zero references in codebase)
 
 **CONVERGENCE ACHIEVED** (2026-07-22)

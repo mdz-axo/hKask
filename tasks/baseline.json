@@ -1,13 +1,13 @@
 {
-  "description": "hKask codegraph final state measurement — post-consolidation (T1-T14)",
+  "description": "hKask codegraph final state measurement — post-consolidation (T1-T14 + Tinker removal + concurrent agent's federation removal/mcp-server extraction)",
   "timestamp": "2026-07-22",
-  "tree_state": "post-consolidation, cargo build --workspace green, CI scripts green",
+  "tree_state": "post-consolidation, concurrent agent in-progress on hkask-pods",
   "workspace": {
     "version": "0.31.0",
-    "total_workspace_members": 56,
-    "total_crates": 40,
+    "total_workspace_members": 55,
+    "total_crates": 39,
     "total_mcp_servers": 16,
-    "total_rust_loc": 232753,
+    "total_rust_loc": 232701,
     "mcp_server_loc": 66096
   },
   "codegraph_metrics": {

@@ -17,7 +17,6 @@
 //! ```text
 //! ObservableSpan (trait)
 //!   ├── RegulationSpan (canonical Regulation spans — hkask-types)
-//!   ├── FederationSpan (future: federation-specific spans — hkask-federation)
 //!   ├── WalletSpan (future: wallet-specific spans — hkask-wallet)
 //!   └── ... (per-domain span enums)
 //! ```rust,no_run

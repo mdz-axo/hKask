@@ -45,10 +45,6 @@ pub struct CuratorAgent {
     curation_loop: Arc<CurationLoop>,
     metacognition: Arc<metacognition::MetacognitionLoop>,
     context: Arc<CuratorContext>,
-    /// Federation link manager — set via `with_federation()`. Handles
-    /// InviteToFederation, PauseFederationLink, RevokeFederationMember,
-    /// LeaveFederation, and DissolveFederation directives.
-    link_manager: Option<Arc<dyn hkask_types::federation::FederationDispatch>>,
 }
 
 impl CuratorAgent {
@@ -78,7 +74,6 @@ impl CuratorAgent {
             curation_loop,
             metacognition,
             context,
-            link_manager: None,
         }
     }
 
@@ -107,7 +102,6 @@ impl CuratorAgent {
             curation_loop,
             metacognition,
             context,
-            link_manager: None,
         }
     }
 
@@ -149,7 +143,6 @@ impl CuratorAgent {
             curation_loop,
             metacognition,
             context,
-            link_manager: None,
         }
     }
 
@@ -183,14 +176,6 @@ impl CuratorAgent {
         &self.context
     }
 
-    /// Attach a FederationLinkManager for federation directive dispatch.
-    pub fn with_federation(
-        mut self,
-        link_manager: Arc<dyn hkask_types::federation::FederationDispatch>,
-    ) -> Self {
-        self.link_manager = Some(link_manager);
-        self
-    }
 
     /// Set communication posture for the metacognition loop (CAT framework).
     ///
@@ -205,74 +190,6 @@ impl CuratorAgent {
             agent_name,
         ));
         self
-    }
-
-    /// Dispatch a CuratorDirective to the federation link manager.
-    ///
-    /// Called by the CurationLoop (or CLI) when federation-related directives
-    /// need to be executed. Silently ignores directives that aren't federation-related.
-    pub async fn handle_federation_directive(
-        &self,
-        directive: &hkask_types::curator::CuratorDirective,
-    ) -> Result<(), hkask_types::federation::FederationDispatchError> {
-        use hkask_types::curator::CuratorDirective;
-        let lm = self.link_manager.as_ref().ok_or_else(|| {
-            hkask_types::federation::FederationDispatchError::OperationFailed(
-                "no federation link manager configured".into(),
-            )
-        })?;
-
-        match directive {
-            CuratorDirective::InviteToFederation {
-                peer_replica,
-                peer_server_domain,
-                peer_matrix_domain,
-                peer_curator_matrix_id,
-                message,
-            } => {
-                lm.register_peer(
-                    peer_replica.clone(),
-                    peer_server_domain.clone(),
-                    peer_matrix_domain.clone(),
-                    peer_curator_matrix_id.clone(),
-                )
-                .await;
-                lm.invite(peer_replica.clone(), message.clone()).await?;
-            }
-            CuratorDirective::AcceptFederationInvite { invitation_id } => {
-                // invitation_id is the replica ID of the inviter
-                lm.accept(invitation_id.clone()).await?;
-            }
-            CuratorDirective::RejectFederationInvite {
-                invitation_id,
-                reason,
-            } => {
-                lm.reject(invitation_id.clone(), reason.clone()).await?;
-            }
-            CuratorDirective::PauseFederationLink {
-                peer_replica,
-                reason,
-            } => {
-                lm.pause(peer_replica.clone(), reason.clone()).await?;
-            }
-            CuratorDirective::ResumeFederationLink { peer_replica } => {
-                lm.resume(peer_replica.clone()).await?;
-            }
-            CuratorDirective::RevokeFederationMember {
-                peer_replica,
-                reason,
-            } => {
-                lm.revoke(peer_replica.clone(), reason.clone()).await?;
-            }
-            CuratorDirective::LeaveFederation { reason } => {
-                lm.leave(reason.clone()).await?;
-            }
-            CuratorDirective::DissolveFederation { reason } => {
-                lm.dissolve(reason.clone()).await?;
-            }
-            _ => {} // Not a federation directive — silently ignore
-        }
-        Ok(())
     }
 }
 

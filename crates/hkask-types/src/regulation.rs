@@ -108,7 +108,6 @@ impl RegulationHealth {
 /// Core Regulation span identifiers — spans that are constructed in 2+ crates from
 /// different dependency domains (the "cross-cutting concern" test).
 ///
-/// Domain-specific spans (wallet, federation, contracts, QA, metrics, deploy,
 /// backup, ACP, curator, etc.) have moved to their respective domain crates
 /// as enums implementing [`ObservableSpan`](crate::ObservableSpan).
 ///

@@ -779,9 +779,7 @@ impl CyberneticsLoop {
             } => {
                 tracing::info!(target: "reg.cybernetics", context = %context, channel = %channel, confidence = %confidence, "Applied SeekMoreEvidence directive from Curation (metacognition loop triggered)")
             }
-            // Federation directives are handled by CuratorAgent, not Cybernetics
             _ => {
-                tracing::debug!(target: "reg.cybernetics", variant = directive.variant_name(), "Federation directive — no Cybernetics action")
             }
         }
     }

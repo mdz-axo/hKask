@@ -177,28 +177,6 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.deploy.backup_upload",
     "reg.deploy.session_close",
     "reg.deploy.session_open",
-    // ── Federation ──
-    "reg.federation",
-    "reg.federation.artifact_sync",
-    "reg.federation.conduit_route",
-    "reg.federation.conduit_route_lost",
-    "reg.federation.crdt_conflict",
-    "reg.federation.crdt_merge",
-    "reg.federation.dissolved",
-    "reg.federation.invite_accepted",
-    "reg.federation.invite_expired",
-    "reg.federation.invite_received",
-    "reg.federation.invite_rejected",
-    "reg.federation.invite_sent",
-    "reg.federation.link_degraded",
-    "reg.federation.link_established",
-    "reg.federation.link_lost",
-    "reg.federation.link_paused",
-    "reg.federation.link_resumed",
-    "reg.federation.member_left",
-    "reg.federation.member_revoked",
-    "reg.federation.registry_sync",
-    "reg.federation.sync",
     // ── Gas / Energy ──
     "reg.gas",
     "reg.gas.calibration",
@@ -601,7 +579,6 @@ impl SpanNamespace {
     /// the canonical namespace registry.
     ///
     /// Domain crates use this to construct `SpanNamespace` from their
-    /// domain-specific span enums (e.g., `WalletSpan`, `FederationSpan`).
     ///
     /// Returns `None` if the span's namespace string is not registered in
     /// `CANONICAL_NAMESPACES`.

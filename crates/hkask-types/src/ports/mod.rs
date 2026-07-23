@@ -8,7 +8,6 @@ pub mod consent_port;
 pub mod embedding;
 pub mod embedding_port;
 pub mod escalation;
-pub mod federation;
 pub mod flowdef_validation;
 pub mod git_cas;
 pub mod inference_port;
@@ -21,7 +20,6 @@ pub mod regulation;
 pub mod wallet_budget_port;
 
 pub use embedding::EmbeddingGenerationError;
-pub use federation::ReplicaId;
 pub use flowdef_validation::{
     FlowDefValidationFinding, FlowDefValidationReport, validate_convergence_field,
     validate_step_input_mapping,

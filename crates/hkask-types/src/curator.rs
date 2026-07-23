@@ -156,51 +156,12 @@ pub enum CuratorDirective {
     /// surface domain-specific concerns with severity and evidence for
     /// human review.
     EscalateDomain {
-        /// Domain identifier (e.g., "inference", "storage", "federation").
+        /// Domain identifier (e.g., "inference", "storage").
         domain: String,
         /// Severity of the escalation.
         severity: EscalationSeverity,
         /// Human-readable summary of the evidence.
         evidence: String,
-    },
-    /// Invite a remote server to join the federation.
-    InviteToFederation {
-        peer_replica: String,
-        peer_server_domain: String,
-        peer_matrix_domain: String,
-        peer_curator_matrix_id: String,
-        message: Option<String>,
-    },
-    /// Accept a pending federation invitation.
-    AcceptFederationInvite {
-        invitation_id: String,
-    },
-    /// Reject a pending federation invitation.
-    RejectFederationInvite {
-        invitation_id: String,
-        reason: Option<String>,
-    },
-    /// Pause federation sync with a peer (security measure).
-    PauseFederationLink {
-        peer_replica: String,
-        reason: String,
-    },
-    /// Resume federation sync with a paused peer.
-    ResumeFederationLink {
-        peer_replica: String,
-    },
-    /// Permanently revoke a single member from the federation.
-    RevokeFederationMember {
-        peer_replica: String,
-        reason: String,
-    },
-    /// Voluntarily leave the federation.
-    LeaveFederation {
-        reason: String,
-    },
-    /// Dissolve all federation links.
-    DissolveFederation {
-        reason: String,
     },
 }
 
@@ -214,14 +175,6 @@ impl CuratorDirective {
             CuratorDirective::SeekMoreEvidence { .. } => "seek_more_evidence",
             CuratorDirective::ReplenishBudget { .. } => "replenish_budget",
             CuratorDirective::ClearOverride { .. } => "clear_override",
-            CuratorDirective::InviteToFederation { .. } => "invite_to_federation",
-            CuratorDirective::AcceptFederationInvite { .. } => "accept_federation_invite",
-            CuratorDirective::RejectFederationInvite { .. } => "reject_federation_invite",
-            CuratorDirective::PauseFederationLink { .. } => "pause_federation_link",
-            CuratorDirective::ResumeFederationLink { .. } => "resume_federation_link",
-            CuratorDirective::RevokeFederationMember { .. } => "revoke_federation_member",
-            CuratorDirective::LeaveFederation { .. } => "leave_federation",
-            CuratorDirective::DissolveFederation { .. } => "dissolve_federation",
             CuratorDirective::EscalateDomain { .. } => "escalate_domain",
         }
     }
@@ -239,15 +192,6 @@ impl CuratorDirective {
             CuratorDirective::ReplenishBudget { agent, .. } => Some(*agent),
             CuratorDirective::ClearOverride { agent } => Some(*agent),
             CuratorDirective::EscalateDomain { .. } => None,
-            // Federation directives don't target individual agents
-            CuratorDirective::InviteToFederation { .. }
-            | CuratorDirective::AcceptFederationInvite { .. }
-            | CuratorDirective::RejectFederationInvite { .. }
-            | CuratorDirective::PauseFederationLink { .. }
-            | CuratorDirective::ResumeFederationLink { .. }
-            | CuratorDirective::RevokeFederationMember { .. }
-            | CuratorDirective::LeaveFederation { .. }
-            | CuratorDirective::DissolveFederation { .. } => None,
         }
     }
 

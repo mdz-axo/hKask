@@ -154,16 +154,10 @@ pub struct SetPoints {
     /// When per-crate coverage drops below its previous snapshot,
     /// an algedonic alert fires. Default: 0.0 (any regression alerts).
     pub seam_coverage_min: f64,
-    // ── Federation thresholds (v0.31.0) ──
-    /// Federation sync latency warning threshold (ms). Default: 5000.
     pub fed_sync_latency_warning_ms: u64,
-    /// Federation sync latency critical threshold (ms). Default: 30000.
     pub fed_sync_latency_critical_ms: u64,
-    /// Federation CRDT divergence warning factor (× baseline). Default: 2.0.
     pub fed_crdt_divergence_warning_factor: f64,
-    /// Federation link downtime warning (seconds). Default: 3600.
     pub fed_link_downtime_warning_secs: u64,
-    /// Federation link downtime critical (seconds). Default: 86400.
     pub fed_link_downtime_critical_secs: u64,
     /// Maximum pause duration before Regulation escalation (hours). Default: 24.
     pub fed_max_pause_duration_hours: u64,

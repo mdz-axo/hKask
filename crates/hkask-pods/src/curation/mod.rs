@@ -21,7 +21,6 @@ pub mod context;
 pub mod curation_loop;
 pub mod semantic_index;
 pub mod semantic_sync;
-pub mod sync_port;
 
 pub use context::CuratorContext;
 pub use curation_loop::CurationLoop;
