@@ -97,6 +97,7 @@ impl SplitNode {
     fn find_leaf_mut(&mut self, target: WindowId) -> Option<&mut Box<dyn Window>> {
         match self {
             SplitNode::Leaf(w) if w.id() == target => Some(w),
+            SplitNode::Leaf(_) => None,
             SplitNode::Horizontal { left, right, .. } => left
                 .find_leaf_mut(target)
                 .or_else(|| right.find_leaf_mut(target)),

@@ -310,3 +310,40 @@ impl OllamaBackend {
             .collect()
     }
 }
+
+
+/// Remove JSON Schema fields that Ollama's Go API cannot parse.
+///
+/// Ollama's Go structs expect tool parameter properties to be objects, not
+/// booleans. Standard JSON Schema fields like 
+/// cause a 400 error. This function recursively strips those fields.
+fn sanitize_tools_for_ollama(tools: &[hkask_types::ChatToolDefinition]) -> Vec<hkask_types::ChatToolDefinition> {
+    tools.iter().map(|t| {
+        let mut function = t.function.clone();
+        function.parameters = sanitize_schema(&function.parameters);
+        hkask_types::ChatToolDefinition {
+            tool_type: t.tool_type.clone(),
+            function,
+        }
+    }).collect()
+}
+
+fn sanitize_schema(value: &serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(map) => {
+            let mut cleaned = serde_json::Map::new();
+            for (k, v) in map {
+                // Skip boolean-valued fields that Ollama's Go API can't parse
+                if k == "additionalProperties" || k == "" || k == "" {
+                    continue;
+                }
+                cleaned.insert(k.clone(), sanitize_schema(v));
+            }
+            serde_json::Value::Object(cleaned)
+        }
+        serde_json::Value::Array(arr) => {
+            serde_json::Value::Array(arr.iter().map(sanitize_schema).collect())
+        }
+        other => other.clone(),
+    }
+}

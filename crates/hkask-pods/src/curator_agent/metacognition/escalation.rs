@@ -3,6 +3,8 @@
 
 use std::sync::Arc;
 
+use hkask_types::curator::EscalationSeverity;
+
 /// Default variety deficit threshold for escalation.
 pub(crate) const DEFAULT_ESCALATION_VARIETY_DEFICIT: u64 = 100;
 
@@ -39,13 +41,6 @@ pub enum EscalationTrigger {
     CriticalAlerts,
     /// Bot failure count exceeded a threshold.
     BotFailures,
-}
-
-/// Algedonic signal model: Warning (threshold/2) or Critical (threshold).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EscalationSeverity {
-    Warning,
-    Critical,
 }
 
 /// Alert produced when a threshold is breached.

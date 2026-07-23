@@ -9,10 +9,10 @@ use hkask_types::BotID;
 use tracing::{info, warn};
 
 use super::config::{HealthSnapshot, MC_TARGET};
-use super::escalation::EscalationSeverity;
 use super::format::format_health_status;
 use super::loop_body::MetacognitionLoop;
 use super::persistence::persist_escalation_with_retry;
+use hkask_types::curator::EscalationSeverity;
 
 // RegulationLoop — sense → compare → compute → act
 #[async_trait::async_trait]
@@ -64,6 +64,7 @@ impl RegulationLoop for MetacognitionLoop {
         );
         for alert in &alerts {
             match alert.severity {
+                EscalationSeverity::Info => {}
                 EscalationSeverity::Warning => warn!(
                     target: MC_TARGET,
                     trigger = ?alert.trigger,

@@ -9,5 +9,5 @@ mod loop_body;
 mod persistence;
 
 pub use config::{HealthSnapshot, MetacognitionConfig};
-pub use escalation::{EscalationAlert, EscalationPolicy, EscalationSeverity, EscalationTrigger};
+pub use escalation::{EscalationAlert, EscalationPolicy, EscalationTrigger};
 pub use loop_body::MetacognitionLoop;

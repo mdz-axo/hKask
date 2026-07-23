@@ -17,11 +17,11 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Paragraph, Wrap};
 
 use crate::tui::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge};
 use crate::tui::text_cursor;
-use crate::tui::window::{Window, WindowId, WindowKind, WorkspaceAction};
+use crate::tui::window::{WindowId, WindowKind, WorkspaceAction};
 
 /// A message in the MCP window's conversation log.
 #[derive(Debug, Clone)]
