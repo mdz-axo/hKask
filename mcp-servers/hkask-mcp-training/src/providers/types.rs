@@ -655,49 +655,88 @@ pub enum ProviderError {
 /// The trait is async to accommodate both local subprocess management and
 /// cloud provider HTTP calls via `hkask-inference` routing.
 #[async_trait::async_trait]
+/// Rich pod status returned by `TrainingHost::status`. Includes everything
+/// an operator needs to monitor, debug, and SSH into a running pod.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PodStatus {
+    /// High-level job status.
+    pub status: TrainingJobStatus,
+    /// Provider-specific pod ID (e.g. RunPod pod ID).
+    pub pod_id: String,
+    /// SSH command to connect to the pod (e.g. "ssh root@1.2.3.4 -p 12345").
+    /// Empty if no public SSH is available.
+    pub ssh_command: String,
+    /// Pod IP address (public if available, internal otherwise).
+    pub ip: String,
+    /// Public SSH port (0 if not available).
+    pub ssh_port: u64,
+    /// Whether the IP is publicly accessible.
+    pub is_public_ip: bool,
+    /// Pod uptime in seconds.
+    pub uptime_seconds: u64,
+    /// GPU type (e.g. "NVIDIA H100 80GB HBM3").
+    pub gpu_type: String,
+}
+
 pub trait TrainingHost: Send + Sync {
     /// Submit a training job for execution.
     /// Returns a provider-specific job ID for status tracking.
     async fn submit(&self, job: &TrainingJob) -> Result<String, ProviderError>;
 
     /// Query the status of a previously submitted job.
-    async fn status(&self, job_id: &str) -> Result<TrainingJobStatus, ProviderError>;
+    /// Returns rich pod status including SSH connection info for debugging.
+    async fn status(&self, job_id: &str) -> Result<PodStatus, ProviderError>;
 
     /// Cancel a running or queued job.
     async fn cancel(&self, job_id: &str) -> Result<(), ProviderError>;
-
-    /// Return completion metadata for a finished job (base model, metrics, output path).
-    /// Returns `None` if the job is not completed or the provider doesn't support metadata.
-    /// Default implementation returns `None`.
-    async fn completion_metadata(
-        &self,
-        _job_id: &str,
-    ) -> Result<Option<CompletionMetadata>, ProviderError> {
-        Ok(None)
-    }
-
-    /// Return the filesystem path to adapter weights, if stored locally.
-    /// Returns `None` for cloud hosts where weights are server-side.
-    /// Default implementation returns `None`.
-    async fn adapter_weight_path(
-        &self,
-        _adapter_id: &str,
-    ) -> Result<Option<PathBuf>, ProviderError> {
-        Ok(None)
-    }
 }
 
 /// Metadata returned by a provider when a training job completes.
+/// DEPRECATED — completion metadata now comes from the HuggingFace
+/// completion manifest (CompletionManifest struct in huggingface.rs).
+/// This struct is retained for trait conformance but is not used.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionMetadata {
-    /// Base model used for training.
     pub base_model: String,
-    /// Fine-tuned model name / output identifier.
     pub output_name: Option<String>,
-    /// Final training loss.
     pub loss: Option<f32>,
-    /// Training duration in seconds.
     pub training_duration_secs: Option<u64>,
-    /// Number of tokens processed.
     pub tokens_processed: Option<u64>,
+}
+
+/// Fetch the tail of a pod's training log via SSH. Used by training_status
+/// to surface real-time progress to the operator without requiring manual SSH.
+pub async fn fetch_pod_logs(ssh_command: &str, lines: usize) -> Option<String> {
+    if ssh_command.is_empty() {
+        return None;
+    }
+    let parts: Vec<&str> = ssh_command.split_whitespace().collect();
+    if parts.len() < 4 {
+        return None;
+    }
+    let user_host = parts[1];
+    let port = parts.get(3).and_then(|p| p.parse::<u16>().ok())?;
+    let output = tokio::process::Command::new("ssh")
+        .args([
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "ConnectTimeout=10",
+            "-o",
+            "BatchMode=yes",
+            "-p",
+            &port.to_string(),
+            user_host,
+            &format!(
+                "tail -n {lines} /workspace/logs/entrypoint.log 2>/dev/null || echo no-log-file"
+            ),
+        ])
+        .output()
+        .await
+        .ok()?;
+    if output.status.success() {
+        Some(String::from_utf8_lossy(&output.stdout).to_string())
+    } else {
+        None
+    }
 }

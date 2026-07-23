@@ -126,10 +126,11 @@ pub struct RunpodHost {
     client: reqwest::Client,
     /// job_id -> pod_id mapping for status/cancel
     jobs: Arc<Mutex<HashMap<String, String>>>,
-    /// job_id -> last known uptime in seconds. Used to detect pod restarts:
-    /// if uptime decreases between polls, the pod restarted and Axolotl's
-    /// `auto_resume_from_checkpoints` will resume from the last checkpoint.
+    /// job_id -> last known uptime in seconds. Used to detect pod restarts.
     last_uptime: Arc<Mutex<HashMap<String, u64>>>,
+    /// job_id -> SSH command string. Populated by status() for the response.
+    ssh_commands: Arc<Mutex<HashMap<String, String>>,
+    /// Path to the pod ID persistence file.
     /// Path to the pod ID persistence file (JSON: {job_id: pod_id}).
     pods_file: PathBuf,
 }
@@ -171,6 +172,7 @@ impl RunpodHost {
             client: reqwest::Client::new(),
             jobs: Arc::new(Mutex::new(persisted)),
             last_uptime: Arc::new(Mutex::new(HashMap::new())),
+            ssh_commands: Arc::new(Mutex::new(HashMap::new())),
             pods_file,
         }
     }
@@ -1042,23 +1044,14 @@ impl TrainingHost for RunpodHost {
         Ok(pod_id)
     }
 
-    async fn status(&self, job_id: &str) -> Result<TrainingJobStatus, ProviderError> {
+    async fn status(&self, job_id: &str) -> Result<PodStatus, ProviderError> {
         let pod_id = {
-            let map = self
-                .jobs
-                .lock()
-                .map_err(|e| ProviderError::Backend(format!("Lock error: {}", e)))?;
+            let map = self.jobs.lock().map_err(|e| ProviderError::Backend(format!("Lock error: {e}")))?;
             map.get(job_id).cloned()
         };
-
         let pod_id = match pod_id {
             Some(id) => id,
-            None => {
-                return Err(ProviderError::JobFailed(format!(
-                    "No pod found for job {}",
-                    job_id
-                )));
-            }
+            None => return Err(ProviderError::JobFailed(format!("No pod found for job {job_id}"))),
         };
 
         let query = r#
@@ -1071,44 +1064,97 @@ impl TrainingHost for RunpodHost {
                 }
             }
         "#;
-
         let result = self.graphql_query(query, json!({ "id": pod_id })).await?;
 
-        let status_str = result["data"]["pod"]["desiredStatus"]
-            .as_str()
-            .unwrap_or("UNKNOWN");
+        let status_str = result["data"]["pod"]["desiredStatus"].as_str().unwrap_or("UNKNOWN");
+        let current_uptime = result["data"]["pod"]["runtime"]["uptimeInSeconds"].as_u64().unwrap_or(0);
+        let gpu_type = result["data"]["pod"]["machine"]["gpuTypeId"].as_str().unwrap_or("unknown").to_string();
 
-        // Detect pod restart: if uptime decreased since last poll, the pod
-        // restarted. Axolotl's `auto_resume_from_checkpoints: true` will resume
-        // from the last checkpoint saved to /workspace (which persists across
-        // restarts per RunPod docs).
-        let current_uptime = result["data"]["pod"]["runtime"]["uptimeInSeconds"]
-            .as_u64()
-            .unwrap_or(0);
+        // Extract SSH connection info from ports. We need a public IP with
+        // privatePort 22 (SSH). If no public SSH port is available, the pod
+        // is on Community Cloud without public IP — useless for debugging.
+        let ports = result["data"]["pod"]["runtime"]["ports"].as_array();
+        let (ssh_command, ip, ssh_port, is_public_ip) = ports
+            .map(|ports| {
+                ports.iter().find_map(|p| {
+                    let is_pub = p.get("isIpPublic").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let priv_port = p.get("privatePort").and_then(|v| v.as_u64()).unwrap_or(0);
+                    if is_pub && priv_port == 22 {
+                        let ip = p.get("ip").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let pub_port = p.get("publicPort").and_then(|v| v.as_u64()).unwrap_or(0);
+                        Some((format!("ssh root@{ip} -p {pub_port}"), ip, pub_port, true))
+                    } else {
+                        None
+                    }
+                }).unwrap_or_else(|| {
+                    // Fallback: use any port info we can get, even if not public
+                    if let Some(first) = ports.first() {
+                        let ip = first.get("ip").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let pub_port = first.get("publicPort").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let is_pub = first.get("isIpPublic").and_then(|v| v.as_bool()).unwrap_or(false);
+                        (String::new(), ip, pub_port, is_pub)
+                    } else {
+                        (String::new(), String::new(), 0, false)
+                    }
+                })
+            })
+            .unwrap_or((String::new(), String::new(), 0, false));
+
+        // Detect pod restart
         if let Ok(mut uptimes) = self.last_uptime.lock() {
-            if let Some(&prev) = uptimes.get(job_id)
-                && current_uptime < prev
-            {
+            if let Some(&prev) = uptimes.get(job_id) && current_uptime < prev {
                 tracing::warn!(
                     target: "reg.training.checkpoint.resume",
-                    job_id = %job_id,
-                    pod_id = %pod_id,
-                    prev_uptime_secs = prev,
-                    new_uptime_secs = current_uptime,
+                    job_id = %job_id, pod_id = %pod_id,
+                    prev_uptime_secs = prev, new_uptime_secs = current_uptime,
                     "Pod restarted — Axolotl will auto-resume from checkpoint"
                 );
             }
             uptimes.insert(job_id.to_string(), current_uptime);
         }
 
+        // Store SSH command for training_status response
+        if !ssh_command.is_empty() {
+            if let Ok(mut ssh_map) = self.ssh_commands.lock() {
+                ssh_map.insert(job_id.to_string(), ssh_command.clone());
+            }
+            tracing::info!(
+                target: "hkask.training.pod.ssh",
+                job_id = %job_id, pod_id = %pod_id, ssh = %ssh_command,
+                "Pod SSH connection available"
+            );
+        } else if !ip.is_empty() {
+            tracing::warn!(
+                target: "hkask.training.pod.ssh",
+                job_id = %job_id, pod_id = %pod_id, ip = %ip,
+                "Pod has no public SSH — cannot debug. Use cloudType: SECURE to ensure SSH access."
+            );
+        }
+
+        let pod_status = PodStatus {
+            status: map_pod_status(status_str),
+            pod_id: pod_id.clone(),
+            ssh_command: ssh_command.clone(),
+            ip,
+            ssh_port,
+            is_public_ip,
+            uptime_seconds: current_uptime,
+            gpu_type,
+        };
+
+        // Store the full pod status so training_status can include it in the response
+        if let Ok(mut ssh_map) = self.ssh_commands.lock() {
+            ssh_map.insert(format!("{job_id}:status"), ssh_command.clone());
+        }
+
         tracing::debug!(
             target: "reg.training.provider.runpod.status",
-            pod_id = %pod_id,
-            desired_status = %status_str,
+            pod_id = %pod_id, desired_status = %status_str, uptime = current_uptime,
+            ssh = %ssh_command,
             "RunPod pod status"
         );
 
-        Ok(map_pod_status(status_str))
+        Ok(pod_status)
     }
 
     async fn cancel(&self, job_id: &str) -> Result<(), ProviderError> {
@@ -1163,28 +1209,6 @@ impl TrainingHost for RunpodHost {
         "RunPod pod cancelled"
         );
         Ok(())
-    }
-
-    async fn completion_metadata(
-        &self,
-        _job_id: &str,
-    ) -> Result<Option<CompletionMetadata>, ProviderError> {
-        // Completion is detected via the HuggingFace manifest, not via RunPod's
-        // API. The manifest is fetched by TrainingServer::check_completion_manifest.
-        // This method is retained for trait conformance but is not called from
-        // the main completion path.
-        Ok(None)
-    }
-
-    async fn adapter_weight_path(
-        &self,
-        _adapter_id: &str,
-    ) -> Result<Option<PathBuf>, ProviderError> {
-        // Adapter weights are uploaded to HuggingFace by the install script.
-        // The path is recorded from the completion manifest's adapter.repository
-        // field. This method is retained for trait conformance but is not called
-        // from the main completion path.
-        Ok(None)
     }
 }
 
