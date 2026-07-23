@@ -19,7 +19,7 @@
 //! `base_url` and `api_key` are passed directly (no `ProviderConfig` envelope).
 
 use crate::chat_protocol::{ChatResponse, chat_response_to_result, validate_prompt};
-use crate::chat_protocol::{build_chat_request_from_prompt, build_chat_request_messages};
+use crate::chat_protocol::{build_chat_request_messages};
 use hkask_types::template::LLMParameters;
 use hkask_types::{ChatMessage, ChatToolDefinition, InferenceError, InferenceResult};
 use reqwest::Client;

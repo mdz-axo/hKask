@@ -103,26 +103,11 @@ pub struct ChatRequest {
 /// pre:  model is non-empty, prompt is non-empty
 /// post: returns ChatRequest with [system?, user] messages and parameters
 #[must_use]
-pub fn build_chat_request_from_prompt(
-    model: &str,
-    prompt: &str,
-    params: &LLMParameters,
-    stream: Option<bool>,
-    n_probs: Option<i32>,
-    tools: Option<Vec<ChatToolDefinition>>,
-) -> ChatRequest {
-    let mut messages = Vec::with_capacity(2);
-    if let Some(ref sys) = params.system_prompt {
-        messages.push(ChatMessage::system(sys));
-    }
-    messages.push(ChatMessage::user(prompt));
-    build_chat_request_messages(model, messages, params, stream, n_probs, tools)
-}
 
 /// Build an OpenAI-compatible chat completion request from an explicit message
 /// array.
 ///
-/// Unlike [`build_chat_request_from_prompt`], which constructs a `[system?, user]` pair from
+/// Unlike [`the prompt-string path`], which constructs a `[system?, user]` pair from
 /// a single prompt string, this function passes the caller-supplied messages
 /// directly to the provider. This is the correct path for multi-turn chat: each
 /// message carries its own role (`"system"`, `"user"`, `"assistant"`), so the

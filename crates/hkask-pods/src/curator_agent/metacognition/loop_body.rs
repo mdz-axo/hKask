@@ -559,7 +559,7 @@ impl MetacognitionLoop {
                 new,
                 Some(effectiveness),
                 None,
-                source,
+                "new_calibration",
             );
         }
         tracing::info!(

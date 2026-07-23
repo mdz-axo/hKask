@@ -217,8 +217,6 @@ pub enum McpInvokeError {
     ToolNotFound(String),
     #[error("server error: {0}")]
     Server(String),
-    #[error("invalid arguments: {0}")]
-    InvalidArgs(String),
 }
 
 /// State of an MCP tool invocation, polled by the TUI each frame.

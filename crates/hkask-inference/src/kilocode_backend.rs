@@ -9,7 +9,7 @@
 //! auto-routing via `kilo-auto/*` virtual models.
 
 use crate::chat_protocol::{
-    ChatResponse, build_chat_request_from_prompt, build_chat_request_messages,
+    ChatResponse, build_chat_request_messages,
     build_vision_request, chat_response_to_result, parse_sse_stream, validate_prompt,
 };
 use crate::config::InferenceConfig;
