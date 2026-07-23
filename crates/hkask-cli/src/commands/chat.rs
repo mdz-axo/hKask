@@ -145,6 +145,7 @@ pub async fn chat_with_agent_streaming(
         tools: None,
         thread_messages: None,
         prebuilt_messages: None,
+        improv_mode: None,
     };
 
     let prepared = match ChatService::prepare_chat(&ctx, &req).await {

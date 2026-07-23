@@ -32,32 +32,32 @@ impl ChatService {
     /// Returns `None` on any failure (graceful degradation — caller falls back
     /// to uncondensed context).
     pub(super) async fn condense_history(
-        ctx: &AgentService,
-        : &TurnRequest,
+        : &AgentService,
+                req: &TurnRequest,
                 token: &DelegationToken,
                 base_input: &str,
             ) -> Option<String> {
-                // Constants for condensation behavior (previously per-request fields).
-                const SALIENCY_WINDOW: usize = 5;
-                const PRE_COMPRESS: bool = true;
+        // Constants for condensation behavior (previously per-request fields).
+        const SALIENCY_WINDOW: usize = 5;
+        const PRE_COMPRESS: bool = true;
 
-                // [NORMATIVE] Sovereignty gate (H3/P2): condensing reads episodic
-                // (sovereign) history — only proceed when the owner has granted consent.
-                if !MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory)
-                {
-                    return None;
-                }
-                let episodes = MemoryService::recall_raw_episodes(
-                    &req.episodic_storage,
-                    &req.agent_webid,
-                    token,
-                    (SALIENCY_WINDOW * 4).max(8),
-                );
-                if episodes.len() < 4 {
-                    return None;
-                }
+        // [NORMATIVE] Sovereignty gate (H3/P2): condensing reads episodic
+        // (sovereign) history — only proceed when the owner has granted consent.
+        if !MemoryService::has_memory_consent(ctx, &req.agent_webid, &DataCategory::EpisodicMemory)
+        {
+            return None;
+        }
+        let episodes = MemoryService::recall_raw_episodes(
+            &req.episodic_storage,
+            &req.agent_webid,
+            token,
+            (SALIENCY_WINDOW * 4).max(8),
+        );
+        if episodes.len() < 4 {
+            return None;
+        }
 
-                let keep_count = (SALIENCY_WINDOW * 2).min(episodes.len().saturating_sub(2));
+        let keep_count = (SALIENCY_WINDOW * 2).min(episodes.len().saturating_sub(2));
         let old_half = &episodes[..episodes.len() - keep_count];
         let recent_half = &episodes[episodes.len() - keep_count..];
 
@@ -72,23 +72,23 @@ impl ChatService {
             let mut engine = hkask_condenser::engine::CondenserEngine::new();
             engine.set_profile(hkask_condenser::types::Profile::Heavy);
             let compressed = engine.compress(
-                "condense_history",
-                &old_text,
-                Some(hkask_condenser::types::ContextCategory::ConversationHistory),
+        "condense_history",
+        &old_text,
+        Some(hkask_condenser::types::ContextCategory::ConversationHistory),
             );
             if compressed.content.is_empty() {
-                old_text
+        old_text
             } else {
-                tracing::debug!(
-                    target: "reg.chat.condense",
-                    agent = %req.userpod_name,
-                    phase = "cpu_pre_compress",
-                    original_bytes = compressed.original_bytes,
-                    compressed_bytes = compressed.compressed_bytes,
-                    algorithm = %compressed.algorithm,
-                    "CPU pre-compression applied"
-                );
-                compressed.content
+        tracing::debug!(
+            target: "reg.chat.condense",
+            agent = %req.userpod_name,
+            phase = "cpu_pre_compress",
+            original_bytes = compressed.original_bytes,
+            compressed_bytes = compressed.compressed_bytes,
+            algorithm = %compressed.algorithm,
+            "CPU pre-compression applied"
+        );
+        compressed.content
             }
         } else {
             old_text
