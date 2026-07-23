@@ -86,7 +86,7 @@ fn extract_text_plain_from_mime(msg: &mailparse::ParsedMail) -> String {
     if msg.ctype.mimetype == "text/plain" {
         return msg.get_body().map(|(body, _)| body).unwrap_or_default();
     }
-    for part in &msg.submessages {
+    for part in &msg.subparts {
         let text = extract_text_plain_from_mime(part);
         if !text.is_empty() {
             return text;
