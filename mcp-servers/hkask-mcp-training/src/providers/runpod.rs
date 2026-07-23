@@ -1061,12 +1061,12 @@ impl TrainingHost for RunpodHost {
             }
         };
 
-        let query = r#"
+        let query = r#
             query GetPod($id: String!) {
                 pod(input: { podId: $id }) {
                     id
                     desiredStatus
-                    runtime { uptimeInSeconds }
+                    runtime { uptimeInSeconds ports { publicPort privatePort ip isIpPublic } }
                     machine { gpuTypeId }
                 }
             }
