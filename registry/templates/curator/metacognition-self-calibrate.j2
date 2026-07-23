@@ -42,18 +42,20 @@ from evidence rather than following a fixed rule.
 ## Last calibration outcome (the causal signal)
 {% if last_calibration %}
 - You changed the threshold {{ last_calibration.threshold_before }} -> {{ last_calibration.threshold_after }} ({{ last_calibration.direction }}).
-- Effectiveness was {{ last_calibration.eff_before }} before, {{ last_calibration.eff_after }} after (delta {{ last_calibration.eff_delta }}).
+- Escalation drops: {{ last_calibration.drop_before }} before, {{ last_calibration.drop_after }} after (delta {{ last_calibration.drop_delta }}) — THIS is your primary feedback: did the change reduce drops?
+- System effectiveness: {{ last_calibration.eff_before }} -> {{ last_calibration.eff_after }} (delta {{ last_calibration.eff_delta }}) — secondary context from a different loop; do not over-weight it.
 {% else %}
 - No prior calibration yet.
 {% endif %}
 
 ## Your task
 Decide a new variety-deficit threshold within [{{ threshold_floor }}, {{ threshold_ceiling }}].
-Reason from the evidence:
-- If escalations are being dropped since last calibration, you are too sensitive — raise the threshold.
-- If no escalations were dropped AND effectiveness is high (>0.8) AND the threshold is above the floor, you can afford to lower it (be more responsive).
-- If the last change's effectiveness delta was positive, that direction worked; if negative, reverse it. If near zero, the change had no effect — hold.
-- If the evidence is ambiguous, hold (return the current threshold).
+Reason PRIMARILY from the escalation drop signal (the metric your threshold directly controls):
+- If escalations are being dropped since last calibration, you are too sensitive — raise the threshold to reduce escalation volume.
+- If no escalations were dropped AND the last change's drop_delta was favorable (drops decreased or stayed zero) AND the threshold is above the floor, you can lower it (be more responsive).
+- If the last change's drop_delta was negative (drops increased), reverse that direction.
+- If no escalations were dropped and the evidence is ambiguous, hold.
+- Use `effectiveness` as secondary context only — it reflects a different loop (Cybernetics action acceptance) and is NOT directly controlled by your threshold.
 
 Make SMALL adjustments — typical changes are 5-15% of the current threshold. Do not swing to the band edges unless the evidence is extreme. You MUST stay within the band; the runtime clamps your answer regardless.
 
@@ -62,6 +64,6 @@ Make SMALL adjustments — typical changes are 5-15% of the current threshold. D
 {
   "new_threshold": <integer within [{{ threshold_floor }}, {{ threshold_ceiling }}]; use current_threshold to hold>,
   "direction": "<raise | lower | hold>",
-  "rationale": "one sentence grounded in the evidence above"
+  "rationale": "one sentence grounded in the drop signal above"
 }
 ```
