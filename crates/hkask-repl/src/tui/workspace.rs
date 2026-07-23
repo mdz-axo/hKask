@@ -15,7 +15,9 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use uuid::Uuid;
 
 use crate::tui::bridges::{with_bridges, workspace_bridge_setter};
-use crate::tui::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
+use crate::tui::repl_bridge::{
+    ReplBridge, SessionBridge, SettingsBridge, SystemBridge, ToolInvokeBridge,
+};
 use crate::tui::status_bar::StatusBar;
 use crate::tui::tab::Tab;
 use crate::tui::window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
@@ -361,6 +363,7 @@ pub struct Workspace {
 struct WorkspaceBridges {
     settings_bridge: Option<Arc<dyn SettingsBridge>>,
     session_bridge: Option<Arc<dyn SessionBridge>>,
+    tool_invoke_bridge: Option<Arc<dyn ToolInvokeBridge>>,
 }
 
 impl WorkspaceBridges {
@@ -374,6 +377,7 @@ impl WorkspaceBridges {
             repl_bridge,
             settings_bridge: self.settings_bridge.clone(),
             session_bridge: self.session_bridge.clone(),
+            tool_invoke_bridge: self.tool_invoke_bridge.clone(),
         }
     }
 }
@@ -410,7 +414,8 @@ impl Workspace {
 
     with_bridges!(workspace_bridge_setter;
         settings_bridge, SettingsBridge, with_settings_bridge;
-        session_bridge, SessionBridge, with_session_bridge
+        session_bridge, SessionBridge, with_session_bridge;
+        tool_invoke_bridge, ToolInvokeBridge, with_tool_invoke_bridge
     );
 
     /// Create a minimal workspace for testing — single Chat window.

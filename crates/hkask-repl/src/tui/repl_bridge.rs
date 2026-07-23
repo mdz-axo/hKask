@@ -191,3 +191,57 @@ pub trait SessionBridge: Send + Sync {
     /// Render the session history (recent turns) as a display string.
     fn history_display(&self) -> String;
 }
+
+// ── MCP Tool Invocation ───────────────────────────────────────────────
+
+/// Opaque identity for one asynchronous MCP tool invocation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct McpInvokeRequestId(uuid::Uuid);
+
+impl McpInvokeRequestId {
+    pub fn new() -> Self {
+        Self(uuid::Uuid::new_v4())
+    }
+}
+
+impl Default for McpInvokeRequestId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// State of an MCP tool invocation, polled by the TUI each frame.
+#[derive(Debug, Clone)]
+pub enum McpInvokeState {
+    /// No invocation in progress.
+    Idle,
+    /// Invocation is running (the TUI should show a spinner).
+    Invoking,
+    /// Invocation completed successfully — contains the JSON result.
+    Done(serde_json::Value),
+    /// Invocation failed — contains the error message.
+    Error(String),
+}
+
+/// Direct MCP tool invocation surface for the TUI.
+///
+/// Distinct from [`ReplBridge`] (inference) to keep each trait's surface
+/// ≤7 items. Allows MCP-backed windows (Kanban, Companies, Scenarios) to
+/// call MCP tools directly without an LLM round-trip, preserving OCAP
+/// governance (DelegationToken), gas accounting, and Regulation spans.
+///
+/// The async start/poll pattern mirrors `ReplBridge::start_inference` /
+/// `poll_inference` to avoid blocking the TUI event loop.
+pub trait ToolInvokeBridge: Send + Sync {
+    /// Start an MCP tool invocation on a background thread.
+    /// Returns an opaque request identity for polling.
+    fn start_mcp_tool_invoke(
+        &self,
+        server: &str,
+        tool: &str,
+        args: serde_json::Value,
+    ) -> McpInvokeRequestId;
+
+    /// Poll an MCP tool invocation without blocking.
+    fn poll_mcp_tool_invoke(&self, request: McpInvokeRequestId) -> McpInvokeState;
+}

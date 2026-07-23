@@ -490,6 +490,7 @@ impl MetacognitionLoop {
         );
     }
 
+    /// Template-driven compute: invoke KnowAct templates for calibrated decisions.
     pub(super) async fn compute_with_templates(
         &self,
         executor: &Arc<hkask_templates::ManifestExecutor>,
@@ -776,5 +777,179 @@ impl MetacognitionLoop {
             }
         }
         actions
+    }
+}
+
+// ── Self-calibration decision logic (pure, independently tested) ────────────
+
+/// Escalations dropped (since last calibration) at or above this triggers a RAISE.
+const RAISE_DROP_THRESHOLD: u64 = 3;
+/// Minimum directives since last calibration before any adjustment. Mirrors
+/// `SetPointCalibrator`'s `min_total_observations` gate — don't calibrate on
+/// sparse data (avoids oscillating on a single noisy directive). RAISE on
+/// dropped escalations bypasses this (loss prevention).
+const MIN_OBSERVATIONS_TO_CALIBRATE: u64 = 5;
+/// Cycles that must elapse after a RAISE before a LOWER is permitted
+/// (hysteresis — prevents immediate raise/lower oscillation). At a 10s tick
+/// this is ~60s.
+const LOWER_COOLDOWN: u64 = 6;
+/// Regulation effectiveness above which the loop is considered healthy and a
+/// LOWER is permitted.
+const EFFECTIVENESS_LOWER_GATE: f64 = 0.8;
+/// Absolute ceiling for the variety-deficit threshold (4x the system default).
+/// Bounds runaway desensitization from repeated drops; the threshold lives in
+/// the band [DEFAULT_ESCALATION_VARIETY_DEFICIT, VARIETY_DEFICIT_CEILING].
+const VARIETY_DEFICIT_CEILING: u64 = DEFAULT_ESCALATION_VARIETY_DEFICIT.saturating_mul(4);
+
+/// A computed threshold adjustment (the decision half of self-calibration).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct ThresholdAdjustment {
+    pub new_variety_deficit: u64,
+    /// true = threshold raised (desensitize); false = lowered (sensitize).
+    pub raised: bool,
+}
+
+/// Pure decision: given self-quality deltas, effectiveness, the current
+/// threshold, and cycles since the last raise, decide whether to adjust the
+/// variety-deficit threshold and in which direction.
+///
+/// - RAISE by 10% (min +1, capped at VARIETY_DEFICIT_CEILING) when
+///   `delta_dropped >= RAISE_DROP_THRESHOLD`.
+/// - LOWER by 5% (min -1, floored at DEFAULT_ESCALATION_VARIETY_DEFICIT) when
+///   the loop is healthy (`delta_dropped == 0`, `effectiveness > GATE`) AND
+///   `since_raise >= LOWER_COOLDOWN`.
+/// - No activity (`delta_directives == 0 && delta_dropped == 0`) => None.
+/// RAISE takes precedence over LOWER (loss prevention over responsiveness).
+#[must_use]
+pub(super) fn compute_threshold_adjustment(
+    delta_dropped: u64,
+    delta_directives: u64,
+    effectiveness: f64,
+    old_threshold: u64,
+    since_raise: u64,
+) -> Option<ThresholdAdjustment> {
+    // Don't calibrate on a sparse sample unless escalations are actively being
+    // lost (RAISE bypasses the gate — loss prevention overrides patience).
+    if delta_directives < MIN_OBSERVATIONS_TO_CALIBRATE && delta_dropped < RAISE_DROP_THRESHOLD {
+        return None;
+    }
+
+    // RAISE: escalations being lost => too sensitive.
+    if delta_dropped >= RAISE_DROP_THRESHOLD {
+        let new = ((old_threshold / 10).max(1) + old_threshold).min(VARIETY_DEFICIT_CEILING);
+        if new != old_threshold {
+            return Some(ThresholdAdjustment {
+                new_variety_deficit: new,
+                raised: true,
+            });
+        }
+    }
+
+    // LOWER: healthy + cooldown elapsed + above the floor.
+    if delta_dropped == 0
+        && effectiveness > EFFECTIVENESS_LOWER_GATE
+        && since_raise >= LOWER_COOLDOWN
+        && old_threshold > DEFAULT_ESCALATION_VARIETY_DEFICIT
+    {
+        let new =
+            (old_threshold - (old_threshold / 20).max(1)).max(DEFAULT_ESCALATION_VARIETY_DEFICIT);
+        if new != old_threshold {
+            return Some(ThresholdAdjustment {
+                new_variety_deficit: new,
+                raised: false,
+            });
+        }
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod self_calibrate_tests {
+    use super::*;
+    // DEFAULT_ESCALATION_VARIETY_DEFICIT is a `use` import in the parent, not
+    // re-exported by `super::*`, so import it explicitly.
+    use super::super::escalation::DEFAULT_ESCALATION_VARIETY_DEFICIT;
+
+    #[test]
+    fn no_activity_yields_no_adjustment() {
+        assert!(compute_threshold_adjustment(0, 0, 0.9, 100, 10).is_none());
+    }
+
+    #[test]
+    fn sparse_sample_does_not_calibrate() {
+        // 3 directives, no drops, healthy, cooldown met — but below
+        // MIN_OBSERVATIONS_TO_CALIBRATE (5) => no lowering (patient).
+        assert!(compute_threshold_adjustment(0, 3, 0.9, 150, 6).is_none());
+        assert!(compute_threshold_adjustment(0, 4, 0.9, 150, 6).is_none());
+    }
+
+    #[test]
+    fn dropped_escalations_raise_the_threshold() {
+        // 3 drops at threshold 100 => 100 + max(10,1) = 110.
+        let adj = compute_threshold_adjustment(3, 5, 0.5, 100, 0).unwrap();
+        assert!(adj.raised);
+        assert_eq!(adj.new_variety_deficit, 110);
+    }
+
+    #[test]
+    fn raise_bypasses_min_observations_gate() {
+        // Only 1 directive but 3 drops => RAISE still fires (loss prevention).
+        let adj = compute_threshold_adjustment(3, 1, 0.5, 100, 0).unwrap();
+        assert!(adj.raised);
+    }
+
+    #[test]
+    fn raise_is_bounded_by_ceiling() {
+        // Repeated raises converge to VARIETY_DEFICIT_CEILING (4x default = 400).
+        let mut t = 100u64;
+        for _ in 0..40 {
+            if let Some(a) = compute_threshold_adjustment(3, 5, 0.5, t, 0) {
+                t = a.new_variety_deficit;
+            }
+        }
+        assert_eq!(t, VARIETY_DEFICIT_CEILING, "threshold hit the ceiling");
+        // At the ceiling, no further raise.
+        assert!(compute_threshold_adjustment(3, 5, 0.5, VARIETY_DEFICIT_CEILING, 0).is_none());
+    }
+
+    #[test]
+    fn healthy_loop_lowers_after_cooldown() {
+        // threshold 150, no drops, high effectiveness, cooldown met, enough
+        // directives => 150-7 = 143.
+        let adj = compute_threshold_adjustment(0, 6, 0.9, 150, 6).unwrap();
+        assert!(!adj.raised);
+        assert_eq!(adj.new_variety_deficit, 143);
+    }
+
+    #[test]
+    fn lowering_respects_cooldown() {
+        // since_raise < LOWER_COOLDOWN => no lowering even if healthy.
+        assert!(compute_threshold_adjustment(0, 6, 0.9, 150, 5).is_none());
+    }
+
+    #[test]
+    fn lowering_requires_high_effectiveness() {
+        // effectiveness below the gate => no lowering.
+        assert!(compute_threshold_adjustment(0, 6, 0.7, 150, 6).is_none());
+    }
+
+    #[test]
+    fn lowering_floored_at_default() {
+        // threshold 105 => 105-5 = 100 (the floor).
+        let adj = compute_threshold_adjustment(0, 6, 0.9, 105, 6).unwrap();
+        assert_eq!(adj.new_variety_deficit, DEFAULT_ESCALATION_VARIETY_DEFICIT);
+        // At the floor already => no further lowering.
+        assert!(
+            compute_threshold_adjustment(0, 6, 0.9, DEFAULT_ESCALATION_VARIETY_DEFICIT, 6)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn raise_takes_precedence_over_lower() {
+        // Drops present AND healthy AND cooldown met => RAISE wins.
+        let adj = compute_threshold_adjustment(3, 6, 0.95, 150, 10).unwrap();
+        assert!(adj.raised);
     }
 }

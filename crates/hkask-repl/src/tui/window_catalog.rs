@@ -2,7 +2,9 @@
 
 use std::sync::Arc;
 
-use crate::tui::repl_bridge::{ReplBridge, SessionBridge, SettingsBridge, SystemBridge};
+use crate::tui::repl_bridge::{
+    ReplBridge, SessionBridge, SettingsBridge, SystemBridge, ToolInvokeBridge,
+};
 use crate::tui::window::{Window, WindowId, WindowKind};
 use crate::tui::windows::chat::ChatWindow;
 use crate::tui::windows::companies::CompaniesWindow;
@@ -10,7 +12,7 @@ use crate::tui::windows::kanban::KanbanWindow;
 use crate::tui::windows::scenarios::ScenariosWindow;
 
 pub fn window_kind_from_title(title: &str) -> Option<WindowKind> {
-    WindowKind::parse_kind(title)
+    WindowKind::from_str(title)
 }
 
 /// All bridge dependencies for window construction.
@@ -19,6 +21,7 @@ pub(crate) struct WindowBridges {
     pub repl_bridge: Arc<dyn ReplBridge>,
     pub settings_bridge: Option<Arc<dyn SettingsBridge>>,
     pub session_bridge: Option<Arc<dyn SessionBridge>>,
+    pub tool_invoke_bridge: Option<Arc<dyn ToolInvokeBridge>>,
 }
 
 pub(crate) fn create_window(
@@ -44,8 +47,26 @@ pub(crate) fn create_window(
             }
             Box::new(w)
         }
-        WindowKind::Kanban => Box::new(KanbanWindow::new(id, bridge)),
-        WindowKind::Companies => Box::new(CompaniesWindow::new(id, bridge)),
-        WindowKind::Scenarios => Box::new(ScenariosWindow::new(id, bridge)),
+        WindowKind::Kanban => {
+            let mut w = KanbanWindow::new(id, bridge);
+            if let Some(b) = ctx.tool_invoke_bridge.clone() {
+                w = w.with_tool_invoke_bridge(b);
+            }
+            Box::new(w)
+        }
+        WindowKind::Companies => {
+            let mut w = CompaniesWindow::new(id, bridge);
+            if let Some(b) = ctx.tool_invoke_bridge.clone() {
+                w = w.with_tool_invoke_bridge(b);
+            }
+            Box::new(w)
+        }
+        WindowKind::Scenarios => {
+            let mut w = ScenariosWindow::new(id, bridge);
+            if let Some(b) = ctx.tool_invoke_bridge.clone() {
+                w = w.with_tool_invoke_bridge(b);
+            }
+            Box::new(w)
+        }
     }
 }

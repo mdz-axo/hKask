@@ -19,7 +19,10 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 
-use crate::tui::repl_bridge::{InferenceRequestId, InferenceState, ReplBridge};
+use crate::tui::repl_bridge::{
+    InferenceRequestId, InferenceState, McpInvokeRequestId, McpInvokeState, ReplBridge,
+    ToolInvokeBridge,
+};
 use crate::tui::text_cursor;
 use crate::tui::window::{WindowId, WindowKind, WorkspaceAction};
 
@@ -62,11 +65,13 @@ pub(crate) struct McpScopedState {
     pub(crate) title: String,
     pub(crate) mcp_server: String,
     pub(crate) bridge: Arc<dyn ReplBridge>,
+    pub(crate) tool_invoke_bridge: Option<Arc<dyn ToolInvokeBridge>>,
     pub(crate) messages: Vec<McpMessage>,
     pub(crate) input: String,
     pub(crate) cursor_pos: usize,
     pub(crate) scroll_offset: u16,
     pending_request: Option<InferenceRequestId>,
+    pending_invoke: Option<(McpInvokeRequestId, String)>,
     spinner_frame: u8,
     pending_actions: Vec<WorkspaceAction>,
 }
@@ -86,6 +91,7 @@ impl McpScopedState {
             title: title.to_string(),
             mcp_server: mcp_server.to_string(),
             bridge,
+            tool_invoke_bridge: None,
             messages: vec![McpMessage {
                 sender: McpSender::System,
                 content: welcome.to_string(),
@@ -94,9 +100,16 @@ impl McpScopedState {
             cursor_pos: 0,
             scroll_offset: 0,
             pending_request: None,
+            pending_invoke: None,
             spinner_frame: 0,
             pending_actions: Vec::new(),
         }
+    }
+
+    /// Set the tool invocation bridge for direct MCP tool calls.
+    pub(crate) fn with_tool_invoke_bridge(mut self, bridge: Arc<dyn ToolInvokeBridge>) -> Self {
+        self.tool_invoke_bridge = Some(bridge);
+        self
     }
 
     fn add_message(&mut self, sender: McpSender, content: String) {
@@ -121,8 +134,64 @@ impl McpScopedState {
         }
 
         self.add_message(McpSender::User, input.clone());
+
+        // If a tool invoke bridge is available, try to interpret the input
+        // as a direct tool call. If it doesn't look like a tool command,
+        // fall back to scoped inference (LLM round-trip).
+        if self.tool_invoke_bridge.is_some() && self.try_direct_tool_invoke(&input) {
+            return;
+        }
+
         let req = self.bridge.start_scoped_inference(input, &self.mcp_server);
         self.pending_request = Some(req);
+    }
+
+    /// Try to interpret `input` as a direct MCP tool call.
+    /// Format: `tool_name arg1=value1 arg2=value2` or `tool_name {json}`
+    /// Returns true if a tool invocation was started.
+    fn try_direct_tool_invoke(&mut self, input: &str) -> bool {
+        let parts: Vec<&str> = input.splitn(2, ' ').collect();
+        if parts.is_empty() {
+            return false;
+        }
+        let tool_name = parts[0];
+        // Don't intercept if it looks like a natural language query
+        // (heuristic: if the first word is a known tool prefix for this server).
+        let full_name = format!("{}/{}", self.mcp_server, tool_name);
+        let args_str = parts.get(1).copied().unwrap_or("");
+
+        // Parse args: try JSON first, then key=value pairs.
+        let args = if args_str.starts_with('{') {
+            serde_json::from_str(args_str).unwrap_or_else(|_| serde_json::json!({}))
+        } else if args_str.is_empty() {
+            serde_json::json!({})
+        } else {
+            // Parse key=value pairs
+            let mut map = serde_json::Map::new();
+            for pair in args_str.split_whitespace() {
+                if let Some((k, v)) = pair.split_once('=') {
+                    // Try to parse as number, bool, or keep as string
+                    let val = if let Ok(n) = v.parse::<i64>() {
+                        serde_json::Value::from(n)
+                    } else if let Ok(f) = v.parse::<f64>() {
+                        serde_json::Value::from(f)
+                    } else if v == "true" || v == "false" {
+                        serde_json::Value::from(v == "true")
+                    } else {
+                        serde_json::Value::from(v)
+                    };
+                    map.insert(k.to_string(), val);
+                }
+            }
+            serde_json::Value::Object(map)
+        };
+
+        let Some(ref bridge) = self.tool_invoke_bridge else {
+            return false;
+        };
+        let req = bridge.start_mcp_tool_invoke(&self.mcp_server, tool_name, args);
+        self.pending_invoke = Some((req, full_name));
+        true
     }
 
     fn handle_slash(&mut self, cmd: &str) {

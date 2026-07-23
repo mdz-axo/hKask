@@ -60,8 +60,9 @@ use std::time::Duration;
 
 use bridges::{tui_bridge_setter, with_bridges};
 pub use repl_bridge::{
-    CommandResult, InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge,
-    SessionBridge, SettingsBridge, SystemBridge, TuiModelInfo, TuiTurnResult,
+    CommandResult, InferenceRequestId, InferenceState, McpInvokeRequestId, McpInvokeState,
+    ModelSwitchResult, ReplBridge, SessionBridge, SettingsBridge, SystemBridge, ToolInvokeBridge,
+    TuiModelInfo, TuiTurnResult,
 };
 pub use splash::SplashScreen;
 pub use window::{SplitDirection, Window, WindowId, WindowKind, WorkspaceAction};
@@ -104,7 +105,8 @@ impl TuiSession {
 
     with_bridges!(tui_bridge_setter;
         settings_bridge, SettingsBridge, with_settings_bridge;
-        session_bridge, SessionBridge, with_session_bridge
+        session_bridge, SessionBridge, with_session_bridge;
+        tool_invoke_bridge, ToolInvokeBridge, with_tool_invoke_bridge
     );
 
     /// Run the main event loop. Blocks until the user quits.
