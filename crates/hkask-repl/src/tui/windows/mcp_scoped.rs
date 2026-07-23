@@ -1,14 +1,18 @@
 //! Shared base for MCP-scoped windows.
 //!
 //! Each MCP window (Kanban, Companies, Scenarios) provides a dedicated
-//! pane where user queries are answered by the LLM using only the
-//! tools from one MCP server. This is the `start_scoped_inference`
-//! pattern — the LLM acts as an intelligent intermediary that calls
-//! the appropriate MCP tools.
+//! pane where the user can interact with an MCP server's tools. Two
+//! input paths are supported:
 //!
-//! Future enhancement: add `invoke_mcp_tool` to ReplBridge for direct
-//! tool invocation without an LLM round-trip (Phase 3 of the multi-
-//! window plan).
+//! - **Direct tool invocation** (`:tool_name args`) — calls the MCP tool
+//!   directly via `ToolInvokeBridge`, bypassing the LLM. Fast, structured
+//!   JSON results. Preserves OCAP governance (DelegationToken).
+//! - **Scoped inference** (natural language) — runs inference scoped to
+//!   the MCP server's tools via `start_scoped_inference`. The LLM acts as
+//!   an intermediary that calls the appropriate MCP tools.
+//!
+//! `McpScopedWindow` is the concrete `Window` impl; `McpScopedState` holds
+//! the shared state (input, messages, pending requests).
 
 use std::sync::Arc;
 

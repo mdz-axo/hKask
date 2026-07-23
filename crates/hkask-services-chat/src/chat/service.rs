@@ -764,22 +764,11 @@ impl ChatService {
             });
         }
 
-        // 1. Execute manifest cascade if the agent has a process manifest.
-        let base_input = if let (Some(executor), Some(manifest)) =
-            (manifest_executor, process_manifest)
-        {
-            let manifest_context =
-                Self::execute_manifest_cascade(executor, manifest, &req.input, &req.userpod_name)
-                    .await;
-            match manifest_context {
-                Some(ctx) => Self::wrap_manifest_input(&req.input, &ctx),
-                None => req.input.clone(),
-            }
-        } else {
-            req.input.clone()
-        };
+        // Manifest cascade is now run by the caller (run_turn_with_state)
+        // before the turn loop — not per-iteration inside execute_turn.
+        let base_input = req.input.clone();
 
-        // 2. Auto-condense if context pressure exceeds threshold (87.5%).
+        // Auto-condense if context pressure exceeds threshold (87.5%).
         let history_token = req.capability_checker.grant_registry(
             DelegationAction::Read,
             req.system_webid,

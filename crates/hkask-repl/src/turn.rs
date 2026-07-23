@@ -441,6 +441,24 @@ fn run_turn_with_state(
         principal_webid: state.host.resolve_user_webid(),
         agent_webid: state.agent_webid,
     };
+    // Run manifest cascade once before the turn loop (not per-iteration).
+    let effective_input = if let (Some(ref exec), Some(ref manif)) = (
+        state.manifest_state.as_ref().map(|c| &c.executor),
+        state.manifest_state.as_ref().map(|c| &c.manifest),
+    ) {
+        let ctx = rt.block_on(
+            hkask_services_chat::ChatService::execute_manifest_cascade(
+                exec, manif, input, &state.current_agent,
+            ),
+        );
+        match ctx {
+            Some(c) => hkask_services_chat::ChatService::wrap_manifest_input(input, &c),
+            None => input.to_string(),
+        }
+    } else {
+        input.to_string()
+    };
+
     let executor = super::deps::ReplTurnExecutor::from_state(state);
     let gas = super::deps::ReplGasGovernor::from_state(state, rt);
     let _svc_ctx = &state.service_context;
@@ -456,7 +474,7 @@ fn run_turn_with_state(
         threads: &mut threads,
         on_reg_update: &on_reg_update,
     };
-    run_turn_loop(input, deps, &config, rt, sink, agent_override)
+    run_turn_loop(effective_input.as_str(), deps, &config, rt, sink, agent_override)
 }
 
 // ── Tests ────────────────────────────────────────────────────────────

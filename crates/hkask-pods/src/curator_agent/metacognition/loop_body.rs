@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::ports::EscalationEntry;
-use hkask_regulation::meta_span::{emit_meta_circuit_breaker, emit_meta_self_calibration};
+use hkask_regulation::meta_span::{
+    emit_meta_circuit_breaker, emit_meta_escalation, emit_meta_self_calibration,
+};
 use hkask_regulation::types::loops::{
     ActionType, Deviation, DeviationDirection, Loop, LoopId, RegulationData, RegulatoryAction,
     RegulatoryActionParams, SignalMetric,
@@ -572,6 +574,101 @@ impl MetacognitionLoop {
             effectiveness,
             "Self-calibration applied to variety_deficit threshold"
         );
+    }
+
+    /// Route low-confidence escalations to skill-router for epistemic guidance.
+    ///
+    /// Consumes the `epistemic_route` signals collected in `act()` and invokes
+    /// the skill-router template to find certainty-finding skills. Emits a
+    /// `reg.meta.escalation` span with outcome "epistemic_routed" per signal,
+    /// closing the loop from detection to action. Gracefully degrades when the
+    /// skill catalog or manifest executor is not available (standalone CLI).
+    pub(super) async fn route_epistemic_escalations(
+        &self,
+        signals: &[(f64, String)],
+    ) {
+        if signals.is_empty() {
+            return;
+        }
+        let catalog = match self.context.skill_catalog().await {
+            Some(c) => c,
+            None => return,
+        };
+        let executor = match self.context.manifest_executor().await {
+            Some(e) => e,
+            None => return,
+        };
+        let catalog_json: Vec<serde_json::Value> = catalog
+            .iter()
+            .map(|e| {
+                serde_json::json!({
+                    "name": e.name,
+                    "description": e.description,
+                    "template_type": e.template_type.as_str(),
+                    "lexicon_terms": e.lexicon_terms,
+                    "when_to_use": e.description,
+                })
+            })
+            .collect();
+        for (confidence, output) in signals {
+            let mut ctx = HashMap::new();
+            ctx.insert("task_description".to_string(), serde_json::json!(output));
+            ctx.insert(
+                "task_context".to_string(),
+                serde_json::json!("Low-confidence escalation from Curator metacognition loop"),
+            );
+            ctx.insert(
+                "skill_catalog".to_string(),
+                serde_json::Value::Array(catalog_json.clone()),
+            );
+            ctx.insert("max_recommendations".to_string(), serde_json::json!(3));
+            ctx.insert(
+                "epistemic_state".to_string(),
+                serde_json::json!({
+                    "confidence": confidence,
+                    "uncertainty_type": "perspective_blind",
+                }),
+            );
+            match executor
+                .execute_knowact("skill-router/skill-router-match.j2", &ctx)
+                .await
+            {
+                Ok(response) => {
+                    let coverage = response
+                        .get("coverage_assessment")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown");
+                    let rec_count = response
+                        .get("recommendations")
+                        .and_then(|v| v.as_array())
+                        .map(|a| a.len())
+                        .unwrap_or(0);
+                    info!(
+                        target: MC_TARGET,
+                        confidence = *confidence,
+                        coverage_assessment = %coverage,
+                        recommendation_count = rec_count,
+                        "Epistemic routing completed"
+                    );
+                    if let Some(sink) = self.context.regulation_sink() {
+                        emit_meta_escalation(
+                            sink.as_ref(),
+                            self.context.handle().curator_id(),
+                            "epistemic_routed",
+                            *confidence,
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!(
+                        target: MC_TARGET,
+                        error = %e,
+                        confidence = *confidence,
+                        "skill-router invocation failed for epistemic routing"
+                    );
+                }
+            }
+        }
     }
 
     /// Decide a new variety-deficit threshold. Generative-first (LLM template);

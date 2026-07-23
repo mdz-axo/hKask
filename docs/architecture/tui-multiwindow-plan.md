@@ -73,7 +73,36 @@ d28f2521). A single generic method replaces 15 traits + a 1218-line adapter.
 - [x] Add stub to `MockReplBridge` in `test_util.rs`
 - [x] MCP windows now support direct tool invocation (`tool_name arg=value`) AND scoped inference (natural language)
 
-### Phase 6 — Layout Persistence + Validation ✅
+### Phase 7 — Adversarial Review Fixes ✅
+
+- [x] Step 1: `:` sigil prefix for direct tool calls; natural language falls through to scoped inference (P0 functional bug)
+- [x] Step 2: `focus_window` validates target exists in active tab via `contains_window` (CRITICAL)
+- [x] Step 3: `close_focused` validates focused window is in active tab (CRITICAL)
+- [x] Step 4: Keymap timeout (60-tick countdown auto-resets `AwaitWindow` state) (HIGH)
+- [x] Step 5: State lock extracted and dropped before async `rt.block_on(invoke(...))` call (HIGH)
+- [x] Step 6: `format_json_result_depth` caps recursion at 5, truncates output to 5000 chars (HIGH)
+- [x] Step 8: Collapsed `kanban.rs`/`companies.rs`/`scenarios.rs` into single `McpScopedWindow` (~130 lines deleted)
+- [x] Step 9: `McpInvokeState::Error(String)` → `Error(McpInvokeError)` with structured variants
+- [x] Step 10: `WindowKind::META` const table → direct `match` expressions (compiler-enforced exhaustiveness)
+- [x] Step 11: Deleted `WindowKind::all()` dead code
+- [x] Step 12: Consolidated `system_bridge` + `repl_bridge` into `WorkspaceBridges` (9→7 fields)
+- [x] Removed dead `McpInvokeError::InvalidArgs` variant
+- [x] Fixed stale doc comments in `mcp_scoped.rs`, `repl_bridge.rs`
+- [~] Step 7: Skipped — `PlaceholderWindow` is necessary for Rust's ownership model (can't move out of `&mut T` without replacement value)
+
+## Remaining Follow-Up Items
+
+### Documentation
+- `docs/explanation/tui-architecture.md` is comprehensively stale — describes the deleted 16-window/15-bridge architecture with references to non-existent files (`tui_bridges.rs`, `mcp_tabbed.rs`, `terminal.rs`). Needs a full rewrite.
+
+### Test Coverage Gaps
+- `mcp_scoped.rs` has no test module — `:` sigil parsing, JSON/key=value arg parsing, and `try_direct_tool_invoke` logic are untested
+- Keymap timeout decrement in `tick()` is untested
+- `McpInvokeError` mapping from `ToolPortError` in `lib.rs` is untested
+- Cross-tab focus guard in `focus_window` is untested
+
+### Minor
+- Status bar hint omits `Ctrl+Tab`/`Ctrl+Shift+Tab` for tab cycling
 
 - [x] Verify `SavedLayout`/`SavedLeaf` handles new window kinds (string-based, already generic)
 - [x] Test layout save/restore with multi-window splits (`extract_layout_contains_new_kinds`)
