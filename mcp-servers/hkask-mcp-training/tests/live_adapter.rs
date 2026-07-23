@@ -13,17 +13,17 @@
 //!   TG_API_KEY=... HF_TOKEN=... \
 //!   HKASK_LIVE_ADAPTER_REPO=user/adapter \
 //!   HKASK_LIVE_BASE_MODEL=llama-3.3-70b \
-//!   cargo test -p hkask-adapter --test live_adapter -- --ignored
+//!   cargo test -p hkask-mcp-training --test live_adapter -- --ignored
 
+use hkask_capability::auth::derive_signing_key;
+use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
+use hkask_inference::ProviderId;
 use hkask_mcp_training::adapter::adapter_store::Checksum;
 use hkask_mcp_training::adapter::{
     AdapterLifecycle, AdapterPort, AdapterRouter, AdapterSource, AdapterStore, Expertise,
     MdsDomain, TrainedLoRAAdapter, TrainingProvenance,
 };
-use hkask_capability::auth::derive_signing_key;
-use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
 use hkask_storage::database::sqlite::SqliteDriver;
-use hkask_inference::ProviderId;
 use hkask_types::id::WebID;
 use hkask_types::template::LLMParameters;
 use std::sync::Arc;

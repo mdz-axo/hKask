@@ -35,8 +35,8 @@ fn mls_derivation_concept_exists() {
 
 #[test]
 fn trained_lora_adapter_type_exists() {
-    let _type_name = std::any::type_name::<hkask_adapter::TrainedLoRAAdapter>();
-    assert!(_type_name.contains("hkask_adapter"));
+    let _type_name = std::any::type_name::<hkask_mcp_training::adapter::TrainedLoRAAdapter>();
+    assert!(_type_name.contains("hkask_mcp_training"));
 }
 
 #[test]
@@ -109,14 +109,14 @@ fn request_types_have_schemas() {
 // the create-new-file, range-inversion, and multibyte-truncation defects in
 // hkask-mcp-filesystem.
 
-use hkask_adapter::AdapterStore;
-use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::InferenceConfig;
 use hkask_mcp_training::TrainingServer;
+use hkask_mcp_training::adapter::AdapterStore;
 use hkask_mcp_training::dataset::DatasetPipeline;
 use hkask_mcp_training::providers::{
     ProviderError, TrainingHarnessId, TrainingHost, TrainingHostId, TrainingJob, TrainingJobStatus,
 };
+use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;
 use std::path::PathBuf;
@@ -141,7 +141,8 @@ impl TrainingHost for MockTrainingHost {
 /// Construct a TrainingServer with a mock host and in-memory adapter store.
 fn test_server() -> TrainingServer {
     let pool = SqliteDriver::in_memory_pool().expect("in-memory pool");
-    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> = Arc::new(SqliteDriver::new(pool));
+    let driver: Arc<dyn hkask_storage::database::driver::DatabaseDriver> =
+        Arc::new(SqliteDriver::new(pool));
     let adapter_store = Arc::new(AdapterStore::from_driver(driver));
     TrainingServer::new(
         WebID::new(),
@@ -396,7 +397,7 @@ async fn training_submit_rejects_path_traversal_in_merged_output_path_via_parame
 // expect: returns None when only one adapter exists for the skill (no previous).
 #[test]
 fn get_previous_by_skill_name_returns_none_when_only_one_exists() {
-    use hkask_adapter::{
+    use hkask_mcp_training::adapter::{
         AdapterStore, TrainedLoRAAdapter,
         expertise::{Expertise, MdsDomain, TrainingProvenance},
     };
@@ -425,17 +426,19 @@ fn get_previous_by_skill_name_returns_none_when_only_one_exists() {
             },
         )
         .unwrap(),
-        checksum: hkask_adapter::adapter_store::Checksum::from_hex("0000000000000000"),
+        checksum: hkask_mcp_training::adapter::adapter_store::Checksum::from_hex(
+            "0000000000000000",
+        ),
         storage_path: String::new(),
         base_model_family: "test-model".to_string(),
         version: Some("1".to_string()),
-        source: hkask_adapter::AdapterSource::HuggingFace {
+        source: hkask_mcp_training::adapter::AdapterSource::HuggingFace {
             repo: "test/repo".to_string(),
         },
         size_bytes: None,
         owner: WebID::from_persona(b"test"),
         skill_name: Some("test-skill".to_string()),
-        lifecycle: hkask_adapter::expertise::AdapterLifecycle::Durable,
+        lifecycle: hkask_mcp_training::adapter::expertise::AdapterLifecycle::Durable,
         created_at: chrono::Utc::now().to_rfc3339(),
     };
     store.store(&adapter).unwrap();

@@ -24,7 +24,7 @@
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
+use hkask_mcp_server::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_types::{InferencePort, RegistryEntry, RegistryIndex};
 use hkask_templates::Registry;
 use hkask_types::template::LLMParameters;
@@ -42,7 +42,7 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 const SKILL_TEMPERATURE: f32 = 0.3;
 const SKILL_MAX_TOKENS: u32 = 2048;
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct SkillServer {
         pub inference_port: Arc<dyn InferencePort>,
         /// Template entries available as tools, keyed by tool-facing ID
@@ -252,16 +252,16 @@ impl SkillServer {
 
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
     let inference_config = InferenceConfig::from_env();
     let inference_router = InferenceRouter::new(inference_config);
     let inference_port: Arc<dyn InferencePort> = Arc::new(inference_router);
 
-    hkask_mcp::run_server(
+    hkask_mcp_server::run_server(
         "hkask-mcp-skill",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| {
+        |ctx: hkask_mcp_server::ServerContext| {
             {
                 let webid = ctx.webid;
                 let mut server = SkillServer::new(
@@ -280,7 +280,7 @@ pub async fn run(
                 );
                 Ok::<_, anyhow::Error>(server)
             }
-            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+            .map_err(|e| hkask_mcp_server::McpError::UnexpectedResponse {
                 context: "skill server init".into(),
                 detail: e.to_string(),
             })

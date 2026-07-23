@@ -5,7 +5,7 @@
 //!
 //! Tested seam: SkillServer construction, skill index loading (no inference dependency).
 
-use hkask_mcp::server::CapabilityTier;
+use hkask_mcp_server::server::CapabilityTier;
 use hkask_mcp_skill::SkillExecuteRequest;
 use hkask_mcp_skill::SkillServer;
 use hkask_types::WebID;

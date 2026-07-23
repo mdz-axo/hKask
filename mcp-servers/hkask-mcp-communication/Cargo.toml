@@ -14,7 +14,7 @@ name = "hkask-mcp-communication"
 path = "src/main.rs"
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-communication = { path = "../../crates/hkask-communication" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }

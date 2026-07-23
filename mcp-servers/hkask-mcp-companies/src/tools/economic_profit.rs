@@ -3,7 +3,7 @@
 //! Tools:
 //! - `ep_valuation` — Full EP-based valuation with competitive fade and IVM ratio.
 use crate::{CompaniesServer, economic_profit, fibo, types, validate_symbol};
-use hkask_mcp::server::execute_tool;
+use hkask_mcp_server::server::execute_tool;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 #[tool_router(router = economic_profit_router, vis = "pub")]

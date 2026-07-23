@@ -23,7 +23,7 @@ pub mod types;
 
 use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::EmbeddingRouter;
-use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_services_compose::cosine_distance;
 use hkask_services_core::HkaskSettings;
 use hkask_services_corpus::{EmbedProgress, EmbedService};
@@ -71,7 +71,7 @@ fn database_passphrase() -> Result<String, McpToolError> {
         .map_err(|e| McpToolError::failed_precondition(e.to_string()))
 }
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct ReplicaServer;
 );
 
@@ -1071,9 +1071,9 @@ impl ReplicaServer {
 /// Run the replica MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
-    hkask_mcp::run_server(
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
+    hkask_mcp_server::run_server(
         "hkask-mcp-replica",
         env!("CARGO_PKG_VERSION"),
         |ctx| {
@@ -1084,11 +1084,11 @@ pub async fn run(
             ))
         },
         vec![
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_EMBEDDING_MODEL",
                 "Embedding model for corpus vectorization (default: Qwen/Qwen3-Embedding-0.6B)",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_DEFAULT_MODEL",
                 "Default generation model for all inference (also used for prose composition). Set via HKASK_DEFAULT_MODEL env var.",
             ),

@@ -5,9 +5,9 @@ use hkask_services_inference::{InferenceContext, InferenceService};
 /// Resolved model switch — resolved name + rendered detail.
 ///
 /// Internal to `hkask-repl`: the REPL `/model` handler prints it, and the
-/// TUI `SettingsBridge` (in `hkask-repl`'s lib, behind the `tui` feature)
-/// maps this to `hkask_tui::ModelSwitchResult` at the trait boundary. Kept
-/// local so the resolver compiles without the optional `hkask-tui` dep.
+/// TUI `SettingsBridge` (in `hkask-repl`'s `tui` module, behind the `tui` feature)
+/// maps this to `crate::tui::ModelSwitchResult` at the trait boundary. Kept
+/// local so the resolver compiles without the optional `tui` feature.
 pub(crate) struct ResolvedModel {
     pub resolved_name: String,
     pub detail: String,

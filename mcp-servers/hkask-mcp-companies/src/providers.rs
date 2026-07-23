@@ -4,7 +4,7 @@
 //! so that analysis functions in `analysis.rs` work transparently with
 //! either data source.
 
-use hkask_mcp::server::{McpToolError, classify_http_error};
+use hkask_mcp_server::server::{McpToolError, classify_http_error};
 use serde_json::Value;
 
 // ── Provider enum ──────────────────────────────────────────────────

@@ -31,7 +31,7 @@ use hkask_condenser::saliency;
 use hkask_condenser::types::*;
 use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_inference::{InferenceConfig, InferenceRouter};
-use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
+use hkask_mcp_server::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_memory::EpisodicMemory;
 use hkask_memory::SemanticMemory;
 use hkask_types::InferencePort;
@@ -43,7 +43,7 @@ use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct CondenserServer {
         pub engine: Mutex<CondenserEngine>,
         pub episodic: Option<Arc<EpisodicMemory>>,
@@ -105,7 +105,7 @@ impl CondenserServer {
                     .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
-                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse { stored: true, .. }) => {
                         tracing::debug!(target: "hkask.mcp.condenser.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
@@ -488,17 +488,17 @@ pub struct SaliencyRequest {
 /// Run the condenser MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
     // Build the centralized inference router from environment.
     let inference_config = InferenceConfig::from_env();
     let inference_router = InferenceRouter::new(inference_config);
     let inference_port: Arc<dyn InferencePort> = Arc::new(inference_router);
 
-    hkask_mcp::run_server(
+    hkask_mcp_server::run_server(
         "hkask-mcp-condenser",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| {
+        |ctx: hkask_mcp_server::ServerContext| {
             (|| -> anyhow::Result<CondenserServer> {
                 let (episodic, semantic) = {
                     let db_path = ctx
@@ -581,7 +581,7 @@ pub async fn run(
                     ctx.capability_tier,
                 ))
             })()
-            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+            .map_err(|e| hkask_mcp_server::McpError::UnexpectedResponse {
                 context: "condenser server init".into(),
                 detail: e.to_string(),
             })

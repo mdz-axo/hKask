@@ -14,7 +14,7 @@ name = "hkask_mcp_filesystem"
 path = "src/lib.rs"
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 rmcp = { workspace = true, features = ["server", "macros"] } # no transport-io: server invoked by runtime, doesn't serve stdio/SSE directly
 tokio = { workspace = true, features = ["process", "time", "fs"] }

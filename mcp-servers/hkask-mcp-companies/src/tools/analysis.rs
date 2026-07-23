@@ -4,7 +4,7 @@ use crate::{
     types::{self, SymbolLimitRequest, SymbolRequest},
     validate_symbol,
 };
-use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_mcp_server::server::{McpToolError, execute_tool};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 fn parse_screener_response(

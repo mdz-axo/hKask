@@ -26,7 +26,7 @@ impl DocProcServer {
 
         execute_tool(self, "docproc_convert", async {
             let path_clone = path.clone();
-            hkask_mcp::validate_path("path", &path, 4096)
+            hkask_mcp_server::validate_path("path", &path, 4096)
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
 
             let (format, _, _) = convert::detect_format(&path);
@@ -510,7 +510,7 @@ impl DocProcServer {
     ) -> String {
         execute_tool(self, "docproc_ocr", async {
             let path_clone = path.clone();
-            hkask_mcp::validate_path("path", &path, 4096)
+            hkask_mcp_server::validate_path("path", &path, 4096)
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
 
             let model = match self.resolve_ocr_model(model.as_deref()).await {
@@ -564,7 +564,7 @@ impl DocProcServer {
     ) -> String {
         execute_tool(self, "docproc_is_complex", async {
             let path_clone = path.clone();
-            hkask_mcp::validate_path("path", &path, 4096)
+            hkask_mcp_server::validate_path("path", &path, 4096)
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
             let (format, _, _) = convert::detect_format(&path);
             if format != "pdf" {
@@ -671,7 +671,7 @@ impl DocProcServer {
                     "entity_ref_prefix must not be empty",
                 ));
             }
-            hkask_mcp::validate_identifier("entity_ref_prefix", &entity_ref_prefix, 256)
+            hkask_mcp_server::validate_identifier("entity_ref_prefix", &entity_ref_prefix, 256)
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
 
             // Resolve the source text
@@ -908,14 +908,14 @@ impl DocProcServer {
     /// [P3] Constraining: Generative Space — batch progress and failures remain visible in the tool result.
     async fn convert_directory(&self, path: &str, output: Option<&str>, force_ocr: bool) -> String {
         execute_tool(self, "docproc_convert", async {
-            hkask_mcp::validate_path("path", path, 4096)
+            hkask_mcp_server::validate_path("path", path, 4096)
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
             let output = output.ok_or_else(|| {
                 McpToolError::invalid_argument(
                     "'output' directory is required when 'path' is a directory",
                 )
             })?;
-            hkask_mcp::validate_path("output", output, 4096)
+            hkask_mcp_server::validate_path("output", output, 4096)
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
 
             let output_dir = std::path::Path::new(output);
@@ -1021,12 +1021,12 @@ impl DocProcServer {
         index: bool,
     ) -> String {
         execute_tool(self, "docproc_chunk", async {
-            hkask_mcp::validate_path("input_dir", input_dir, 4096)
+            hkask_mcp_server::validate_path("input_dir", input_dir, 4096)
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
             let output = output.ok_or_else(|| {
                 McpToolError::invalid_argument("'output' is required with 'input_dir'")
             })?;
-            hkask_mcp::validate_path("output", output, 4096)
+            hkask_mcp_server::validate_path("output", output, 4096)
                 .map_err(|e| McpToolError::new(e.kind, e.to_json_string()))?;
 
             let mut sources = std::fs::read_dir(input_dir)

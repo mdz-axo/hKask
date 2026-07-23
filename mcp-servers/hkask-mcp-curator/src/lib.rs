@@ -12,8 +12,8 @@ pub mod types;
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
 use hkask_storage::database::sqlite::SqliteDriver;
-use hkask_mcp::daemon::DaemonResponse;
-use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_mcp_server::daemon::DaemonResponse;
+use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_services_context::governance;
 
 use hkask_types::WebID;
@@ -27,7 +27,7 @@ use types::*;
 
 const SERVER_NAME: &str = "hkask-mcp-curator";
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct CuratorServer {
         escalation_queue: Option<Arc<hkask_storage::EscalationQueue>>,
         regulation_store: Option<Arc<hkask_storage::RegulationArchive>>,
@@ -447,12 +447,12 @@ impl CuratorServer {
 
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
-    hkask_mcp::run_server(
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
+    hkask_mcp_server::run_server(
         SERVER_NAME,
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::server::ServerContext| {
+        |ctx: hkask_mcp_server::server::ServerContext| {
             let (escalation_queue, regulation_store, episodic, semantic, token_registry) =
                 open_curator_stores(&ctx);
             Ok(CuratorServer::new(
@@ -467,11 +467,11 @@ pub async fn run(
             ))
         },
         vec![
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_CURATOR_DB",
                 "Path to the Curator's SQLCipher database",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",
                 "SQLCipher encryption passphrase",
             ),
@@ -482,7 +482,7 @@ pub async fn run(
 
 #[allow(clippy::type_complexity)]
 fn open_curator_stores(
-    ctx: &hkask_mcp::server::ServerContext,
+    ctx: &hkask_mcp_server::server::ServerContext,
 ) -> (
     Option<Arc<hkask_storage::EscalationQueue>>,
     Option<Arc<hkask_storage::RegulationArchive>>,

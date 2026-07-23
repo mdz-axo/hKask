@@ -32,8 +32,8 @@ pub mod types;
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
 use hkask_storage::database::sqlite::SqliteDriver;
-use hkask_mcp::server::{McpToolError, execute_tool};
-use hkask_mcp::validate_identifier;
+use hkask_mcp_server::server::{McpToolError, execute_tool};
+use hkask_mcp_server::validate_identifier;
 use hkask_memory::{ChatTurn, EpisodicMemory, SemanticMemory};
 use hkask_storage::HMem;
 use hkask_types::Visibility;
@@ -47,7 +47,7 @@ use types::*;
 
 // ── Server ──────────────────────────────────────────────────────────
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct MemoryServer {
         pub episodic: EpisodicMemory,
         pub semantic: Arc<SemanticMemory>,
@@ -788,12 +788,12 @@ impl MemoryServer {
 /// Run the memory MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
-    hkask_mcp::run_server(
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
+    hkask_mcp_server::run_server(
         "hkask-mcp-memory",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::server::ServerContext| {
+        |ctx: hkask_mcp_server::server::ServerContext| {
             (|| -> anyhow::Result<MemoryServer> {
                 // Use the standard per-agent memory DB path when not explicitly set.
                 // This ensures each agent's memory goes to agents/{name}/memory.db
@@ -845,17 +845,17 @@ pub async fn run(
                     db.sqlite_pool().ok(),
                 ))
             })()
-            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+            .map_err(|e| hkask_mcp_server::McpError::UnexpectedResponse {
                 context: "memory server init".into(),
                 detail: e.to_string(),
             })
         },
         vec![
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_MEMORY_DB",
                 "Path to per-agent memory database file (defaults to agents/{userpod}/memory.db)",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",
                 "SQLCipher encryption passphrase (resolved via hkask keystore chain when not set)",
             ),

@@ -27,7 +27,7 @@
 pub mod types;
 use types::*;
 
-use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
+use hkask_mcp_server::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_types::regulation::{RegulationSpan, ToolSubsystem};
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::path::{Path, PathBuf};
@@ -35,7 +35,7 @@ use std::time::Instant;
 
 // ── Server ───────────────────────────────────────────────────────────────
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct FileSystemServer {
         pub project_root: PathBuf,
         pub capability_tier: CapabilityTier,

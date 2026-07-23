@@ -3,7 +3,7 @@
 //! Replaces `Result<_, String>` with a structured `MediaError` enum.
 //! `map_media_error` classifies errors into MCP wire-level `McpToolError` kinds.
 
-use hkask_mcp::server::McpToolError;
+use hkask_mcp_server::server::McpToolError;
 use hkask_storage::GalleryStoreError;
 use thiserror::Error;
 

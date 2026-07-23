@@ -8,9 +8,9 @@ use crate::codegraph::graph::traversal;
 use crate::codegraph::indexer::pipeline::IndexPipeline;
 use crate::codegraph::types::Direction;
 use crate::codegraph::{ContextBudget, graph};
-use hkask_mcp::DaemonClient;
-use hkask_mcp::run_server;
-use hkask_mcp::server::{CapabilityTier, McpToolError, execute_tool};
+use hkask_mcp_server::DaemonClient;
+use hkask_mcp_server::run_server;
+use hkask_mcp_server::server::{CapabilityTier, McpToolError, execute_tool};
 use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct CodeGraphServer {
         pub capability_tier: CapabilityTier,
         pipeline: Arc<Mutex<IndexPipeline>>,
@@ -393,7 +393,7 @@ impl CodeGraphServer {
 pub async fn run(
     userpod: String,
     daemon_client: Option<DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+) -> Result<(), hkask_mcp_server::McpError> {
     let db_path = std::env::var("HKASK_CODEGRAPH_DB").ok();
     run_server(
         "hkask-mcp-codegraph",
@@ -402,9 +402,9 @@ pub async fn run(
             let webid = WebID::new();
             let store = match &db_path {
                 Some(path) => crate::codegraph::graph::store::GraphStore::open(path)
-                    .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?,
+                    .map_err(|e| hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string())))?,
                 None => crate::codegraph::graph::store::GraphStore::open_in_memory()
-                    .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?,
+                    .map_err(|e| hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string())))?,
             };
             let pipeline = IndexPipeline::new(store);
             Ok(CodeGraphServer::new(

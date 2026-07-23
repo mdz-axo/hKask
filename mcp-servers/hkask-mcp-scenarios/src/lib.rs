@@ -28,8 +28,8 @@
 
 use std::collections::HashSet;
 
-use hkask_mcp::server::{McpToolError, execute_tool_semantic};
-use hkask_mcp::{DaemonClient, DaemonResponse};
+use hkask_mcp_server::server::{McpToolError, execute_tool_semantic};
+use hkask_mcp_server::{DaemonClient, DaemonResponse};
 use hkask_types::time::now_rfc3339;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -263,7 +263,7 @@ pub struct StatusRequest {}
 
 // ── Server struct ──────────────────────────────────────────────────────────
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct ScenariosServer {
         pub forecast_store: std::sync::Arc<std::sync::Mutex<superforecast::ForecastStore>>,
         pub client: reqwest::Client,
@@ -1821,8 +1821,8 @@ const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub async fn run(
     userpod: String,
     daemon_client: Option<DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
-    hkask_mcp::run_server(
+) -> Result<(), hkask_mcp_server::McpError> {
+    hkask_mcp_server::run_server(
         "hkask-mcp-scenarios",
         SERVER_VERSION,
         |_ctx| {

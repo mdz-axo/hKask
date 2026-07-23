@@ -6,8 +6,8 @@
 #![allow(unused_crate_dependencies)] // All deps used in this binary — lint produces false positives
 
 #[tokio::main]
-async fn main() -> Result<(), hkask_mcp::McpError> {
+async fn main() -> Result<(), hkask_mcp_server::McpError> {
     let boot =
-        hkask_mcp::bootstrap_mcp_server("training", "hkask.mcp.training", "HKASK_MCP_HOST").await?;
+        hkask_mcp_server::bootstrap_mcp_server("training", "hkask.mcp.training", "HKASK_MCP_HOST").await?;
     hkask_mcp_training::run(boot.userpod, boot.daemon_client).await
 }

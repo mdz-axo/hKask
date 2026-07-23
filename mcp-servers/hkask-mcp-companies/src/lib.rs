@@ -67,8 +67,8 @@
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use hkask_mcp::server::{McpToolError, validate_identifier};
-use hkask_mcp::{DaemonClient, DaemonResponse};
+use hkask_mcp_server::server::{McpToolError, validate_identifier};
+use hkask_mcp_server::{DaemonClient, DaemonResponse};
 use hkask_types::time::now_rfc3339;
 use serde::{Deserialize, Serialize};
 
@@ -165,7 +165,7 @@ fn parse_symbol_from_query(query: &str) -> Option<String> {
 
 use learning::LearningState;
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct CompaniesServer {
         pub client: reqwest::Client,
         pub fmp_api_key: String,
@@ -339,11 +339,11 @@ impl rmcp::ServerHandler for CompaniesServer {}
 pub async fn run(
     userpod: String,
     daemon_client: Option<DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
-    hkask_mcp::run_server(
+) -> Result<(), hkask_mcp_server::McpError> {
+    hkask_mcp_server::run_server(
         "hkask-mcp-companies",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| {
+        |ctx: hkask_mcp_server::ServerContext| {
             let fmp_api_key = ctx
                 .credentials
                 .get("HKASK_FMP_API_KEY")
@@ -381,23 +381,23 @@ pub async fn run(
             ))
         },
         vec![
-            hkask_mcp::CredentialRequirement::required(
+            hkask_mcp_server::CredentialRequirement::required(
                 "HKASK_FMP_API_KEY",
                 "Financial Modeling Prep API key",
             ),
-            hkask_mcp::CredentialRequirement::required(
+            hkask_mcp_server::CredentialRequirement::required(
                 "HKASK_EODHD_API_KEY",
                 "EOD Historical Data (EODHD) API key",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_EXA_API_KEY",
                 "Exa API key for fundamental research search",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_TAVILY_API_KEY",
                 "Tavily API key for fundamental research search",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_BRAVE_API_KEY",
                 "Brave Search API key for fundamental research search",
             ),

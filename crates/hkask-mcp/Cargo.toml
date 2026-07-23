@@ -3,33 +3,19 @@ name = "hkask-mcp"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "MCP runtime and dispatch for hKask"
+description = "MCP runtime and governance for hKask"
 
 [dependencies]
+hkask-mcp-server = { path = "../hkask-mcp-server" }
 hkask-types = { path = "../hkask-types" }
 hkask-capability = { path = "../hkask-capability" }
-hkask-keystore = { path = "../hkask-keystore" }
-hkask-storage = { path = "../hkask-storage" }
 hkask-regulation = { path = "../hkask-regulation" }
-# Runtime needs client (to talk to child MCP servers) and
-# transport-child-process (to spawn/manage them).
 rmcp = { workspace = true, features = ["server", "macros", "transport-io", "client", "transport-child-process"] }
 tokio-util.workspace = true
-serde.workspace = true
 serde_json.workspace = true
-
 thiserror.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
 tokio.workspace = true
-
-
-reqwest.workspace = true
-hex.workspace = true
-async-trait.workspace = true
-dirs = "6"
-jsonschema = "0.28"
-
 
 [dev-dependencies]
 tempfile.workspace = true

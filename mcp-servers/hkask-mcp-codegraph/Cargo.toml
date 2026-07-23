@@ -6,7 +6,7 @@ license.workspace = true
 description = "Code understanding MCP server — semantic code graph with tree-sitter indexing"
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 rmcp = { workspace = true, features = ["server", "macros", "transport-io"] }
 tokio = { workspace = true }

@@ -9,7 +9,7 @@ use hkask_mcp_codegraph::codegraph::graph::store::GraphStore;
 use hkask_mcp_codegraph::codegraph::graph::traversal;
 use hkask_mcp_codegraph::codegraph::indexer::pipeline::IndexPipeline;
 use hkask_mcp_codegraph::codegraph::types::Direction;
-use hkask_mcp::server::CapabilityTier;
+use hkask_mcp_server::server::CapabilityTier;
 use hkask_mcp_codegraph::CodeGraphServer;
 use hkask_types::WebID;
 use rmcp::handler::server::wrapper::Parameters;

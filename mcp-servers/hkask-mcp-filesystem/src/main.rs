@@ -9,9 +9,9 @@ use hkask_mcp_filesystem::FileSystemServer;
 use std::path::PathBuf;
 
 #[tokio::main]
-async fn main() -> Result<(), hkask_mcp::McpError> {
+async fn main() -> Result<(), hkask_mcp_server::McpError> {
     let boot =
-        hkask_mcp::bootstrap_mcp_server("filesystem", "hkask.mcp.filesystem", "HKASK_MCP_HOST")
+        hkask_mcp_server::bootstrap_mcp_server("filesystem", "hkask.mcp.filesystem", "HKASK_MCP_HOST")
             .await?;
 
     let project_root = std::env::var("HKASK_PROJECT_ROOT")
@@ -26,10 +26,10 @@ async fn main() -> Result<(), hkask_mcp::McpError> {
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false);
 
-    hkask_mcp::run_server(
+    hkask_mcp_server::run_server(
         "hkask-mcp-filesystem",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::server::ServerContext| {
+        |ctx: hkask_mcp_server::server::ServerContext| {
             Ok(FileSystemServer::new(
                 ctx.webid,
                 boot.userpod.clone(),

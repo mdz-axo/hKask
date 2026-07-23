@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn authoritative_capabilities_researcher_flowdef_parses() {
-        let yaml = include_str!("../../../corpus/pipeline-capabilities-researcher.yaml");
+        let yaml = include_str!("../../../../corpus/pipeline-capabilities-researcher.yaml");
         let manifest: PipelineManifest =
             serde_yaml_neo::from_str(yaml).expect("authoritative corpus FlowDef must parse");
 

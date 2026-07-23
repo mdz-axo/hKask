@@ -30,7 +30,7 @@ fn test_server_with_consent(root: PathBuf, destructive_consent: bool) -> FileSys
         "test-userpod".into(),
         None,
         root,
-        hkask_mcp::server::CapabilityTier::detect(&std::collections::HashMap::new()),
+        hkask_mcp_server::server::CapabilityTier::detect(&std::collections::HashMap::new()),
         destructive_consent,
     )
 }

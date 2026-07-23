@@ -6,7 +6,7 @@ license.workspace = true
 description = "Regulation span history query MCP server — runtime telemetry for security skills"
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-regulation = { path = "../../crates/hkask-regulation" }

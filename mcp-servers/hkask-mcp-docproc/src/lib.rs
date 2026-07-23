@@ -31,7 +31,7 @@ pub(crate) use json_extract::extract_json_from_response;
 use crate::ocr::ThresholdConfig;
 use crate::ocr::decimation;
 use hkask_inference::{EmbeddingRouter, InferenceConfig, InferenceRouter};
-use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_memory::SemanticMemory;
 use hkask_types::InferencePort;
 use hkask_services_core::settings::HkaskSettings;
@@ -129,7 +129,7 @@ fn default_embedding_model() -> &'static str {
 
 // ── Server struct ──────────────────────────────────────────────────────────
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct DocProcServer {
         pub ocr_model: Option<String>,
         pub inference_router: Arc<InferenceRouter>,
@@ -231,7 +231,7 @@ impl DocProcServer {
                     .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
-                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse { stored: true, .. }) => {
                         tracing::debug!(target: "hkask.mcp.docproc.memory", tool = %tool_name, "Experience stored via daemon");
                     }
                     Ok(other) => {
@@ -627,12 +627,12 @@ impl rmcp::ServerHandler for DocProcServer {}
 /// Run the docproc MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
-    hkask_mcp::run_server(
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
+    hkask_mcp_server::run_server(
         "hkask-mcp-docproc",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| {
+        |ctx: hkask_mcp_server::ServerContext| {
             let ocr_model = ctx
                 .credentials
                 .get("HKASK_OCR_MODEL")
@@ -679,7 +679,7 @@ pub async fn run(
                         ))
         },
         vec![
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_OCR_MODEL",
                 "Vision model for OCR (must exist in inference catalog). Required for OCR functionality.",
             ),

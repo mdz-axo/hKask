@@ -13,7 +13,7 @@ pub mod types;
 
 // Bridge crates: shared ontological vocabulary (P5.4 dual-axis framework)
 
-use hkask_mcp::server::{McpToolError, ServerContext, execute_tool_semantic};
+use hkask_mcp_server::server::{McpToolError, ServerContext, execute_tool_semantic};
 use hkask_services_kata_kanban::KanbanError;
 use hkask_services_kata_kanban::KanbanService;
 use hkask_services_kata_kanban::{TaskFilter, TaskSpec, VerificationCriterion};
@@ -26,7 +26,7 @@ use types::*;
 
 // ── Server ──────────────────────────────────────────────────────────────────
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct KanbanServer {
         pub service: KanbanService,
     }
@@ -882,9 +882,9 @@ pub fn default_columns() -> Vec<hkask_services_kata_kanban::ColumnDef> {
 /// Run the kanban MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
-    hkask_mcp::run_server(
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
+    hkask_mcp_server::run_server(
         "hkask-mcp-kata-kanban",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {
@@ -944,17 +944,17 @@ pub async fn run(
                     service,
                 ))
             })()
-            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+            .map_err(|e| hkask_mcp_server::McpError::UnexpectedResponse {
                 context: "kanban server init".into(),
                 detail: e.to_string(),
             })
         },
         vec![
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_KANBAN_DB",
                 "Path to per-agent kanban database file (defaults to agents/{userpod}/kanban.db)",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",
                 "SQLCipher encryption passphrase (resolved via hkask keystore chain when not set)",
             ),

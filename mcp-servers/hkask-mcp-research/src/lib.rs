@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine;
-use hkask_mcp::server::{
+use hkask_mcp_server::server::{
     CredentialRequirement, McpToolError, ServerContext, execute_tool, validate_tool_url,
 };
 use hkask_types::time::now_rfc3339;
@@ -40,7 +40,7 @@ const RATE_LIMIT_WINDOW_SECS: u64 = 60;
 
 // ── ResearchServer ──
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct ResearchServer {
         pub pool: Arc<dyn WebSearchPort>,
         pub cache: Arc<ResponseCache>,
@@ -79,7 +79,7 @@ impl ResearchServer {
                     .store_experience(&userpod, "mcp_session", "observed", &value, Some(0.85))
                     .await
                 {
-                    Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+                    Ok(hkask_mcp_server::DaemonResponse::StoreResponse { stored: true, .. }) => {
                         tracing::debug!(
                             target: "hkask.mcp.research.memory",
                             tool = %tool_name,
@@ -504,7 +504,7 @@ impl ResearchServer {
             // Use permissive SSRF config: RSS feeds may be self-hosted on
             // local networks (e.g., http://localhost:4000/feed.xml). The user
             // is explicitly subscribing to this URL by choice.
-            hkask_mcp::server::validate_tool_url_permissive(&url)?;
+            hkask_mcp_server::server::validate_tool_url_permissive(&url)?;
             let fetch_result = fetch_feed(&self.rss_client, &url, None, None).await
                 .map_err(|e| McpToolError::unavailable(format!("Fetch failed: {}", e)))?;
             let stream_id = format!("feed/{url}");
@@ -605,7 +605,7 @@ impl ResearchServer {
             // DB could have altered. Use permissive config (allows localhost/
             // private IPs) because RSS feeds may be self-hosted on local
             // networks — the user explicitly subscribed to them.
-            hkask_mcp::server::validate_tool_url_permissive(&feed_url)?;
+            hkask_mcp_server::server::validate_tool_url_permissive(&feed_url)?;
 
             let db = require_rss_db!(self);
             let fetch_result = fetch_feed(
@@ -817,13 +817,13 @@ impl ResearchServer {
 /// Run the research MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
     dotenvy::dotenv().ok();
 
-    let dotenv = hkask_mcp::load_dotenv();
+    let dotenv = hkask_mcp_server::load_dotenv();
 
-    hkask_mcp::run_server_with_preloaded(
+    hkask_mcp_server::run_server_with_preloaded(
         "hkask-mcp-research",
         SERVER_VERSION,
         |ctx: ServerContext| {
@@ -833,7 +833,7 @@ pub async fn run(
                 |k: &str| ctx.credentials.get(k).and_then(|s| s.parse::<usize>().ok());
 
             let pool = build_provider_pool(&ctx.credentials).map_err(|e| {
-                hkask_mcp::McpError::UnexpectedResponse {
+                hkask_mcp_server::McpError::UnexpectedResponse {
                     context: "research server init".into(),
                     detail: e.to_string(),
                 }
@@ -854,7 +854,7 @@ pub async fn run(
             let rss_client = Client::builder()
                 .user_agent(format!("hkask-mcp-research/{}", SERVER_VERSION))
                 .build()
-                .map_err(|e| hkask_mcp::McpError::from(std::io::Error::other(e.to_string())))?;
+                .map_err(|e| hkask_mcp_server::McpError::from(std::io::Error::other(e.to_string())))?;
 
             Ok(ResearchServer::new(
                 ctx.webid,

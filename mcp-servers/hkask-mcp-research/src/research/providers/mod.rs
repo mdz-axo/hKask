@@ -4,7 +4,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 
 use crate::research::types::*;
-use hkask_mcp::server::validate_tool_url;
+use hkask_mcp_server::server::validate_tool_url;
 
 mod arxiv;
 mod brave;
@@ -71,7 +71,7 @@ pub fn validate_provider_url(url: &str) -> Result<(), WebError> {
 /// The strict variant (`validate_provider_url`) is used for arbitrary
 /// user-supplied URLs (`web_extract`, `web_browse`, `discover_feeds`).
 pub fn validate_provider_url_permissive(url: &str) -> Result<(), WebError> {
-    hkask_mcp::server::validate_tool_url_permissive(url).map_err(|e| WebError::BadArgs(e.message))
+    hkask_mcp_server::server::validate_tool_url_permissive(url).map_err(|e| WebError::BadArgs(e.message))
 }
 
 /// Port trait for web search operations at the application core boundary.

@@ -32,7 +32,7 @@ pub use hkask_communication::matrix;
 
 use hkask_communication::agent_registration::AgentRegistry;
 use hkask_communication::matrix::{MatrixTransport, RoomId};
-use hkask_mcp::server::{McpToolError, ServerContext, execute_tool};
+use hkask_mcp_server::server::{McpToolError, ServerContext, execute_tool};
 use hkask_types::WebID;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use std::str::FromStr;
@@ -40,7 +40,7 @@ use std::sync::Arc;
 
 // ── Server ───────────────────────────────────────────────────────────────
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct CommunicationServer {
         pub matrix: Arc<MatrixTransport>,
         pub registry: Arc<AgentRegistry>,
@@ -421,8 +421,8 @@ impl CommunicationServer {
 /// Run the communication MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
     let homeserver_url =
         std::env::var("HKASK_MATRIX_URL").unwrap_or_else(|_| "http://localhost:8008".to_string());
 
@@ -430,7 +430,7 @@ pub async fn run(
     transport
         .health_check()
         .await
-        .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+        .map_err(|e| hkask_mcp_server::McpError::UnexpectedResponse {
             context: "matrix health check".into(),
             detail: e.to_string(),
         })?;
@@ -440,7 +440,7 @@ pub async fn run(
         std::env::var("HKASK_MATRIX_AGENT_PASSWORD"),
     ) {
         transport.login(&username, &password).await.map_err(|e| {
-            hkask_mcp::McpError::UnexpectedResponse {
+            hkask_mcp_server::McpError::UnexpectedResponse {
                 context: "matrix login".into(),
                 detail: e.to_string(),
             }
@@ -453,7 +453,7 @@ pub async fn run(
     // Note: 7R7 listener is started by the daemon, not here.
     // The MCP binary is a thin wrapper — infrastructure lives in the daemon.
 
-    hkask_mcp::run_server(
+    hkask_mcp_server::run_server(
         "hkask-mcp-communication",
         env!("CARGO_PKG_VERSION"),
         |ctx: ServerContext| {

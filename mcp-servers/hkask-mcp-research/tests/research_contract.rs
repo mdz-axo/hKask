@@ -6,7 +6,7 @@
 //! Tested seam: `strip_html`, `ResponseCache`, and request type deserialization (no external API calls).
 
 use hkask_mcp_research::ResearchServer;
-use hkask_services_research::{RateLimiter, ResponseCache, build_provider_pool};
+use hkask_mcp_research::research::{RateLimiter, ResponseCache, build_provider_pool};
 use hkask_types::WebID;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -255,7 +255,7 @@ fn test_rss_db() -> Option<Pool<SqliteConnectionManager>> {
     let manager = SqliteConnectionManager::memory();
     let pool = Pool::builder().max_size(1).build(manager).expect("pool");
     let conn = pool.get().expect("conn");
-    conn.execute_batch(hkask_services_research::db::RSS_SCHEMA_DDL)
+    conn.execute_batch(hkask_mcp_research::research::db::RSS_SCHEMA_DDL)
         .expect("schema");
     Some(pool)
 }

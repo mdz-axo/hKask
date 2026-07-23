@@ -18,9 +18,9 @@
 #![allow(unused_crate_dependencies)]
 
 use hkask_storage::database::sqlite::SqliteDriver;
-use hkask_mcp::DaemonClient;
-use hkask_mcp::run_server;
-use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_mcp_server::DaemonClient;
+use hkask_mcp_server::run_server;
+use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_storage::RegulationArchive;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 use schemars::JsonSchema;
@@ -31,7 +31,7 @@ use std::sync::Arc;
 const SERVER_NAME: &str = "hkask-mcp-regulation";
 const SERVER_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct RegulationServer {
         regulation_store: Option<Arc<RegulationArchive>>,
     }
@@ -189,7 +189,7 @@ fn strip_reg_prefix(namespace: &str) -> &str {
 /// regulation pod database path) and `HKASK_DB_PASSPHRASE` from credentials/env.
 /// Returns `None` (graceful degradation) when the database cannot be opened —
 /// the tools then return `permission_denied` so callers see a clear message.
-fn open_regulation_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<RegulationArchive>> {
+fn open_regulation_store(ctx: &hkask_mcp_server::server::ServerContext) -> Option<Arc<RegulationArchive>> {
     let db_path = ctx
         .credentials
         .get("HKASK_DB_PATH")
@@ -250,11 +250,11 @@ fn open_regulation_store(ctx: &hkask_mcp::server::ServerContext) -> Option<Arc<R
 pub async fn run(
     userpod: String,
     daemon_client: Option<DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+) -> Result<(), hkask_mcp_server::McpError> {
     run_server(
         SERVER_NAME,
         SERVER_VERSION,
-        |ctx: hkask_mcp::server::ServerContext| {
+        |ctx: hkask_mcp_server::server::ServerContext| {
             let regulation_store = open_regulation_store(&ctx);
             Ok(RegulationServer::new(
                 ctx.webid,
@@ -264,11 +264,11 @@ pub async fn run(
             ))
         },
         vec![
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_DB_PATH",
                 "Path to the SQLCipher database holding the reg_records table",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",
                 "SQLCipher encryption passphrase",
             ),

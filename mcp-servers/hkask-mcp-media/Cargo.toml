@@ -9,7 +9,7 @@ description = "Media generation MCP server (image, video, audio, 3D via fal.ai a
 default = []
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-pods = { path = "../../crates/hkask-pods" }
 hkask-inference = { path = "../../crates/hkask-inference" }

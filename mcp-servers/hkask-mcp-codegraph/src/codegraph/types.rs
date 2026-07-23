@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub struct Symbol {
     /// Database ID (assigned on insert).
     pub id: Option<i64>,
-    /// Qualified name, e.g. "hkask_mcp::runtime::McpRuntime::start".
+    /// Qualified name, e.g. "hkask_mcp_server::runtime::McpRuntime::start".
     pub name: String,
     /// What kind of symbol.
     pub kind: SymbolKind,

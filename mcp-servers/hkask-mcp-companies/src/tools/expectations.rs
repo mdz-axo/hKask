@@ -8,7 +8,7 @@
 //! Produces a structured gap report showing where consensus diverges from
 //! market pricing — the core of Mauboussin's Expectations Investing framework.
 use crate::{CompaniesServer, fibo, financial_model, research, types, validate_symbol};
-use hkask_mcp::server::execute_tool;
+use hkask_mcp_server::server::execute_tool;
 use rmcp::{handler::server::wrapper::Parameters, tool, tool_router};
 
 #[tool_router(router = expectations_router, vis = "pub")]

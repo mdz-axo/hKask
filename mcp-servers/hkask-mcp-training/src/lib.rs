@@ -92,7 +92,7 @@ use crate::providers::{
 use crate::types::*;
 use hkask_inference::{InferenceConfig, InferenceRouter};
 
-use hkask_mcp::server::{McpToolError, execute_tool};
+use hkask_mcp_server::server::{McpToolError, execute_tool};
 use hkask_memory::SemanticMemory;
 use hkask_types::InferencePort;
 use hkask_storage::HMem;
@@ -107,7 +107,7 @@ use std::sync::Mutex;
 
 // ── Server ───────────────────────────────────────────────────────────────
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct TrainingServer {
         pub semantic: Option<SemanticMemory>,
         pub host: Box<dyn TrainingHost>,
@@ -276,7 +276,7 @@ impl TrainingServer {
                 return Err(McpToolError::invalid_argument("qa_items must not be empty"));
             }
 
-            hkask_mcp::validate_identifier("source", &source, 256)?;
+            hkask_mcp_server::validate_identifier("source", &source, 256)?;
 
             let ds = dataset.as_deref().unwrap_or("default");
 
@@ -357,7 +357,7 @@ impl TrainingServer {
 
             let normalized_path = if retrain_mode {
                 let feedback = PathBuf::from(feedback_path.as_ref().unwrap());
-                hkask_mcp::validate_path("feedback_path", feedback.to_str().unwrap_or(""), 4096)?;
+                hkask_mcp_server::validate_path("feedback_path", feedback.to_str().unwrap_or(""), 4096)?;
                 if !feedback.exists() {
                     return Err(McpToolError::invalid_argument(format!(
                         "Feedback file not found: {}",
@@ -372,7 +372,7 @@ impl TrainingServer {
                 }
                 // Validate skill_name as an identifier — it flows into file paths
                 // (merged dataset path) and adapter metadata. Prevents path traversal.
-                hkask_mcp::validate_identifier("skill_name", &skill, 64)?;
+                hkask_mcp_server::validate_identifier("skill_name", &skill, 64)?;
 
                 tracing::info!(
                     target: "hkask.training.retrain.started",
@@ -431,7 +431,7 @@ impl TrainingServer {
                 });
                 // Validate the merged output path — it's user-controlled and we're
                 // about to write to it. Prevents path traversal / arbitrary file write.
-                hkask_mcp::validate_path("merged_output_path", &merged_path, 4096)?;
+                hkask_mcp_server::validate_path("merged_output_path", &merged_path, 4096)?;
                 std::fs::write(&merged_path, &merged).map_err(|e| {
                     McpToolError::internal(format!("Failed to write merged dataset: {}", e))
                 })?;
@@ -1513,8 +1513,8 @@ impl TrainingServer {
 /// Run the training MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+    daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
     // Host is fixed to Runpod (cloud-only, single host).
     // Harness default is Axolotl; per-job harness selection via TrainingParams.harness
     // (operator-accepted from the lora-training skill's G6 gate) is honored at
@@ -1533,10 +1533,10 @@ pub async fn run(
     );
     let pipeline = DatasetPipeline::new(cache_dir);
 
-    hkask_mcp::run_server_with_preloaded(
+    hkask_mcp_server::run_server_with_preloaded(
         "hkask-mcp-training",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| {
+        |ctx: hkask_mcp_server::ServerContext| {
             (|| -> anyhow::Result<TrainingServer> {
                 let db_path = ctx
                     .credentials
@@ -1554,7 +1554,7 @@ pub async fn run(
                     .credentials
                     .get("HKASK_DB_PASSPHRASE")
                     .cloned()
-                    .or_else(|| hkask_mcp::resolve_credential("HKASK_DB_PASSPHRASE").ok());
+                    .or_else(|| hkask_mcp_server::resolve_credential("HKASK_DB_PASSPHRASE").ok());
 
                 let (semantic, adapter_store, job_store, adapter_router) = match passphrase {
                     Some(passphrase) => {
@@ -1658,45 +1658,45 @@ pub async fn run(
                     inference_config,
                 ))
             })()
-            .map_err(|e| hkask_mcp::McpError::UnexpectedResponse {
+            .map_err(|e| hkask_mcp_server::McpError::UnexpectedResponse {
                 context: "training server init".into(),
                 detail: e.to_string(),
             })
         },
         vec![
-            hkask_mcp::CredentialRequirement::required(
+            hkask_mcp_server::CredentialRequirement::required(
                 "RUNPOD_API_KEY",
                 "RunPod API key for governed training-job submission",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "RUNPOD_TEMPLATE_ID",
                 "RunPod template ID; defaults to the canonical Axolotl template when unset",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "RUNPOD_GPU_TYPE_ID",
                 "RunPod GPU type ID (e.g. \"NVIDIA H100 80GB HBM3\"). Authoritative when set; empty defers to the model-size heuristic",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "RUNPOD_CONTAINER_DISK_GB",
                 "Container disk in GB. Authoritative when set; 0/empty defers to the model-size heuristic",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "RUNPOD_MIN_MEMORY_GB",
                 "Minimum pod memory in GB. Authoritative when set; 0/empty defers to the default (24)",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "RUNPOD_MIN_VCPU_COUNT",
                 "Minimum vCPU count. Authoritative when set; 0/empty defers to the default (8)",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "RUNPOD_DOCKER_IMAGE",
                 "Docker image name. Authoritative when set; empty defers to the canonical Axolotl image",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_TRAINING_DB",
                 "Path to per-agent training database for job/adapter/QA storage (defaults to agents/{userpod}/training.db)",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "HKASK_DB_PASSPHRASE",
                 "Passphrase for the training database (resolved via credentials or keystore; in-memory if unavailable)",
             ),

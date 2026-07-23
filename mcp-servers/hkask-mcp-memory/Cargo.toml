@@ -6,7 +6,7 @@ license.workspace = true
 description = "Unified episodic + semantic memory MCP server with cloud backup"
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-storage = { path = "../../crates/hkask-storage" }
 hkask-memory = { path = "../../crates/hkask-memory" }

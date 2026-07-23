@@ -14,7 +14,7 @@ name = "hkask-mcp-training"
 path = "src/main.rs"
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-capability = { path = "../../crates/hkask-capability" }
 hkask-memory = { path = "../../crates/hkask-memory" }

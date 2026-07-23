@@ -21,7 +21,7 @@ Simplified from 21 → 15 → 8 across 2026-07-19 cleanups.
 
 ### Deleted tools (2026-07-19, second pass)
 
-- `training_deploy` / `training_deployment_status` / `training_teardown` — replaced by `hkask_adapter::AdapterPort::{create_endpoint, endpoint_status, teardown_endpoint}`. The MCP server was a thin wrapper; deployment now goes through the canonical AdapterPort surface directly.
+- `training_deploy` / `training_deployment_status` / `training_teardown` — replaced by `hkask_mcp_training::adapter::AdapterPort::{create_endpoint, endpoint_status, teardown_endpoint}`. The MCP server was a thin wrapper; deployment now goes through the canonical AdapterPort surface directly.
 - `training_list_adapters` / `training_delete_adapter` — `AdapterPort::list_adapters` and `AdapterStore::delete` already cover these. Rare operations; route via CLI.
 - `training_register_adapter` — `training_status` auto-registers on completion; manual registration is an `AdapterStore` API call, not an MCP tool.
 - `training_preflight_check` — replaced by `training_validate_config`, which runs the actual lora-training skill gates (not just file-existence checks).

@@ -15,7 +15,7 @@ use serde_json::json;
 
 #[test]
 fn hmem_insert_and_query() {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = HMemStore::from_driver(driver);
 
     let h_mem = test_h_mem("entity:test", "attr:name", json!("value"), None);
@@ -31,7 +31,7 @@ fn hmem_insert_and_query() {
 
 #[test]
 fn hmem_query_by_attribute() {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = HMemStore::from_driver(driver);
 
     let t1 = test_h_mem("entity:a", "attr:shared", json!("v1"), None);
@@ -47,7 +47,7 @@ fn hmem_query_by_attribute() {
 
 #[test]
 fn hmem_count_is_accurate() {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = HMemStore::from_driver(driver);
 
     assert_eq!(store.count_semantic().unwrap(), 0);
@@ -67,7 +67,7 @@ fn hmem_count_is_accurate() {
 
 #[test]
 fn hmem_delete_removes_correctly() {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = HMemStore::from_driver(driver);
 
     let h_mem = test_h_mem("entity:del", "attr:test", json!("value"), None);
@@ -82,7 +82,7 @@ fn hmem_delete_removes_correctly() {
 
 #[test]
 fn hmem_owner_webid_is_preserved() {
-    let driver = hkask_database::sqlite::SqliteDriver::in_memory_driver();
+    let driver = hkask_storage::database::sqlite::SqliteDriver::in_memory_driver();
     let store = HMemStore::from_driver(driver);
 
     let owner = TestWebId::alice();

@@ -28,8 +28,8 @@ use gallery::vision::{self};
 use hkask_storage::database::sqlite::SqliteDriver;
 use hkask_storage::database::value::DbValue;
 use hkask_inference::InferenceRouter;
-use hkask_mcp::DaemonClient;
-use hkask_mcp::server::{McpToolError, execute_tool, validate_tool_url};
+use hkask_mcp_server::DaemonClient;
+use hkask_mcp_server::server::{McpToolError, execute_tool, validate_tool_url};
 use hkask_pods::VoiceDesign;
 use hkask_types::InferencePort;
 use hkask_storage::{Database, GalleryMode, GalleryStore, GalleryStoreError};
@@ -93,7 +93,7 @@ struct GalleryAccess {
     root_path: PathBuf,
 }
 
-hkask_mcp::mcp_server!(
+hkask_mcp_server::mcp_server!(
     pub struct MediaServer {
         pub inference: Arc<InferenceRouter>,
         pub gallery_state: Arc<Mutex<Option<GalleryState>>>,
@@ -1342,8 +1342,8 @@ impl rmcp::ServerHandler for MediaServer {}
 /// Run the media MCP server (used by binary target).
 pub async fn run(
     userpod: String,
-    _daemon_client: Option<hkask_mcp::DaemonClient>,
-) -> Result<(), hkask_mcp::McpError> {
+    _daemon_client: Option<hkask_mcp_server::DaemonClient>,
+) -> Result<(), hkask_mcp_server::McpError> {
     dotenvy::dotenv().ok();
 
     // Build the inference router for vision LLM tasks.
@@ -1377,10 +1377,10 @@ pub async fn run(
         Arc::new(GalleryStore::from_driver(driver))
     };
 
-    hkask_mcp::run_server(
+    hkask_mcp_server::run_server(
         "hkask-mcp-media",
         env!("CARGO_PKG_VERSION"),
-        |ctx: hkask_mcp::ServerContext| {
+        |ctx: hkask_mcp_server::ServerContext| {
             Ok(MediaServer::new(
                 ctx.webid,
                 userpod.clone(),
@@ -1393,15 +1393,15 @@ pub async fn run(
             ))
         },
         vec![
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "DI_API_KEY",
                 "DeepInfra API key for vision LLMs and media generation",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "FA_API_KEY",
                 "fal.ai API key for image/video generation",
             ),
-            hkask_mcp::CredentialRequirement::optional(
+            hkask_mcp_server::CredentialRequirement::optional(
                 "TG_API_KEY",
                 "Together AI API key for vision LLMs",
             ),
@@ -1412,7 +1412,7 @@ pub async fn run(
 
 async fn try_daemon_flow(userpod: &str) -> anyhow::Result<()> {
     let client = DaemonClient::new();
-    let result = hkask_mcp::verify_startup_gates(&client, userpod, "media", &[]).await?;
+    let result = hkask_mcp_server::verify_startup_gates(&client, userpod, "media", &[]).await?;
     tracing::info!(target: "hkask.mcp.media", userpod = %userpod,
         "P4 gates verified{}",
         if result.denied_tools.is_empty() { String::new() }

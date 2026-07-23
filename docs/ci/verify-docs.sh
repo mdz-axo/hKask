@@ -131,7 +131,7 @@ for dir in mcp-servers/hkask-mcp-*/; do
   fi
 done
 
-CORE_CRATES="hkask-types hkask-storage hkask-storage-core hkask-storage-guard hkask-memory hkask-regulation hkask-templates hkask-pods hkask-keystore hkask-mcp hkask-mcp-cloud-gateway hkask-cli hkask-api hkask-capability hkask-ports hkask-inference hkask-communication hkask-condenser hkask-acp hkask-adapter hkask-test-harness hkask-wallet hkask-wallet-types hkask-ledger hkask-codegraph hkask-guard hkask-database hkask-federation hkask-repl hkask-tui hkask-goal hkask-identity hkask-git-cas hkask-forecast hkask-bridge-dublincore hkask-bridge-pko hkask-bridge-eso hkask-bridge-fibo hkask-bridge-golem"
+CORE_CRATES="hkask-types hkask-storage hkask-memory hkask-regulation hkask-templates hkask-pods hkask-keystore hkask-mcp hkask-mcp-cloud-gateway hkask-cli hkask-api hkask-capability hkask-ports hkask-inference hkask-communication hkask-condenser hkask-acp hkask-test-harness hkask-wallet hkask-wallet-types hkask-ledger hkask-guard hkask-federation hkask-repl hkask-goal hkask-identity hkask-git-cas hkask-forecast hkask-bridge-dublincore"
 
 for crate in $CORE_CRATES; do
   if [ -d "crates/$crate" ] && [ ! -f "crates/$crate/README.md" ]; then

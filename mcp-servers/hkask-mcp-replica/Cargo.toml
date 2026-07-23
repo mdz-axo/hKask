@@ -6,7 +6,7 @@ license.workspace = true
 description = "Style replica MCP server — embed author corpora, compose prose, list styles"
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-inference = { path = "../../crates/hkask-inference" }
 hkask-services-compose = { path = "../../crates/hkask-services-compose" }

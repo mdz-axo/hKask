@@ -5,7 +5,7 @@ mod ranking;
 mod rate_limiter;
 mod validation;
 
-use hkask_mcp::server::McpToolError;
+use hkask_mcp_server::server::McpToolError;
 use hkask_types::McpErrorKind;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

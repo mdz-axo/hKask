@@ -6,7 +6,7 @@ license.workspace = true
 description = "Skill invocation MCP server — exposes registered skills as callable tools"
 
 [dependencies]
-hkask-mcp = { path = "../../crates/hkask-mcp" }
+hkask-mcp-server = { path = "../../crates/hkask-mcp-server" }
 hkask-templates = { path = "../../crates/hkask-templates" }
 hkask-types = { path = "../../crates/hkask-types" }
 hkask-inference = { path = "../../crates/hkask-inference" }
