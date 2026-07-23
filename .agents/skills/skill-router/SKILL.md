@@ -21,14 +21,15 @@ Route tasks to installed skills. Given a task/slice description and the installe
 ### skill-router-match
 
 1. Parse the task description to extract capability requirements — what the task needs to accomplish, what methods it implies.
-2. Score each skill in the catalog across three dimensions: capability overlap (0.50 weight), lexicon alignment (0.25 weight), trigger alignment (0.25 weight). Each dimension is 0.0–1.0.
-3. Compute composite fit_score = (capability × 0.50) + (lexicon × 0.25) + (trigger × 0.25).
-4. Rank skills by fit_score descending. Return at most `max_recommendations` (default 3), only those with fit_score ≥ 0.30.
-5. Classify coverage: `full` (≥1 skill at fit ≥ 0.80), `partial` (best fit 0.40–0.79), `none` (best fit < 0.40).
-6. If coverage is partial or none, identify uncovered capabilities as gap signals for skill-discovery. Use `coverage` gap type when no skill addresses the capability; use `feature` when a skill partially addresses it.
-7. Respond with a JSON object containing `coverage_assessment`, `recommendations`, and `uncovered_capabilities`.
-8. Do not skip any skill in the catalog — score every entry, even if it seems irrelevant.
-9. Do not recommend skill-router or skill-discovery — they are meta-skills, not task-execution skills.
+2. **If `epistemic_state` is provided**, use it as a scoring signal alongside the task description. The `epistemic_state` input is optional and carries: `confidence` (0.0–1.0), `uncertainty_type` (one of `knowledge_gap`, `perspective_blind`, `context_loss`, `conflict`). When `confidence` < 0.5, apply a **+0.20 boost** to the trigger-alignment dimension for skills whose `when_to_use` mentions uncertainty, confidence, perspective, low-certainty, or non-obvious paths. This boost reflects that the agent is in an epistemic state where certainty-finding skills (metacognition, improv, zoom-out, falsifiability) are more relevant than their task-description lexicon alone suggests. The boost is additive on the trigger-alignment score before clamping to [0.0, 1.0].
+3. Score each skill in the catalog across three dimensions: capability overlap (0.50 weight), lexicon alignment (0.25 weight), trigger alignment (0.25 weight). Each dimension is 0.0–1.0.
+4. Compute composite fit_score = (capability × 0.50) + (lexicon × 0.25) + (trigger × 0.25).
+5. Rank skills by fit_score descending. Return at most `max_recommendations` (default 3), only those with fit_score ≥ 0.30.
+6. Classify coverage: `full` (≥1 skill at fit ≥ 0.80), `partial` (best fit 0.40–0.79), `none` (best fit < 0.40).
+7. If coverage is partial or none, identify uncovered capabilities as gap signals for skill-discovery. Use `coverage` gap type when no skill addresses the capability; use `feature` when a skill partially addresses it. Use `epistemic` gap type when the uncovered capability is a certainty-finding method (not a missing fact — that is `knowledge`).
+8. Respond with a JSON object containing `coverage_assessment`, `recommendations`, and `uncovered_capabilities`.
+9. Do not skip any skill in the catalog — score every entry, even if it seems irrelevant.
+10. Do not recommend skill-router or skill-discovery — they are meta-skills, not task-execution skills.
 
 ### skill-router-convergence-check
 

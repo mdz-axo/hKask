@@ -12,6 +12,7 @@ contract:
     task_context: string
     skill_catalog: array
     max_recommendations: number
+    epistemic_state: object
   output:
     recommendations: array
     uncovered_capabilities: array
@@ -40,6 +41,23 @@ You are a skill routing analyst. Given a task description and the installed skil
 ## Task Context
 
 {{ task_context }}
+
+{% if epistemic_state %}
+## Epistemic State (Optional)
+
+The calling agent has reported its epistemic state. Use this to boost trigger-alignment for certainty-finding skills.
+
+- **Confidence**: {{ epistemic_state.confidence }} (0.0–1.0)
+- **Uncertainty type**: {{ epistemic_state.uncertainty_type }}
+
+When confidence < 0.5, apply a **+0.20 boost** to the trigger-alignment dimension for any skill whose `when_to_use` mentions: uncertainty, confidence, low-certainty, perspective, non-obvious paths, ellipsis, gaps, calibration, or divergent exploration. This reflects that the agent is in an epistemic state where certainty-finding skills (metacognition, improv, zoom-out, falsifiability) are more relevant than task lexicon alone suggests. Clamp the boosted trigger-alignment to [0.0, 1.0].
+
+Map uncertainty_type to likely skill families:
+- `knowledge_gap` → falsifiability, diagnose, sequential-inquiry
+- `perspective_blind` → metacognition (Falstaffian rotation), improv (Riffing)
+- `context_loss` → zoom-out, codegraph
+- `conflict` → pragmatic-semantics, falsifiability, mcda
+{% endif %}
 
 ## Skill Catalog
 

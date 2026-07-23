@@ -11,7 +11,7 @@ use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 
-use crate::tui::repl_bridge::ReplBridge;
+use crate::tui::repl_bridge::{ReplBridge, ToolInvokeBridge};
 use crate::tui::window::{Window, WindowId, WindowKind, WorkspaceAction};
 use crate::tui::windows::mcp_scoped::McpScopedState;
 
@@ -27,12 +27,14 @@ impl ScenariosWindow {
             "Scenarios",
             "scenarios",
             bridge,
-            "Scenarios — scenario planning and forecasting. Type a query (e.g., \
-             'frame a scenario for AI regulation impact on semiconductor demand', \
-             'run full pipeline for scenario: EV market share by 2030', \
-             'calibrate forecast for scenario #3'). Type /help for commands.",
+            "Scenarios — planning and forecasting. Type a tool name (e.g., 'scenario_status')\n             or a natural language query. Type /help for commands.",
         );
         Self { state }
+    }
+
+    pub fn with_tool_invoke_bridge(mut self, bridge: Arc<dyn ToolInvokeBridge>) -> Self {
+        self.state = self.state.with_tool_invoke_bridge(bridge);
+        self
     }
 }
 

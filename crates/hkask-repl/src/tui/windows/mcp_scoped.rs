@@ -266,6 +266,7 @@ impl McpScopedState {
     }
 
     pub(crate) fn tick(&mut self) {
+        // Poll scoped inference requests (LLM round-trip path).
         if let Some(req) = self.pending_request {
             let state = self.bridge.poll_inference(req);
             match state {
@@ -278,6 +279,36 @@ impl McpScopedState {
                 }
                 InferenceState::Idle => {
                     self.pending_request = None;
+                }
+            }
+        }
+
+        // Poll direct MCP tool invocations.
+        if let Some((req, tool_name)) = self.pending_invoke.take() {
+            let Some(ref bridge) = self.tool_invoke_bridge else {
+                return;
+            };
+            let state = bridge.poll_mcp_tool_invoke(req);
+            match state {
+                McpInvokeState::Invoking => {
+                    self.spinner_frame = self.spinner_frame.wrapping_add(1);
+                    self.pending_invoke = Some((req, tool_name));
+                }
+                McpInvokeState::Done(value) => {
+                    let formatted = format_json_result(&value);
+                    self.add_message(McpSender::Agent, format!("{}\n{}", tool_name, formatted));
+                }
+                McpInvokeState::Error(err) => {
+                    self.add_message(
+                        McpSender::System,
+                        format!("Error calling {}: {}", tool_name, err),
+                    );
+                }
+                McpInvokeState::Idle => {
+                    self.add_message(
+                        McpSender::System,
+                        format!("{} invocation cancelled.", tool_name),
+                    );
                 }
             }
         }
@@ -308,8 +339,8 @@ impl McpScopedState {
             ]));
         }
 
-        // Spinner if thinking
-        if self.pending_request.is_some() {
+        // Spinner if thinking or invoking
+        if self.pending_request.is_some() || self.pending_invoke.is_some() {
             let spinner = match self.spinner_frame % 4 {
                 0 => "⠋",
                 1 => "⠙",
@@ -412,5 +443,23 @@ impl McpScopedState {
 
     pub(crate) fn drain_actions(&mut self) -> Vec<WorkspaceAction> {
         std::mem::take(&mut self.pending_actions)
+    }
+}
+
+/// Format a JSON tool result for display in the TUI.
+/// Pretty-prints objects/arrays, shows scalars inline.
+fn format_json_result(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(s) => {
+            // Try to parse the string as JSON (MCP tools often return JSON-as-string)
+            if let Ok(inner) = serde_json::from_str::<serde_json::Value>(s) {
+                return format_json_result(&inner);
+            }
+            s.clone()
+        }
+        serde_json::Value::Object(_) | serde_json::Value::Array(_) => {
+            serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
+        }
+        _ => value.to_string(),
     }
 }

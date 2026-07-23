@@ -10,7 +10,7 @@ use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 
-use crate::tui::repl_bridge::ReplBridge;
+use crate::tui::repl_bridge::{ReplBridge, ToolInvokeBridge};
 use crate::tui::window::{Window, WindowId, WindowKind, WorkspaceAction};
 use crate::tui::windows::mcp_scoped::McpScopedState;
 
@@ -26,11 +26,14 @@ impl KanbanWindow {
             "Kanban",
             "kanban",
             bridge,
-            "Kanban — task coordination. Type a query (e.g., 'list my boards', \
-             'create a task: fix bug in auth module on the main board'). \
-             Type /help for commands.",
+            "Kanban — task coordination. Type a tool name (e.g., 'kanban_board_list')\n             or a natural language query. Type /help for commands.",
         );
         Self { state }
+    }
+
+    pub fn with_tool_invoke_bridge(mut self, bridge: Arc<dyn ToolInvokeBridge>) -> Self {
+        self.state = self.state.with_tool_invoke_bridge(bridge);
+        self
     }
 }
 

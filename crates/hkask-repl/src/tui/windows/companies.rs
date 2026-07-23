@@ -10,7 +10,7 @@ use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 
-use crate::tui::repl_bridge::ReplBridge;
+use crate::tui::repl_bridge::{ReplBridge, ToolInvokeBridge};
 use crate::tui::window::{Window, WindowId, WindowKind, WorkspaceAction};
 use crate::tui::windows::mcp_scoped::McpScopedState;
 
@@ -26,11 +26,14 @@ impl CompaniesWindow {
             "Companies",
             "companies",
             bridge,
-            "Companies — financial data and analysis. Type a query (e.g., \
-             'profile for AAPL', 'stock quote for MSFT', 'key metrics for GOOGL', \
-             'income statement for AMZN'). Type /help for commands.",
+            "Companies — financial data. Type a tool name (e.g., 'company_profile symbol=AAPL')\n             or a natural language query. Type /help for commands.",
         );
         Self { state }
+    }
+
+    pub fn with_tool_invoke_bridge(mut self, bridge: Arc<dyn ToolInvokeBridge>) -> Self {
+        self.state = self.state.with_tool_invoke_bridge(bridge);
+        self
     }
 }
 

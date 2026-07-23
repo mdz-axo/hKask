@@ -428,6 +428,7 @@ impl MetacognitionLoop {
     ///   loop is healthy (no drops, effectiveness > 0.8) AND a cooldown has
     ///   elapsed since the last raise - the Curator can be more responsive.
     ///   The cooldown + floor prevent raise/lower cycling.
+    ///
     /// The decision is computed by the pure compute_threshold_adjustment
     /// function (independently tested); this method applies it and emits
     /// reg.meta.self_calibration.
@@ -819,6 +820,7 @@ pub(super) struct ThresholdAdjustment {
 ///   the loop is healthy (`delta_dropped == 0`, `effectiveness > GATE`) AND
 ///   `since_raise >= LOWER_COOLDOWN`.
 /// - No activity (`delta_directives == 0 && delta_dropped == 0`) => None.
+///
 /// RAISE takes precedence over LOWER (loss prevention over responsiveness).
 #[must_use]
 pub(super) fn compute_threshold_adjustment(

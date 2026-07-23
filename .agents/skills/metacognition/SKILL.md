@@ -19,6 +19,8 @@ Master self-reflection skill. Any userpod — curator, bot, agent, or ensemble m
 - You need to frame a research question formally (delegates to `hypothesis-framer`)
 - You need to find the path of least action through a complex situation (delegates to `pragmatic-laziness`)
 - You need multi-step reasoning with branching and hypothesis testing (delegates to `sequential-inquiry`)
+- When confidence is low (< 0.5) and standard evidence-gathering has plateaued — the Calibrate step maps `uncertainty` obstacles to strategy adjustments (iterative_refinement, depth_first, breadth_first) and the Falstaffian engine rotates perspective to find non-obvious paths to higher certainty
+- When uncertainty is a first-class obstacle that needs classification (knowledge_gap, perspective_blind, context_loss, conflict) and routing to the appropriate certainty-finding tool — metacognition is the master uncertainty router
 
 ## PDCA Loop
 

@@ -246,10 +246,7 @@ fn run_with_state(
     );
 
     loop {
-        let prompt = format!(
-            "[1m{}[0m>> ",
-            display::model_abbrev(&state.current_model)
-        );
+        let prompt = format!("[1m{}[0m>> ", display::model_abbrev(&state.current_model));
         match rl.readline(&prompt) {
             Ok(line) => {
                 let input = line.trim();
@@ -357,6 +354,7 @@ pub fn run_tui(
         userpod_name,
         model,
         pending: std::sync::Mutex::new(std::collections::HashMap::new()),
+        pending_invokes: std::sync::Mutex::new(std::collections::HashMap::new()),
         alert_count: std::sync::atomic::AtomicU32::new(0),
         context_window: std::sync::atomic::AtomicU32::new(DEFAULT_CONTEXT_WINDOW),
         context_used: std::sync::atomic::AtomicU32::new(0),
@@ -370,7 +368,8 @@ pub fn run_tui(
             let session = session
                 .with_layout_path(layout_path)
                 .with_settings_bridge(bridge.clone())
-                .with_session_bridge(bridge.clone());
+                .with_session_bridge(bridge.clone())
+                .with_tool_invoke_bridge(bridge.clone());
             let mut session = session;
             if let Err(e) = session.run() {
                 eprintln!("TUI error: {}", e);
@@ -405,6 +404,12 @@ struct PendingTuiInference {
     streaming_text: Arc<std::sync::Mutex<String>>,
 }
 
+/// Receiver for one TUI MCP tool invocation.
+#[cfg(feature = "tui")]
+struct PendingTuiInvoke {
+    receiver: std::sync::mpsc::Receiver<Result<serde_json::Value, String>>,
+}
+
 /// Bridge implementation connecting the TUI to hKask's full inference engine.
 #[cfg(feature = "tui")]
 struct TuiReplBridge {
@@ -415,6 +420,10 @@ struct TuiReplBridge {
     model: String,
     pending: std::sync::Mutex<
         std::collections::HashMap<crate::tui::InferenceRequestId, PendingTuiInference>,
+    >,
+    /// Pending MCP tool invocations (start/poll pattern).
+    pending_invokes: std::sync::Mutex<
+        std::collections::HashMap<crate::tui::McpInvokeRequestId, PendingTuiInvoke>,
     >,
     alert_count: std::sync::atomic::AtomicU32,
     /// Context window size from model metadata
@@ -858,5 +867,87 @@ impl crate::tui::SessionBridge for TuiReplBridge {
     fn history_display(&self) -> String {
         let state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         handlers::info::history_display(&state)
+    }
+}
+
+#[cfg(feature = "tui")]
+impl crate::tui::ToolInvokeBridge for TuiReplBridge {
+    fn start_mcp_tool_invoke(
+        &self,
+        server: &str,
+        tool: &str,
+        args: serde_json::Value,
+    ) -> crate::tui::McpInvokeRequestId {
+        let state = self.state.clone();
+        let rt = self.rt_handle.clone();
+        let a2a = self.a2a_secret.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let request = crate::tui::McpInvokeRequestId::new();
+        let server = server.to_string();
+        let tool = tool.to_string();
+
+        self.pending_invokes
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(request, PendingTuiInvoke { receiver: rx });
+
+        std::thread::spawn(move || {
+            use hkask_capability::{
+                DelegationAction, DelegationResource, DelegationToken, derive_signing_key,
+            };
+
+            let result = {
+                let s = state.lock().unwrap_or_else(|e| e.into_inner());
+                let runtime = s.service_context.infra().mcp.clone();
+                let principal = s.host.resolve_user_webid();
+                let agent = s.agent_webid;
+                let signing_key = derive_signing_key(a2a.as_bytes());
+                let token = DelegationToken::new(
+                    DelegationResource::Tool,
+                    tool.clone(),
+                    DelegationAction::Execute,
+                    principal,
+                    agent,
+                    &signing_key,
+                );
+                rt.block_on(async {
+                    use hkask_capability::ToolPort;
+                    runtime
+                        .invoke(&server, &tool, args, &token)
+                        .await
+                        .map_err(|e| e.to_string())
+                })
+            };
+            let _ = tx.send(result);
+        });
+        request
+    }
+
+    fn poll_mcp_tool_invoke(
+        &self,
+        request: crate::tui::McpInvokeRequestId,
+    ) -> crate::tui::McpInvokeState {
+        let mut pending = self
+            .pending_invokes
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let Some(invoke) = pending.get(&request) else {
+            return crate::tui::McpInvokeState::Idle;
+        };
+        match invoke.receiver.try_recv() {
+            Ok(Ok(value)) => {
+                pending.remove(&request);
+                crate::tui::McpInvokeState::Done(value)
+            }
+            Ok(Err(err)) => {
+                pending.remove(&request);
+                crate::tui::McpInvokeState::Error(err)
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => crate::tui::McpInvokeState::Invoking,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                pending.remove(&request);
+                crate::tui::McpInvokeState::Idle
+            }
+        }
     }
 }

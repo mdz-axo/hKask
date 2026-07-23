@@ -7,8 +7,8 @@
 use std::sync::Arc;
 
 use crate::tui::repl_bridge::{
-    InferenceRequestId, InferenceState, ModelSwitchResult, ReplBridge, SessionBridge,
-    SettingsBridge, SystemBridge, TuiModelInfo,
+    InferenceRequestId, InferenceState, McpInvokeRequestId, McpInvokeState, ModelSwitchResult,
+    ReplBridge, SessionBridge, SettingsBridge, SystemBridge, ToolInvokeBridge, TuiModelInfo,
 };
 
 /// A minimal mock bridge that returns defaults for all methods.
@@ -112,6 +112,20 @@ impl SessionBridge for MockReplBridge {
     }
     fn history_display(&self) -> String {
         "(mock history)".to_string()
+    }
+}
+
+impl ToolInvokeBridge for MockReplBridge {
+    fn start_mcp_tool_invoke(
+        &self,
+        _server: &str,
+        _tool: &str,
+        _args: serde_json::Value,
+    ) -> McpInvokeRequestId {
+        McpInvokeRequestId::new()
+    }
+    fn poll_mcp_tool_invoke(&self, _request: McpInvokeRequestId) -> McpInvokeState {
+        McpInvokeState::Idle
     }
 }
 

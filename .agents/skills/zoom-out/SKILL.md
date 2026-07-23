@@ -15,6 +15,8 @@ Context expansion skill. Zooms out to provide broader architectural context, mod
 - When lost in implementation details and needing broader architectural context.
 - When unfamiliar with a section of the codebase and needing a map of the surrounding architecture.
 - When needing to evaluate if a generated context map is sufficiently stable for downstream work.
+- When uncertainty stems from missing architectural context rather than missing evidence — zooming out provides broader context that raises confidence without gathering more data
+- When local confidence is low and the agent suspects the problem is insufficient context scope, not insufficient detail — state uncertainties explicitly with confidence levels and what would resolve them
 
 ## Instructions
 

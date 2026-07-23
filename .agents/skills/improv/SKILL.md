@@ -16,6 +16,8 @@ Composable interaction grammar for hKask agents. Five improv modes — Plussing,
 - Creative problem-solving, architecture exploration, or ensemble ideation with multiple participants → Freestyling
 - Deep-dive on a single contribution, "what if" tangents, or independent research threads → Riffing
 - Dual-presence chat, ensemble sessions, and kata coaching loops where constructive-by-default posture is required
+- When an agent is in a low-confidence regime (confidence < 0.5) and needs non-obvious paths to higher certainty — **Riffing** for divergent exploration of tangents that may surface higher-confidence findings, **Plussing** for constructive extraction of agreeable components from uncertain output
+- When standard evidence-gathering has plateaued and a perspective-shift (not more data) is the path forward — improv modes reframe rather than accumulate
 - After mode selection and application, run convergence-check to verify alignment and constructiveness
 
 ## Instructions
