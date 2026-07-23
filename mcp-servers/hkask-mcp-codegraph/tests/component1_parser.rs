@@ -151,11 +151,11 @@ fn test_parse_hkask_mcp_lib() {
         .unwrap()
         .parent()
         .unwrap()
-        .join("crates/hkask-mcp/src/lib.rs");
+        .join("crates/hkask-mcp-server/src/lib.rs");
 
     let (tree, src) =
-        parse_rust_file(&std::fs::read(&path).expect("should read hkask-mcp/src/lib.rs"))
-            .expect("should parse hkask-mcp/src/lib.rs");
+        parse_rust_file(&std::fs::read(&path).expect("should read hkask-mcp-server/src/lib.rs"))
+            .expect("should parse hkask-mcp-server/src/lib.rs");
 
     let (symbols, edges) = extract_symbols(&tree, &src, "hkask-mcp/src/lib.rs");
 

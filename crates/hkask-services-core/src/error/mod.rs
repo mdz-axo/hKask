@@ -366,6 +366,7 @@ mod tests {
             },
             ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
+                domain: DomainKind::Skill,
                 source: None,
                 message: "".into(),
             },

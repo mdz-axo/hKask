@@ -6,7 +6,7 @@
 //! operate on the same shared state.
 
 use hkask_api::ApiState;
-use hkask_mcp::BUILTIN_SERVERS;
+use hkask_mcp_server::BUILTIN_SERVERS;
 use hkask_mcp::runtime::McpRuntime;
 
 /// Run the API server, sharing state with the CLI.
@@ -38,7 +38,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
         })?;
 
     // Start API MCP servers on the AgentService's runtime.
-    // Derived from hkask_mcp::BUILTIN_SERVERS (canonical registry).
+    // Derived from hkask_mcp_server::BUILTIN_SERVERS (canonical registry).
     let userpod_name = ctx.config().user_name.clone();
     let server_count = start_api_servers(&ctx.infra().mcp, &userpod_name).await;
     if server_count > 0 {
@@ -70,7 +70,7 @@ pub async fn run_server(port: u16, host: &str) -> Result<(), Box<dyn std::error:
 
 /// Start all API MCP servers and discover their tools.
 ///
-/// Started servers are derived from `hkask_mcp::BUILTIN_SERVERS`.
+/// Started servers are derived from `hkask_mcp_server::BUILTIN_SERVERS`.
 /// excluded from the API sandbox for security: the API server is a
 /// headless HTTP endpoint — it does not expose local filesystem access,
 /// governance, registry management, or kanban task coordination.

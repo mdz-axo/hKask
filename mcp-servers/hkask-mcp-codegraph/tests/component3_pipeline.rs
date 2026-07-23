@@ -22,12 +22,12 @@ fn test_index_hkask_mcp_lib() {
         .parent()
         .unwrap();
 
-    let path = workspace_root.join("crates/hkask-mcp/src/lib.rs");
-    assert!(path.exists(), "hkask-mcp/src/lib.rs should exist");
+    let path = workspace_root.join("crates/hkask-mcp-server/src/lib.rs");
+    assert!(path.exists(), "hkask-mcp-server/src/lib.rs should exist");
 
     // First index
     let result = pipeline
-        .index_file(&path, "hkask-mcp/src/lib.rs")
+        .index_file(&path, "hkask-mcp-server/src/lib.rs")
         .expect("should index successfully");
 
     println!(
@@ -44,7 +44,7 @@ fn test_index_hkask_mcp_lib() {
 
     // Second index — should skip (unchanged)
     let result2 = pipeline
-        .index_file(&path, "hkask-mcp/src/lib.rs")
+        .index_file(&path, "hkask-mcp-server/src/lib.rs")
         .expect("second index should succeed");
 
     println!(
@@ -110,7 +110,7 @@ fn test_index_hkask_core_files() {
     let files = [
         "crates/hkask-types/src/lib.rs",
         "crates/hkask-ports/src/lib.rs",
-        "crates/hkask-mcp/src/lib.rs",
+        "crates/hkask-mcp-server/src/lib.rs",
     ];
 
     let mut _total_symbols = 0;
@@ -165,12 +165,12 @@ fn test_fts5_search_on_hkask_code() {
         .parent()
         .unwrap();
 
-    let path = workspace_root.join("crates/hkask-mcp/src/lib.rs");
+    let path = workspace_root.join("crates/hkask-mcp-server/src/lib.rs");
     if !path.exists() {
         return;
     }
 
-    pipeline.index_file(&path, "hkask-mcp/src/lib.rs").unwrap();
+    pipeline.index_file(&path, "hkask-mcp-server/src/lib.rs").unwrap();
 
     let conn = pipeline.store().conn();
 

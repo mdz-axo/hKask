@@ -407,7 +407,7 @@ pub(super) fn init_repl_state(
 
     // ── Phase 8: Core MCP Server Auto-Start ────────────────────────────────
     // Excluded servers require explicit opt-in via `/mcp start` (P2: Affirmative
-    // Consent). Every entry MUST exist in `hkask_mcp::BUILTIN_SERVERS` — the
+    // Consent). Every entry MUST exist in `hkask_mcp_server::BUILTIN_SERVERS` — the
     // compile-time assertion below enforces this to prevent phantom exclusions.
     const CORE_EXCLUDED: &[&str] = &["companies", "communication", "training", "replica"];
     let mcp_runtime = ctx.infra().mcp.clone();
@@ -419,7 +419,7 @@ pub(super) fn init_repl_state(
             "HKASK_MCP_HOST".to_string(),
             onboarding_outcome.signed_in_agent.clone(),
         );
-        for (server_id, binary) in hkask_mcp::BUILTIN_SERVERS {
+        for (server_id, binary) in hkask_mcp_server::BUILTIN_SERVERS {
             if CORE_EXCLUDED.contains(server_id) {
                 continue;
             }
@@ -441,14 +441,14 @@ pub(super) fn init_repl_state(
         debug_assert!(
             CORE_EXCLUDED
                 .iter()
-                .all(|ex| { hkask_mcp::BUILTIN_SERVERS.iter().any(|(id, _)| id == ex) }),
+                .all(|ex| { hkask_mcp_server::BUILTIN_SERVERS.iter().any(|(id, _)| id == ex) }),
             "CORE_EXCLUDED references a server not in BUILTIN_SERVERS"
         );
         if started > 0 {
             tracing::info!(
                 target: "hkask.repl",
                 started = started,
-                total = hkask_mcp::BUILTIN_SERVERS.len() - CORE_EXCLUDED.len(),
+                total = hkask_mcp_server::BUILTIN_SERVERS.len() - CORE_EXCLUDED.len(),
                 "Core MCP servers auto-started"
             );
         }

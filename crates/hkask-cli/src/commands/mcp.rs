@@ -5,7 +5,7 @@
 //! side-door to MCP tool invocation.
 
 use crate::cli::McpAction;
-use hkask_mcp::BUILTIN_SERVERS;
+use hkask_mcp_server::BUILTIN_SERVERS;
 
 fn build_agent_service(rt: &tokio::runtime::Runtime) -> hkask_services_context::AgentService {
     let ctx = super::helpers::build_agent_service();

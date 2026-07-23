@@ -15,8 +15,8 @@ use hkask_mcp::runtime::McpRuntime;
 /// Servers are NOT auto-started at REPL boot — they require explicit user
 /// consent via the `/mcp` command or the post-sign-on prompt (P2: Affirmative Consent).
 ///
-/// Imported from `hkask_mcp::BUILTIN_SERVERS` — the canonical source.
-pub use hkask_mcp::BUILTIN_SERVERS;
+/// Imported from `hkask_mcp_server::BUILTIN_SERVERS` — the canonical source.
+pub use hkask_mcp_server::BUILTIN_SERVERS;
 
 /// Start all built-in MCP servers and discover their tools.
 ///

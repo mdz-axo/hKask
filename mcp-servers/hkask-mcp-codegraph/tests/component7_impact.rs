@@ -88,7 +88,7 @@ fn test_traverse_hkask_mcp_lib() {
         .parent()
         .unwrap();
 
-    let src_dir = workspace_root.join("crates/hkask-mcp/src");
+    let src_dir = workspace_root.join("crates/hkask-mcp-server/src");
     if !src_dir.exists() {
         return;
     }

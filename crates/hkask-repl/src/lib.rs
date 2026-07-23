@@ -757,10 +757,10 @@ impl crate::tui::SystemBridge for TuiReplBridge {
         if let Ok(s) = self.state.lock() {
             let runtime = s.service_context.infra().mcp.clone().clone();
             let loaded = self.rt_handle.block_on(runtime.list_servers()).len();
-            let total = hkask_mcp::BUILTIN_SERVERS.len();
+            let total = hkask_mcp_server::BUILTIN_SERVERS.len();
             (loaded, total)
         } else {
-            (0, hkask_mcp::BUILTIN_SERVERS.len())
+            (0, hkask_mcp_server::BUILTIN_SERVERS.len())
         }
     }
     fn pod_counts(&self) -> Option<(usize, usize)> {
