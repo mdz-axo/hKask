@@ -3780,7 +3780,6 @@ dependencies = [
  "hex",
  "hkask-api",
  "hkask-capability",
- "hkask-federation",
  "hkask-git-cas",
  "hkask-identity",
  "hkask-inference",
@@ -3856,25 +3855,6 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tracing",
-]
-
-[[package]]
-name = "hkask-federation"
-version = "0.31.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "hkask-memory",
- "hkask-storage",
- "hkask-test-harness",
- "hkask-types",
- "proptest",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
  "tracing",
 ]
 
@@ -4633,7 +4613,6 @@ dependencies = [
  "chrono",
  "hkask-capability",
  "hkask-communication",
- "hkask-federation",
  "hkask-git-cas",
  "hkask-identity",
  "hkask-inference",

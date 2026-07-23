@@ -132,7 +132,6 @@ pub enum DomainKind {
     Agent,
     Consent,
     Curator,
-    Federation,
     Inference,
     Infrastructure,
     Memory,
@@ -367,7 +366,6 @@ mod tests {
             },
             ServiceError::Domain {
                 kind: ErrorKind::BadRequest,
-                domain: DomainKind::Federation,
                 source: None,
                 message: "".into(),
             },
@@ -413,7 +411,6 @@ mod tests {
                     DomainKind::Agent
                         | DomainKind::Consent
                         | DomainKind::Curator
-                        | DomainKind::Federation
                         | DomainKind::Inference
                         | DomainKind::Infrastructure
                         | DomainKind::Memory
@@ -578,7 +575,6 @@ mod tests {
             DomainKind::Agent,
             DomainKind::Consent,
             DomainKind::Curator,
-            DomainKind::Federation,
             DomainKind::Inference,
             DomainKind::Infrastructure,
             DomainKind::Memory,

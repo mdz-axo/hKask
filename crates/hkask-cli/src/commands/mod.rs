@@ -12,7 +12,6 @@ pub mod daemon;
 pub mod deploy;
 pub mod doctor;
 pub mod export_cmd;
-pub mod federation;
 pub mod git_cmd;
 pub mod helpers;
 pub mod init;

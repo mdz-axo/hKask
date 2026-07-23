@@ -130,7 +130,6 @@ impl AgentServiceWiring {
             self.matrix_transport,
             self.foundation.seam_watcher,
             self.reg_wallet.wallet_gas_calibrator,
-            self.loops.federation_link_manager,
         );
 
         AgentService {

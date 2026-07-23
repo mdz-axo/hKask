@@ -23,8 +23,6 @@ pub(super) struct LoopWiring {
     pub a2a_runtime: Arc<hkask_pods::A2ARuntime>,
     /// CuratorContext — late-bound ManifestExecutor set after MCP pods built.
     pub curator_context: Arc<hkask_pods::CuratorContext>,
-    /// Federation link manager — set when federation is enabled.
-    pub federation_link_manager: Option<Arc<dyn FederationDispatch>>,
 }
 
 impl LoopWiring {
@@ -195,26 +193,18 @@ pub(super) async fn build_loops(
     ));
     loop_system.register_loop(storage_guard).await;
 
-    // ── Federation (opt-in via HKASK_FEDERATION_ENABLED=1) ─────────────
-    let federation_link_manager: Option<Arc<dyn FederationDispatch>> = if std::env::var(
         "HKASK_FEDERATION_ENABLED",
     )
     .as_deref()
         == Ok("1")
     {
         let local_replica = system_webid.to_string();
-        let transport: Arc<dyn hkask_types::federation::FederationTransport> =
-            Arc::new(InMemoryFederationTransport::for_replica(
-                &InMemoryFederationTransport::new_shared(),
                 local_replica.clone(),
             ));
-        let link_manager = Arc::new(FederationLinkManager::new(
             local_replica.clone(),
             Arc::clone(&transport),
             Arc::clone(&f.reg_event_sink),
         ));
-        let dispatch: Arc<dyn FederationDispatch> = link_manager.clone();
-        // Build FederationSync with SemanticIndexSyncPort
         let pool = f.db.sqlite_pool().map_err(|e| ServiceError::Domain {
             kind: ErrorKind::BadRequest,
             domain: DomainKind::Storage,
@@ -224,9 +214,7 @@ pub(super) async fn build_loops(
         let mem_driver = Arc::new(SqliteDriver::new(pool));
         let h_mem_store = HMemStore::from_driver(mem_driver);
         let semantic_index = Arc::new(std::sync::Mutex::new(SemanticIndex::new(h_mem_store)));
-        let sync_port: Arc<dyn FederationSyncPort> =
             Arc::new(SemanticIndexSyncPort::new(Arc::clone(&semantic_index)));
-        let fed_sync = Arc::new(FederationSync::new(
             local_replica.clone(),
             Arc::clone(&transport),
             sync_port,
@@ -235,19 +223,13 @@ pub(super) async fn build_loops(
         ));
         // Spawn background sync loop. The task is owned by the runtime and
         // stops when runtime shutdown aborts spawned tasks.
-        let fed_sync_clone: Arc<FederationSync> = Arc::clone(&fed_sync);
         tokio::spawn(async move { fed_sync_clone.run().await });
-        tracing::info!(target: "reg.federation.sync", replica = %local_replica, "Federation sync loop started");
         Some(dispatch)
     } else {
         None
     };
 
-    // ── Federation end ─────────────────────────────────────────────────
 
-    // Wire federation dispatcher into CuratorAgent if present.
-    if let Some(ref lm) = federation_link_manager {
-        let _ = curator_agent.with_federation(Arc::clone(lm));
     }
 
     // Snapshot + Backup loops — keep concrete GixCasAdapter for pod-directory ops
@@ -274,7 +256,6 @@ pub(super) async fn build_loops(
         semantic_storage,
         a2a_runtime,
         curator_context: curator_context_for_loops,
-        federation_link_manager,
     })
 }
 

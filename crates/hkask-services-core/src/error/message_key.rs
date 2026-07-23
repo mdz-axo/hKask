@@ -23,7 +23,6 @@ impl ServiceError {
                 DomainKind::Agent => "error.agent",
                 DomainKind::Consent => "error.consent",
                 DomainKind::Curator => "error.curator",
-                DomainKind::Federation => "error.federation",
                 DomainKind::Inference => "error.inference",
                 DomainKind::Infrastructure => "error.infra",
                 DomainKind::Memory => "error.memory",

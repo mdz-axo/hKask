@@ -26,9 +26,6 @@ use std::sync::Arc;
 
 use hkask_capability::CapabilityChecker;
 use hkask_storage::database::sqlite::SqliteDriver;
-use hkask_federation::sync::FederationLinkManager;
-use hkask_federation::sync::FederationSync;
-use hkask_federation::sync::transport::InMemoryFederationTransport;
 use hkask_memory::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_pods::CuratorContext;
 use hkask_pods::InferenceLoop;
@@ -50,7 +47,6 @@ use hkask_mcp::runtime::McpRuntime;
 use hkask_memory::{
     ConsolidationBridge, EpisodicLoop, EpisodicMemory, SemanticLoop, SemanticMemory,
 };
-use hkask_types::federation::{FederationDispatch, FederationSyncPort};
 use hkask_types::{ConsolidationOutcome, ConsolidationRequest, InferencePort, LedgerStoragePort};
 use hkask_storage::EscalationQueue;
 use hkask_storage::goals::SqliteGoalRepository;
@@ -101,7 +97,6 @@ use crate::storage;
 #[non_exhaustive]
 pub struct AgentService {
     /// Infrastructure context — inference, memory, MCP, pods,
-    /// wallet, daemon, matrix, seams, gas calibration, federation.
     infra: infra::InfraContext,
 
     /// Governance context — OCAP, consent, dispatch, A2A, escalations.
@@ -198,7 +193,6 @@ impl AgentService {
     }
 
     /// Infrastructure context — inference, memory, MCP, pods,
-    /// wallet, daemon, matrix, seams, gas calibration, federation.
     pub fn infra(&self) -> &infra::InfraContext {
         &self.infra
     }

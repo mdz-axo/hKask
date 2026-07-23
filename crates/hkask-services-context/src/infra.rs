@@ -1,5 +1,4 @@
 //! Infrastructure context — inference, memory, MCP, pods, wallet,
-//! daemon, Matrix, seam watcher, wallet gas calibrator, and federation.
 //!
 //! Extracted from `AgentService` as part of the strangler-fig decomposition.
 
@@ -8,7 +7,6 @@ use hkask_mcp::McpRuntime;
 use hkask_memory::{EpisodicStoragePort, SemanticStoragePort};
 use hkask_pods::pod::ActivePods;
 use hkask_types::InferencePort;
-use hkask_types::federation::FederationDispatch;
 use hkask_regulation::{SeamSummary, SeamWatcher, WalletGasCalibrator};
 use hkask_services_runtime::ServiceDaemonHandler;
 use hkask_services_wallet::WalletService;
@@ -16,7 +14,6 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
 /// Consolidated infrastructure context — inference, memory, MCP, pods,
-/// wallet services, daemon, Matrix, seam watcher, gas calibration, federation.
 pub struct InfraContext {
     pub inference: Option<Arc<dyn InferencePort>>,
     pub episodic: Arc<dyn EpisodicStoragePort>,
@@ -28,7 +25,6 @@ pub struct InfraContext {
     pub matrix: Option<Arc<Mutex<MatrixTransport>>>,
     pub seams: Arc<RwLock<Option<SeamWatcher>>>,
     pub wallet_gas: Option<Arc<WalletGasCalibrator>>,
-    pub federation: Option<Arc<dyn FederationDispatch>>,
 }
 
 impl InfraContext {
@@ -47,7 +43,6 @@ impl InfraContext {
         matrix: Option<Arc<Mutex<MatrixTransport>>>,
         seams: Arc<RwLock<Option<SeamWatcher>>>,
         wallet_gas: Option<Arc<WalletGasCalibrator>>,
-        federation: Option<Arc<dyn FederationDispatch>>,
     ) -> Self {
         Self {
             inference,
@@ -60,7 +55,6 @@ impl InfraContext {
             matrix,
             seams,
             wallet_gas,
-            federation,
         }
     }
 

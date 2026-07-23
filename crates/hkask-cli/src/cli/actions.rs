@@ -198,7 +198,6 @@ pub enum TokenAction {
 /// Federation lifecycle — cross-server curator sync, invite, pause, revoke.
 #[derive(Debug, Subcommand)]
 pub enum FederationAction {
-    /// Invite a remote server to join the federation
     Invite {
         /// Replica ID for the remote server (e.g., "curator.hkask.example.com")
         #[arg(long)]
@@ -216,13 +215,11 @@ pub enum FederationAction {
         #[arg(long)]
         message: Option<String>,
     },
-    /// Accept a pending federation invitation
     Accept {
         /// Replica ID of the inviter
         #[arg()]
         invitation_id: String,
     },
-    /// Reject a pending federation invitation
     Reject {
         /// Replica ID of the inviter
         #[arg()]
@@ -249,17 +246,14 @@ pub enum FederationAction {
         #[arg(long)]
         reason: String,
     },
-    /// Voluntarily leave the federation
     Leave {
         #[arg(long)]
         reason: String,
     },
-    /// Dissolve the federation (revoke all links)
     Dissolve {
         #[arg(long)]
         reason: String,
     },
-    /// Show federation link status
     Status,
 }
 

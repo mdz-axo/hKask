@@ -18,7 +18,6 @@ api = ["hkask-api", "axum"]
 hkask-types = { path = "../hkask-types" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-pods = { path = "../hkask-pods" }
-hkask-federation = { path = "../hkask-federation" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-mcp = { path = "../hkask-mcp" }
