@@ -23,6 +23,7 @@ pub mod energy_estimator; // Loop 6 — tool cost estimation trait
 
 pub(crate) mod inference_estimator;
 pub mod infra_span;
+pub mod meta_span;
 pub mod qa_span;
 pub(crate) mod regulation_policy; // Loop 6 — per-metric regulation rules
 pub mod set_point_calibrator; // Loop 6 — self-tuning regulation thresholds

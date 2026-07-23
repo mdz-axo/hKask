@@ -627,6 +627,70 @@ kask bundle off
 
 ---
 
+## Skill Routing and Discovery
+
+Two meta-skills govern how tasks find the right skills: **skill-router** matches tasks to installed skills, and **skill-discovery** acquires new skills when gaps are found. They compose in a feedback loop.
+
+### How It Works
+
+```
+task-breakdown (decompose)
+  → emits skill_match_query per slice
+    → skill-router (match)
+      → full coverage → ranked recommendations with invocation hints
+      → partial/none → uncovered_capabilities
+        → skill-discovery (detect-gap → search → evaluate → install)
+          → new skill installed → catalog grows → router has better coverage
+```
+
+### skill-router
+
+Given a task description and the installed skill catalog, skill-router scores each skill 0.0–1.0 on three dimensions:
+
+| Dimension | Weight | What it measures |
+|-----------|--------|------------------|
+| Capability overlap | 0.50 | Does the skill description cover the task core need? |
+| Lexicon alignment | 0.25 | Do task verbs/nouns overlap with the skill `lexicon_terms`? |
+| Trigger alignment | 0.25 | Does the task match the skill When-to-Use conditions? |
+
+Coverage assessment: **full** (fit >= 0.80), **partial** (0.40-0.79), **none** (< 0.40). Partial/none emits `uncovered_capabilities` as gap signals for skill-discovery.
+
+### skill-discovery
+
+Four-phase PDCA pipeline: **detect-gap** (classify gaps: coverage, feature, automation, knowledge, governance, quality) → **search** (rank catalog candidates by fit) → **evaluate** (score format/quality/safety 0-22) → **convergence-check** (is the gap resolved?).
+
+### Integration with Process Skills
+
+Process skills (metacognition, gpa-evolution, kata-improvement, sequential-inquiry) emit `skill_match_query` fields in their decomposition/experiment outputs. The orchestrator feeds these to skill-router. Process skills do not call skill-router directly — they inherit routing through task-breakdown.
+
+| Process skill | Output field | Fed to |
+|---------------|-------------|--------|
+| metacognition (decompose) | `skill_match_query` per sub-goal | skill-router |
+| metacognition (calibrate) | `skill_match_queries` for untooled obstacles | skill-router |
+| gpa-evolution (reflect) | `capability_gaps` from failure diagnosis | skill-discovery detect-gap |
+| kata-improvement (experiment) | `skill_match_query` for next experiment | skill-router |
+| sequential-inquiry (engine) | `skill_match_queries` when no delegate matches | skill-router |
+
+### Orchestrator Role
+
+The orchestrator (agent runtime) builds the `skill_catalog` array by extracting from each skill:
+- `name`, `description`, `template_type`, `lexicon_terms` — from `registry/templates/*/manifest.yaml`
+- `when_to_use` — from the "## When to Use" section of each skill SKILL.md
+
+The `when_to_use` field is prose extracted from SKILL.md, not a structured manifest field. This avoids a schema migration across 50+ manifests.
+
+### Regulation Spans
+
+| Span | When emitted |
+|------|-------------|
+| `reg.skill.routing.matched` | skill-router produces a ranked recommendation |
+| `reg.skill.routing.uncovered` | skill-router finds no matching skill (gap signal) |
+| `reg.skill.discovery.gap_detected` | skill-discovery classifies a capability gap |
+| `reg.skill.discovery.searched` | skill-discovery searches the catalog for candidates |
+| `reg.skill.discovery.evaluated` | skill-discovery scores a candidate skill |
+
+---
+
 ## Building MCP Servers
 
 hKask has 15 MCP servers (memory, condenser, research, companies, communication, curator, media, docproc, training, replica, kanban, skill, filesystem, codegraph, scenarios). Every server follows the same bootstrap pattern defined in `hkask-mcp`.
