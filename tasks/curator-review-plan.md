@@ -82,14 +82,23 @@ self-referential loop (the regulator regulating its own regulatory signals).
 - `reg.curator.consolidation` proves the canonical-namespace path works for
   curator action outputs.
 
-**Future direction (NOT implemented — user said "not there yet"):** for the
-curator to learn to manage itself, add a `reg.meta.*` namespace for
-curator-decision-quality metrics (directive acceptance rate, escalation
-backlog, consolidation lag, circuit-breaker trips) consumed by a dedicated
-meta-observer DISTINCT from `CurationLoop` (so CurationLoop never reads its own
-spans). Authority DAG gains a meta-level: Meta -> Curation -> Cybernetics ->
-domains. This pairs with the existing `metacognition` + `gpa-evolution` skills.
-Defer until the core code is stable and efficient.
+**IMPLEMENTED (this turn) — the reg.meta self-management namespace:**
+A `reg.meta.*` canonical namespace + `MetaSpan` type now lets the Curator
+observe its own decision quality and adjust itself, non-circularly:
+- `reg.meta.directive` — emitted at `issue_directive` (the single chokepoint).
+- `reg.meta.escalation` — emitted on each escalation persist outcome.
+- `reg.meta.circuit_breaker` — emitted when the template circuit breaker trips.
+- `reg.meta.self_calibration` — emitted when the Curator adjusts its own threshold.
+Non-circularity is enforced structurally: these spans are NOT in
+`ALGEDONIC_SPAN_CATEGORIES`, so `CurationLoop::sense()` (which uses
+`query_algedonic`) never reads them back. Self-quality is tracked in-process
+(`SelfQuality` counters) and fed to `MetacognitionLoop::self_calibrate()`,
+which adjusts `EscalationPolicy` thresholds (interior-mutable `Arc<RwLock>`)
+and emits `reg.meta.self_calibration`. First-cut policy: raise the
+variety-deficit threshold by 10% when escalations are being dropped (reduce
+noise); lowering deferred to avoid oscillation. Authority DAG: Meta -> Curation
+-> Cybernetics -> domains. Pairs with the `metacognition` + `gpa-evolution`
+skills for future learned self-management.
 
 ## Pre-existing issue (self-heal) — confirmed resolved
 

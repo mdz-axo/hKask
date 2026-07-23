@@ -443,9 +443,9 @@ fn run_turn_with_state(
     };
     let executor = super::deps::ReplTurnExecutor::from_state(state);
     let gas = super::deps::ReplGasGovernor::from_state(state, rt);
-    let svc_ctx = &state.service_context;
+    let _svc_ctx = &state.service_context;
     #[cfg(feature = "tui")]
-    let on_reg_update = || reg_display::update_reg_and_display(svc_ctx, rt);
+    let on_reg_update = || reg_display::update_reg_and_display(_svc_ctx, rt);
     #[cfg(not(feature = "tui"))]
     let on_reg_update = || {};
     let mut threads = super::deps::ReplThreadMemory::new(&mut state.thread_registry);
@@ -911,7 +911,8 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
 
         // Mock executor that captures TurnInput.messages on each call.
-        let captured: Arc<Mutex<Vec<Option<Vec<hkask_types::ChatMessage>>>>> = Arc::new(Mutex::new(vec![]));
+        let captured: Arc<Mutex<Vec<Option<Vec<hkask_types::ChatMessage>>>>> =
+            Arc::new(Mutex::new(vec![]));
 
         struct CapturingExecutor {
             captured: Arc<Mutex<Vec<Option<Vec<hkask_types::ChatMessage>>>>>,
@@ -919,14 +920,21 @@ mod tests {
 
         #[async_trait::async_trait]
         impl TurnExecutor for CapturingExecutor {
-            async fn execute_turn(&self, input: &TurnInput<'_>) -> Result<TurnResult, ServiceError> {
+            async fn execute_turn(
+                &self,
+                input: &TurnInput<'_>,
+            ) -> Result<TurnResult, ServiceError> {
                 self.captured.lock().unwrap().push(input.messages.clone());
                 let captured = self.captured.lock().unwrap();
                 if captured.len() == 1 {
                     // Iteration 1: return tool calls + initial messages
                     Ok(TurnResult {
                         text: "Let me search for that.".to_string(),
-                        usage: TokenUsage { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+                        usage: TokenUsage {
+                            prompt_tokens: 10,
+                            completion_tokens: 5,
+                            total_tokens: 15,
+                        },
                         structured_tool_calls: vec![hkask_types::StructuredToolCall {
                             server: "".to_string(),
                             tool: "search".to_string(),
@@ -942,7 +950,11 @@ mod tests {
                     // Iteration 2: return final response, no tool calls
                     Ok(TurnResult {
                         text: "The capital of France is Paris.".to_string(),
-                        usage: TokenUsage { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 },
+                        usage: TokenUsage {
+                            prompt_tokens: 20,
+                            completion_tokens: 10,
+                            total_tokens: 30,
+                        },
                         structured_tool_calls: vec![],
                         messages: vec![],
                     })
@@ -950,7 +962,9 @@ mod tests {
             }
         }
 
-        let ex = CapturingExecutor { captured: captured.clone() };
+        let ex = CapturingExecutor {
+            captured: captured.clone(),
+        };
         let gas = MockGas::new(100000, 100000);
         let tools = MockTools::new().returning("search", json!({"result": "Paris"}));
         let mut threads = MockThreads::new();
@@ -963,38 +977,61 @@ mod tests {
             threads: &mut threads,
             on_reg_update: &noop,
         };
-        let _ = run_turn_loop("What is the capital of France?", deps, &cfg, rt.handle(), &mut sink, None);
+        let _ = run_turn_loop(
+            "What is the capital of France?",
+            deps,
+            &cfg,
+            rt.handle(),
+            &mut sink,
+            None,
+        );
 
         // Verify: 2 calls were made
         let captured = captured.lock().unwrap();
         assert_eq!(captured.len(), 2, "should have 2 executor calls");
 
         // Iteration 1: messages should be None (first iteration, no prebuilt messages)
-        assert!(captured[0].is_none(), "iteration 1 should have no prebuilt messages");
+        assert!(
+            captured[0].is_none(),
+            "iteration 1 should have no prebuilt messages"
+        );
 
         // Iteration 2: messages should contain the growing array with correct roles
-        let iter2_messages = captured[1].as_ref().expect("iteration 2 should have prebuilt messages");
-        assert!(iter2_messages.len() >= 4, "iteration 2 should have system + user + assistant + tool_results");
+        let iter2_messages = captured[1]
+            .as_ref()
+            .expect("iteration 2 should have prebuilt messages");
+        assert!(
+            iter2_messages.len() >= 4,
+            "iteration 2 should have system + user + assistant + tool_results"
+        );
 
         // Find the assistant message — it should have role "assistant", NOT "user"
-        let has_assistant = iter2_messages.iter().any(|m| {
-            m.role == "assistant" && m.content.contains("Let me search")
-        });
-        assert!(has_assistant, "iteration 2 messages must contain the assistant response with role=assistant");
+        let has_assistant = iter2_messages
+            .iter()
+            .any(|m| m.role == "assistant" && m.content.contains("Let me search"));
+        assert!(
+            has_assistant,
+            "iteration 2 messages must contain the assistant response with role=assistant"
+        );
 
         // Verify no role inversion: the assistant response must NOT appear as role="user"
-        let no_role_inversion = !iter2_messages.iter().any(|m| {
-            m.role == "user" && m.content.contains("Let me search")
-        });
-        assert!(no_role_inversion, "assistant response must NOT be tagged as role=user (role inversion bug)");
+        let no_role_inversion = !iter2_messages
+            .iter()
+            .any(|m| m.role == "user" && m.content.contains("Let me search"));
+        assert!(
+            no_role_inversion,
+            "assistant response must NOT be tagged as role=user (role inversion bug)"
+        );
 
         // Find the tool results message — it should have role "user"
-        let has_tool_results = iter2_messages.iter().any(|m| {
-            m.role == "user" && m.content.contains("search")
-        });
-        assert!(has_tool_results, "iteration 2 messages must contain tool results with role=user");
+        let has_tool_results = iter2_messages
+            .iter()
+            .any(|m| m.role == "user" && m.content.contains("search"));
+        assert!(
+            has_tool_results,
+            "iteration 2 messages must contain tool results with role=user"
+        );
     }
-
 }
 
 #[cfg(all(test, feature = "tui"))]

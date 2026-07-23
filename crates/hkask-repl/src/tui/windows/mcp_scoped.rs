@@ -25,13 +25,13 @@ use crate::tui::window::{WindowId, WindowKind, WorkspaceAction};
 
 /// A message in the MCP window's conversation log.
 #[derive(Debug, Clone)]
-struct McpMessage {
-    sender: McpSender,
-    content: String,
+pub(crate) struct McpMessage {
+    pub(crate) sender: McpSender,
+    pub(crate) content: String,
 }
 
 #[derive(Debug, Clone, Copy)]
-enum McpSender {
+pub(crate) enum McpSender {
     User,
     Agent,
     System,
@@ -152,7 +152,7 @@ impl McpScopedState {
             }
             "open" => {
                 if let Some(kind_str) = parts.get(1) {
-                    if let Some(kind) = WindowKind::from_str(kind_str) {
+                    if let Some(kind) = WindowKind::parse_kind(kind_str) {
                         self.pending_actions.push(WorkspaceAction::OpenWindow(kind));
                         self.add_message(
                             McpSender::System,

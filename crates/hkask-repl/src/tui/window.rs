@@ -144,7 +144,7 @@ impl WindowKind {
     /// Parse a kind from a slash-command argument (case-insensitive).
     ///
     /// Accepts both the title ("Chat") and the variant name ("chat").
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_kind(s: &str) -> Option<Self> {
         let lower = s.to_lowercase();
         Self::META
             .iter()
@@ -234,16 +234,16 @@ mod tests {
 
     #[test]
     fn from_str_parses_case_insensitive() {
-        assert_eq!(WindowKind::from_str("chat"), Some(WindowKind::Chat));
-        assert_eq!(WindowKind::from_str("Kanban"), Some(WindowKind::Kanban));
+        assert_eq!(WindowKind::parse_kind("chat"), Some(WindowKind::Chat));
+        assert_eq!(WindowKind::parse_kind("Kanban"), Some(WindowKind::Kanban));
         assert_eq!(
-            WindowKind::from_str("COMPANIES"),
+            WindowKind::parse_kind("COMPANIES"),
             Some(WindowKind::Companies)
         );
         assert_eq!(
-            WindowKind::from_str("scenarios"),
+            WindowKind::parse_kind("scenarios"),
             Some(WindowKind::Scenarios)
         );
-        assert_eq!(WindowKind::from_str("nonexistent"), None);
+        assert_eq!(WindowKind::parse_kind("nonexistent"), None);
     }
 }

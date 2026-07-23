@@ -10,7 +10,7 @@ use crate::tui::windows::kanban::KanbanWindow;
 use crate::tui::windows::scenarios::ScenariosWindow;
 
 pub fn window_kind_from_title(title: &str) -> Option<WindowKind> {
-    WindowKind::from_str(title)
+    WindowKind::parse_kind(title)
 }
 
 /// All bridge dependencies for window construction.

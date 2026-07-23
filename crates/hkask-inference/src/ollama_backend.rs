@@ -151,28 +151,28 @@ impl OllamaBackend {
         model: &str,
         messages: &[ChatMessage],
         params: &LLMParameters,
-        : Option<&[ChatToolDefinition]>,
-            ) -> Result<InferenceResult, InferenceError> {
-                let effective_key = if self.api_key.is_empty() {
-                    OLLAMA_SENTINEL_KEY
-                } else {
-                    self.api_key.as_str()
-                };
-                // Sanitize tool schemas for Ollama — its Go API cannot parse
-                // boolean-valued JSON Schema fields like additionalProperties.
-                let tools_owned: Option<Vec<hkask_types::ChatToolDefinition>> =
-                    tools.map(sanitize_tools_for_ollama);
-                let tools_ref = tools_owned.as_deref();
-                openai_compatible_generate_messages(
-                    &self.client,
-                    &self.base_url,
-                    effective_key,
-                    model,
-                    messages,
-                    params,
-                    tools_ref,
-            "/v1/chat/completions",
-            "Bearer",
+        tools: Option<&[ChatToolDefinition]>,
+    ) -> Result<InferenceResult, InferenceError> {
+        let effective_key = if self.api_key.is_empty() {
+        OLLAMA_SENTINEL_KEY
+        } else {
+        self.api_key.as_str()
+        };
+        // Sanitize tool schemas for Ollama — its Go API cannot parse
+        // boolean-valued JSON Schema fields like additionalProperties.
+        let tools_owned: Option<Vec<hkask_types::ChatToolDefinition>> =
+        tools.map(sanitize_tools_for_ollama);
+        let tools_ref = tools_owned.as_deref();
+        openai_compatible_generate_messages(
+        &self.client,
+        &self.base_url,
+        effective_key,
+        model,
+        messages,
+        params,
+        tools_ref,
+        "/v1/chat/completions",
+        "Bearer",
             "OM",
         )
         .await
@@ -316,39 +316,45 @@ impl OllamaBackend {
     }
 }
 
-
 /// Remove JSON Schema fields that Ollama's Go API cannot parse.
 ///
 /// Ollama's Go structs expect tool parameter properties to be objects, not
 /// booleans. Standard JSON Schema fields like
 /// cause a 400 error. This function recursively strips those fields.
-fn sanitize_tools_for_ollama(tools: &[hkask_types::ChatToolDefinition]) -> Vec<hkask_types::ChatToolDefinition> {
-    tools.iter().map(|t| {
-        let mut function = t.function.clone();
-        function.parameters = sanitize_schema(&function.parameters);
-        hkask_types::ChatToolDefinition {
-            tool_type: t.tool_type.clone(),
-            function,
-        }
-    }).collect()
+fn sanitize_tools_for_ollama(
+    tools: &[hkask_types::ChatToolDefinition],
+) -> Vec<hkask_types::ChatToolDefinition> {
+    tools
+        .iter()
+        .map(|t| {
+            let mut function = t.function.clone();
+            function.parameters = sanitize_schema(&function.parameters);
+            hkask_types::ChatToolDefinition {
+                tool_type: t.tool_type.clone(),
+                function,
+            }
+        })
+        .collect()
 }
 
 fn sanitize_schema(value: &serde_json::Value) -> serde_json::Value {
-    match value {
-        serde_json::Value::Object(map) => {
-            let mut cleaned = serde_json::Map::new();
-            for (k, v) in map {
-                // Skip boolean-valued fields that Ollama's Go API can't parse
-                if k == "additionalProperties" || k == "" || k == "" {
-                    continue;
+        match value {
+            serde_json::Value::Object(map) => {
+                let mut cleaned = serde_json::Map::new();
+                for (k, v) in map {
+                    // Ollama's Go API expects tool parameter properties to be
+                    // objects, not booleans. Strip any boolean-valued field
+                    // (additionalProperties, readOnly, writeOnly, deprecated, etc.).
+                    if v.is_boolean() {
+                        continue;
+                    }
+                    cleaned.insert(k.clone(), sanitize_schema(v));
                 }
-                cleaned.insert(k.clone(), sanitize_schema(v));
+                serde_json::Value::Object(cleaned)
             }
-            serde_json::Value::Object(cleaned)
+            serde_json::Value::Array(arr) => {
+                serde_json::Value::Array(arr.iter().map(sanitize_schema).collect())
+            }
+            other => other.clone(),
         }
-        serde_json::Value::Array(arr) => {
-            serde_json::Value::Array(arr.iter().map(sanitize_schema).collect())
-        }
-        other => other.clone(),
     }
-}

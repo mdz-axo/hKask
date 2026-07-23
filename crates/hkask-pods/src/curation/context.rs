@@ -337,3 +337,26 @@ impl CuratorContext {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn self_quality_counters_accumulate() {
+        let sq = SelfQuality::default();
+        assert_eq!(sq.snapshot().directives_issued, 0);
+        assert_eq!(sq.snapshot().escalations_dropped, 0);
+
+        sq.record_directive();
+        sq.record_directive();
+        sq.record_escalation_dropped();
+        sq.record_circuit_breaker();
+        sq.record_escalation_dropped();
+
+        let snap = sq.snapshot();
+        assert_eq!(snap.directives_issued, 2);
+        assert_eq!(snap.escalations_dropped, 2);
+        assert_eq!(snap.circuit_breaker_trips, 1);
+    }
+}

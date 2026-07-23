@@ -152,3 +152,60 @@ impl Default for EscalationPolicy {
         Self::new(EscalationThresholds::default())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn thresholds_are_adjustable_at_runtime() {
+        let policy = EscalationPolicy::default();
+        let original = policy.thresholds();
+        assert_eq!(original.variety_deficit, DEFAULT_ESCALATION_VARIETY_DEFICIT);
+
+        // Self-calibration raises the variety-deficit threshold.
+        let mut next = original.clone();
+        next.variety_deficit = original.variety_deficit + 10;
+        policy.set_thresholds(next);
+
+        let after = policy.thresholds();
+        assert_eq!(
+            after.variety_deficit,
+            DEFAULT_ESCALATION_VARIETY_DEFICIT + 10
+        );
+        // Other thresholds preserved.
+        assert_eq!(after.critical_alerts, original.critical_alerts);
+    }
+
+    #[test]
+    fn check_conditions_uses_live_thresholds() {
+        let policy = EscalationPolicy::default();
+        // At default threshold (100), a deficit of 101 is Critical.
+        assert!(
+            policy
+                .check_conditions(101.0, 0, 0)
+                .iter()
+                .any(|a| a.trigger == EscalationTrigger::VarietyDeficit
+                    && a.severity == EscalationSeverity::Critical)
+        );
+
+        // Raise the threshold to 200 — now 101 is below Critical (200) but above
+        // Warning (100), so it produces a Warning, not Critical. This proves
+        // check_conditions reads the live (adjusted) threshold.
+        let mut next = policy.thresholds();
+        next.variety_deficit = 200;
+        policy.set_thresholds(next);
+        let alerts = policy.check_conditions(101.0, 0, 0);
+        assert!(
+            alerts
+                .iter()
+                .any(|a| a.trigger == EscalationTrigger::VarietyDeficit
+                    && a.severity == EscalationSeverity::Warning)
+        );
+        assert!(
+            !alerts
+                .iter()
+                .any(|a| a.severity == EscalationSeverity::Critical)
+        );
+    }
+}

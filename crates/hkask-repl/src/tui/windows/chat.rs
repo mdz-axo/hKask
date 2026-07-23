@@ -280,7 +280,7 @@ impl ChatWindow {
             }
             "open" => {
                 if let Some(kind_str) = parts.get(1) {
-                    if let Some(kind) = WindowKind::from_str(kind_str) {
+                    if let Some(kind) = WindowKind::parse_kind(kind_str) {
                         self.pending_actions.push(WorkspaceAction::OpenWindow(kind));
                         self.add_message(
                             MessageSender::RegAlert,
