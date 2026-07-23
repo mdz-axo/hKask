@@ -81,12 +81,11 @@ pub trait GasReservation: Send {
 
 /// Thread memory: short-term conversation stream.
 pub trait ThreadMemory: Send {
-    : Send {
-        fn is_seeded(&self) -> bool;
-        fn thread_history_messages(&self, window: usize) -> Option<Vec<hkask_types::ChatMessage>>;
-        fn append_turn(&mut self, agent: &str, input: &str, response: &str);
-        fn mark_seeded(&mut self);
-    }
+    fn is_seeded(&self) -> bool;
+    fn thread_history_messages(&self, window: usize) -> Option<Vec<hkask_types::ChatMessage>>;
+    fn append_turn(&mut self, agent: &str, input: &str, response: &str);
+    fn mark_seeded(&mut self);
+}
 
 // ── TurnDeps: bundled dependencies ───────────────────────────────────
 
@@ -266,10 +265,7 @@ impl<'a> ThreadMemory for ReplThreadMemory<'a> {
     fn is_seeded(&self) -> bool {
         self.registry.seeded
     }
-    fn thread_history_messages(
-        &self,
-        window: usize,
-    ) -> Option<Vec<hkask_types::ChatMessage>> {
+    fn thread_history_messages(&self, window: usize) -> Option<Vec<hkask_types::ChatMessage>> {
         self.registry.thread_history_messages(Some(window))
     }
     fn append_turn(&mut self, agent: &str, input: &str, response: &str) {

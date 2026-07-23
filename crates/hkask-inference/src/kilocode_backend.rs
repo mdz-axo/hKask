@@ -9,7 +9,7 @@
 //! auto-routing via `kilo-auto/*` virtual models.
 
 use crate::chat_protocol::{
-    ChatResponse, build_chat_request, build_vision_request, chat_response_to_result,
+    ChatResponse, build_chat_request_from_prompt, build_vision_request, chat_response_to_result,
     parse_sse_stream, validate_prompt,
 };
 use crate::config::InferenceConfig;
@@ -182,7 +182,7 @@ impl KiloCodeBackend {
 
         Box::pin(
             Box::pin(futures_util::stream::once(async move {
-                let request = build_chat_request(&model, &prompt, &params, Some(true), None, tools);
+                let request = build_chat_request_from_prompt(&model, &prompt, &params, Some(true), None, tools);
 
                 let response = match client
                     .post(format!("{base_url}/chat/completions"))

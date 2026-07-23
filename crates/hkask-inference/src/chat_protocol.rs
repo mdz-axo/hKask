@@ -96,17 +96,14 @@ pub struct ChatRequest {
     pub tool_choice: Option<String>,
 }
 
-/// Build an OpenAI-compatible chat completion request from hKask parameters.
-///
-/// `stream: false` is explicit in non-streaming calls to prevent chunked
-/// transfer encoding from confusing JSON parsers.
+/// Build messages from a single prompt string (used by `generate()` paths
+/// that haven't been migrated to message arrays yet — condenser, embeddings).
 ///
 /// expect: "The system constructs and validates regulated LLM requests"
-/// \[P9\] Motivating: Homeostatic Self-Regulation — constructs regulated LLM request payload
 /// pre:  model is non-empty, prompt is non-empty
-/// post: returns serde_json::Value with model, messages, and parameters
+/// post: returns ChatRequest with [system?, user] messages and parameters
 #[must_use]
-pub fn build_chat_request(
+pub fn build_chat_request_from_prompt(
     model: &str,
     prompt: &str,
     params: &LLMParameters,
@@ -116,45 +113,16 @@ pub fn build_chat_request(
 ) -> ChatRequest {
     let mut messages = Vec::with_capacity(2);
     if let Some(ref sys) = params.system_prompt {
-        messages.push(ChatMessage {
-            role: "system".to_string(),
-            content: sys.clone(),
-        });
+        messages.push(ChatMessage::system(sys));
     }
-    messages.push(ChatMessage {
-        role: "user".to_string(),
-        content: prompt.to_string(),
-    });
-
-    ChatRequest {
-        model: model.to_string(),
-        messages,
-        temperature: params.temperature,
-        top_p: params.top_p,
-        top_k: params.top_k as i32,
-        min_p: params.min_p,
-        typical_p: params.typical_p,
-        frequency_penalty: params.frequency_penalty,
-        presence_penalty: params.presence_penalty,
-        max_tokens: params.max_tokens as i32,
-        seed: params.seed,
-        n_probs,
-        stream,
-        enable_thinking: !params.disable_thinking,
-        chat_template_kwargs: if params.disable_thinking {
-            Some(serde_json::json!({"enable_thinking": false}))
-        } else {
-            None
-        },
-        tools,
-        tool_choice: None,
-    }
+    messages.push(ChatMessage::user(prompt));
+    build_chat_request_messages(model, messages, params, stream, n_probs, tools)
 }
 
 /// Build an OpenAI-compatible chat completion request from an explicit message
 /// array.
 ///
-/// Unlike [`build_chat_request`], which constructs a `[system?, user]` pair from
+/// Unlike [`build_chat_request_from_prompt`], which constructs a `[system?, user]` pair from
 /// a single prompt string, this function passes the caller-supplied messages
 /// directly to the provider. This is the correct path for multi-turn chat: each
 /// message carries its own role (`"system"`, `"user"`, `"assistant"`), so the
@@ -626,7 +594,7 @@ pub fn stream_chat_completion(
 > {
     Box::pin(
         futures_util::stream::once(async move {
-            let request = build_chat_request(&model, &prompt, &params, Some(true), None, tools);
+            let request = build_chat_request_from_prompt(&model, &prompt, &params, Some(true), None, tools);
 
             let response = match client
                 .post(format!("{}/v1/chat/completions", base_url))
@@ -762,7 +730,7 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let req = build_chat_request(
+        let req = build_chat_request_from_prompt(
             crate::model_constants::TEST_MODEL_SMALL,
             "Write a sentence.",
             &params,
@@ -804,7 +772,7 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let req = build_chat_request(
+        let req = build_chat_request_from_prompt(
             crate::model_constants::TEST_MODEL_SMALL,
             "Summarize.",
             &params,
@@ -836,7 +804,7 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let req = build_chat_request(
+        let req = build_chat_request_from_prompt(
             crate::model_constants::TEST_MODEL_SMALL,
             "Hello.",
             &params,

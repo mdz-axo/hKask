@@ -152,26 +152,12 @@ pub struct TurnRequest {
     /// Iteration counter (0 = first iteration, incremented by caller for continuations)
     pub iteration: usize,
     /// Whether to auto-condense conversation history when approaching context limits.
-    /// When true and context exceeds 87.5% of `context_window`, the oldest half
-    /// of messages are condensed via `InferencePort::generate_with_model()`.
+    /// When true and context exceeds 87.5% of `context_window`, older messages
+    /// are condensed. The threshold (0.875), saliency window (5), and pre-compress
+    /// (true) are constants — not per-request parameters.
     pub auto_condense: bool,
-    /// Model context window size in tokens, used for condensation threshold.
-    /// None disables condensation (e.g., model metadata not yet fetched).
+    /// Model context window size in tokens. None disables condensation.
     pub context_window: Option<u32>,
-    /// Model to use for condenser summarization (defaults to chat model if None).
-    pub condenser_model: Option<String>,
-    /// Context pressure threshold (0.0–1.0). When context fill exceeds this
-    /// fraction of context_window, auto-condensation triggers. Default 0.875.
-    pub condense_pressure_threshold: f32,
-    /// Number of most recent exchanges to preserve verbatim during condensation.
-    /// Older messages are summarized; these N are kept as anchors. Default 5.
-    pub condense_saliency_window: usize,
-    /// Whether to CPU-pre-compress the old half of conversation history before
-    /// LLM summarization (two-phase condensation). When true, the old half is
-    /// first compressed with CondenserEngine (Profile::Heavy), then the
-    /// compressed text is fed to the LLM summarizer. Reduces token count
-    /// and inference cost. Default: true.
-    pub pre_compress: bool,
     /// Typed message array from thread history. When present, used to build
     /// multi-turn `[system, user, assistant, ...]` message arrays for inference.
     pub thread_messages: Option<Vec<hkask_types::ChatMessage>>,

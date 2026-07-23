@@ -758,16 +758,17 @@ impl ChatService {
             req.input.clone()
         };
 
-        // 2. Auto-condense if context pressure exceeds threshold.
+        // 2. Auto-condense if context pressure exceeds threshold (87.5%).
         let history_token = req.capability_checker.grant_registry(
             DelegationAction::Read,
             req.system_webid,
             req.agent_webid,
         );
+        const CONDENSE_THRESHOLD: f64 = 0.875;
         let effective_input = if req.auto_condense
             && let Some(window) = req.context_window
         {
-            let threshold = (window as f64 * req.condense_pressure_threshold as f64) as usize;
+            let threshold = (window as f64 * CONDENSE_THRESHOLD) as usize;
             if hkask_condenser::inference::approx_token_count(&base_input) > threshold
                 && let Some(condensed) =
                     Self::condense_history(ctx, req, &history_token, &base_input).await
