@@ -686,8 +686,7 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let mut messages = Vec::with_capacity(1);
-        messages.push(ChatMessage::user("Write a sentence."));
+        let messages = vec![ChatMessage::user("Write a sentence.")];
         let req = build_chat_request_messages(
             crate::model_constants::TEST_MODEL_SMALL,
             messages,
@@ -730,8 +729,7 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let mut messages = Vec::with_capacity(1);
-        messages.push(ChatMessage::user("Summarize."));
+        let messages = vec![ChatMessage::user("Summarize.")];
         let req = build_chat_request_messages(
             crate::model_constants::TEST_MODEL_SMALL,
             messages,
@@ -764,8 +762,7 @@ mod tests {
             fusion_config: None,
             system_prompt: None,
         };
-        let mut messages = Vec::with_capacity(1);
-        messages.push(ChatMessage::user("Hello."));
+        let messages = vec![ChatMessage::user("Hello.")];
         let req = build_chat_request_messages(
             crate::model_constants::TEST_MODEL_SMALL,
             messages,

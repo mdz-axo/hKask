@@ -5,8 +5,8 @@
 # and detection.kind: grep is checked against the codebase. If the bug pattern
 # re-appears, the gate fails.
 #
-# detection.kind: cns-span regressions (surface: runtime) are acknowledged but
-# not mechanically enforced — they require runtime CNS span history infrastructure
+# detection.kind: reg-span regressions (surface: runtime) are acknowledged but
+# not mechanically enforced — they require runtime REG span history infrastructure
 # that is not yet implemented.
 #
 # RATCHETED: regressions with status: pending are warnings only. Once the fix
@@ -25,5 +25,5 @@ cd "$(dirname "$0")/.."
 source "$(dirname "$0")/lib-regressions.sh"
 
 # No surface filter (all surfaces), no include patterns (use per-regression include field),
-# deferred kind is "cns-span".
-check_regressions "" "" "cns-span"
+# deferred kind is "reg-span".
+check_regressions "" "" "reg-span"

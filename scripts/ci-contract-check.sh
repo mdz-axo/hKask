@@ -2,16 +2,16 @@
 # Contract Violation Detector — CI pre-commit / pre-push check
 #
 # Detects trait ↔ implementation contract drift at build time by parsing
-# compiler errors and mapping them to CNS `ContractViolated` context.
+# compiler errors and mapping them to REG `ContractViolated` context.
 #
 # Errors detected:
 #   E0053 — method signature incompatible with trait (contract drift)
 #   E0277 — trait bound not satisfied (missing From impl, port boundary violation)
 #   E0308 — mismatched types across port boundaries
 #
-# Maps to CNS spans:
-#   cns.contract.violated  — contract drift detected
-#   cns.contract.coverage  — which crate boundaries are monitored
+# Maps to REG spans:
+#   reg.contract.violated  — contract drift detected
+#   reg.contract.coverage  — which crate boundaries are monitored
 #
 # Usage:
 #   ./scripts/ci-contract-check.sh          # check entire workspace
@@ -62,7 +62,7 @@ if [ "$TOTAL" -eq 0 ]; then
     echo -e "${GREEN}✓ No contract violations detected${NC}"
     echo ""
     echo "Contract coverage: full workspace (all port trait boundaries monitored)"
-    echo "CNS span: cns.contract.coverage = 1.0"
+    echo "REG span: reg.contract.coverage = 1.0"
     exit 0
 fi
 
@@ -83,9 +83,9 @@ fi
     echo "$CHECK_OUTPUT" | grep -A 2 -E "E0053|E0277|E0308" | grep -v "^--$"
     echo '```'
     echo ""
-    echo "## CNS Context"
-    echo "- cns.contract.violated: $TOTAL instance(s)"
-    echo "- cns.contract.coverage: degraded (violations detected)"
+    echo "## REG Context"
+    echo "- reg.contract.violated: $TOTAL instance(s)"
+    echo "- reg.contract.coverage: degraded (violations detected)"
     echo ""
     echo "## Resolution"
     echo "1. Identify which port trait changed (check recent commits to hkask-memory/ports.rs, hkask-ports/src/*.rs)"
@@ -100,8 +100,8 @@ echo "  E0308 (mismatched types):     $E0308_COUNT"
 echo ""
 echo "Full report: $REPORT_FILE"
 echo ""
-echo "CNS span: cns.contract.violated (count=$TOTAL)"
-echo "CNS span: cns.contract.coverage (degraded)"
+echo "REG span: reg.contract.violated (count=$TOTAL)"
+echo "REG span: reg.contract.coverage (degraded)"
 echo ""
 echo "Affected crates:"
 echo "$CHECK_OUTPUT" | grep "error\[" | grep -oP "--> crates/\K[^:]+" | sort -u | sed 's/^/  - /'

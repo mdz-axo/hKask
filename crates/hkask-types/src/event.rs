@@ -216,6 +216,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.keystore",
     // ── MCP ──
     "reg.mcp",
+    "reg.mcp.health",
     // ── MCP Media ──
     "reg.mcp.media.face",
     // ── Media / Memory ──
@@ -360,6 +361,7 @@ const CANONICAL_NAMESPACES: &[&str] = &[
     "reg.pipeline",
     "reg.pipeline.calibration",
     "reg.pipeline.decimation",
+    "reg.pipeline.triage",
     "reg.pipeline.decimation.binarize",
     "reg.pipeline.ocr",
     "reg.pipeline.ocr.circuit_breaker",

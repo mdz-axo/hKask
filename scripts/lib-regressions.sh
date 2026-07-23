@@ -18,7 +18,7 @@
 #
 # - surface: "" (all) or "training" / "supply-chain" / "runtime" / etc.
 # - include_patterns: grep --include flags as a single string
-# - deferred_kind_name: name for deferred regressions (e.g., "runtime-assert" / "cns-span")
+# - deferred_kind_name: name for deferred regressions (e.g., "runtime-assert" / "reg-span")
 check_regressions() {
   local surface="$1"
   local include_patterns="$2"

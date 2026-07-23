@@ -72,23 +72,23 @@ impl ChatService {
             let mut engine = hkask_condenser::engine::CondenserEngine::new();
             engine.set_profile(hkask_condenser::types::Profile::Heavy);
             let compressed = engine.compress(
-        "condense_history",
-        &old_text,
-        Some(hkask_condenser::types::ContextCategory::ConversationHistory),
+                "condense_history",
+                &old_text,
+                Some(hkask_condenser::types::ContextCategory::ConversationHistory),
             );
             if compressed.content.is_empty() {
-        old_text
+                old_text
             } else {
-        tracing::debug!(
-            target: "reg.chat.condense",
-            agent = %req.userpod_name,
-            phase = "cpu_pre_compress",
-            original_bytes = compressed.original_bytes,
-            compressed_bytes = compressed.compressed_bytes,
-            algorithm = %compressed.algorithm,
-            "CPU pre-compression applied"
-        );
-        compressed.content
+                tracing::debug!(
+                    target: "reg.chat.condense",
+                    agent = %req.userpod_name,
+                    phase = "cpu_pre_compress",
+                    original_bytes = compressed.original_bytes,
+                    compressed_bytes = compressed.compressed_bytes,
+                    algorithm = %compressed.algorithm,
+                    "CPU pre-compression applied"
+                );
+                compressed.content
             }
         } else {
             old_text

@@ -104,7 +104,7 @@ pub struct ChatTurnRequest {
     pub improv_mode: Option<super::improv::ImprovMode>,
 }
 
-    /// Prepared chat context
+/// Prepared chat context
 /// Prepared chat context — the result of prompt composition before inference.
 ///
 /// Returned by `ChatService::prepare_chat()` so that CLI/API surfaces can

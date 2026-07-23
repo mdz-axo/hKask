@@ -9,8 +9,8 @@
 //! auto-routing via `kilo-auto/*` virtual models.
 
 use crate::chat_protocol::{
-    ChatResponse, build_chat_request_messages,
-    build_vision_request, chat_response_to_result, parse_sse_stream, validate_prompt,
+    ChatResponse, build_chat_request_messages, build_vision_request, chat_response_to_result,
+    parse_sse_stream, validate_prompt,
 };
 use crate::config::InferenceConfig;
 use crate::openai_compat::{openai_compatible_generate, openai_compatible_generate_messages};

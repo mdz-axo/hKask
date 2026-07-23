@@ -472,11 +472,12 @@ fn run_turn_with_state(
         state.manifest_state.as_ref().map(|c| &c.executor),
         state.manifest_state.as_ref().map(|c| &c.manifest),
     ) {
-        let ctx = rt.block_on(
-            hkask_services_chat::ChatService::execute_manifest_cascade(
-                exec, manif, input, &state.current_agent,
-            ),
-        );
+        let ctx = rt.block_on(hkask_services_chat::ChatService::execute_manifest_cascade(
+            exec,
+            manif,
+            input,
+            &state.current_agent,
+        ));
         match ctx {
             Some(c) => hkask_services_chat::ChatService::wrap_manifest_input(input, &c),
             None => input.to_string(),
@@ -500,7 +501,14 @@ fn run_turn_with_state(
         threads: &mut threads,
         on_reg_update: &on_reg_update,
     };
-    run_turn_loop(effective_input.as_str(), deps, &config, rt, sink, agent_override)
+    run_turn_loop(
+        effective_input.as_str(),
+        deps,
+        &config,
+        rt,
+        sink,
+        agent_override,
+    )
 }
 
 // ── Tests ────────────────────────────────────────────────────────────

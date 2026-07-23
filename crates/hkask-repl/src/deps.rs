@@ -74,7 +74,8 @@ pub trait TurnExecutor: Send + Sync {
     fn execute_turn_streaming<'a>(
         &'a self,
         input: &TurnInput<'a>,
-    ) -> Pin<Box<dyn futures_util::Stream<Item = Result<TurnStreamChunk, ServiceError>> + Send + 'a>> {
+    ) -> Pin<Box<dyn futures_util::Stream<Item = Result<TurnStreamChunk, ServiceError>> + Send + 'a>>
+    {
         Box::pin(futures_util::stream::once(async move {
             let result = self.execute_turn(input).await?;
             Ok(TurnStreamChunk::Done(result))

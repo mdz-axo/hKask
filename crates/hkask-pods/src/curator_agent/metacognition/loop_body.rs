@@ -489,22 +489,6 @@ impl MetacognitionLoop {
             .take();
         let last_calibration = prev_pending.map(|p| {
             let drop_delta = sq.escalations_dropped.saturating_sub(p.dropped_before);
-            if let Some(sink) = self.context.regulation_sink() {
-                emit_meta_self_calibration(
-                    sink.as_ref(),
-                    self.context.handle().curator_id(),
-                    &hkask_regulation::meta_span::CalibrationSpan {
-                        metric: "variety_deficit",
-                        old: old,
-                        new: adj.new_variety_deficit,
-                        signal_before: None,
-                        signal_after: None,
-                        eff_before: Some(effectiveness),
-                        eff_after: None,
-                        source: "metacognition_loop",
-                    },
-                );
-            }
             info!(
                 target: MC_TARGET,
                 source = p.source,
@@ -570,17 +554,18 @@ impl MetacognitionLoop {
             emit_meta_self_calibration(
                 sink.as_ref(),
                 self.context.handle().curator_id(),
-                &hkask_regulation::meta_span::CalibrationSpan {
+                &CalibrationSpan {
                     metric: "variety_deficit",
-                    old: old,
-                    new: adj.new_variety_deficit,
-                    signal_before: None,
+                    old,
+                    new,
+                    signal_before: Some(sq.escalations_dropped as f64),
                     signal_after: None,
                     eff_before: Some(effectiveness),
                     eff_after: None,
-                    source: "metacognition_loop",
+                    source,
                 },
             );
+        }
         tracing::info!(
             target: MC_TARGET,
             old,
