@@ -123,7 +123,7 @@ async fn smoke_test_training_completion() {
     }))
     .expect("deserialize TrainSubmitRequest");
 
-    eprintln!("Submitting training job (Qwen2.5-0.5B, 10 samples, 1 epoch)...");
+    eprintln!("Submitting training job (Qwen2.5-0.5B, 10 samples, 1 epoch, pre-built template)...");
     let submit_result = server.training_submit(Parameters(req)).await;
     let submit_content = parse_content(&submit_result);
 
