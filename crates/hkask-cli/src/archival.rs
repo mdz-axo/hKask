@@ -3,7 +3,7 @@
 //! # expect: "Service boundaries enforce OCAP membranes"
 
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64_STANDARD};
-use hkask_mcp::server::{api_get, api_put, resolve_credential};
+use hkask_mcp_server::server::{api_get, api_put, resolve_credential};
 use serde_json::json;
 
 use hkask_services_core::{DomainKind, ErrorKind, ServiceError};

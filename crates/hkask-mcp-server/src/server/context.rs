@@ -108,6 +108,7 @@ impl CapabilityTier {
         }
     }
 
+
     /// Regulation spans are meaningful only in embedded mode (consumed by hKask Regulation).
     /// In standalone mode, spans go to stderr via the tracing subscriber.
     /// Check if Regulation is available (all required credentials present).

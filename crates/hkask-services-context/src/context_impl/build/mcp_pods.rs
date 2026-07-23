@@ -147,7 +147,7 @@ pub(super) async fn build_mcp_and_pods(
         l.inference_port.clone(),
     ));
     if !config.in_memory {
-        let mut daemon_listener = hkask_mcp::daemon::DaemonListener::new();
+        let mut daemon_listener = hkask_mcp_server::daemon::DaemonListener::new();
         daemon_listener.bind().await.map_err(|e| {
             ServiceError::Infra(hkask_types::InfrastructureError::Io(format!(
                 "Failed to bind daemon socket: {}",

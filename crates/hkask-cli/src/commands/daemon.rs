@@ -10,7 +10,7 @@
 
 use crate::cli::DaemonAction;
 use crate::error::CliError;
-use hkask_mcp::daemon::{DaemonHandler, DaemonListener, daemon_socket_path, ping_daemon};
+use hkask_mcp_server::daemon::{DaemonHandler, DaemonListener, daemon_socket_path, ping_daemon};
 use std::sync::Arc;
 
 /// pre:  rt is a valid tokio Runtime; action is a valid DaemonAction variant

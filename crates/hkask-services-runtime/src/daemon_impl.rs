@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use hkask_mcp::daemon::DaemonHandler;
+use hkask_mcp_server::daemon::DaemonHandler;
 use hkask_pods::pod::ActivePods;
 use hkask_types::InferencePort;
 use hkask_regulation::RegulationLedger;

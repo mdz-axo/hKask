@@ -22,6 +22,7 @@ hkask-federation = { path = "../hkask-federation" }
 hkask-templates = { path = "../hkask-templates" }
 hkask-storage = { path = "../hkask-storage" }
 hkask-mcp = { path = "../hkask-mcp" }
+hkask-mcp-server = { path = "../hkask-mcp-server" }
 hkask-git-cas = { path = "../hkask-git-cas" }
 hkask-regulation = { path = "../hkask-regulation" }
 hkask-api = { path = "../hkask-api", optional = true }

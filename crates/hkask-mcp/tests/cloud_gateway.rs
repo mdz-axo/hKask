@@ -5,7 +5,7 @@
 
 use hkask_capability::auth::derive_signing_key;
 use hkask_capability::{DelegationAction, DelegationResource, DelegationToken};
-use hkask_mcp::daemon::{DaemonClient, DaemonHandler, DaemonListener};
+use hkask_mcp_server::daemon::{DaemonClient, DaemonHandler, DaemonListener};
 use hkask_mcp_cloud_gateway::server::{GatewayConfig, build_tls_config};
 use hkask_types::WebID;
 use rustls::ClientConfig;
@@ -168,7 +168,7 @@ async fn cloud_gateway_round_trip() {
                 let tool = req["tool"].as_str().unwrap_or("");
                 let params = &req["params"];
                 let (ok, out, err) = match d.tool_dispatch("gateway", tool, params).await {
-                    Ok(hkask_mcp::daemon::DaemonResponse::ToolDispatchResponse {
+                    Ok(hkask_mcp_server::daemon::DaemonResponse::ToolDispatchResponse {
                         ok,
                         output,
                         error,

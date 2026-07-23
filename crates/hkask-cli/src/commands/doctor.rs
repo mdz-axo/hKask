@@ -32,8 +32,8 @@ pub fn run_bootstrap_check(rt: &tokio::runtime::Runtime) {
     println!("1. Daemon Socket");
     println!("   ─────────────");
     checks_total += 1;
-    let socket_path = hkask_mcp::daemon::daemon_socket_path();
-    match rt.block_on(hkask_mcp::daemon::ping_daemon(&socket_path)) {
+    let socket_path = hkask_mcp_server::daemon::daemon_socket_path();
+    match rt.block_on(hkask_mcp_server::daemon::ping_daemon(&socket_path)) {
         Ok(()) => {
             println!("   ✅ Daemon is live (socket: {})", socket_path.display());
             checks_passed += 1;

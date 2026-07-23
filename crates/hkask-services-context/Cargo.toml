@@ -15,6 +15,7 @@ hkask-services-wallet = { path = "../hkask-services-wallet" }
 hkask-pods = { path = "../hkask-pods" }
 hkask-regulation = { path = "../hkask-regulation" }
 hkask-mcp = { path = "../hkask-mcp" }
+hkask-mcp-server = { path = "../hkask-mcp-server" }
 hkask-git-cas = { path = "../hkask-git-cas" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-storage = { path = "../hkask-storage" }

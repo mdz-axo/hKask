@@ -9,7 +9,7 @@
 //! silently skipped with a warning log. CLI commands never fail because of
 //! memory unavailability.
 
-use hkask_mcp::DaemonClient;
+use hkask_mcp_server::DaemonClient;
 use hkask_types::time::now_rfc3339;
 use serde_json::json;
 
@@ -41,7 +41,7 @@ impl CliExperienceRecorder {
     pub fn new() -> Self {
         let daemon = DaemonClient::new();
         // Test connectivity — if the socket doesn't exist, mark daemon as None
-        let socket_path = hkask_mcp::daemon::daemon_socket_path();
+        let socket_path = hkask_mcp_server::daemon::daemon_socket_path();
         if socket_path.exists() {
             Self {
                 daemon: Some(daemon),
@@ -98,7 +98,7 @@ impl CliExperienceRecorder {
             .store_experience(userpod, &entity, "executed", &value, Some(0.9))
             .await
         {
-            Ok(hkask_mcp::DaemonResponse::StoreResponse { stored: true, .. }) => {
+            Ok(hkask_mcp_server::DaemonResponse::StoreResponse { stored: true, .. }) => {
                 tracing::info!(tool, userpod, "CLI experience recorded via daemon");
             }
             Ok(other) => {

@@ -10,6 +10,7 @@ hkask-pods = { path = "../hkask-pods" }
 hkask-capability = { path = "../hkask-capability" }
 hkask-regulation = { path = "../hkask-regulation" }
 hkask-mcp = { path = "../hkask-mcp" }
+hkask-mcp-server = { path = "../hkask-mcp-server" }
 hkask-memory = { path = "../hkask-memory" }
 hkask-services-chat = { path = "../hkask-services-chat" }
 hkask-services-context = { path = "../hkask-services-context" }

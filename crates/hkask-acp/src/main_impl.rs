@@ -23,8 +23,8 @@
 pub mod protocol;
 
 use hkask_inference::{InferenceConfig, InferenceRouter, model_constants};
-use hkask_mcp::daemon::DaemonClient;
-use hkask_mcp::startup::verify_startup_gates;
+use hkask_mcp_server::daemon::DaemonClient;
+use hkask_mcp_server::startup::verify_startup_gates;
 use hkask_types::{InferencePort, InferenceStreamChunk};
 use hkask_types::template::LLMParameters;
 use protocol::*;
@@ -275,12 +275,12 @@ impl HkaskAcpAgent {
                         .tool_dispatch(&self.userpod, &tool_name, &tc.args)
                         .await
                     {
-                        Ok(hkask_mcp::daemon::DaemonResponse::ToolDispatchResponse {
+                        Ok(hkask_mcp_server::daemon::DaemonResponse::ToolDispatchResponse {
                             ok: true,
                             output: Some(ref out),
                             ..
                         }) => format!("{}", out),
-                        Ok(hkask_mcp::daemon::DaemonResponse::ToolDispatchResponse {
+                        Ok(hkask_mcp_server::daemon::DaemonResponse::ToolDispatchResponse {
                             ok: false,
                             error: Some(ref err),
                             ..

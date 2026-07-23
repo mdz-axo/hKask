@@ -20,31 +20,13 @@ pub mod startup; // P4 Gate 1/2/3 startup verification for MCP server binaries
 // Subsets are permitted only for intentionally-sandboxed environments
 // (e.g., API server may exclude filesystem for security), but must
 // reference this constant as the upper bound.
-pub const BUILTIN_SERVERS: &[(&str, &str)] = &[
-    ("memory", "hkask-mcp-memory"),
-    ("condenser", "hkask-mcp-condenser"),
-    ("research", "hkask-mcp-research"),
-    ("companies", "hkask-mcp-companies"),
-    ("communication", "hkask-mcp-communication"),
-    ("curator", "hkask-mcp-curator"),
-    ("media", "hkask-mcp-media"),
-    ("docproc", "hkask-mcp-docproc"),
-    ("training", "hkask-mcp-training"),
-    ("replica", "hkask-mcp-replica"),
-    ("kanban", "hkask-mcp-kata-kanban"),
-    ("skill", "hkask-mcp-skill"),
-    ("filesystem", "hkask-mcp-filesystem"),
-    ("codegraph", "hkask-mcp-codegraph"),
-    ("scenarios", "hkask-mcp-scenarios"),
-    ("regulation", "hkask-mcp-regulation"),
-];
 
 pub use daemon::{DaemonClient, DaemonHandler, DaemonListener, DaemonRequest, DaemonResponse};
 
 pub use server::{
     CapabilityTier, CredentialRequirement, ExperienceCallback, McpError, ServerContext,
     ToolContext, api_get, api_put, execute_tool, load_dotenv, record_via_daemon,
-    resolve_credential, run_stdio_server, run_stdio_server_with_preloaded, tool_internal_error,
+    run_stdio_server, run_stdio_server_with_preloaded, resolve_credential, tool_internal_error,
     validate_identifier, validate_path, validate_tool_url, validate_tool_url_permissive,
 };
 pub use startup::{StartupGateResult, verify_startup_gates};

@@ -8,7 +8,7 @@ description = "mTLS + DelegationToken transport adapter for remote MCP access to
 [dependencies]
 hkask-types = { path = "../hkask-types" }
 hkask-capability = { path = "../hkask-capability" }
-hkask-mcp = { path = "../hkask-mcp" }
+hkask-mcp-server = { path = "../hkask-mcp-server" }
 tokio.workspace = true
 tokio-rustls = "0.26"
 rustls = { version = "0.23", default-features = false, features = ["ring"] }

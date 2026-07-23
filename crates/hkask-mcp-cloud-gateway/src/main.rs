@@ -37,7 +37,7 @@ async fn main() {
         ),
     };
 
-    let daemon = hkask_mcp::DaemonClient::new();
+    let daemon = hkask_mcp_server::DaemonClient::new();
 
     tracing::info!(
         target: "hkask.gateway",

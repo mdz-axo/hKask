@@ -101,11 +101,11 @@ fn propagate_userpod_env(agent_name: &str) {
 fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
     use std::time::{Duration, Instant};
 
-    let socket_path = hkask_mcp::daemon::daemon_socket_path();
+    let socket_path = hkask_mcp_server::daemon::daemon_socket_path();
 
     // Fast path: probe the socket. If it responds, the daemon is live.
     if rt
-        .block_on(hkask_mcp::daemon::ping_daemon(&socket_path))
+        .block_on(hkask_mcp_server::daemon::ping_daemon(&socket_path))
         .is_ok()
     {
         tracing::debug!(
@@ -176,7 +176,7 @@ fn ensure_daemon_running(rt: &tokio::runtime::Handle) -> bool {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         if rt
-            .block_on(hkask_mcp::daemon::ping_daemon(&socket_path))
+            .block_on(hkask_mcp_server::daemon::ping_daemon(&socket_path))
             .is_ok()
         {
             tracing::info!(

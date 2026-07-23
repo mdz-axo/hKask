@@ -6,7 +6,7 @@
 
 use crate::auth::{self, AuthError};
 use hkask_capability::DelegationToken;
-use hkask_mcp::daemon::DaemonResponse;
+use hkask_mcp_server::daemon::DaemonResponse;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{RootCertStore, ServerConfig};
@@ -98,7 +98,7 @@ pub fn build_tls_config(config: &GatewayConfig) -> Result<ServerConfig, GatewayE
 
 pub async fn run(
     config: GatewayConfig,
-    daemon: hkask_mcp::DaemonClient,
+    daemon: hkask_mcp_server::DaemonClient,
 ) -> Result<(), GatewayError> {
     let tls_config = build_tls_config(&config)?;
     let acceptor = TlsAcceptor::from(Arc::new(tls_config));
@@ -133,7 +133,7 @@ async fn handle_connection(
     acceptor: TlsAcceptor,
     stream: tokio::net::TcpStream,
     peer_addr: std::net::SocketAddr,
-    daemon: Arc<hkask_mcp::DaemonClient>,
+    daemon: Arc<hkask_mcp_server::DaemonClient>,
 ) -> Result<(), GatewayError> {
     let tls_stream = acceptor.accept(stream).await?;
     let (_tcp, server_conn) = tls_stream.get_ref();
@@ -227,7 +227,7 @@ async fn write_response(
 // ── Daemon forwarding ────────────────────────────────────────────────────
 
 async fn dispatch_to_daemon(
-    daemon: &hkask_mcp::DaemonClient,
+    daemon: &hkask_mcp_server::DaemonClient,
     tool: &str,
     params: &Value,
 ) -> (bool, Option<Value>, Option<String>) {

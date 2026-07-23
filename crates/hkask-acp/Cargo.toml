@@ -6,7 +6,7 @@ license.workspace = true
 description = "ACP (Agent Client Protocol) userpod — presents hKask coding agents in IDEs via the Agent Client Protocol"
 
 [dependencies]
-hkask-mcp = { path = "../hkask-mcp" }
+hkask-mcp-server = { path = "../hkask-mcp-server" }
 hkask-types = { path = "../hkask-types" }
 hkask-inference = { path = "../hkask-inference" }
 hkask-capability = { path = "../hkask-capability" }
