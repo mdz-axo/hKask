@@ -195,10 +195,6 @@ pub enum TokenAction {
     },
 }
 
-        reason: String,
-    },
-    Status,
-}
 
 /// UserPod identity actions
 #[derive(Debug, Subcommand)]
